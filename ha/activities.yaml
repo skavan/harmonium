@@ -1,0 +1,194 @@
+# ================================================================
+# Harmonium — HA-side activity objects (reference export, v0.12.3)
+# These live in HA's UI script/automation stores; this file is the
+# versioned source-of-truth copy. Re-apply via the HA UI or MCP
+# config tools if HA is rebuilt.
+#
+# Doctrine:
+# · Start scripts are WARM-START SAFE: wake sequence only when the
+#   Samsung is off; input switch only when not already on target;
+#   the shared Fire TV is NEVER sent Home (it feeds a second TV).
+# · SmartThings turn_on cannot wake a standby Samsung — the wired
+#   WOL button is the reliable path (field-verified ~1.5s).
+# · All Off never touches the Fire TV or the ARC soundbar.
+# · The sync automation mirrors the harmonia dashboard state evals,
+#   both directions.
+# ================================================================
+
+script:
+  activity_watch_firetv:
+    alias: "Activity: Watch Fire TV"
+    icon: mdi:fire
+    mode: restart
+    sequence:
+      - action: input_select.select_option
+        target: {entity_id: input_select.porch_activity}
+        data: {option: watch_firetv}
+      - action: media_player.turn_on          # non-disruptive wake
+        continue_on_error: true
+        target: {entity_id: media_player.fire_tv_family_192_168_1_65}
+      - if:
+          - condition: state
+            entity_id: media_player.sts_samsung_q90_porch
+            state: "off"
+        then:
+          - action: button.press              # wired WOL — the reliable wake
+            continue_on_error: true
+            target: {entity_id: button.samsung_wired_wol_d4_9d_c0_2c_e5_bf}
+          - action: remote.turn_on
+            continue_on_error: true
+            target: {entity_id: remote.sts_samsung_q90_porch}
+          - wait_for_trigger:
+              - trigger: state
+                entity_id: media_player.sts_samsung_q90_porch
+                to: "on"
+            timeout: {seconds: 6}
+            continue_on_timeout: true
+          - delay: {seconds: 1}
+      - if:
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: media_player.sts_samsung_q90_porch
+                attribute: source
+                state: ["Fire TV", "TV/HDMI"]
+        then:
+          - action: media_player.select_source
+            continue_on_error: true
+            target: {entity_id: media_player.sts_samsung_q90_porch}
+            data: {source: "Fire TV"}
+
+  activity_watch_smart:
+    alias: "Activity: Watch Smart TV"
+    icon: mdi:television-guide
+    mode: restart
+    sequence:
+      - action: input_select.select_option
+        target: {entity_id: input_select.porch_activity}
+        data: {option: watch_smart}
+      - if:
+          - condition: state
+            entity_id: media_player.sts_samsung_q90_porch
+            state: "off"
+        then:
+          - action: button.press
+            continue_on_error: true
+            target: {entity_id: button.samsung_wired_wol_d4_9d_c0_2c_e5_bf}
+          - action: remote.turn_on
+            continue_on_error: true
+            target: {entity_id: remote.sts_samsung_q90_porch}
+          - wait_for_trigger:
+              - trigger: state
+                entity_id: media_player.sts_samsung_q90_porch
+                to: "on"
+            timeout: {seconds: 6}
+            continue_on_timeout: true
+          - delay: {seconds: 1}
+      - action: media_player.select_source    # warm start: switching IS the point
+        continue_on_error: true
+        target: {entity_id: media_player.sts_samsung_q90_porch}
+        data: {source: "Prime Video"}
+
+  activity_music:
+    alias: "Activity: Listen to Music"
+    icon: mdi:music
+    mode: restart
+    sequence:
+      - action: input_select.select_option
+        target: {entity_id: input_select.porch_activity}
+        data: {option: music}
+    # content starts when a favorite is picked (drawer) — no device steps
+
+  activity_music_stop:
+    alias: "Activity: Music Stop"          # activities.music.stop in config.json
+    icon: mdi:music-off
+    mode: restart
+    sequence:
+      - action: input_select.select_option
+        target: {entity_id: input_select.porch_activity}
+        data: {option: "off"}
+      - action: media_player.media_stop
+        continue_on_error: true
+        target: {entity_id: media_player.ma_sonos_basement}
+
+  activity_off:
+    alias: "Activity: All Off"
+    icon: mdi:power
+    mode: restart
+    sequence:
+      - action: input_select.select_option
+        target: {entity_id: input_select.porch_activity}
+        data: {option: "off"}
+      - action: media_player.turn_off
+        continue_on_error: true
+        target: {entity_id: media_player.sts_samsung_q90_porch}
+      - action: media_player.media_stop
+        continue_on_error: true
+        target: {entity_id: media_player.ma_sonos_basement}
+    # NEVER: Fire TV (second TV), soundbar (ARC — the TV owns it)
+
+automation:
+  - id: "1784413236949"
+    alias: "Porch: sync activity state from devices"
+    mode: queued
+    triggers:
+      - {trigger: state, id: firetv, entity_id: media_player.fire_tv_family_192_168_1_65, to: playing}
+      - {trigger: state, id: tv_on, entity_id: media_player.sts_samsung_q90_porch, to: "on"}
+      - {trigger: state, id: tv_off, entity_id: media_player.sts_samsung_q90_porch, to: "off"}
+      - {trigger: state, id: music, entity_id: media_player.ma_sonos_basement, to: playing}
+      - {trigger: state, id: music_off, entity_id: media_player.ma_sonos_basement, to: idle, for: {seconds: 15}}
+    actions:
+      - choose:
+          # Fire TV playing counts ONLY with Samsung evidence
+          - conditions:
+              - {condition: trigger, id: firetv}
+              - {condition: state, entity_id: media_player.sts_samsung_q90_porch, state: "on"}
+              - {condition: state, entity_id: media_player.sts_samsung_q90_porch, attribute: source, state: ["Fire TV", "TV/HDMI"]}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: watch_firetv}
+          # TV turns on showing a Fire TV source (only from off)
+          - conditions:
+              - {condition: trigger, id: tv_on}
+              - {condition: state, entity_id: input_select.porch_activity, state: "off"}
+              - {condition: state, entity_id: media_player.sts_samsung_q90_porch, attribute: source, state: ["Fire TV", "TV/HDMI"]}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: watch_firetv}
+          # TV turns on showing anything else (only from off)
+          - conditions:
+              - {condition: trigger, id: tv_on}
+              - {condition: state, entity_id: input_select.porch_activity, state: "off"}
+              - condition: not
+                conditions:
+                  - {condition: state, entity_id: media_player.sts_samsung_q90_porch, attribute: source, state: ["Fire TV", "Unknown (HDMI 1)", "TV/HDMI"]}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: watch_smart}
+          # TV off ends either TV activity
+          - conditions:
+              - {condition: trigger, id: tv_off}
+              - {condition: state, entity_id: input_select.porch_activity, state: ["watch_firetv", "watch_smart"]}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: "off"}
+          # Sonos idle 15s ends music
+          - conditions:
+              - {condition: trigger, id: music_off}
+              - {condition: state, entity_id: input_select.porch_activity, state: music}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: "off"}
+          # Sonos playing starts music (only from idle)
+          - conditions:
+              - {condition: trigger, id: music}
+              - {condition: state, entity_id: input_select.porch_activity, state: "off"}
+            sequence:
+              - action: input_select.select_option
+                target: {entity_id: input_select.porch_activity}
+                data: {option: music}

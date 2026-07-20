@@ -1,0 +1,16 @@
+id: comfort
+name: Comfort
+kind: group
+parent: porch
+
+context:
+  volume: media_player.ma_soundbar_porch
+
+# Device definitions are intentionally local. Reading this file tells you
+# exactly which entities this group manages without opening a catalog.
+layout:
+  tiles:
+    - { id: c_ac, type: climate, entity: climate.room_air_conditioner, icon: material:ac_unit, label: AirCon, span: 2 }
+    - { id: c_lights, type: light, entity: light.porch_lights, icon: material:lightbulb, label: Porch Lights, span: 2 }
+    - { id: c_back, type: light, entity: light.remote_3_button_backlight, icon: material:keyboard, label: Remote Backlight, span: 2 }
+    - { id: c_scr, type: cover, entity: cover.maestroscreen_04_fr, icon: material:roller_shades, label: MaestroScreen, span: 2 }

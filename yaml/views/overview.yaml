@@ -1,0 +1,13 @@
+id: overview
+name: Home
+kind: overview
+
+# An overview is the top-level collection of rooms. It replaces the ambiguous
+# "home view" name; a room remains the day-to-day landing place for a remote.
+layout:
+  columns: 2
+  tiles:
+    - { id: r_porch, type: room, target: porch, image: /local/images/Porch_Render.jpg, label: Porch }
+    - { id: r_living, type: room, image: /local/bedroom.jpg, label: Living Room }
+    - { id: r_bed, type: room, image: /local/bedroom.jpg, label: Bedroom }
+    - { id: r_kitchen, type: room, image: /local/images/Porch_Render.jpg, label: Kitchen }

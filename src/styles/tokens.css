@@ -1,0 +1,20 @@
+:root {
+    --bg: #0d0f12;
+    --tile: #1a1e24;
+    --tile-hi: #232932;
+    --text: #e8eaed;
+    --dim: #8a919c;
+    --accent: #ffb300;
+    --on: #ffd54f;
+    --wash: rgba(255,179,0,.10);
+    --danger: #e05252;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.35 system-ui, Roboto, sans-serif;
+    overflow: hidden; user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }

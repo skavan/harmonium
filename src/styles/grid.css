@@ -1,0 +1,62 @@
+/* screen grid */
+  #grid {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+    grid-auto-rows: max-content;
+    gap: 10px; padding: 10px 12px 14px; align-content: start;
+    overflow-y: auto;
+  }
+  .shead {
+    grid-column: 1 / -1; color: var(--dim);
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+    padding: 10px 4px 0;
+  }
+  .tile {
+    background: var(--tile); border-radius: var(--radius);
+    padding: 12px 14px; min-height: 84px;
+    border: 2px solid transparent;
+    display: block;
+    min-width: 0;               /* let grid columns shrink below content */
+    transition: background .12s, border-color .12s;
+  }
+  .tile.span2 { grid-column: span 2; }
+  .tile.focused {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  .tile.captured { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,179,0,.25), inset 0 0 22px rgba(255,179,0,.08); }
+  .tile.confirm {
+    border-color: var(--danger);
+    background: linear-gradient(0deg, rgba(224,82,82,.14), rgba(224,82,82,.14)), var(--tile-hi);
+  }
+  .tile.confirm .sub { color: var(--danger) !important; font-weight: 600; }
+  /* major-tile confirm cue: the screen's first tile pulses with the
+     pending action's tone (red = about to turn OFF, accent = ON) */
+  .tile.cfm-off {
+    border-color: var(--danger);
+    background: linear-gradient(0deg, rgba(224,82,82,.14), rgba(224,82,82,.14)), var(--tile-hi);
+    animation: cfmpulse .9s ease-in-out infinite;
+  }
+  .tile.cfm-on {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    animation: cfmpulse .9s ease-in-out infinite;
+  }
+  .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tile .top .lbl {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tile .ic { font-size: 22px; width: 28px; text-align: center; }
+  .tile .ic.material-symbols-outlined { font-size: 24px; }
+  .tile .lbl { font-weight: 600; }
+  .tile .sub { color: var(--dim); font-size: 13px; margin-top: 6px; min-height: 17px; }
+  /* inline sub: value on the title line, right-aligned, a notch bigger */
+  .tile .sub.subin {
+    margin: 0 0 0 auto; min-height: 0; flex-shrink: 0;
+    font-size: 15px; padding-left: 8px;
+  }
+  .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
+  .tile.on .sub { color: var(--accent); }
+  .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
+  .tile.captured .hint { display: block; color: var(--accent); }

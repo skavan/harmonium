@@ -1,0 +1,53 @@
+# WATCH TV ACTIVITY VIEW
+# Physical D-pad/Back/Home control the active source. Physical Power controls
+# the TV. Touchscreen chrome remains Harmonium navigation.
+id: tv
+name: Watch TV
+kind: activity
+parent: porch
+activities: [watch_firetv, watch_smart]
+
+context:
+  media_player: media_player.fire_tv_family_192_168_1_65
+  dpad: remote.fire_tv_family_192_168_1_65
+  power: media_player.sts_samsung_q90_porch
+  volume: media_player.sts_samsung_q90_porch
+  volume_level: media_player.ma_soundbar_porch
+
+control_target:
+  label: $activity.name
+  navigation: $context.dpad
+  power: $context.power
+  volume: $context.volume
+  pass_through: [up, down, left, right, select, back, home, power]
+
+layout:
+  sections:
+    - tiles:
+        - id: t_np
+          type: media
+          entity: $context.media_player
+          icon: material:smart_display
+          label: Now Playing
+          span: 2
+          trailing:
+            icon: material:apps
+            action: { navigate: apps }
+        - { id: t_tr, type: transport, entity: $context.media_player, label: Transport, span: 2 }
+        - id: t_btns
+          type: buttons
+          entity: $context.dpad
+          label: On-screen device buttons
+          span: 2
+          only: physical_dpad
+          buttons: [back, home]
+        - { id: t_pad, type: dpad, entity: $context.dpad, icon: material:gamepad, label: Remote, span: 2, unless: physical_dpad }
+        - { id: t_vol, type: volume, entity: $context.volume, level_entity: $context.volume_level, icon: material:volume_up, label: Volume, span: 2 }
+
+    - heading: Devices
+      columns: 1
+      tiles:
+        - { id: d_ftv, type: media, entity: media_player.fire_tv_family_192_168_1_65, icon: material:local_fire_department, label: Fire TV }
+        - { id: d_tv, type: media, entity: media_player.sts_samsung_q90_porch, icon: material:tv, label: Samsung TV }
+        - { id: d_snd, type: media, entity: media_player.ma_soundbar_porch, icon: material:speaker, label: Soundbar }
+        - { id: t_pwr, type: script, entity: script.samsung_q90_porch_toggle, icon: material:power_settings_new, label: TV Power }

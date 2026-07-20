@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>HA Remote — v0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+<style>
+/*__STYLES__*/
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <button id="backBtn" class="hidden"><span class="material-symbols-outlined">arrow_back</span></button>
+    <span id="ptIc" class="material-symbols-outlined hidden">sports_esports</span>
+    <span class="name" id="screenName">—</span>
+    <span id="perf"></span>
+    <span id="dot"></span>
+  </div>
+  <div id="dbg" class="hidden"></div>
+  <div id="banner" class="hidden"></div>
+  <div id="grid"></div>
+</div>
+
+<div id="auth" class="hidden">
+  <h2>Connect to Home Assistant</h2>
+  <p>Create a long-lived access token in HA (Profile → Security) and paste it here. Stored only in this browser.</p>
+  <input id="hostIn" placeholder="Host (e.g. 192.168.1.87:8123)">
+  <input id="tokenIn" placeholder="Long-lived access token" autocomplete="off">
+  <button id="connectBtn">Connect</button>
+  <div class="err" id="authErr"></div>
+</div>
+
+<script>
+/*__SCRIPT__*/
+</script>
+</body>
+</html>

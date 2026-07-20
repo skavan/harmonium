@@ -1,0 +1,19 @@
+/* auth overlay */
+  #auth {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 32px; gap: 12px; z-index: 10;
+  }
+  #auth h2 { margin: 0 0 4px; font-weight: 650; }
+  #auth p { color: var(--dim); margin: 0 0 10px; font-size: 14px; }
+  #auth input {
+    background: var(--tile); color: var(--text);
+    border: 1px solid #2c333d; border-radius: 10px;
+    padding: 12px; font-size: 14px; width: 100%;
+  }
+  #auth button {
+    background: var(--accent); color: #1a1400; font-weight: 700;
+    border: 0; border-radius: 10px; padding: 12px; font-size: 15px;
+  }
+  #auth .err { color: var(--danger); font-size: 13px; min-height: 17px; }
+  .hidden { display: none !important; }

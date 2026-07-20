@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>HA Remote — v0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+<style>
+:root {
+    --bg: #0d0f12;
+    --tile: #1a1e24;
+    --tile-hi: #232932;
+    --text: #e8eaed;
+    --dim: #8a919c;
+    --accent: #ffb300;
+    --on: #ffd54f;
+    --wash: rgba(255,179,0,.10);
+    --danger: #e05252;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.35 system-ui, Roboto, sans-serif;
+    overflow: hidden; user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+
+/* status bar — ONE line, always: back chevron (when history) +
+     ellipsized title + compact perf readout */
+  #bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px 4px; font-size: 13px; color: var(--dim);
+  }
+  #backBtn {
+    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    border: 0; background: var(--tile-hi); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  #backBtn > * { pointer-events: none; }
+  #backBtn .material-symbols-outlined { font-size: 20px; }
+  #bar .name {
+    font-size: 17px; font-weight: 650; color: var(--text); flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+  /* passthrough-mode cue: 2px accent rule + gamepad glyph — the D-pad
+     is driving the DEVICE here (and hold-Back/Home send device keys) */
+  #bar.pt { border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+  #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
+
+  /* key-event debug card (global.debug / #debug=1) — raw key delivery,
+     newest line first, for diagnosing shell/KeyMapper behavior */
+  #dbg {
+    flex: 0 0 auto; margin: 0 12px 6px; padding: 6px 10px;
+    background: #151a20; border: 1px solid var(--accent); border-radius: 10px;
+    font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    color: var(--text); white-space: pre; overflow: hidden;
+  }
+  #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
+  #dot.ok { background: #4caf7d; }
+  #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
+
+  /* banner (screen-level hero, from config) */
+  #banner {
+    position: relative; flex: 0 0 auto;
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    padding-bottom: 46px;   /* air between title and the nav strip */
+  }
+  #banner .btitle { font-size: 34px; font-weight: 300; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+  #banner .btime {
+    position: absolute; top: 10px; right: 12px;
+    background: rgba(0,0,0,.45); border-radius: 999px;
+    padding: 4px 12px; font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  #banner .btitle.link { cursor: pointer; padding: 6px 20px; border-radius: 12px; }
+  /* hero nav strip: small labels, BIG hit bands */
+  #banner .hstrip {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex;
+  }
+  .hjump {
+    flex: 1; min-height: 52px;
+    display: flex; align-items: flex-end; padding: 0 14px 10px;
+    font-size: 13px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #d4d8dd;
+    text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
+  }
+  .hstrip .hjump:last-child { justify-content: flex-end; }
+  .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }
+  .hjump.active { color: var(--accent); }
+  .hjump.focused, #banner .btitle.focused {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
+  }
+
+  /* two-press confirm cue: the bar title pulses for the whole confirm
+     window — red when the pending action turns things OFF, accent
+     when it turns things ON / starts an activity */
+  @keyframes cfmpulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  #bar .name.cfm-off { color: var(--danger); animation: cfmpulse .9s ease-in-out infinite; }
+  #bar .name.cfm-on { color: var(--accent); animation: cfmpulse .9s ease-in-out infinite; }
+
+/* per-section column override (preset grids etc.) */
+  .secgrid { grid-column: 1 / -1; display: grid; gap: 10px; }
+
+  /* room cards: full-bleed image tiles */
+  .tile.wgt-room {
+    position: relative; padding: 0; min-height: 132px; overflow: hidden;
+  }
+  .tile.wgt-room .roomimg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: .85;
+  }
+  .tile.wgt-room .top {
+    position: absolute; left: 12px; bottom: 10px; z-index: 1;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  .tile.wgt-room .lbl { font-size: 17px; }
+  .tile.wgt-room .ic, .tile.wgt-room .sub, .tile.wgt-room .hint { display: none; }
+  .tile.wgt-room.on { border-color: var(--accent); }
+
+  /* now-playing art hero (media tile with art: true) */
+  .tile.wgt-media.art .sub { display: none; }
+  .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
+  .npimg {
+    width: 96px; height: 96px; border-radius: 12px; object-fit: cover;
+    flex: 0 0 auto; background: #2c333d;
+  }
+  .npmeta { min-width: 0; flex: 1; }
+  .npt { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .npa { font-size: 14px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .npb { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+
+  /* transport row: rew / big play-pause / ff */
+  .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
+  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; }
+  /* roving highlight: double ring reads on dark AND accent buttons */
+  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }
+  .trow .trbig:active { background: var(--on); }
+  .trow .trbig .material-symbols-outlined { font-size: 38px; }
+  .tile.wgt-transport .top, .tile.wgt-transport .sub, .tile.wgt-transport .hint { display: none; }
+  .tile.wgt-transport { min-height: 0; }
+
+  /* device button bar: configurable row of device-command keys */
+  .btnrow { display: flex; align-items: center; gap: 12px; padding: 4px 0 2px; }
+  .btnrow .dpbtn { flex: 1; height: 50px; border-radius: 14px; border: 2px solid transparent; }
+  /* roving highlight inside a button row (◀▶ while the tile is focused) */
+  .tile.focused .btnrow .cvsel { border-color: var(--accent); }
+  .tile.wgt-buttons .top, .tile.wgt-buttons .sub, .tile.wgt-buttons .hint { display: none; }
+  .tile.wgt-buttons { min-height: 0; }
+  /* media mode bar (shuffle/repeat): accent icon = mode active */
+  .tile.wgt-mediabtns .top, .tile.wgt-mediabtns .sub, .tile.wgt-mediabtns .hint { display: none; }
+  .tile.wgt-mediabtns { min-height: 0; }
+  .btnrow .dpbtn.mbon { color: var(--accent); }
+  .tile.wgt-coverbtns .top, .tile.wgt-coverbtns .sub { display: none; }
+  .tile.wgt-coverbtns { min-height: 0; }
+
+  /* device detail primitives: power / stepper / chips.
+     Detail rows are CHROME-LIGHT: no headings (a small dim icon in the
+     top slot instead), no state line, tight padding. Back is GLOBAL —
+     the status-bar chevron — so details carry no back of their own. */
+  .pwrow { display: flex; justify-content: center; padding: 6px 0 2px; }
+  .pwbtn { width: 64px; height: 64px; border-radius: 50%; }
+  .pwbtn .material-symbols-outlined { font-size: 30px; }
+  .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
+  .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
+  .tile.wgt-power { min-height: 0; background: transparent; }
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
+  .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
+  .stepval {
+    flex: 1; text-align: center;
+    font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
+  }
+  .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
+  .tile.wgt-stepper .sub, .tile.wgt-chips .sub { display: none; }
+  /* stepper slider: fat touch track, fill = value; −/+ row stays below */
+  .sldr {
+    position: relative; height: 44px; border-radius: 12px;
+    background: #2c333d; overflow: hidden; margin: 6px 0 10px;
+    touch-action: none; cursor: pointer;
+  }
+  .sldr i {
+    display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+    background: var(--accent); transition: none;
+  }
+  .sldr.vert { height: 300px; width: 92px; margin: 6px auto 10px; }
+  .sldr.vert i { top: auto; right: 0; bottom: 0; left: 0; width: 100%; height: 0%; }
+  .tile.wgt-stepper .top .ic, .tile.wgt-chips .top .ic { color: var(--dim); }
+  .tile .lbl:empty { display: none; }
+  /* option buttons: preset-tile sized, 3-up grid */
+  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 0 2px; }
+  .chip {
+    border: 0; font: inherit; font-size: 15px; color: var(--text);
+    background: var(--tile-hi); border-radius: 14px; min-height: 56px;
+    padding: 8px 6px; cursor: pointer;
+  }
+  .chip.on { background: var(--accent); color: #1a1400; font-weight: 700; }
+
+  /* preset tiles: icon-first squares */
+  .tile.wgt-preset { min-height: 78px; padding: 10px 6px; text-align: center; }
+  .tile.wgt-preset .top { display: block; }
+  .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
+  .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
+  .tile.wgt-preset .lbl { font-size: 11px; display: block; }
+  .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+
+/* screen grid */
+  #grid {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+    grid-auto-rows: max-content;
+    gap: 10px; padding: 10px 12px 14px; align-content: start;
+    overflow-y: auto;
+  }
+  .shead {
+    grid-column: 1 / -1; color: var(--dim);
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+    padding: 10px 4px 0;
+  }
+  .tile {
+    background: var(--tile); border-radius: var(--radius);
+    padding: 12px 14px; min-height: 84px;
+    border: 2px solid transparent;
+    display: block;
+    min-width: 0;               /* let grid columns shrink below content */
+    transition: background .12s, border-color .12s;
+  }
+  .tile.span2 { grid-column: span 2; }
+  .tile.focused {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  .tile.captured { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,179,0,.25), inset 0 0 22px rgba(255,179,0,.08); }
+  .tile.confirm {
+    border-color: var(--danger);
+    background: linear-gradient(0deg, rgba(224,82,82,.14), rgba(224,82,82,.14)), var(--tile-hi);
+  }
+  .tile.confirm .sub { color: var(--danger) !important; font-weight: 600; }
+  /* major-tile confirm cue: the screen's first tile pulses with the
+     pending action's tone (red = about to turn OFF, accent = ON) */
+  .tile.cfm-off {
+    border-color: var(--danger);
+    background: linear-gradient(0deg, rgba(224,82,82,.14), rgba(224,82,82,.14)), var(--tile-hi);
+    animation: cfmpulse .9s ease-in-out infinite;
+  }
+  .tile.cfm-on {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    animation: cfmpulse .9s ease-in-out infinite;
+  }
+  .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tile .top .lbl {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tile .ic { font-size: 22px; width: 28px; text-align: center; }
+  .tile .ic.material-symbols-outlined { font-size: 24px; }
+  .tile .lbl { font-weight: 600; }
+  .tile .sub { color: var(--dim); font-size: 13px; margin-top: 6px; min-height: 17px; }
+  /* inline sub: value on the title line, right-aligned, a notch bigger */
+  .tile .sub.subin {
+    margin: 0 0 0 auto; min-height: 0; flex-shrink: 0;
+    font-size: 15px; padding-left: 8px;
+  }
+  .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
+  .tile.on .sub { color: var(--accent); }
+  .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
+  .tile.captured .hint { display: block; color: var(--accent); }
+
+/* trailing action: full-height touch zone on the tile's right edge */
+  .tile.has-trail { position: relative; padding-right: 76px; }
+  .trail {
+    position: absolute; top: 6px; right: 6px; bottom: 6px; width: 60px;
+    border: 2px solid transparent; border-radius: calc(var(--radius) - 4px);
+    background: var(--tile-hi); color: var(--dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font: inherit; padding: 0; overflow: hidden;
+  }
+  .trail > * { pointer-events: none; }
+  .trail .ic { width: auto; }
+  .trail .ic.material-symbols-outlined { font-size: 26px; }
+  .trail:active { background: var(--accent); color: #1a1400; }
+  .trail.focused {
+    border-color: var(--accent); color: var(--text);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
+
+  /* touch buttons (dpad + volume) */
+  .dpbtn {
+    border: 0; color: var(--text); background: var(--tile-hi);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font: inherit; padding: 0;
+  }
+  .dpbtn:active { background: var(--accent); color: #1a1400; }
+  .dpbtn > * { pointer-events: none; }
+  .dpbtn { overflow: hidden; }
+  .dp-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 4px; }
+  .dp-side { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .dp-side .dpbtn { width: 46px; height: 58px; border-radius: 14px; }
+  .dp-cap { font-size: 10px; color: var(--dim); letter-spacing: .12em; }
+  .dp-mid { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1; }
+  .dp-corners { width: 100%; max-width: 240px; display: flex; justify-content: space-between; }
+  .dp-corners .dpbtn { width: 46px; height: 46px; border-radius: 50%; }
+  .dp-pad {
+    position: relative; width: 212px; height: 212px;
+    border-radius: 50%; background: #2a313b;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
+  }
+  .dp-pad .dpbtn {
+    position: absolute; width: 64px; height: 64px;
+    border-radius: 50%; background: transparent;
+  }
+  .dp-pad .dpbtn:active { background: rgba(255,255,255,.14); color: var(--text); }
+  .dp-pad .up { top: 4px; left: 50%; transform: translateX(-50%); }
+  .dp-pad .dn { bottom: 4px; left: 50%; transform: translateX(-50%); }
+  .dp-pad .lf { left: 4px; top: 50%; transform: translateY(-50%); }
+  .dp-pad .rt { right: 4px; top: 50%; transform: translateY(-50%); }
+  .dp-pad .ok {
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 76px; height: 76px;
+    background: var(--accent); color: #1a1400; font-weight: 800;
+  }
+  .dp-pad .ok:active { background: var(--on); }
+  .tile.wgt-dpad { min-height: 412px; }
+  .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
+  .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+
+  /* list-row variant (grid.columns = 1) */
+  .tile.row {
+    display: flex; flex-direction: row; align-items: center; gap: 14px;
+    min-height: 78px; padding: 12px 16px;
+  }
+  .tile.row .icwrap {
+    flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%;
+    background: #262c35; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .tile.row .icwrap .material-symbols-outlined { font-size: 27px; }
+  .tile.row .icwrap .ic { width: auto; font-size: 25px; }
+  .tile.row .icwrap img { width: 100%; height: 100%; object-fit: cover; }
+  .tile.row .txt { flex: 1; min-width: 0; }
+  .tile.row .lbl { font-size: 17px; }
+  .tile.row .sub { margin-top: 3px; }
+
+/* auth overlay */
+  #auth {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 32px; gap: 12px; z-index: 10;
+  }
+  #auth h2 { margin: 0 0 4px; font-weight: 650; }
+  #auth p { color: var(--dim); margin: 0 0 10px; font-size: 14px; }
+  #auth input {
+    background: var(--tile); color: var(--text);
+    border: 1px solid #2c333d; border-radius: 10px;
+    padding: 12px; font-size: 14px; width: 100%;
+  }
+  #auth button {
+    background: var(--accent); color: #1a1400; font-weight: 700;
+    border: 0; border-radius: 10px; padding: 12px; font-size: 15px;
+  }
+  #auth .err { color: var(--danger); font-size: 13px; min-height: 17px; }
+  .hidden { display: none !important; }
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <button id="backBtn" class="hidden"><span class="material-symbols-outlined">arrow_back</span></button>
+    <span id="ptIc" class="material-symbols-outlined hidden">sports_esports</span>
+    <span class="name" id="screenName">—</span>
+    <span id="perf"></span>
+    <span id="dot"></span>
+  </div>
+  <div id="dbg" class="hidden"></div>
+  <div id="banner" class="hidden"></div>
+  <div id="grid"></div>
+</div>
+
+<div id="auth" class="hidden">
+  <h2>Connect to Home Assistant</h2>
+  <p>Create a long-lived access token in HA (Profile → Security) and paste it here. Stored only in this browser.</p>
+  <input id="hostIn" placeholder="Host (e.g. 192.168.1.87:8123)">
+  <input id="tokenIn" placeholder="Long-lived access token" autocomplete="off">
+  <button id="connectBtn">Connect</button>
+  <div class="err" id="authErr"></div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   HA Remote — single-file engine.
+
+   Architecture in one breath: config.json (pure data: screens,
+   sections, tiles, activities, context, keymap, theme) is rendered
+   by this engine over a filtered Home Assistant websocket —
+   subscribe_entities with entity_ids means we receive diffs for
+   ONLY the entities on the current screen (~20 msgs, not the
+   full-instance firehose the stock frontend drinks).
+
+   Load-bearing concepts, in reading order below:
+   · Device profiles / CAPS   — capability set drives tile
+     visibility (only/unless) and input behavior per device.
+   · Context                  — screen `context` overlaid by the
+     active activity's; `$context.slot` is the ONLY substitution.
+   · Activities               — HA scripts + an input_select HA
+     owns; select=start/open, hold|power=end (inline confirm).
+   · Detail screens           — virtual screens generated per
+     domain (power/stepper/chips); options come from attributes.
+   · Widget catalog           — one tile chassis, per-type adapters
+     (sub/isOn/meter/select/capture/body/wire/render).
+   · Focus                    — spatial D-pad nav from DOM rects;
+     capture mode gives a widget the D-pad; trailing zones and
+     hero elements are extra focus stops.
+   · Passthrough              — on screens declaring
+     dpad_passthrough, PHYSICAL keys drive the device (Harmony
+     rule); touch always drives the UI.
+   ================================================================ */
+const T0 = performance.now();
+
+/* Gesture/flow tunables (ms). Candidates for shell settings later. */
+const TIMING = {
+  hold: 450,          // select held this long = hold gesture
+  powerHold: 600,     // power held this long = All Off
+  confirm: 5000,      // two-press confirm window (tile + status bar)
+  presetPoll: 300     // ensure-activity: poll interval for state flip
+};
+
+/* ================================================================
+   CONFIG — loaded from config.json at boot. Everything user-
+   specific (screens, sections, activities, keymap, theme) is data.
+   ================================================================ */
+let CONFIG = null;
+let DEVICE = {};                              // active device profile
+let CAPS = new Set(["touch", "pointer"]);     // its capabilities
+
+let KEYMAP = {                    // default shell quirk table
+  "ArrowUp": "up", "ArrowDown": "down", "Tab": "down",
+  "ArrowLeft": "left", "ArrowRight": "right",
+  "Enter": "select", " ": "select",
+  "+": "vol_up", "=": "vol_up", "-": "vol_down",
+  "PageUp": "ch_up", "PageDown": "ch_down",
+  "m": "mute", "M": "mute",
+  "`": "mute", "AudioVolumeMute": "mute",      // Astrion mute = backtick (kc 192)
+  "[": "back", "Escape": "back", "Backspace": "back",
+  "]": "home", ";": "home",
+  "F1": "home", "BrowserHome": "home",          // Astrion home = F1 (kc 112)
+  "{": "back_hold", "}": "home_hold",           // shell long-press keys
+  "#": "menu",                                   // Astrion menu key
+  "@": "menu_hold",                              // menu long-press (KeyMapper)
+  "F2": "power", "p": "power", "P": "power",
+  "o": "power_hold", "O": "power_hold"
+};
+
+async function loadConfig() {
+  const r = await fetch("config.json", { cache: "no-store" });
+  if (!r.ok) throw new Error("config.json: HTTP " + r.status);
+  return r.json();
+}
+
+function applyTheme(theme) {
+  for (const [k, v] of Object.entries(theme || {}))
+    document.documentElement.style.setProperty("--" + k, v);
+}
+
+/* ================================================================
+   Websocket client: auth → filtered subscribe_entities → diffs.
+   ================================================================ */
+const S = {
+  states: new Map(), ws: null, msgId: 0, pending: new Map(),
+  subId: null, connected: false,
+  screen: null, stack: [],
+  focusId: null, captured: false,
+  confirmTile: null, confirmTimer: null,
+  lastAct: undefined, tileSig: null,
+  msgCount: 0, painted: false
+};
+
+function haUrl() {
+  const host = localStorage.getItem("hakr_host") ||
+    (location.protocol.startsWith("http") ? location.host : "");
+  const proto = (location.protocol === "https:") ? "wss" : "ws";
+  return host ? `${proto}://${host}/api/websocket` : null;
+}
+
+function connect() {
+  const url = haUrl(), token = localStorage.getItem("hakr_token");
+  if (!url || !token) return showAuth("");
+  const ws = new WebSocket(url);
+  S.ws = ws;
+  ws.onmessage = ev => {
+    S.msgCount++;
+    const m = JSON.parse(ev.data);
+    if (m.type === "auth_required") ws.send(JSON.stringify({ type: "auth", access_token: token }));
+    else if (m.type === "auth_invalid") {
+      const len = (token || "").length;
+      localStorage.removeItem("hakr_token");
+      showAuth(`Token rejected by HA (received ${len} chars — a valid token is ~180+). Recreate the token and retry.`);
+    }
+    else if (m.type === "auth_ok") { S.connected = true; dot(true); subscribeFor(S.screen); }
+    else if (m.type === "result" && S.pending.has(m.id)) { S.pending.get(m.id)(m); S.pending.delete(m.id); }
+    else if (m.type === "event" && m.id === S.subId) applyDiff(m.event);
+  };
+  ws.onclose = () => { S.connected = false; dot(false); setTimeout(connect, 1500 + Math.random() * 1500); };
+  ws.onerror = () => ws.close();
+}
+
+function send(msg, cb) {
+  if (!S.connected && msg.type !== "auth") return;
+  msg.id = ++S.msgId;
+  if (cb) S.pending.set(msg.id, cb);
+  S.ws.send(JSON.stringify(msg));
+  return msg.id;
+}
+
+function callService(domain, service, data, entityId) {
+  const msg = { type: "call_service", domain, service, service_data: data || {} };
+  if (entityId) msg.target = { entity_id: entityId };
+  send(msg);
+}
+
+/* ================================================================
+   Context: screen context overlaid by the ACTIVE activity's context
+   (activity read live from the state of global.activity_select).
+   ================================================================ */
+function currentActivityId() {
+  const sel = CONFIG.global.activity_select;
+  if (!sel) return null;
+  const v = st(sel).s;
+  for (const [id, a] of Object.entries(CONFIG.activities || {}))
+    if ((a.state_value || id) === v) return id === "off" ? null : id;
+  return null;
+}
+function ctxFor(screenId) {
+  const scCtx = (screenOf(screenId) || {}).context || {};
+  const aid = currentActivityId();
+  const aCtx = aid ? (CONFIG.activities[aid].context || {}) : {};
+  return Object.assign({}, scCtx, aCtx);
+}
+function resolveEntity(ref, screenId) {
+  if (!ref || typeof ref !== "string" || !ref.startsWith("$context.")) return ref;
+  const v = ctxFor(screenId || S.screen)[ref.slice(9)];
+  return typeof v === "string" ? v : null;
+}
+
+/* Per-entity display options from config.entity_options —
+   e.g. { "cover.x": { invert_position: true } }. Display-layer only;
+   services are never inverted. */
+function entOpt(e, key) {
+  const o = (CONFIG && CONFIG.entity_options) || {};
+  return o[e] ? o[e][key] : undefined;
+}
+
+/* ---- Screen classes (v0.11 key-policy taxonomy) -------------------
+   Physical keys carry a POLICY PER PAGE CLASS, not one behavior:
+     room     — Home→system home · Power→All Off (confirm)
+     group    — Home→parent room · Power→page devices off/on (confirm)
+     detail   — Home→parent room · Power→device toggle (immediate)
+     activity — Home→parent room · Power→end activity (confirm)
+   Explicit `class` in config wins; otherwise inferred. `parent` names
+   the screen Home laddering climbs to (multi-room proof). */
+function classOf(sc, id) {
+  if (sc.class) return sc.class;
+  if (typeof id === "string" && id.startsWith("detail:")) return "detail";
+  if (sc.dpad_passthrough) return "activity";
+  if (id === (CONFIG && CONFIG.home_screen) || sc.banner) return "room";
+  return "group";
+}
+/* group-power scope: switchable device entities on the page */
+const POWER_DOMAINS = new Set(["light", "switch", "fan", "climate", "media_player"]);
+function powerEntities(sc) {
+  const set = new Set();
+  tilesOf(sc).forEach(t => {
+    const e = resolveEntity(t.entity);
+    if (e && POWER_DOMAINS.has(e.split(".")[0])) set.add(e);
+  });
+  return [...set];
+}
+
+/* Capability-based tile visibility: tile.only / tile.unless name
+   capabilities from the active device profile (string or array). */
+function visibleTile(t) {
+  const arr = v => Array.isArray(v) ? v : [v];
+  if (t.only && !arr(t.only).every(c => CAPS.has(c))) return false;
+  if (t.unless && arr(t.unless).some(c => CAPS.has(c))) return false;
+  return true;
+}
+
+/* ---- $item expansion ----------------------------------------------
+   A "presets_from" tile generates one preset tile per element of an
+   entity's LIST attribute — the chips move at tile scale: content read
+   live from an entity HA owns, riding the normal subscription.
+   "$item.<field>" is the only substitution (whole-string values, any
+   depth), the per-row sibling of "$context.<slot>". */
+function substItem(v, item) {
+  if (typeof v === "string" && v.startsWith("$item.")) {
+    const x = item[v.slice(6)];
+    return x === undefined ? null : x;
+  }
+  if (Array.isArray(v)) return v.map(x => substItem(x, item));
+  if (v && typeof v === "object") {
+    const o = {};
+    for (const [k, x] of Object.entries(v)) o[k] = substItem(x, item);
+    return o;
+  }
+  return v;
+}
+function expandTile(t) {
+  if (t.type !== "presets_from") return [t];
+  const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, t.limit || 48).map((item, i) => {
+    const g = Object.assign({ type: "preset" }, substItem(t.item || {}, item));
+    g.id = t.id + "_" + i;
+    if (t.action) g.action = substItem(t.action, item);
+    if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon
+    return g;
+  });
+}
+
+/* Entities for a screen = tiles ∪ groups ∪ context ∪ activity select */
+function rawTilesOf(sc) {
+  return sc.sections ? sc.sections.flatMap(x => x.tiles) : (sc.tiles || []);
+}
+function tilesOf(sc) {
+  return rawTilesOf(sc).flatMap(expandTile).filter(visibleTile);
+}
+/* structural signature: generated tiles change when their source
+   attribute does — renderStates re-renders the grid when this moves */
+function tileSig(sc) {
+  return JSON.stringify(tilesOf(sc).map(t => [t.id, t.label, t.icon_image, t.action]));
+}
+function tiles() { return tilesOf(screenOf(S.screen) || {}); }
+function tileDef(id) { return tiles().find(t => t.id === id); }
+
+function entitiesFor(screenId) {
+  const sc = screenOf(screenId), set = new Set();
+  const add = v => { v = resolveEntity(v, screenId); if (v) set.add(v); };
+  /* raw tiles too: a presets_from source entity must be subscribed
+     even though expansion replaces the tile itself */
+  rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
+    .forEach(t => { add(t.entity); add(t.level_entity); (t.entities || []).forEach(add); });
+  Object.values(ctxFor(screenId)).forEach(v => { if (typeof v === "string") set.add(v); });
+  if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
+  (CONFIG.global.status_entities || []).forEach(v => set.add(v));
+  return [...set];
+}
+
+function subscribeFor(screenId) {
+  if (S.subId) { send({ type: "unsubscribe_events", subscription: S.subId }); S.subId = null; }
+  S.subId = send({ type: "subscribe_entities", entity_ids: entitiesFor(screenId) });
+}
+
+function applyDiff(ev) {
+  if (ev.a) for (const [eid, x] of Object.entries(ev.a))
+    S.states.set(eid, { s: x.s, a: x.a || {} });
+  if (ev.c) for (const [eid, ch] of Object.entries(ev.c)) {
+    const cur = S.states.get(eid) || { s: null, a: {} };
+    const plus = ch["+"];
+    if (plus) {
+      if (plus.s !== undefined) cur.s = plus.s;
+      if (plus.a) Object.assign(cur.a, plus.a);
+    }
+    if (ch["-"] && ch["-"].a) ch["-"].a.forEach(k => delete cur.a[k]);
+    S.states.set(eid, cur);
+  }
+  if (ev.r) ev.r.forEach(eid => S.states.delete(eid));
+
+  /* activity changed → context may rebind: resubscribe current screen */
+  const aid = currentActivityId();
+  if (aid !== S.lastAct) { S.lastAct = aid; if (S.connected) subscribeFor(S.screen); }
+
+  renderStates();
+  if (!S.painted) {
+    S.painted = true;
+    S.bootMs = Math.round(performance.now() - T0);
+    perf();
+  }
+}
+
+/* ================================================================
+   Activities: select = start (off) / open (running); hold or
+   power = end, with optional inline two-press confirm.
+   ================================================================ */
+function actOf(t) { return (CONFIG.activities || {})[t.activity] || null; }
+function isActivityActive(id) {
+  const a = (CONFIG.activities || {})[id], sel = CONFIG.global.activity_select;
+  return !!(a && sel && st(sel).s === (a.state_value || id));
+}
+function isActActive(t) { return isActivityActive(t.activity); }
+
+/* Generic action object: { navigate: <screen> } or
+   { service, target|entity, data } — same grammar presets use. */
+function runAction(a) {
+  if (!a) return;
+  if (a.navigate) { navigate(a.navigate); return; }
+  const parts = (a.service || "").split(".");
+  if (parts.length === 2)
+    callService(parts[0], parts[1], a.data, resolveEntity(a.target || a.entity));
+}
+
+/* Presets: one-tap content shortcuts. If the preset names an activity,
+   ensure it's running first (Harmony-favorite behavior), then fire. */
+function firePreset(t) {
+  /* resolve the target NOW — a drawer screen may navigate away before
+     a deferred run() fires, and $context must be the drawer's own */
+  const a = t.action || {}, parts = (a.service || "").split(".");
+  const target = resolveEntity(a.target || a.entity);
+  const run = () => {
+    if (parts.length !== 2) return;
+    callService(parts[0], parts[1], a.data, target);
+  };
+  if (t.activity && !isActivityActive(t.activity)) {
+    if (!startActivity(t.activity)) return false;   // switch-confirm pending
+    let n = 0;                                  // poll the activity select
+    const iv = setInterval(() => {              // (~12s budget) before firing
+      if (isActivityActive(t.activity)) { clearInterval(iv); run(); }
+      else if (++n > 40) { clearInterval(iv); flashBar("Activity didn't start"); }
+    }, TIMING.presetPoll);
+  } else run();
+  return true;
+}
+function startActivity(id) {
+  const a = (CONFIG.activities || {})[id];
+  if (!a) return false;
+  /* optional switch guard: starting an activity while ANOTHER runs
+     usually ends it (the HA scripts are exclusive) — when
+     confirm_switch is set (per-activity, else global), ask first via
+     the status bar. Returns false while the confirm is pending. */
+  const cur = currentActivityId();
+  const guard = a.confirm_switch != null ? a.confirm_switch
+    : !!CONFIG.global.confirm_switch;
+  if (cur && cur !== id && guard &&
+      !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
+    return false;
+  if (a.start) callService("script", "turn_on", null, a.start);
+  if (a.screen) navigate(a.screen);
+  return true;
+}
+function endActivity(a) {
+  const stopScript = a.stop ||
+    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start);
+  if (stopScript) callService("script", "turn_on", null, stopScript);
+}
+function requestEnd(t, a) {
+  if (a.confirm_end && S.confirmTile !== t.id) {
+    S.confirmTile = t.id;
+    clearTimeout(S.confirmTimer);
+    S.confirmTimer = setTimeout(() => { S.confirmTile = null; renderStates(); }, TIMING.confirm);
+    renderStates();
+    return;
+  }
+  clearTimeout(S.confirmTimer); S.confirmTile = null;
+  endActivity(a);
+  renderStates();
+}
+function clearConfirm() {
+  if (!S.confirmTile) return;
+  clearTimeout(S.confirmTimer); S.confirmTile = null;
+}
+
+/* Status-bar two-press confirm (no tile to turn red): first press
+   flashes the prompt — pulsing red for OFF-flavored confirms, accent
+   for ON (tone, default "off") — second within TIMING.confirm
+   returns true. */
+function barConfirm(key, msg, tone) {
+  const t = (barConfirm._t ??= {});
+  if (Date.now() - (t[key] || 0) > TIMING.confirm) {
+    t[key] = Date.now();
+    flashBar(msg, tone || "off", TIMING.confirm);
+    return false;
+  }
+  t[key] = 0;
+  cfmClear();          // confirmed: stop the pulse — the action is happening
+  return true;
+}
+
+/* ================================================================
+   Device detail screens — VIRTUAL screens, generated per domain.
+   navigate("detail:<entity_id>") composes generic primitives
+   (power / stepper / chips). Chip options and stepper values come
+   from the entity's own attributes, so no config is needed and the
+   choices are always what the device actually supports.
+   ================================================================ */
+
+/* stepper bindings: one adjustable range per kind */
+const STEP_KINDS = {
+  temperature: {
+    get: e => st(e).a.temperature, fmt: v => (v ?? "–") + "°", step: 1,
+    set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
+  },
+  brightness: {
+    get: e => st(e).s === "on" ? Math.round((st(e).a.brightness || 0) / 2.55) : 0,
+    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    set: (e, v) => callService("light", "turn_on", { brightness_pct: v }, e)
+  },
+  volume: {
+    get: e => Math.round((st(e).a.volume_level || 0) * 100),
+    fmt: v => (v ?? 0) + "%", step: 3, min: 0, max: 100, slider: "h",
+    set: (e, v) => callService("media_player", "volume_set", { volume_level: v / 100 }, e)
+  },
+  percentage: {
+    get: e => st(e).a.percentage ?? 0,
+    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
+  },
+  position: {
+    /* invert_position: display = deployment (100 - HA position), so a
+       retracted projector screen reads 0%. get/set both invert, so
+       slider, −/+, and VOL stay coherent; cover SERVICES never invert. */
+    get: e => {
+      const p = st(e).a.current_position ?? 0;
+      return entOpt(e, "invert_position") ? 100 - p : p;
+    },
+    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "v",
+    set: (e, v) => callService("cover", "set_cover_position",
+      { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
+  }
+};
+function nudgeStep(e, kind, dir) {
+  const k = STEP_KINDS[kind];
+  if (!k || !e) return;
+  let v = (+k.get(e) || 0) + dir * k.step;
+  if (k.min != null) v = Math.max(k.min, v);
+  if (k.max != null) v = Math.min(k.max, v);
+  k.set(e, v);
+}
+
+/* chip bindings: an options list (from attributes) + a setter */
+const CHIP_KINDS = {
+  hvac_mode: { options: e => st(e).a.hvac_modes, current: e => st(e).s,
+    set: (e, v) => callService("climate", "set_hvac_mode", { hvac_mode: v }, e) },
+  fan_mode: { options: e => st(e).a.fan_modes, current: e => st(e).a.fan_mode,
+    set: (e, v) => callService("climate", "set_fan_mode", { fan_mode: v }, e) },
+  preset: { options: e => st(e).a.preset_modes, current: e => st(e).a.preset_mode,
+    set: (e, v) => callService((e || "").split(".")[0], "set_preset_mode", { preset_mode: v }, e) },
+  source: { options: e => st(e).a.source_list, current: e => st(e).a.source,
+    set: (e, v) => callService("media_player", "select_source", { source: v }, e) },
+  effect: { options: e => st(e).a.effect_list, current: e => st(e).a.effect,
+    set: (e, v) => callService("light", "turn_on", { effect: v }, e) }
+};
+function cycleChip(e, t, dir) {
+  const k = CHIP_KINDS[t.kind], opts = (k && k.options(e)) || [];
+  if (!opts.length) return;
+  const i = Math.max(0, opts.indexOf(k.current(e)));
+  k.set(e, opts[(i + dir + opts.length) % opts.length]);
+}
+
+/* Roving highlight for button-row widgets (coverbtns, transport):
+   while the row tile is merely FOCUSED, ◀▶ move a highlight across
+   its buttons and select presses the highlighted one — no capture
+   step, matches "a row of physical buttons". Buttons are located by
+   data-<attr>; default index 1 = the center button (Stop/Play-Pause). */
+function roveBtns(t, attr) {
+  const el = document.getElementById("tile_" + t.id);
+  return el ? [el, [...el.querySelectorAll(`[data-${attr}]`)]] : [null, []];
+}
+function roveMove(t, attr, d) {
+  const [el, btns] = roveBtns(t, attr);
+  if (!btns.length) return;
+  el._ci = ((el._ci ?? 1) + d + btns.length) % btns.length;
+  btns.forEach((b, i) => b.classList.toggle("cvsel", i === el._ci));
+}
+function rovePick(t, attr) {
+  const [el, btns] = roveBtns(t, attr);
+  return btns.length ? btns[el._ci ?? 1].dataset[attr] : null;
+}
+
+/* per-domain detail composition (chips with no options self-hide).
+   Layout doctrine (v0.9.3): row 1 = power toggle (back is the GLOBAL
+   status-bar chevron); NO headings — a small dim icon marks each
+   row's meaning; option buttons are preset-tile sized. */
+const DETAIL_TILES = {
+  climate: e => [
+    { id: "dp", type: "power", entity: e, label: "", span: 2 },
+    { id: "ds", type: "stepper", kind: "temperature", entity: e, icon: "material:thermostat", label: "", span: 2 },
+    { id: "dm", type: "chips", kind: "hvac_mode", entity: e, icon: "material:hvac", label: "", span: 2 },
+    { id: "df", type: "chips", kind: "fan_mode", entity: e, icon: "material:mode_fan", label: "", span: 2 },
+    { id: "dpr", type: "chips", kind: "preset", entity: e, icon: "material:tune", label: "", span: 2 }
+  ],
+  light: e => [
+    { id: "dp", type: "power", entity: e, label: "", span: 2 },
+    { id: "ds", type: "stepper", kind: "brightness", entity: e, icon: "material:light_mode", label: "", span: 2 },
+    { id: "de", type: "chips", kind: "effect", entity: e, icon: "material:auto_awesome", label: "", span: 2 }
+  ],
+  media_player: e => [
+    { id: "dp", type: "power", entity: e, label: "", span: 2 },
+    { id: "dt", type: "transport", entity: e, label: "", span: 2 },
+    { id: "ds", type: "stepper", kind: "volume", entity: e, icon: "material:volume_up", label: "", span: 2 },
+    { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 }
+  ],
+  cover: e => [
+    { id: "dc", type: "coverbtns", entity: e, label: "", span: 2 },
+    { id: "ds", type: "stepper", kind: "position", entity: e, icon: "material:height", label: "", span: 2 }
+  ],
+  fan: e => [
+    { id: "dp", type: "power", entity: e, label: "", span: 2 },
+    { id: "ds", type: "stepper", kind: "percentage", entity: e, icon: "material:mode_fan", label: "", span: 2 },
+    { id: "dpr", type: "chips", kind: "preset", entity: e, icon: "material:tune", label: "", span: 2 }
+  ],
+  switch: e => [
+    { id: "dp", type: "power", entity: e, label: "", span: 2 }
+  ]
+};
+/* VOL keys retarget to the device's primary range ON ITS DETAIL SCREEN
+   ONLY (everywhere else VOL stays room/activity audio). */
+const DETAIL_VOL_KIND = {
+  climate: "temperature", light: "brightness",
+  media_player: "volume", cover: "position", fan: "percentage"
+};
+
+function detailScreen(eid) {
+  const gen = DETAIL_TILES[eid.split(".")[0]];
+  if (!gen) return null;
+  const tiles = gen(eid);
+  return {
+    name: st(eid).a.friendly_name || eid.split(".")[1].replace(/_/g, " "),
+    virtual: true,
+    tiles,
+    initial_focus: tiles.some(t => t.id === "ds") ? "ds" : tiles[0].id
+  };
+}
+/* screen id resolution: config screens + virtual detail screens */
+function screenOf(id) {
+  if (typeof id === "string" && id.startsWith("detail:"))
+    return detailScreen(id.slice(7));
+  return (CONFIG && CONFIG.screens[id]) || null;
+}
+
+/* effective trailing action for a tile: explicit config wins
+   (trailing: false suppresses); detailable device tiles default to
+   a settings icon opening their generated detail screen */
+function trailingOf(t) {
+  if (!t) return null;
+  if (t.trailing !== undefined) return t.trailing || null;
+  const w = WIDGETS[t.type] || {};
+  if (!w.detailable) return null;
+  const de = resolveEntity(t.entity);
+  return (de && DETAIL_TILES[de.split(".")[0]])
+    ? { icon: "material:tune", action: { navigate: "detail:" + de } }
+    : null;
+}
+
+/* ================================================================
+   Widget catalog (chassis adapters).
+   ================================================================ */
+const pct = v => Math.round(v * 100) + "%";
+const st = eid => S.states.get(eid) || { s: "…", a: {} };
+const ACTIVE = s => !["off", "idle", "unavailable", "unknown", "standby", null, "…"].includes(s);
+
+/* Shared capture map for device-remote widgets (dpad, passthrough):
+   while captured, direction keys go to the tile's remote entity,
+   translated through cmdFor (so activity dpad_commands apply). */
+const DPAD_CAPTURE = {};
+["up", "down", "left", "right", "select", "back"].forEach(k =>
+  DPAD_CAPTURE[k] = (e, t) => rc(e, cmdFor(t, k)));
+
+/* Wire a widget body's <button data-ATTR="x"> children to a handler.
+   stopPropagation keeps the tap from also firing the tile's select. */
+function wireTaps(el, attr, fn) {
+  el.querySelectorAll(`[data-${attr}]`).forEach(b =>
+    b.addEventListener("click", ev => { ev.stopPropagation(); fn(b.dataset[attr]); }));
+}
+
+const WIDGETS = {};
+
+WIDGETS.light = {
+    sub: e => st(e).s === "on"
+      ? "On · " + Math.round((st(e).a.brightness || 255) / 2.55) + "%"
+      : cap(st(e).s),
+    isOn: e => st(e).s === "on",
+    meter: e => st(e).s === "on" ? (st(e).a.brightness || 255) / 255 : 0,
+    select: e => callService("light", "toggle", null, e),
+    detailable: true,
+    holdCapture: true, captureHint: "▲▼ brightness · back releases",
+    capture: {
+      up:   e => nudgeLight(e, +26), down: e => nudgeLight(e, -26),
+      select: e => callService("light", "toggle", null, e)
+    }
+  };
+
+WIDGETS.fan = {
+  /* fan tile: tap = toggle; state line shows speed % (or preset);
+     hold captures the D-pad for speed; ⚙ trail → generated detail
+     (power + speed slider + preset buttons from preset_modes). */
+  sub: e => {
+    const s = st(e), p = s.a.percentage;
+    return cap(s.s) + (s.s === "on" && p ? " · " + p + "%"
+      : s.a.preset_mode ? " · " + s.a.preset_mode : "");
+  },
+  isOn: e => st(e).s === "on",
+  meter: e => (st(e).a.percentage ?? 0) / 100,
+  select: e => callService("fan", "toggle", null, e),
+  detailable: true,
+  holdCapture: true, captureHint: "▲▼ speed · back releases",
+  capture: {
+    up:   e => nudgeStep(e, "percentage", +1),
+    down: e => nudgeStep(e, "percentage", -1),
+    select: e => callService("fan", "toggle", null, e)
+  }
+};
+
+WIDGETS.script = {
+    sub: e => st(e).s === "on" ? "Running…" : "Press to run",
+    isOn: e => st(e).s === "on",
+    select: e => callService("script", "turn_on", null, e)
+  };
+
+WIDGETS.nav = { sub: (e, t) => (t && t.sub) || "", select: (e, t) => navigate(t.target) };
+
+WIDGETS.preset = {
+    sub: () => "",
+    isOn: (e, t) => !!(t.activity && isActivityActive(t.activity)),
+    select: (e, t) => {
+      const fired = firePreset(t);
+      /* drawer screens (apps, music library): picking an item is a
+         one-shot — fire it, announce it, and pop back to where the
+         drawer was opened from (physical keys drive the UI here, so
+         the user shouldn't have to Back out by hand) */
+      const sc = screenOf(S.screen) || {};
+      if (fired && sc.drawer) {
+        flashBar(t.label);
+        if (S.stack.length) navigate(S.stack.pop(), true);
+        else if (sc.parent && CONFIG.screens[sc.parent]) navigate(sc.parent, true);
+      }
+    }
+  };
+
+WIDGETS.room = {
+    sub: () => "",
+    isOn: (e, t) => t.target === CONFIG.home_screen,   /* mock: highlight current */
+    select: (e, t) => { if (t.target) navigate(t.target); else flashBar("Mock room"); },
+    body: t => `<img class="roomimg" src="${t.image || ""}" alt="">`
+  };
+
+WIDGETS.transport = {
+    /* transport row: rew / play-pause / ff. D-pad: ◀▶ move the roving
+       highlight while focused (same model as coverbtns — the music
+       screen has no dpad_passthrough, so the row IS the transport),
+       select presses the highlighted control (default play-pause). */
+    sub: () => "",
+    isOn: e => st(e).s === "playing",
+    keys: {
+      left:  (e, t) => roveMove(t, "tr", -1),
+      right: (e, t) => roveMove(t, "tr", +1)
+    },
+    select: (e, t) =>
+      callService("media_player", rovePick(t, "tr") || "media_play_pause", null, e),
+    body: () => `<div class="trow">
+      <button class="dpbtn" data-tr="media_previous_track"><span class="material-symbols-outlined">skip_previous</span></button>
+      <button class="dpbtn trbig cvsel" data-tr="media_play_pause"><span class="material-symbols-outlined">play_pause</span></button>
+      <button class="dpbtn" data-tr="media_next_track"><span class="material-symbols-outlined">skip_next</span></button>
+    </div>`,
+    wire: (el, t) => wireTaps(el, "tr", svc =>
+      callService("media_player", svc, null, resolveEntity(t.entity)))
+  };
+
+WIDGETS.mediabtns = {
+    /* media mode bar: shuffle + repeat for the tile's player.
+       Tap toggles (shuffle) / cycles (repeat off→all→one→off);
+       ◀▶ rove while focused, select presses (coverbtns model).
+       Accent icon = mode active; repeat shows repeat_one on "one". */
+    sub: () => "",
+    isOn: () => false,
+    keys: {
+      left:  (e, t) => roveMove(t, "mb", -1),
+      right: (e, t) => roveMove(t, "mb", +1)
+    },
+    select: (e, t) => mbPress(e, rovePick(t, "mb") || "shuffle"),
+    body: () => `<div class="btnrow">
+      <button class="dpbtn cvsel" data-mb="shuffle"><span class="material-symbols-outlined">shuffle</span></button>
+      <button class="dpbtn" data-mb="repeat"><span class="material-symbols-outlined">repeat</span></button>
+    </div>`,
+    wire: (el, t) => {
+      el._ci = 0;                       // roving default = shuffle (matches cvsel)
+      wireTaps(el, "mb", k => mbPress(resolveEntity(t.entity), k));
+    },
+    render: (el, e) => {
+      const a = st(e).a;
+      const sh = el.querySelector('[data-mb="shuffle"]');
+      const rp = el.querySelector('[data-mb="repeat"]');
+      if (sh) sh.classList.toggle("mbon", !!a.shuffle);
+      if (rp) {
+        rp.classList.toggle("mbon", !!a.repeat && a.repeat !== "off");
+        rp.firstElementChild.textContent =
+          a.repeat === "one" ? "repeat_one" : "repeat";
+      }
+    }
+  };
+
+function mbPress(e, k) {
+  if (!e) return;
+  const a = st(e).a;
+  if (k === "shuffle")
+    callService("media_player", "shuffle_set", { shuffle: !a.shuffle }, e);
+  else {
+    const next = { off: "all", all: "one", one: "off" }[a.repeat || "off"] || "all";
+    callService("media_player", "repeat_set", { repeat: next }, e);
+  }
+}
+
+WIDGETS.buttons = {
+    /* device button bar (2-4 slots): each slot is a logical dpad key
+       sent to `entity` through cmdFor — so the same bar emits UP vs
+       KEY_UP etc. per the active activity's dpad_commands. */
+    sub: () => "", isOn: () => false,
+    body: t => `<div class="btnrow">` +
+      (t.buttons || ["info", "menu", "back", "home"]).map(k =>
+        `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
+      ).join("") + `</div>`,
+    wire: (el, t) => wireTaps(el, "cmd", k =>
+      rc(resolveEntity(t.entity), cmdFor(t, k)))
+  };
+
+WIDGETS.activity = {
+    sub: (e, t) => {
+      if (S.confirmTile === t.id) return "Press again to end";
+      return isActActive(t) ? "On · press to open" : "Off · press to start";
+    },
+    isOn: (e, t) => isActActive(t),
+    select: (e, t) => {
+      const a = actOf(t); if (!a) return;
+      if (S.confirmTile === t.id) { requestEnd(t, a); return; }
+      if (isActActive(t)) { if (a.screen) navigate(a.screen); }
+      else startActivity(t.activity);
+    },
+    hold: (e, t) => {
+      const a = actOf(t);
+      if (a && isActActive(t)) requestEnd(t, a);
+    }
+  };
+
+WIDGETS.group = {
+    sub: (e, t) => {
+      const n = (t.entities || []).length;
+      const on = (t.entities || []).filter(x => ACTIVE(st(x).s)).length;
+      return `${n} entities · ${on} active`;
+    },
+    isOn: (e, t) => (t.entities || []).some(x => ACTIVE(st(x).s)),
+    select: (e, t) => { if (t.target) navigate(t.target); }
+  };
+
+WIDGETS.climate = {
+    sub: e => {
+      const a = st(e).a;
+      return `${cap(st(e).s)} · now ${a.current_temperature ?? "–"}° → set ${a.temperature ?? "–"}°`;
+    },
+    isOn: e => st(e).s !== "off",
+    detailable: true,
+    selectCaptures: true, captureHint: "▲▼ setpoint · select toggles off/cool · back releases",
+    capture: {
+      up: e => nudgeClimate(e, +1), down: e => nudgeClimate(e, -1),
+      select: e => callService("climate", "set_hvac_mode",
+        { hvac_mode: st(e).s === "off" ? "cool" : "off" }, e)
+    }
+  };
+
+WIDGETS.media = {
+    /* Now Playing tile. Plain by default; "art": true upgrades the body
+       to an artwork hero — thumb (entity_picture), title/artist/album,
+       and a live progress meter. One shared 1s ticker interpolates
+       position from media_position_updated_at while playing (HA only
+       sends media_position on state changes) — it touches ONLY visible
+       art heroes, never triggers a full re-render. */
+    sub: e => {
+      const s = st(e), src = s.a.source ? " · " + s.a.source : "";
+      return cap(s.s) + src;
+    },
+    isOn: e => ["playing", "on", "paused"].includes(st(e).s),
+    detailable: true,
+    select: e => callService("media_player", "media_play_pause", null, e),
+    body: t => t.art ? `<div class="npwrap">
+      <img class="npimg hidden" alt="">
+      <div class="npmeta">
+        <div class="npt"></div>
+        <div class="npa"></div>
+        <div class="npb"></div>
+      </div>
+    </div>
+    <div class="meter npprog hidden"><i></i></div>`
+      : `<div class="meter hidden"><i></i></div>`,
+    wire: (el, t) => {
+      if (!t.art) return;
+      el.classList.add("art");
+      const img = el.querySelector(".npimg");
+      img.addEventListener("error", () => img.classList.add("hidden"));
+    },
+    render: (el, e, t) => {
+      if (!t.art) return;
+      const s = st(e);
+      el.dataset.eid = e || "";
+      const img = el.querySelector(".npimg");
+      const pic = s.a.entity_picture;
+      if (pic && ACTIVE(s.s)) {
+        if (img.dataset.src !== pic) {
+          img.dataset.src = pic; img.src = pic;
+          img.classList.remove("hidden");
+        }
+      } else { img.classList.add("hidden"); img.dataset.src = ""; }
+      el.querySelector(".npt").textContent = s.a.media_title || cap(s.s);
+      el.querySelector(".npa").textContent =
+        s.a.media_artist || s.a.media_series_title || "";
+      el.querySelector(".npb").textContent =
+        s.a.media_album_name || s.a.app_name || s.a.source || "";
+      npProgress(el, s);
+    }
+  };
+
+function npProgress(el, s) {
+  const bar = el.querySelector(".npprog");
+  if (!bar) return;
+  const d = s.a.media_duration;
+  if (!d) { bar.classList.add("hidden"); return; }
+  let p = s.a.media_position || 0;
+  if (s.s === "playing" && s.a.media_position_updated_at)
+    p += (Date.now() - Date.parse(s.a.media_position_updated_at)) / 1000;
+  bar.classList.remove("hidden");
+  bar.firstElementChild.style.width =
+    Math.max(0, Math.min(100, Math.round(p / d * 100))) + "%";
+}
+setInterval(() => {
+  document.querySelectorAll(".tile.wgt-media.art").forEach(el => {
+    const s = st(el.dataset.eid);
+    if (s.s === "playing") npProgress(el, s);
+  });
+}, 1000);
+
+WIDGETS.volume = {
+    /* commands go to `entity`; the meter reads `level_entity` when set
+       (e.g. TV receives ARC volume keys, soundbar reports the level) */
+    sub: (e, t) => {
+      const l = st(lvlEnt(e, t)).a.volume_level;
+      return "Vol " + (l != null ? pct(l) : "–");
+    },
+    inlineSub: true,                 // value rides the title line
+    isOn: e => st(e).s !== "off",
+    meter: (e, t) => st(lvlEnt(e, t)).a.volume_level || 0,
+    selectCaptures: true, captureHint: "▲▼ volume · select mutes · back releases",
+    capture: {
+      up:   e => callService("media_player", "volume_up", null, e),
+      down: e => callService("media_player", "volume_down", null, e),
+      select: e => callService("media_player", "volume_mute",
+        { is_volume_muted: !st(e).a.is_volume_muted }, e)
+    },
+    body: () => `<div class="volrow">
+      <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="meter"><i></i></div>
+      <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
+    </div>`,
+    wire: (el, t) => wireTaps(el, "vol", d =>
+      callService("media_player", "volume_" + d, null, resolveEntity(t.entity)))
+  };
+
+WIDGETS.power = {
+    /* standalone round toggle (homeassistant.toggle) */
+    sub: () => "",
+    isOn: e => ACTIVE(st(e).s),
+    select: e => callService("homeassistant", "toggle", null, e),
+    body: () => `<div class="pwrow">
+      <button class="dpbtn pwbtn" data-pw="1"><span class="material-symbols-outlined">power_settings_new</span></button>
+    </div>`,
+    wire: (el, t) => wireTaps(el, "pw", () =>
+      callService("homeassistant", "toggle", null, resolveEntity(t.entity)))
+  };
+
+WIDGETS.cover = {
+    /* invert_position flips the DISPLAY (state word, %, meter) so a
+       retracted screen reads "Closed · 0%"; actions are unchanged */
+    sub: e => {
+      const inv = entOpt(e, "invert_position");
+      let s = st(e).s;
+      if (inv) s = ({ open: "closed", closed: "open",
+                      opening: "closing", closing: "opening" })[s] || s;
+      let p = st(e).a.current_position;
+      if (p != null && inv) p = 100 - p;
+      return cap(s) + (p != null ? " · " + p + "%" : "");
+    },
+    isOn: e => {
+      const s = st(e).s;
+      if (["opening", "closing"].includes(s)) return true;   // moving
+      return entOpt(e, "invert_position") ? s === "closed" : s === "open";
+    },
+    meter: e => {
+      const p = st(e).a.current_position ?? 0;
+      return (entOpt(e, "invert_position") ? 100 - p : p) / 100;
+    },
+    select: e => callService("cover", "toggle", null, e),
+    detailable: true
+  };
+
+WIDGETS.coverbtns = {
+    /* covers don't toggle on/off — they Open / Stop / Close.
+       D-pad: ◀▶ move the roving highlight while focused (keys map, no
+       capture), select presses the highlighted button (default Stop). */
+    sub: () => "",
+    isOn: e => ["open", "opening", "closing"].includes(st(e).s),
+    keys: {
+      left:  (e, t) => roveMove(t, "cv", -1),
+      right: (e, t) => roveMove(t, "cv", +1)
+    },
+    select: (e, t) => callService("cover", rovePick(t, "cv") || "stop_cover", null, e),
+    body: () => `<div class="btnrow">
+      <button class="dpbtn" data-cv="open_cover"><span class="material-symbols-outlined">arrow_upward</span></button>
+      <button class="dpbtn cvsel" data-cv="stop_cover"><span class="material-symbols-outlined">stop</span></button>
+      <button class="dpbtn" data-cv="close_cover"><span class="material-symbols-outlined">arrow_downward</span></button>
+    </div>`,
+    wire: (el, t) => wireTaps(el, "cv", svc =>
+      callService("cover", svc, null, resolveEntity(t.entity)))
+  };
+
+WIDGETS.stepper = {
+    /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
+       Kinds with a bounded 0-100 range also get a fat slider track
+       (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
+       sets the value directly; −/+ remain the precision control. */
+    sub: () => "",
+    isOn: e => ACTIVE(st(e).s),
+    selectCaptures: true, captureHint: "▲▼ adjust · back releases",
+    capture: {
+      up:   (e, t) => nudgeStep(e, t.kind, +1),
+      down: (e, t) => nudgeStep(e, t.kind, -1)
+    },
+    body: t => {
+      const k = STEP_KINDS[t.kind] || {};
+      const sl = k.slider
+        ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
+      return sl + `<div class="steprow">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="stepval">–</div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
+    },
+    wire(el, t) {
+      wireTaps(el, "st", d => nudgeStep(resolveEntity(t.entity), t.kind, +d));
+      const k = STEP_KINDS[t.kind], sl = el.querySelector(".sldr");
+      if (!k || !sl) return;
+      /* drag/tap on the track → proportional set. Optimistic fill for
+         responsiveness; service calls throttled, final on release. */
+      const apply = (ev, final) => {
+        const r = sl.getBoundingClientRect();
+        let f = k.slider === "v"
+          ? 1 - (ev.clientY - r.top) / r.height
+          : (ev.clientX - r.left) / r.width;
+        f = Math.max(0, Math.min(1, f));
+        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
+          Math.round(f * 100) + "%";
+        const min = k.min ?? 0, max = k.max ?? 100;
+        const v = Math.round(min + f * (max - min));
+        const now = Date.now();
+        if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
+          sl._t = now; sl._lastV = v;
+          k.set(resolveEntity(t.entity), v);
+        }
+      };
+      sl.addEventListener("click", ev => ev.stopPropagation());
+      sl.addEventListener("pointerdown", ev => {
+        ev.stopPropagation();
+        sl.setPointerCapture(ev.pointerId);
+        sl._drag = true;
+        apply(ev, false);
+      });
+      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
+      sl.addEventListener("pointerup", ev => {
+        if (sl._drag) { sl._drag = false; apply(ev, true); }
+      });
+      sl.addEventListener("pointercancel", () => { sl._drag = false; });
+    },
+    render(el, e, t) {
+      const k = STEP_KINDS[t.kind];
+      el.querySelector(".stepval").textContent = k ? k.fmt(k.get(e)) : "–";
+      const sl = el.querySelector(".sldr");
+      if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
+        const min = k.min ?? 0, max = k.max ?? 100;
+        const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
+        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
+          Math.round(f * 100) + "%";
+      }
+    }
+  };
+
+WIDGETS.chips = {
+    /* option pills from a CHIP_KINDS binding (t.kind); options are
+       read from entity attributes each render, so they track the
+       device. Tile self-hides when the entity offers no options.
+       D-pad: capture, then ◀▶ cycles (and applies) the option. */
+    sub: () => "",
+    isOn: () => false,
+    selectCaptures: true, captureHint: "◀▶ change · back releases",
+    capture: {
+      left:  (e, t) => cycleChip(e, t, -1),
+      right: (e, t) => cycleChip(e, t, +1)
+    },
+    body: () => `<div class="chiprow"></div>`,
+    render(el, e, t) {
+      const k = CHIP_KINDS[t.kind];
+      if (!k) return;
+      const opts = k.options(e) || [];
+      el.classList.toggle("hidden", !opts.length);
+      const row = el.querySelector(".chiprow");
+      const sig = JSON.stringify(opts);
+      if (row.dataset.sig !== sig) {
+        row.dataset.sig = sig;
+        row.innerHTML = opts.map(o =>
+          `<button class="chip" data-ch="${o}">${o}</button>`).join("");
+        wireTaps(row, "ch", v => k.set(resolveEntity(t.entity), v));
+      }
+      const cur = k.current(e);
+      row.querySelectorAll(".chip").forEach(c =>
+        c.classList.toggle("on", c.dataset.ch === cur));
+    }
+  };
+
+WIDGETS.passthrough = {
+    sub: (e, t) => t.sub || "",
+    isOn: () => false,
+    selectCaptures: true, captureHint: "D-pad → device · [ sends back · home releases",
+    capture: DPAD_CAPTURE
+  };
+
+WIDGETS.dpad = {
+    /* on-screen remote panel for touch devices (ring + side keys);
+       hidden on hardware remotes via `unless: physical_dpad` */
+    sub: () => "",
+    isOn: () => false,
+    selectCaptures: true, captureHint: "D-pad → device · [ sends back · home releases",
+    capture: DPAD_CAPTURE,
+    body: () => `<div class="dp-wrap">
+      <div class="dp-side">
+        <button class="dpbtn" data-act="vol_up"><span class="material-symbols-outlined">add</span></button>
+        <span class="dp-cap">VOL</span>
+        <button class="dpbtn" data-act="vol_down"><span class="material-symbols-outlined">remove</span></button>
+      </div>
+      <div class="dp-mid">
+        <div class="dp-corners">
+          <button class="dpbtn" data-cmd="info"><span class="material-symbols-outlined">info</span></button>
+          <button class="dpbtn" data-cmd="menu"><span class="material-symbols-outlined">menu</span></button>
+        </div>
+        <div class="dp-pad">
+          <button class="dpbtn up" data-cmd="up"><span class="material-symbols-outlined">keyboard_arrow_up</span></button>
+          <button class="dpbtn lf" data-cmd="left"><span class="material-symbols-outlined">keyboard_arrow_left</span></button>
+          <button class="dpbtn ok" data-cmd="select">OK</button>
+          <button class="dpbtn rt" data-cmd="right"><span class="material-symbols-outlined">keyboard_arrow_right</span></button>
+          <button class="dpbtn dn" data-cmd="down"><span class="material-symbols-outlined">keyboard_arrow_down</span></button>
+        </div>
+        <div class="dp-corners">
+          <button class="dpbtn" data-cmd="back"><span class="material-symbols-outlined">undo</span></button>
+          <button class="dpbtn" data-cmd="home"><span class="material-symbols-outlined">home</span></button>
+        </div>
+      </div>
+      <div class="dp-side">
+        <button class="dpbtn" data-cmd="ch_up"><span class="material-symbols-outlined">add</span></button>
+        <span class="dp-cap">CH</span>
+        <button class="dpbtn" data-cmd="ch_down"><span class="material-symbols-outlined">remove</span></button>
+      </div>
+    </div>`,
+    wire(el, t) {
+      wireTaps(el, "cmd", k => rc(resolveEntity(t.entity), cmdFor(t, k)));
+      wireTaps(el, "act", a => act(a));    // VOL keys route via global.buttons
+    }
+  };
+
+const cap = s => (s || "").charAt(0).toUpperCase() + (s || "").slice(1);
+const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
+const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
+/* command resolution: default < tile "commands" < activity context "dpad_commands" */
+const DPAD_DEFAULT = {
+  up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", select: "ENTER",
+  back: "BACK", home: "HOME", menu: "MENU", info: "INFO",
+  ch_up: "CHANNEL_UP", ch_down: "CHANNEL_DOWN"
+};
+const BTN_ICON = {
+  up: "keyboard_arrow_up", down: "keyboard_arrow_down",
+  left: "keyboard_arrow_left", right: "keyboard_arrow_right",
+  select: "adjust", back: "undo", home: "home", menu: "menu", info: "info",
+  ch_up: "add", ch_down: "remove"
+};
+function cmdFor(t, key) {
+  const m = Object.assign({}, DPAD_DEFAULT, t.commands || {}, ctxFor(S.screen).dpad_commands || {});
+  return m[key];
+}
+
+function nudgeLight(e, delta) {
+  const b = Math.max(3, Math.min(255, (st(e).a.brightness || 0) + delta));
+  callService("light", "turn_on", { brightness: b }, e);
+}
+function nudgeClimate(e, delta) {
+  const t = (st(e).a.temperature || 72) + delta;
+  callService("climate", "set_temperature", { temperature: t }, e);
+}
+
+/* ================================================================
+   Rendering
+   ================================================================ */
+const grid = document.getElementById("grid");
+
+function iconHtml(t, row) {
+  let inner;
+  if (t.icon_image) inner = `<img src="${t.icon_image}" alt="">`;
+  else if (t.icon && t.icon.startsWith("material:"))
+    inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
+  else inner = `<span class="ic">${t.icon || "•"}</span>`;
+  return row ? `<div class="icwrap">${inner}</div>` : inner;
+}
+
+function renderBanner(sc) {
+  const bn = document.getElementById("banner");
+  if (!sc.banner) { bn.classList.add("hidden"); bn.innerHTML = ""; return; }
+  const b = sc.banner;
+  const overlay = 1 - (b.image_opacity != null ? b.image_opacity : 0.55);
+  bn.style.height = b.height || "180px";
+  bn.style.backgroundImage =
+    `linear-gradient(rgba(13,15,18,${overlay}), rgba(13,15,18,${overlay})), url('${b.image}')`;
+  const roomsLink = b.rooms_screen && CONFIG.screens[b.rooms_screen];
+  bn.innerHTML = `<div class="btitle${roomsLink ? " link" : ""}"${roomsLink ? ' data-fid="hero_rooms"' : ""}>${b.title || sc.name}</div>` +
+    (b.show_time === false ? "" : `<div class="btime" id="btime"></div>`);
+  if (roomsLink) bn.querySelector(".btitle").addEventListener("click", ev => {
+    ev.stopPropagation(); heroActivate("hero_rooms");
+  });
+  bn.classList.remove("hidden");
+  updateClock();
+}
+
+/* ---- hero nav: section jump labels + scroll-spy ---- */
+function buildHeroNav(jumps) {
+  S.heroJumps = jumps;
+  const bn = document.getElementById("banner");
+  bn.querySelectorAll(".hstrip").forEach(x => x.remove());
+  grid.onscroll = null;
+  if (bn.classList.contains("hidden") || !jumps.length) return;
+  const strip = document.createElement("div");
+  strip.className = "hstrip";
+  jumps.forEach((j, i) => {
+    const el = document.createElement("div");
+    el.className = "hjump";
+    el.dataset.fid = "hero_" + i;
+    el.textContent = j.label;
+    el.addEventListener("click", ev => { ev.stopPropagation(); heroGo(i); });
+    strip.appendChild(el);
+    j.btn = el;
+  });
+  bn.appendChild(strip);
+  grid.onscroll = updateSpy;
+  updateSpy();
+}
+function heroGo(i) {
+  const j = (S.heroJumps || [])[i];
+  if (!j) return;
+  j.anchorEl.scrollIntoView({ block: "start" });
+  setFocus(j.firstId);
+}
+function heroActivate(fid) {
+  if (fid === "hero_rooms") {
+    const b = (screenOf(S.screen) || {}).banner || {};
+    if (b.rooms_screen && CONFIG.screens[b.rooms_screen]) navigate(b.rooms_screen);
+    return;
+  }
+  heroGo(parseInt(fid.slice(5), 10) || 0);
+}
+function updateSpy() {
+  const js = S.heroJumps || [];
+  if (!js.length) return;
+  const top = grid.getBoundingClientRect().top + 48;
+  let active = 0;
+  js.forEach((j, i) => { if (j.anchorEl.getBoundingClientRect().top <= top) active = i; });
+  if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4)
+    active = js.length - 1;             // scrolled to bottom → last section
+  js.forEach((j, i) => j.btn && j.btn.classList.toggle("active", i === active));
+}
+
+function updateClock() {
+  const el = document.getElementById("btime");
+  if (el) el.textContent =
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+setInterval(updateClock, 20000);
+
+/* Self-fitting hero: banner renders at its configured height, then
+   shrinks (down to banner.min_height, default 96) to absorb grid
+   overflow — so a whole number of tiles fits on any screen size. */
+function fitBanner(sc) {
+  if (!sc || !sc.banner) return;
+  const bn = document.getElementById("banner");
+  if (bn.classList.contains("hidden")) return;
+  const maxH = parseInt(sc.banner.height) || 180;
+  const minH = parseInt(sc.banner.min_height) || 120;
+  bn.style.height = maxH + "px";
+  /* Align the fold to a tile boundary: if a tile straddles the bottom
+     edge of the viewport, shrink the hero just enough to reveal that
+     one tile fully — never collapse further than that. */
+  const gb = grid.getBoundingClientRect().bottom;
+  let delta = 0;
+  grid.querySelectorAll(".tile").forEach(el => {
+    const r = el.getBoundingClientRect();
+    if (r.top < gb && r.bottom > gb) delta = Math.max(delta, r.bottom - gb);
+  });
+  if (delta > 0)
+    bn.style.height = Math.max(minH, maxH - Math.ceil(delta) - 6) + "px";
+}
+function scheduleFit() {
+  const sc = () => CONFIG && screenOf(S.screen);
+  requestAnimationFrame(() => fitBanner(sc()));
+  setTimeout(() => fitBanner(sc()), 400);   // re-fit after fonts settle
+}
+window.addEventListener("resize", () => scheduleFit());
+
+function makeTile(t, row) {
+  const el = document.createElement("div");
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && t.span === 2 ? " span2" : "");
+  el.id = "tile_" + t.id;
+  const w = WIDGETS[t.type] || {};
+  const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
+  const body = `<div class="lbl">${t.label}</div>
+    <div class="sub"></div>${extra}<div class="hint"></div>`;
+  /* inline sub: value rides the title line (right-aligned) instead of
+     burning a second line — widgets opt in via inlineSub (bool or fn) */
+  const inline = !row && (w.inlineSub === true ||
+    (typeof w.inlineSub === "function" && w.inlineSub(t)));
+  el.innerHTML = row
+    ? iconHtml(t, true) + `<div class="txt">${body}</div>`
+    : `<div class="top">${iconHtml(t, false)}<span class="lbl">${t.label}</span>${
+        inline ? '<span class="sub subin"></span>' : ""}</div>
+       ${inline ? "" : '<div class="sub"></div>'}${extra}<div class="hint"></div>`;
+  el.addEventListener("click", () => { setFocus(t.id); act("select"); });
+  if (w.wire) w.wire(el, t);
+  /* trailing action slot: chassis-level, any tile may declare one.
+     Device tiles (detailable widgets whose entity has a detail
+     generator) get an implicit settings trail → detail screen;
+     set trailing: false in config to suppress it. */
+  const trailing = trailingOf(t);
+  if (trailing) {
+    el.classList.add("has-trail");
+    const tr = document.createElement("button");
+    tr.className = "trail";
+    tr.dataset.fid = t.id + TRAIL;
+    tr.innerHTML = iconHtml({ icon: trailing.icon || "material:chevron_right" }, false);
+    tr.addEventListener("click", ev => {
+      ev.stopPropagation();
+      runAction(trailing.action);
+    });
+    el.appendChild(tr);
+  }
+  return el;
+}
+
+function navigate(screenId, isBack) {
+  const sc = screenOf(screenId);           // config screen or detail:<entity>
+  if (!sc) return;
+  if (S.screen && !isBack && screenId !== S.screen) S.stack.push(S.screen);
+  releaseCapture(); clearConfirm();
+  S.screen = screenId;
+  document.getElementById("screenName").textContent = barTitle(sc);
+  renderBanner(sc);
+  const cols = (sc.grid && sc.grid.columns) || 2;
+  /* minmax(0,1fr): columns may shrink below content min-width, so a
+     wide tile (trail + long label) can never burst the viewport */
+  grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  const row = cols === 1;
+  grid.innerHTML = "";
+  const sections = sc.sections || [{ tiles: sc.tiles || [] }];
+  const heroJumps = [];
+  sections.forEach(sec => {
+    const vis = sec.tiles.flatMap(expandTile).filter(visibleTile);
+    if (!vis.length) return;
+    let anchorEl = null;
+    if (sec.title) {
+      const h = document.createElement("div");
+      h.className = "shead"; h.textContent = sec.title;
+      grid.appendChild(h);
+      anchorEl = h;
+    }
+    const secCols = sec.columns || cols;
+    const secRow = secCols === 1;
+    let host = grid;
+    if (sec.columns) {
+      host = document.createElement("div");
+      host.className = "secgrid";
+      host.style.gridTemplateColumns = `repeat(${sec.columns}, minmax(0, 1fr))`;
+      grid.appendChild(host);
+      anchorEl = anchorEl || host;
+    }
+    vis.forEach(t => {
+      const el = makeTile(t, secRow);
+      host.appendChild(el);
+      anchorEl = anchorEl || el;
+    });
+    if (sec.hero_label)
+      heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
+  });
+  buildHeroNav(sc.banner ? heroJumps : []);
+  const all = tilesOf(sc);
+  setFocus(sc.initial_focus || (all[0] && all[0].id));
+  S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
+  renderStates();
+  scheduleFit();
+  /* global back affordance: chevron in the status bar iff history */
+  document.getElementById("backBtn").classList.toggle("hidden", !S.stack.length);
+  /* passthrough cue: accent rule + gamepad glyph while the physical
+     D-pad drives the device (and hold-Back/Home send device keys) */
+  const pt = passthroughActive();
+  document.getElementById("bar").classList.toggle("pt", pt);
+  document.getElementById("ptIc").classList.toggle("hidden", !pt);
+  if (S.connected) subscribeFor(screenId);
+}
+
+function renderStates() {
+  const sc = screenOf(S.screen);
+  if (!sc) return;
+  /* generated tiles (presets_from) are STRUCTURAL: when their source
+     attribute changes the tile set itself changes, so patch-in-place
+     isn't enough — re-render the grid. Rare (favorites edit), cheap. */
+  const sig = tileSig(sc);
+  if (sig !== S.tileSig) { S.tileSig = sig; navigate(S.screen, true); return; }
+  tilesOf(sc).forEach(t => {
+    const el = document.getElementById("tile_" + t.id);
+    const w = WIDGETS[t.type];
+    if (!el || !w) return;
+    const eid = resolveEntity(t.entity);
+    el.querySelector(".sub").textContent =
+      typeof w.sub === "function" ? w.sub(eid, t) : "";
+    el.classList.toggle("on", !!(w.isOn && w.isOn(eid, t)));
+    el.classList.toggle("confirm", S.confirmTile === t.id);
+    const m = el.querySelector(".meter");
+    if (m && w.meter && eid) {
+      m.classList.remove("hidden");
+      m.firstElementChild.style.width = Math.round(w.meter(eid, t) * 100) + "%";
+    }
+    el.querySelector(".hint").textContent = w.captureHint || "";
+    if (w.render) w.render(el, eid, t);   // widget-managed dynamic body
+  });
+}
+
+function perf() {
+  /* boot time is FROZEN at first paint (it's a boot metric, not an
+     uptime counter); msgs and device stay live */
+  document.getElementById("perf").textContent =
+    (S.bootMs ?? Math.round(performance.now() - T0)) + "ms · " +
+    S.msgCount + " msgs · " + (S.deviceName || "");
+}
+setInterval(() => { if (S.painted) perf(); }, 5000);
+function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
+
+function barTitle(sc) {
+  const room = (CONFIG.global || {}).room;
+  return room && sc.name !== room ? room + " · " + sc.name : sc.name;
+}
+/* flashBar(msg)            — 3s neutral notice
+   flashBar(msg, tone, ms)  — confirm prompt: tone "off" pulses red
+   (something is about to turn OFF), "on" pulses accent (about to
+   turn ON / start); ms matches the confirm window. The bar title is
+   too small to carry a warning on a remote, so the tone ALSO pulses
+   the screen's MAJOR tile — the first tile in the grid. */
+function cfmTone(el, tone) {
+  if (!el) return;
+  el.classList.remove("cfm-off", "cfm-on");
+  if (tone) el.classList.add("cfm-" + tone);
+}
+function cfmClear() {
+  cfmTone(document.getElementById("screenName"), null);
+  cfmTone(flashBar._tile, null);
+  flashBar._tile = null;
+}
+function flashBar(msg, tone, ms) {
+  const el = document.getElementById("screenName");
+  el.textContent = msg;
+  cfmClear();
+  if (tone) {
+    cfmTone(el, tone);
+    flashBar._tile = grid.querySelector(".tile");
+    cfmTone(flashBar._tile, tone);
+  }
+  clearTimeout(flashBar._t);
+  flashBar._t = setTimeout(() => {
+    cfmClear();
+    const sc = screenOf(S.screen);
+    el.textContent = sc ? barTitle(sc) : "";
+  }, ms || 3000);
+}
+
+/* ================================================================
+   Focus: spatial D-pad navigation + capture mode
+   ================================================================ */
+/* Focus ids come in three flavors:
+   · a tile id                     (element #tile_<id>)
+   · "hero_*"                      (banner title / section jumps)
+   · "<tileid>::trail"             (a tile's trailing action zone)  */
+const TRAIL = "::trail";
+const isTrailId = id => typeof id === "string" && id.endsWith(TRAIL);
+const trailBase = id => id.slice(0, -TRAIL.length);
+
+/* focusable items = hero nav elements + visible tiles (+ trails) */
+function focusables() {
+  const list = [];
+  document.querySelectorAll("#banner [data-fid]").forEach(el =>
+    list.push({ id: el.dataset.fid, el }));
+  tiles().forEach(t => {
+    const el = document.getElementById("tile_" + t.id);
+    if (!el || el.offsetParent === null) return;   // skip hidden tiles
+    list.push({ id: t.id, el });
+    const tr = el.querySelector(".trail");
+    if (tr) list.push({ id: tr.dataset.fid, el: tr });
+  });
+  return list;
+}
+function focusEl(id) {
+  return document.getElementById("tile_" + id) ||
+    document.querySelector(`#banner [data-fid="${id}"]`) ||
+    document.querySelector(`#grid [data-fid="${id}"]`);
+}
+
+function setFocus(id) {
+  releaseCapture();
+  if (S.confirmTile && S.confirmTile !== id) { clearConfirm(); }
+  S.focusId = id;
+  grid.querySelectorAll(".tile").forEach(el =>
+    el.classList.toggle("focused", el.id === "tile_" + id));
+  grid.querySelectorAll(".trail").forEach(el =>
+    el.classList.toggle("focused", el.dataset.fid === id));
+  document.querySelectorAll("#banner [data-fid]").forEach(el =>
+    el.classList.toggle("focused", el.dataset.fid === id));
+  const el = focusEl(id);
+  if (el && el.closest("#grid")) el.scrollIntoView({ block: "nearest" });
+}
+
+function spatialMove(dir) {
+  const cur = focusEl(S.focusId);
+  if (!cur) return false;
+  const c = cur.getBoundingClientRect();
+  const cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+  let best = null, bestScore = Infinity;
+  focusables().forEach(f => {
+    if (f.id === S.focusId) return;
+    const r = f.el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const dx = x - cx, dy = y - cy;
+    const inDir = (dir === "up" && dy < -8) || (dir === "down" && dy > 8) ||
+                  (dir === "left" && dx < -8) || (dir === "right" && dx > 8);
+    if (!inDir) return;
+    const primary = (dir === "up" || dir === "down") ? Math.abs(dy) : Math.abs(dx);
+    const cross   = (dir === "up" || dir === "down") ? Math.abs(dx) : Math.abs(dy);
+    const score = primary + cross * 2.5;
+    if (score < bestScore) { bestScore = score; best = f.id; }
+  });
+  if (best) { setFocus(best); return true; }
+  return false;
+}
+
+function pageScreen(dir) {
+  const order = CONFIG.screen_order, i = order.indexOf(S.screen);
+  if (i < 0) return;                       // detail/unlisted screens don't page
+  const j = dir === "right" ? i + 1 : i - 1;
+  if (j >= 0 && j < order.length) navigate(order[j]);
+}
+
+function captureWidget() {
+  const t = tileDef(S.focusId);
+  return t && WIDGETS[t.type].capture ? t : null;
+}
+function releaseCapture() {
+  if (!S.captured) return;
+  S.captured = false;
+  grid.querySelectorAll(".tile.captured").forEach(el => el.classList.remove("captured"));
+}
+function enterCapture() {
+  const t = captureWidget();
+  if (!t) return false;
+  S.captured = true;
+  document.getElementById("tile_" + t.id).classList.add("captured");
+  return true;
+}
+
+/* ================================================================
+   Input: keyboard → logical buttons → actions
+   ================================================================ */
+let holdTimer = null, holdFired = false;
+
+/* device target for hold-Back / hold-Home: the screen's passthrough
+   entity or the context dpad slot — null on non-device screens
+   (hold then simply behaves like tap). */
+function deviceKeyTarget() {
+  const scd = (CONFIG && screenOf(S.screen)) || {};
+  return resolveEntity(scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+}
+
+/* Harmony rule: on a screen declaring dpad_passthrough, a physical
+   D-pad drives the device directly (touch drives the UI). */
+function passthroughActive() {
+  const scp = (CONFIG && screenOf(S.screen)) || {};
+  return !!(scp.dpad_passthrough && CAPS.has("physical_dpad"));
+}
+
+function act(button, phys) {
+  if (!CONFIG || !S.screen) return;
+
+  /* Harmony passthrough claims PHYSICAL keys only — touch taps on
+     tiles always drive the UI, even on a passthrough screen.
+     v0.11: Back is NO LONGER claimed — tap-Back is UI back everywhere;
+     hold-Back/Home send the device keys (see keydown). */
+  if (phys && passthroughActive() &&
+      ["up", "down", "left", "right", "select"].includes(button)) {
+    const scp = screenOf(S.screen);
+    rc(resolveEntity(scp.dpad_passthrough), cmdFor({}, button));
+    return;
+  }
+
+  const t = tileDef(S.focusId), w = t && WIDGETS[t.type];
+  const eid = t ? resolveEntity(t.entity) : null;
+
+  if (S.captured && w && w.capture) {          // widget owns the D-pad
+    const h = w.capture[button];
+    if (h) { h(eid, t); renderStates(); return; }
+    if (button === "back") { releaseCapture(); renderStates(); return; }
+    if (button === "home") { releaseCapture(); navigate(CONFIG.home_screen); return; }
+  }
+
+  switch (button) {
+    case "up": case "down":
+      spatialMove(button); break;
+    case "left": case "right": {
+      /* widget-owned ◀▶ while merely FOCUSED (no capture) — e.g.
+         coverbtns' roving highlight */
+      if (!isTrailId(S.focusId) && w && w.keys && w.keys[button]) {
+        w.keys[button](eid, t); renderStates(); break;
+      }
+      if (!spatialMove(button)) pageScreen(button);
+      break;
+    }
+    case "select": {
+      if (typeof S.focusId === "string" && S.focusId.startsWith("hero_")) {
+        heroActivate(S.focusId); break;
+      }
+      if (isTrailId(S.focusId)) {
+        const tr = trailingOf(tileDef(trailBase(S.focusId)));
+        if (tr) runAction(tr.action);
+        break;
+      }
+      if (!w) break;
+      if (S.confirmTile === t.id && w.select) { w.select(eid, t); break; }
+      if (w.selectCaptures) { enterCapture(); renderStates(); }
+      else if (w.select) { w.select(eid, t); renderStates(); }
+      break;
+    }
+    case "back":
+      if (S.confirmTile) { clearConfirm(); renderStates(); break; }
+      if (S.stack.length) navigate(S.stack.pop(), true);
+      break;
+    case "back_hold": case "home_hold": {
+      /* SHELL-OWNED hold gesture: KeyMapper maps a physical long-press
+         to a distinct key (see keymap), because injected keys don't
+         deliver reliable keyup/hold timing to the webview. Sends the
+         DEVICE's back/home; degrades to tap without a device target. */
+      const base = button === "back_hold" ? "back" : "home";
+      const tgt = deviceKeyTarget();
+      if (tgt) rc(tgt, cmdFor({}, base));
+      else act(base, phys);
+      break;
+    }
+    case "power_hold":
+      /* shell-owned long-press power = All Off, WITH two-press confirm
+         (user call: blast radius deserves the prompt even on the
+         deliberate gesture) */
+      if (barConfirm("alloffh", "Hold power again to turn everything off")) {
+        endActivity({});
+        flashBar("All Off");
+      }
+      break;
+    case "menu": {
+      /* physical MENU key (Astrion: '#') → the device's menu command
+         on screens with a device context; no-op elsewhere */
+      const mt = deviceKeyTarget();
+      if (mt) rc(mt, cmdFor({}, "menu"));
+      break;
+    }
+    case "home": {
+      /* home goes UP one level via the screen's `parent` (fallback:
+         sub screen → room page; room page → global.main_home). Home
+         RESETS history (isBack navigation → chevron hides). */
+      S.stack = [];
+      const scr = screenOf(S.screen) || {};
+      const dest = (scr.parent && CONFIG.screens[scr.parent]) ? scr.parent
+        : S.screen !== CONFIG.home_screen ? CONFIG.home_screen
+        : CONFIG.global.main_home;
+      if (dest && CONFIG.screens[dest] && dest !== S.screen) navigate(dest, true);
+      break;
+    }
+    case "power": {
+      /* Power is SCOPED BY SCREEN CLASS:
+         detail → toggle the device (immediate — one device, reversible)
+         group  → all page devices off/on (status-bar confirm)
+         activity → end the running activity (confirm)
+         room   → activity end if running, else All Off (confirm) */
+      const scp2 = screenOf(S.screen) || {};
+      const cls = classOf(scp2, S.screen);
+      const aid = currentActivityId();
+      if (cls === "detail") {
+        callService("homeassistant", "toggle", null, S.screen.slice(7));
+        break;
+      }
+      if (cls === "group") {
+        const ents = powerEntities(scp2);
+        if (!ents.length) { flashBar("Nothing to switch"); break; }
+        const anyOn = ents.some(x => ACTIVE(st(x).s));
+        if (!barConfirm("gpwr", `Press power again to turn ${ents.length} devices ${anyOn ? "off" : "on"}`,
+            anyOn ? "off" : "on"))
+          break;
+        callService("homeassistant", anyOn ? "turn_off" : "turn_on", null, ents);
+        flashBar((anyOn ? "Turning off " : "Turning on ") + ents.length + " devices");
+        break;
+      }
+      if (!aid) {
+        if (cls === "room") {                    // room, nothing running → All Off
+          if (barConfirm("alloff", "Press power again to turn everything off")) {
+            endActivity({});
+            flashBar("All Off");
+          }
+        } else flashBar("No activity running");
+        break;
+      }
+      const a = CONFIG.activities[aid];
+      const tile = tiles().find(x => x.type === "activity" && x.activity === aid);
+      if (tile) { setFocus(tile.id); requestEnd(tile, a); break; }
+      /* no activity tile on this screen → confirm via the status bar */
+      if (a.confirm_end && !barConfirm("endact", "Press power again to end " + (a.name || aid)))
+        break;
+      endActivity(a);
+      flashBar("Ending " + (a.name || aid));
+      break;
+    }
+    case "vol_up": case "vol_down": case "ch_up": case "ch_down":
+    case "mute": case "menu_hold": {
+      /* Exception to "VOL is always audio": on a device DETAIL
+         screen, VOL nudges that device's primary range (brightness,
+         setpoint, volume, position). Everywhere else: activity audio. */
+      if ((button === "vol_up" || button === "vol_down") &&
+          typeof S.screen === "string" && S.screen.startsWith("detail:")) {
+        const de = S.screen.slice(7);
+        const kind = DETAIL_VOL_KIND[de.split(".")[0]];
+        if (kind) { nudgeStep(de, kind, button === "vol_up" ? +1 : -1); break; }
+      }
+      /* v0.11 focus-follows: focused device tile with a primary range →
+         VOL nudges IT. Media is carved out — a focused media tile keeps
+         the context audio path ($context.volume), never volume_set on
+         the focused player, so ARC/CEC volume routing survives. */
+      if ((button === "vol_up" || button === "vol_down") && eid) {
+        const fd = eid.split(".")[0];
+        if (fd !== "media_player" && DETAIL_VOL_KIND[fd]) {
+          nudgeStep(eid, DETAIL_VOL_KIND[fd], button === "vol_up" ? +1 : -1);
+          renderStates();
+          break;
+        }
+      }
+      /* logical-button bindings: a screen-level `buttons` map overrides
+         global.buttons per screen (e.g. music binds ch_up/ch_down to
+         next/previous track, menu_hold to the music drawer); entries
+         use the shared action grammar — {service, entity|target, data}
+         OR {navigate: <screen>} */
+      const bmap = Object.assign({}, CONFIG.global.buttons,
+        (screenOf(S.screen) || {}).buttons || {});
+      const b = bmap[button];
+      if (b) {
+        if (b.navigate) { navigate(b.navigate); break; }
+        const target = resolveEntity(b.entity || b.target);
+        if (!target) break;                    // unresolved context → no-op,
+        const [domain, service] = b.service.split(".");   // never untargeted
+        callService(domain, service, b.data, target);
+        break;
+      }
+      /* mute default (no config binding needed): toggle mute on the
+         context audio path — same ARC-aware target VOL uses */
+      if (button === "mute") {
+        const tgt = resolveEntity("$context.volume");
+        if (tgt) callService("media_player", "volume_mute",
+          { is_volume_muted: !st(tgt).a.is_volume_muted }, tgt);
+      }
+      break;
+    }
+  }
+}
+
+/* ---- key-event debug card ----------------------------------------
+   Enable via config global.debug, URL #debug=1 (sticky, #debug=0
+   clears), or localStorage hakr_debug=1. Logs RAW keyboard events in
+   CAPTURE phase — before any engine handling, including unmapped keys
+   — to diagnose what the shell/KeyMapper actually delivers. */
+const DBG = { on: false, lines: [], last: 0 };
+function dbgInit() {
+  DBG.on = !!(CONFIG && CONFIG.global && CONFIG.global.debug) ||
+    localStorage.getItem("hakr_debug") === "1";
+  document.getElementById("dbg").classList.toggle("hidden", !DBG.on);
+  if (DBG.on) dbgLog("debug on · press keys…");
+}
+function dbgLog(msg) {
+  if (!DBG.on) return;
+  const now = performance.now();
+  const dt = DBG.last ? Math.round(now - DBG.last) : 0;
+  DBG.last = now;
+  DBG.lines.unshift("+" + String(dt).padStart(4) + "ms " + msg);
+  if (DBG.lines.length > 7) DBG.lines.length = 7;
+  document.getElementById("dbg").textContent = DBG.lines.join("\n");
+}
+function dbgKey(t, e) {
+  dbgLog(t + " key=" + JSON.stringify(e.key) + " code=" + (e.code || "?") +
+    " kc=" + e.keyCode + (e.repeat ? " rpt" : "") +
+    " → " + (KEYMAP[e.key] || "(unmapped)"));
+}
+window.addEventListener("keydown", e => dbgKey("▼", e), true);
+window.addEventListener("keyup", e => dbgKey("▲", e), true);
+window.addEventListener("keypress", e => dbgKey("·", e), true);
+
+/* FIELD LESSON (v0.11.1): KeyMapper-injected keys do NOT deliver
+   reliable keyup/hold timing to the webview — keyup-gated taps and
+   in-engine hold timers died on the Astrion. Doctrine: taps fire on
+   KEYDOWN (instant, field-proven); HOLD gestures are the SHELL's job —
+   KeyMapper long-press mappings send DISTINCT keys (back_hold /
+   home_hold / power_hold). Select keeps its keyup+timer hold-capture
+   (Enter delivers proper pairs and the gesture is field-verified). */
+document.addEventListener("keydown", e => {
+  if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return; // let the auth form type
+  const b = KEYMAP[e.key];
+  if (!b) return;
+  e.preventDefault();
+  if (b === "select") {                         // hold-select gesture
+    if (e.repeat || S.captured || passthroughActive()) return; // tap on keyup
+    holdFired = false;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {              // timer-based: works even
+      holdFired = true;                         // if the shell sends no
+      const t = tileDef(S.focusId);             // key-repeat events
+      const w = t && WIDGETS[t.type];
+      if (w && w.holdCapture && w.capture) enterCapture();
+      else if (w && w.hold) w.hold(resolveEntity(t.entity), t);
+      renderStates();
+    }, TIMING.hold);
+    return;
+  }
+  if (e.repeat && !S.captured && b !== "vol_up" && b !== "vol_down") return;
+  act(b, true);
+});
+
+document.addEventListener("keyup", e => {
+  if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (KEYMAP[e.key] !== "select") return;
+  e.preventDefault();
+  clearTimeout(holdTimer);
+  if (!holdFired) act("select", true);
+  holdFired = false;
+});
+
+/* ================================================================
+   Auth overlay + boot
+   ================================================================ */
+function showAuth(err) {
+  document.getElementById("auth").classList.remove("hidden");
+  document.getElementById("authErr").textContent = err || "";
+  const hostIn = document.getElementById("hostIn");
+  hostIn.value = localStorage.getItem("hakr_host") ||
+    (location.protocol.startsWith("http") ? location.host : "");
+}
+document.getElementById("backBtn").addEventListener("click", () => act("back"));
+document.getElementById("connectBtn").addEventListener("click", () => {
+  const host = document.getElementById("hostIn").value.trim();
+  const token = document.getElementById("tokenIn").value.trim();
+  if (!host || !token) return showAuth("Host and token required");
+  localStorage.setItem("hakr_host", host);
+  localStorage.setItem("hakr_token", token);
+  document.getElementById("auth").classList.add("hidden");
+  connect();
+});
+
+(async () => {
+  /* one-time provisioning for kiosk devices — open:
+     .../index.html#host=192.168.1.87:8123&token=LLAT
+     (also accepted as ?host=…&token=… for loaders that drop fragments)
+     Credentials are trimmed, stored to localStorage, and stripped from
+     the URL, so you never type a token on a remote's keyboard. */
+  {
+    const prov = new URLSearchParams(
+      (location.hash.length > 1 ? location.hash.slice(1) : "") + "&" +
+      (location.search.length > 1 ? location.search.slice(1) : ""));
+    const clean = v => (v || "").trim().replace(/^["']+|["']+$/g, "");
+    const pHost = clean(prov.get("host")), pTok = clean(prov.get("token"));
+    const pDev = clean(prov.get("device")), pDbg = clean(prov.get("debug"));
+    if (pHost) localStorage.setItem("hakr_host", pHost);
+    if (pTok) localStorage.setItem("hakr_token", pTok);
+    if (pDev) localStorage.setItem("hakr_device", pDev);
+    if (pDbg === "1") localStorage.setItem("hakr_debug", "1");
+    else if (pDbg === "0") localStorage.removeItem("hakr_debug");
+    if (pHost || pTok || pDev || pDbg) history.replaceState(null, "", location.pathname);
+  }
+  try {
+    CONFIG = await loadConfig();
+  } catch (err) {
+    document.getElementById("screenName").textContent = "⚠ " + err.message;
+    return;
+  }
+  /* device profile: ?device=<name> > Fully-kiosk sniff > "default" */
+  let devName = localStorage.getItem("hakr_device");
+  if (!devName && window.fully && CONFIG.devices)
+    devName = Object.keys(CONFIG.devices).find(k => CONFIG.devices[k].fully) || null;
+  DEVICE = (CONFIG.devices || {})[devName] || (CONFIG.devices || {}).default || {};
+  S.deviceName = devName || "default";
+  CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
+  KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
+  applyTheme(CONFIG.theme);
+  dbgInit();
+  navigate(CONFIG.home_screen);
+  connect();
+})();
+
+</script>
+</body>
+</html>

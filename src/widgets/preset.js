@@ -1,0 +1,17 @@
+WIDGETS.preset = {
+    sub: () => "",
+    isOn: (e, t) => !!(t.activity && isActivityActive(t.activity)),
+    select: (e, t) => {
+      const fired = firePreset(t);
+      /* drawer screens (apps, music library): picking an item is a
+         one-shot — fire it, announce it, and pop back to where the
+         drawer was opened from (physical keys drive the UI here, so
+         the user shouldn't have to Back out by hand) */
+      const sc = screenOf(S.screen) || {};
+      if (fired && sc.drawer) {
+        flashBar(t.label);
+        if (S.stack.length) navigate(S.stack.pop(), true);
+        else if (sc.parent && CONFIG.screens[sc.parent]) navigate(sc.parent, true);
+      }
+    }
+  };

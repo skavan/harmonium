@@ -1,0 +1,39 @@
+id: music_library
+name: Music Library
+kind: group
+parent: music
+presentation: drawer
+
+context:
+  media_player: media_player.ma_sonos_basement
+  volume: media_player.ma_sonos_basement
+
+buttons:
+  ch_up: { service: media_player.media_next_track, entity: $context.media_player }
+  ch_down: { service: media_player.media_previous_track, entity: $context.media_player }
+
+layout:
+  columns: 3
+  tiles:
+    - id: mq_pull
+      type: preset
+      activity: music
+      icon: material:swap_horiz
+      label: Pull Music Here
+      action:
+        service: music_assistant.transfer_queue
+        target: $context.media_player
+        data: { auto_play: true }
+    - id: mfav
+      type: presets_from
+      entity: sensor.porch_music_favorites
+      attribute: favorites
+      item:
+        label: $item.name
+        icon_image: $item.image
+        icon: material:music_note
+        activity: music
+      action:
+        service: music_assistant.play_media
+        target: $context.media_player
+        data: { media_id: $item.uri, media_type: $item.media_type }

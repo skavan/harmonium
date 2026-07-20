@@ -1,0 +1,82 @@
+# Infrastructure, not page content. A future HA GUI would normally hide this.
+theme:
+  accent: "#ffb300"
+  bg: "#0d0f12"
+  tile: "#1a1e24"
+  radius: 12px
+  wash: rgba(255,179,0,.10)
+
+navigation:
+  start_view: porch
+  overview_view: overview
+  view_order: [porch, tv, music, comfort]
+
+input:
+  physical_buttons:
+    short_press: control_target
+    hold:
+      back: app_back
+      home: room_home
+      power: activity_end
+    hold_ms:
+      navigation: 500
+      power: 1200
+  confirm_activity_switch: true
+  debug: false
+  global_buttons:
+    vol_up: { service: media_player.volume_up, entity: $context.volume }
+    vol_down: { service: media_player.volume_down, entity: $context.volume }
+    menu_hold: { navigate: apps }
+
+entity_options:
+  cover.maestroscreen_04_fr:
+    invert_position: true
+
+keymaps:
+  default: &default_keymap
+    ArrowUp: up
+    ArrowDown: down
+    Tab: down
+    ArrowLeft: left
+    ArrowRight: right
+    Enter: select
+    " ": select
+    "+": vol_up
+    "=": vol_up
+    "-": vol_down
+    PageUp: ch_up
+    PageDown: ch_down
+    m: mute
+    M: mute
+    "`": mute
+    AudioVolumeMute: mute
+    "[": back
+    Escape: back
+    Backspace: back
+    "]": home
+    ";": home
+    F1: home
+    BrowserHome: home
+    "{": back_hold
+    "}": home_hold
+    "#": menu
+    "@": menu_hold
+    F2: power
+    p: power
+    P: power
+    o: power_hold
+    O: power_hold
+  astrion:
+    <<: *default_keymap
+    "=": power_hold
+    "]": back_hold
+    ";": home_hold
+
+remotes:
+  default:
+    capabilities: [touch, pointer]
+    keymap: default
+  astrion:
+    fully: true
+    capabilities: [physical_dpad, physical_volume, touch]
+    keymap: astrion

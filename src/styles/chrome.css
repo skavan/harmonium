@@ -1,0 +1,74 @@
+/* status bar — ONE line, always: back chevron (when history) +
+     ellipsized title + compact perf readout */
+  #bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px 4px; font-size: 13px; color: var(--dim);
+  }
+  #backBtn {
+    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    border: 0; background: var(--tile-hi); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  #backBtn > * { pointer-events: none; }
+  #backBtn .material-symbols-outlined { font-size: 20px; }
+  #bar .name {
+    font-size: 17px; font-weight: 650; color: var(--text); flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+  /* passthrough-mode cue: 2px accent rule + gamepad glyph — the D-pad
+     is driving the DEVICE here (and hold-Back/Home send device keys) */
+  #bar.pt { border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+  #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
+
+  /* key-event debug card (global.debug / #debug=1) — raw key delivery,
+     newest line first, for diagnosing shell/KeyMapper behavior */
+  #dbg {
+    flex: 0 0 auto; margin: 0 12px 6px; padding: 6px 10px;
+    background: #151a20; border: 1px solid var(--accent); border-radius: 10px;
+    font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    color: var(--text); white-space: pre; overflow: hidden;
+  }
+  #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
+  #dot.ok { background: #4caf7d; }
+  #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
+
+  /* banner (screen-level hero, from config) */
+  #banner {
+    position: relative; flex: 0 0 auto;
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    padding-bottom: 46px;   /* air between title and the nav strip */
+  }
+  #banner .btitle { font-size: 34px; font-weight: 300; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+  #banner .btime {
+    position: absolute; top: 10px; right: 12px;
+    background: rgba(0,0,0,.45); border-radius: 999px;
+    padding: 4px 12px; font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  #banner .btitle.link { cursor: pointer; padding: 6px 20px; border-radius: 12px; }
+  /* hero nav strip: small labels, BIG hit bands */
+  #banner .hstrip {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex;
+  }
+  .hjump {
+    flex: 1; min-height: 52px;
+    display: flex; align-items: flex-end; padding: 0 14px 10px;
+    font-size: 13px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #d4d8dd;
+    text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
+  }
+  .hstrip .hjump:last-child { justify-content: flex-end; }
+  .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }
+  .hjump.active { color: var(--accent); }
+  .hjump.focused, #banner .btitle.focused {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
+  }
+
+  /* two-press confirm cue: the bar title pulses for the whole confirm
+     window — red when the pending action turns things OFF, accent
+     when it turns things ON / starts an activity */
+  @keyframes cfmpulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  #bar .name.cfm-off { color: var(--danger); animation: cfmpulse .9s ease-in-out infinite; }
+  #bar .name.cfm-on { color: var(--accent); animation: cfmpulse .9s ease-in-out infinite; }

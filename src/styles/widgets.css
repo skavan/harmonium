@@ -1,0 +1,104 @@
+/* per-section column override (preset grids etc.) */
+  .secgrid { grid-column: 1 / -1; display: grid; gap: 10px; }
+
+  /* room cards: full-bleed image tiles */
+  .tile.wgt-room {
+    position: relative; padding: 0; min-height: 132px; overflow: hidden;
+  }
+  .tile.wgt-room .roomimg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: .85;
+  }
+  .tile.wgt-room .top {
+    position: absolute; left: 12px; bottom: 10px; z-index: 1;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  .tile.wgt-room .lbl { font-size: 17px; }
+  .tile.wgt-room .ic, .tile.wgt-room .sub, .tile.wgt-room .hint { display: none; }
+  .tile.wgt-room.on { border-color: var(--accent); }
+
+  /* now-playing art hero (media tile with art: true) */
+  .tile.wgt-media.art .sub { display: none; }
+  .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
+  .npimg {
+    width: 96px; height: 96px; border-radius: 12px; object-fit: cover;
+    flex: 0 0 auto; background: #2c333d;
+  }
+  .npmeta { min-width: 0; flex: 1; }
+  .npt { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .npa { font-size: 14px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .npb { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+
+  /* transport row: rew / big play-pause / ff */
+  .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
+  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; }
+  /* roving highlight: double ring reads on dark AND accent buttons */
+  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }
+  .trow .trbig:active { background: var(--on); }
+  .trow .trbig .material-symbols-outlined { font-size: 38px; }
+  .tile.wgt-transport .top, .tile.wgt-transport .sub, .tile.wgt-transport .hint { display: none; }
+  .tile.wgt-transport { min-height: 0; }
+
+  /* device button bar: configurable row of device-command keys */
+  .btnrow { display: flex; align-items: center; gap: 12px; padding: 4px 0 2px; }
+  .btnrow .dpbtn { flex: 1; height: 50px; border-radius: 14px; border: 2px solid transparent; }
+  /* roving highlight inside a button row (◀▶ while the tile is focused) */
+  .tile.focused .btnrow .cvsel { border-color: var(--accent); }
+  .tile.wgt-buttons .top, .tile.wgt-buttons .sub, .tile.wgt-buttons .hint { display: none; }
+  .tile.wgt-buttons { min-height: 0; }
+  /* media mode bar (shuffle/repeat): accent icon = mode active */
+  .tile.wgt-mediabtns .top, .tile.wgt-mediabtns .sub, .tile.wgt-mediabtns .hint { display: none; }
+  .tile.wgt-mediabtns { min-height: 0; }
+  .btnrow .dpbtn.mbon { color: var(--accent); }
+  .tile.wgt-coverbtns .top, .tile.wgt-coverbtns .sub { display: none; }
+  .tile.wgt-coverbtns { min-height: 0; }
+
+  /* device detail primitives: power / stepper / chips.
+     Detail rows are CHROME-LIGHT: no headings (a small dim icon in the
+     top slot instead), no state line, tight padding. Back is GLOBAL —
+     the status-bar chevron — so details carry no back of their own. */
+  .pwrow { display: flex; justify-content: center; padding: 6px 0 2px; }
+  .pwbtn { width: 64px; height: 64px; border-radius: 50%; }
+  .pwbtn .material-symbols-outlined { font-size: 30px; }
+  .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
+  .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
+  .tile.wgt-power { min-height: 0; background: transparent; }
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
+  .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
+  .stepval {
+    flex: 1; text-align: center;
+    font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
+  }
+  .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
+  .tile.wgt-stepper .sub, .tile.wgt-chips .sub { display: none; }
+  /* stepper slider: fat touch track, fill = value; −/+ row stays below */
+  .sldr {
+    position: relative; height: 44px; border-radius: 12px;
+    background: #2c333d; overflow: hidden; margin: 6px 0 10px;
+    touch-action: none; cursor: pointer;
+  }
+  .sldr i {
+    display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+    background: var(--accent); transition: none;
+  }
+  .sldr.vert { height: 300px; width: 92px; margin: 6px auto 10px; }
+  .sldr.vert i { top: auto; right: 0; bottom: 0; left: 0; width: 100%; height: 0%; }
+  .tile.wgt-stepper .top .ic, .tile.wgt-chips .top .ic { color: var(--dim); }
+  .tile .lbl:empty { display: none; }
+  /* option buttons: preset-tile sized, 3-up grid */
+  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 0 2px; }
+  .chip {
+    border: 0; font: inherit; font-size: 15px; color: var(--text);
+    background: var(--tile-hi); border-radius: 14px; min-height: 56px;
+    padding: 8px 6px; cursor: pointer;
+  }
+  .chip.on { background: var(--accent); color: #1a1400; font-weight: 700; }
+
+  /* preset tiles: icon-first squares */
+  .tile.wgt-preset { min-height: 78px; padding: 10px 6px; text-align: center; }
+  .tile.wgt-preset .top { display: block; }
+  .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
+  .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
+  .tile.wgt-preset .lbl { font-size: 11px; display: block; }
+  .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
