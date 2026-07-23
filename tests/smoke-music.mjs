@@ -9,7 +9,7 @@ await p.waitForTimeout(700);
 await p.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'music', a: {} }); S.lastAct = 'music';
+  S.states.set('select.harmonium_porch_activity', { s: 'music', a: {} }); S.lastAct = 'music';
   S.states.set('media_player.ma_sonos_basement', { s: 'playing', a: {
     friendly_name: 'MA Basement', volume_level: 0.35,
     media_title: 'Take Five', media_artist: 'Dave Brubeck', media_album_name: 'Time Out',
@@ -24,7 +24,7 @@ await p.evaluate(() => {
     { name: 'Discover Weekly', uri: 'library://playlist/14', media_type: 'playlist', image: 'p2.jpg' },
     { name: 'No Art Mix', uri: 'library://playlist/99', media_type: 'playlist', image: null }
   ] } });
-  navigate('music');
+  navigate('controller:music');
 });
 await p.waitForTimeout(250);
 
@@ -130,7 +130,7 @@ r.pullPops = await p.evaluate(() => S.screen);
 
 // 6. STRUCTURAL re-render: sensor attribute changes -> tile set follows
 r.regen = await p.evaluate(() => {
-  navigate('music_drawer');
+  navigate('music_library');
   const s = S.states.get('sensor.porch_music_favorites');
   s.a = { favorites: s.a.favorites.concat(
     { name: 'Fresh Finds', uri: 'library://playlist/50', media_type: 'playlist', image: null }) };
@@ -158,10 +158,10 @@ r.vol = await p.evaluate(() => window._sent.map(m =>
   m.service + '@' + ((m.target || {}).entity_id || '')));
 
 // 9. subscription includes the favorites sensor on the drawer screen
-r.subs = await p.evaluate(() => entitiesFor('music_drawer'));
+r.subs = await p.evaluate(() => entitiesFor('music_library'));
 
 // 9b. plain media tile keeps its sub on the SECOND line (not inline)
-await p.evaluate(() => { navigate('tv', true); });
+await p.evaluate(() => { navigate('controller:tv', true); });
 await p.waitForTimeout(200);
 r.mediaSecondLine = await p.evaluate(() => ({
   blockSub: !!document.querySelector('#tile_t_np > .sub'),
@@ -170,16 +170,16 @@ r.mediaSecondLine = await p.evaluate(() => ({
 }));
 
 // 10. confirm_switch: starting an activity while ANOTHER runs asks first
-await p.evaluate(() => { navigate('home', true); S.stack = []; window._sent.length = 0; });
+await p.evaluate(() => { navigate('porch', true); S.stack = []; window._sent.length = 0; });
 await p.waitForTimeout(200);
-await p.click('#tile_act_firetv');   // music is running
+await p.click('#tile_acts_watch_firetv');   // music is running
 r.swFirst = await p.evaluate(() => ({
   calls: window._sent.filter(m => m.type === 'call_service').length,
   bar: document.getElementById('screenName').textContent,
   toneOn: document.getElementById('screenName').classList.contains('cfm-on'),
   tilePulse: !!document.querySelector('#grid .tile.cfm-on')
 }));
-await p.click('#tile_act_firetv');   // second press within the window
+await p.click('#tile_acts_watch_firetv');   // second press within the window
 await p.waitForTimeout(150);
 r.swSecond = await p.evaluate(() => ({
   scripts: window._sent.filter(m => m.type === 'call_service')
@@ -188,11 +188,11 @@ r.swSecond = await p.evaluate(() => ({
   toneCleared: !document.getElementById('screenName').classList.contains('cfm-on')
 }));
 // same-activity open (already running) never asks: music tile -> its screen
-await p.evaluate(() => { navigate('home', true); S.stack = [];
-  S.states.set('input_select.porch_activity', { s: 'music', a: {} });
+await p.evaluate(() => { navigate('porch', true); S.stack = [];
+  S.states.set('select.harmonium_porch_activity', { s: 'music', a: {} });
   window._sent.length = 0; });
 await p.waitForTimeout(150);
-await p.click('#tile_act_music');
+await p.click('#tile_acts_music');
 await p.waitForTimeout(120);
 r.swSame = await p.evaluate(() => ({
   screen: S.screen,

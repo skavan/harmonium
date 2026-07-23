@@ -62,6 +62,17 @@ function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
   if (t.only && !arr(t.only).every(c => CAPS.has(c))) return false;
   if (t.unless && arr(t.unless).some(c => CAPS.has(c))) return false;
+  /* per-activity content overrides on a SHARED controller: one Watch
+     TV page, many activities — tiles opt in/out declaratively.
+       when: { activity: watch_smart }        show only then
+       when: { not_activity: [watch_smart] }  hide then
+     Re-render rides tileSig: the filtered set changes with the
+     activity, so the grid refreshes on activity switches. */
+  if (t.when) {
+    const cur = currentActivityId();
+    if (t.when.activity && !arr(t.when.activity).includes(cur)) return false;
+    if (t.when.not_activity && arr(t.when.not_activity).includes(cur)) return false;
+  }
   return true;
 }
 
@@ -84,7 +95,103 @@ function substItem(v, item) {
   }
   return v;
 }
+/* ---- app registry resolution --------------------------------------
+   An APP is a house-level identity (name/icon); LAUNCH is per-device:
+   explicit override for this media_player -> auto (its default source
+   name appears in the device's live source_list) -> hidden here.
+   Override forms: "sequence:<id>" (building block, runs HA-side),
+   plain string (a source name), or an action object (preset grammar
+   {service,...} or HA-ish {action,...}). */
+function appLaunch(app, mp) {
+  const ov = (app.launch || {})[mp];
+  if (ov != null) {
+    if (typeof ov === "string") {
+      if (ov.startsWith("sequence:"))
+        return { service: "harmonium.run", data: { sequence: ov.slice(9) } };
+      return { service: "media_player.select_source", entity: mp, data: { source: ov } };
+    }
+    if (ov.service) return ov;
+    if (ov.action)
+      return { service: ov.action, data: ov.data,
+        entity: (ov.target && ov.target.entity_id) || ov.entity || mp };
+    return null;
+  }
+  if (!app.source) return null;
+  const list = st(mp).a.source_list;
+  /* unknown source_list -> benefit of the doubt; known list decides */
+  if (Array.isArray(list) && !list.includes(app.source)) return null;
+  return { service: "media_player.select_source", entity: mp, data: { source: app.source } };
+}
+
 function expandTile(t) {
+  if (t.type === "activities") {
+    /* the activities section GENERATES from the registry: one tile
+       per activity owned by this hub (t.room), in registry order.
+       Room functions ("off") are hold-Power territory, not tiles. */
+    return Object.entries(CONFIG.activities || {})
+      .filter(([id, a]) => id !== "off" && (a.room_view || null) === (t.room || null))
+      .map(([id, a]) => ({
+        type: "activity", activity: id, id: t.id + "_" + id,
+        label: a.name || id, icon: a.icon || "material:play_circle",
+      }));
+  }
+  if (t.type === "apps") {
+    /* one preset tile per registry app launchable on the target */
+    const mp = resolveEntity(t.entity || "$context.media_player");
+    if (!mp) return [];
+    /* curation: an ordered `include` list picks WHICH apps this drawer
+       offers (a conscious choice per drawer); default = whole registry */
+    const reg = CONFIG.apps || {};
+    const ids = Array.isArray(t.include) ? t.include.filter(x => reg[x]) : Object.keys(reg);
+    return ids.map((aid) => [aid, reg[aid]]).map(([aid, app]) => {
+      const action = appLaunch(app, mp);
+      return action && {
+        type: "preset", id: t.id + "_" + aid,
+        icon: app.icon || "material:apps", label: app.name || aid,
+        action,
+      };
+    }).filter(Boolean);
+  }
+  if (t.type === "devices") {
+    /* the activity's CAST generates device tiles — primary first,
+       always in sync with Setup (the Studio's "Unlink" bakes them
+       into plain tiles when page-level art direction is wanted).
+       remote.* entities are skipped: the control surface's Remote
+       pad IS their tile — a stateless remote row is noise.
+       A BARE generator (stock controllers): the cast comes from the
+       ACTIVE activity only when that activity actually TARGETS this
+       surface (music playing must not put a Sonos on the TV page);
+       otherwise it derives from the screen's own default context.
+       surface.devices === false (the per-activity "auto-populate
+       devices" switch) suppresses it. */
+    let castAid = t.activity || null;
+    if (!castAid) {
+      const cur = currentActivityId();
+      const act = cur && (CONFIG.activities || {})[cur];
+      if (act && act.screen === S.screen) {
+        if (act.surface && act.surface.devices === false) return [];
+        castAid = cur;
+      }
+    }
+    const ents = castAid ? castOf(castAid)
+      : castFromCtx((screenOf(S.screen) || {}).context || {});
+    return ents.filter(e => e.split(".")[0] !== "remote").map(e => {
+      const s = st(e), dom = e.split(".")[0];
+      return {
+        type: "device", id: t.id + "_" + e.replace(/[^a-zA-Z0-9]+/g, "_"),
+        entity: e,
+        label: s.a.friendly_name || e.split(".").pop(),
+        icon: dom === "media_player"
+            ? (s.a.device_class === "tv" ? "material:tv" : "material:speaker")
+          : dom === "remote" ? "material:settings_remote"
+          : dom === "light" ? "material:lightbulb"
+          : dom === "climate" ? "material:thermostat"
+          : dom === "switch" ? "material:toggle_on"
+          : dom === "fan" ? "material:mode_fan"
+          : "material:devices",
+      };
+    });
+  }
   if (t.type !== "presets_from") return [t];
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
@@ -95,6 +202,30 @@ function expandTile(t) {
     if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon
     return g;
   });
+}
+
+/* An activity's CAST: explicit devices list (Studio Setup v2), else
+   derived from the role wiring in role order — primary first. */
+function castFromCtx(ctx) {
+  const seen = [];
+  for (const r of ["media_player", "dpad", "power", "volume", "volume_level"]) {
+    const v = (ctx || {})[r];
+    if (typeof v === "string" && v.includes(".") && !seen.includes(v)) seen.push(v);
+  }
+  return seen;
+}
+function castOf(aid) {
+  const a = (CONFIG.activities || {})[aid];
+  if (!a) return [];
+  if (Array.isArray(a.devices) && a.devices.length) return a.devices;
+  return castFromCtx(a.context);
+}
+
+/* A summary-style nav card's entities need subscribing (its sub shows
+   live counts) — plain/image nav cards subscribe nothing. Derivation
+   itself lives with the widget (navTargetEntities, widgets/nav.js). */
+function groupEntities(t) {
+  return t.type === "nav" && navStyle(t) === "summary" ? navTargetEntities(t) : [];
 }
 
 /* Entities for a screen = tiles ∪ groups ∪ context ∪ activity select */
@@ -118,14 +249,17 @@ function entitiesFor(screenId) {
   /* raw tiles too: a presets_from source entity must be subscribed
      even though expansion replaces the tile itself */
   rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
-    .forEach(t => { add(t.entity); add(t.level_entity); (t.entities || []).forEach(add); });
+    .forEach(t => { add(t.entity); add(t.level_entity);
+      (t.entities || []).forEach(add); groupEntities(t).forEach(add); });
   Object.values(ctxFor(screenId)).forEach(v => { if (typeof v === "string") set.add(v); });
   if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
+  activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
   return [...set];
 }
 
 function subscribeFor(screenId) {
+  if (!CONFIG || !screenId) return;   // preview mode: config not yet injected
   if (S.subId) { send({ type: "unsubscribe_events", subscription: S.subId }); S.subId = null; }
   S.subId = send({ type: "subscribe_entities", entity_ids: entitiesFor(screenId) });
 }

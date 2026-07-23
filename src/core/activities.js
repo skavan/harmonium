@@ -3,9 +3,57 @@
    power = end, with optional inline two-press confirm.
    ================================================================ */
 function actOf(t) { return (CONFIG.activities || {})[t.activity] || null; }
+
+/* ---- v2 declarative activity state --------------------------------
+   An activity may declare `state:` — the harmonia evals as data:
+     state:
+       entities: [media_player.x, ...]      # subscribed everywhere
+       on:                                   # any of these shapes:
+         all: [ {entity, state|equals|in|not_in, attribute?} ... ]
+         any: [ ...conds ]
+         any_state: [on, playing, ...]       # primary entity shortcut
+   When present, activity TRUTH is derived live from device state — the
+   input_select becomes routing cache, not truth. Absent → v1 behavior
+   (truth = the select). */
+function evalCond(c) {
+  if (!c || !c.entity) return false;
+  const s = st(c.entity);
+  const v = c.attribute ? s.a[c.attribute] : s.s;
+  if (c.equals !== undefined) return v === c.equals;
+  if (c.state !== undefined)
+    return Array.isArray(c.state) ? c.state.includes(v) : v === c.state;
+  if (c.in) return Array.isArray(c.in) && c.in.includes(v);
+  if (c.not_in) return Array.isArray(c.not_in) && !c.not_in.includes(v);
+  return ACTIVE(v);
+}
+function activityStateOn(a) {
+  const d = a && a.state;
+  if (!d || !d.on) return null;               // no declaration → v1 truth
+  const on = d.on;
+  if (Array.isArray(on)) return on.every(evalCond);
+  if (on.all) return on.all.every(evalCond);
+  if (on.any) return on.any.some(evalCond);
+  if (on.any_state) {
+    const prim = (d.entities || [])[0];
+    return prim ? on.any_state.includes(st(prim).s) : null;
+  }
+  return null;
+}
 function isActivityActive(id) {
-  const a = (CONFIG.activities || {})[id], sel = CONFIG.global.activity_select;
-  return !!(a && sel && st(sel).s === (a.state_value || id));
+  const a = (CONFIG.activities || {})[id];
+  if (!a) return false;
+  const ev = activityStateOn(a);
+  if (ev !== null) return ev;                 // v2: devices are the truth
+  const sel = CONFIG.global.activity_select;
+  return !!(sel && st(sel).s === (a.state_value || id));
+}
+/* all entities any activity's state eval depends on (subscribed on
+   every screen so activity tiles stay truthful everywhere) */
+function activityStateEntities() {
+  const set = new Set();
+  Object.values(CONFIG.activities || {}).forEach(a =>
+    ((a.state || {}).entities || []).forEach(e => set.add(e)));
+  return set;
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
@@ -40,6 +88,18 @@ function firePreset(t) {
   } else run();
   return true;
 }
+/* An activity's start/stop is an ACTION REF:
+     sequence:<id>  — a building-block sequence from the config,
+                      executed HA-side by the integration
+                      (harmonium.run); first-class citizen
+     script.<x>     — a plain HA script entity; 2nd-class but
+                      supported forever */
+function runActionRef(ref) {
+  if (!ref) return;
+  if (ref.startsWith("sequence:"))
+    callService("harmonium", "run", { sequence: ref.slice(9) });
+  else callService("script", "turn_on", null, ref);
+}
 function startActivity(id) {
   const a = (CONFIG.activities || {})[id];
   if (!a) return false;
@@ -53,14 +113,13 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
-  if (a.start) callService("script", "turn_on", null, a.start);
+  runActionRef(a.start);
   if (a.screen) navigate(a.screen);
   return true;
 }
 function endActivity(a) {
-  const stopScript = a.stop ||
-    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start);
-  if (stopScript) callService("script", "turn_on", null, stopScript);
+  runActionRef(a.stop ||
+    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start));
 }
 function requestEnd(t, a) {
   if (a.confirm_end && S.confirmTile !== t.id) {

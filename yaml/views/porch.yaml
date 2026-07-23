@@ -3,10 +3,13 @@
 # exactly what appears on its main page.
 id: porch
 name: Porch
-kind: room
+type: hub
+room: true
 parent: overview
 
-activity_state: input_select.porch_activity
+# the integration MINTS this select from the config (select platform) —
+# the hand-made input_select helper is retired
+activity_state: select.harmonium_porch_activity
 context:
   volume: media_player.ma_soundbar_porch
 
@@ -18,14 +21,16 @@ header:
   show_time: true
   overview_view: overview
 
-# Activities belong to the room that offers them. HA scripts own the actual
-# orchestration; Harmonium owns display state, routing context, and controls.
+# Activities belong to the room that offers them. Orchestration lives in
+# the room's SEQUENCES below (executed HA-side via harmonium.run);
+# Harmonium owns display state, routing context, and controls. A start/
+# stop may also point at a plain HA script entity (2nd-class citizen).
 activities:
   watch_firetv:
     name: Watch Fire TV
     icon: material:live_tv
     color: "#d97b3a"
-    start: script.activity_watch_firetv
+    start: sequence:firetv_on
     view: tv
     confirm_end: true
     context:
@@ -55,7 +60,7 @@ activities:
     name: Watch Smart TV
     icon: material:tv
     color: "#e89b17"
-    start: script.activity_watch_smart
+    start: sequence:smart_tv_on
     view: tv
     confirm_end: true
     context:
@@ -95,8 +100,8 @@ activities:
     name: Listen to Music
     icon: material:music_note
     color: "#1e8a82"
-    start: script.activity_music
-    stop: script.activity_music_stop
+    start: sequence:music_on
+    stop: sequence:music_stop
     view: music
     context:
       media_player: media_player.ma_sonos_basement
@@ -112,17 +117,141 @@ activities:
   off:
     name: All Off
     icon: material:power_settings_new
-    start: script.activity_off
+    start: sequence:all_off
     confirm_end: true
+
+# Building blocks: SEQUENCES are first-class actions (HA action syntax,
+# executed HA-side by the integration's harmonium.run service — the
+# remote never runs orchestration). A start/stop can be a sequence
+# (sequence:<id>), a script entity (2nd-class citizen), or blank.
+# Ported 1:1 from the hand-written activity_* scripts, doctrine intact:
+# warm-start safe, Fire TV never disturbed, ARC soundbar out of scope.
+sequences:
+  firetv_on:
+    name: Fire TV On
+    actions:
+      - alias: Set activity state
+        action: harmonium.set_activity
+        data: { activity: watch_firetv }
+      - alias: Wake Fire TV if asleep (non-disruptive, best effort)
+        action: media_player.turn_on
+        continue_on_error: true
+        target: { entity_id: media_player.fire_tv_family_192_168_1_65 }
+      - alias: "Cold start only: wake the Samsung"
+        if:
+          - condition: state
+            entity_id: media_player.sts_samsung_q90_porch
+            state: "off"
+        then:
+          - alias: Wake TV via wired WOL (reliable from standby)
+            action: button.press
+            continue_on_error: true
+            target: { entity_id: button.samsung_wired_wol_d4_9d_c0_2c_e5_bf }
+          - alias: Wake TV via remote entity (best effort)
+            action: remote.turn_on
+            continue_on_error: true
+            target: { entity_id: remote.sts_samsung_q90_porch }
+          - alias: Wait for the TV to report on (up to 6s)
+            wait_for_trigger:
+              - trigger: state
+                entity_id: media_player.sts_samsung_q90_porch
+                to: "on"
+            timeout: { seconds: 6 }
+            continue_on_timeout: true
+          - alias: Let the TV finish waking before the source switch
+            delay: { seconds: 1 }
+      - alias: Switch TV input ONLY if not already on the Fire TV
+        if:
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: media_player.sts_samsung_q90_porch
+                attribute: source
+                state: [Fire TV, TV/HDMI]
+        then:
+          - alias: Switch TV input to Fire TV (best effort)
+            action: media_player.select_source
+            continue_on_error: true
+            data: { source: Fire TV }
+            target: { entity_id: media_player.sts_samsung_q90_porch }
+
+  smart_tv_on:
+    name: Smart TV On
+    actions:
+      - alias: Set activity state
+        action: harmonium.set_activity
+        data: { activity: watch_smart }
+      - alias: "Cold start only: wake the Samsung"
+        if:
+          - condition: state
+            entity_id: media_player.sts_samsung_q90_porch
+            state: "off"
+        then:
+          - alias: Wake TV via wired WOL (reliable from standby)
+            action: button.press
+            continue_on_error: true
+            target: { entity_id: button.samsung_wired_wol_d4_9d_c0_2c_e5_bf }
+          - alias: Wake TV via remote entity (best effort)
+            action: remote.turn_on
+            continue_on_error: true
+            target: { entity_id: remote.sts_samsung_q90_porch }
+          - alias: Wait for the TV to report on (up to 6s)
+            wait_for_trigger:
+              - trigger: state
+                entity_id: media_player.sts_samsung_q90_porch
+                to: "on"
+            timeout: { seconds: 6 }
+            continue_on_timeout: true
+          - alias: Let the TV finish waking before the source switch
+            delay: { seconds: 1 }
+      - alias: Open Prime Video (on a warm start this switch IS the point)
+        action: media_player.select_source
+        continue_on_error: true
+        data: { source: Prime Video }
+        target: { entity_id: media_player.sts_samsung_q90_porch }
+
+  music_on:
+    name: Music On
+    actions:
+      - alias: Set activity state
+        action: harmonium.set_activity
+        data: { activity: music }
+
+  music_stop:
+    name: Music Stop
+    actions:
+      - alias: Set activity state
+        action: harmonium.set_activity
+        data: { activity: "off" }
+      - alias: Stop basement Sonos (best effort)
+        action: media_player.media_stop
+        continue_on_error: true
+        target: { entity_id: media_player.ma_sonos_basement }
+
+  all_off:
+    name: All Off
+    actions:
+      - alias: Set activity state
+        action: harmonium.set_activity
+        data: { activity: "off" }
+      - alias: TV off (best effort)
+        action: media_player.turn_off
+        continue_on_error: true
+        target: { entity_id: media_player.sts_samsung_q90_porch }
+      - alias: Stop basement Sonos (best effort — Fire TV NEVER touched, ARC soundbar is the TV's)
+        action: media_player.media_stop
+        continue_on_error: true
+        target: { entity_id: media_player.ma_sonos_basement }
 
 layout:
   columns: 1
   sections:
     - label: Activities
+      # GENERATED from the room's activity registry (one tile per owned
+      # activity, registry order; "off" stays on hold-Power). Add an
+      # activity and its tile appears — no duplicate authoring.
       tiles:
-        - { id: act_firetv, activity: watch_firetv }
-        - { id: act_music, activity: music }
-        - { id: act_smart, activity: watch_smart }
+        - { id: acts, type: activities }
 
     - label: Presets
       heading: Presets
@@ -158,13 +287,26 @@ layout:
     - label: Devices
       heading: Devices
       tiles:
+        # DEVICE tiles: one entity each; tap = the domain's obvious
+        # verb (play/pause when playing; no verb -> its page), hold =
+        # its page (inferred from the activity that claims the entity
+        # as primary). Fire TV deliberately absent: it feeds the OTHER
+        # TV - a tap here would pause someone else's show.
+        - id: dev_tv
+          type: device
+          label: Porch TV
+          icon: material:tv
+          entity: media_player.sts_samsung_q90_porch
+        - id: dev_music
+          type: device
+          label: Porch Music
+          icon: material:music_note
+          entity: media_player.ma_sonos_basement
         - id: grp_hvac
-          type: group
+          type: nav
+          style: summary
           label: HVAC & Lights
           icon: material:layers
+          # summary entities DERIVE live from the target page's tiles —
+          # one source of truth, no baked duplicates
           target: comfort
-          entities:
-            - climate.room_air_conditioner
-            - light.porch_lights
-            - light.remote_3_button_backlight
-            - cover.maestroscreen_04_fr

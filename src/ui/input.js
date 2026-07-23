@@ -3,19 +3,112 @@
    ================================================================ */
 let holdTimer = null, holdFired = false;
 
-/* device target for hold-Back / hold-Home: the screen's passthrough
-   entity or the context dpad slot — null on non-device screens
-   (hold then simply behaves like tap). */
-function deviceKeyTarget() {
-  const scd = (CONFIG && screenOf(S.screen)) || {};
-  return resolveEntity(scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+/* ---- v2 control target -------------------------------------------
+   A view may declare `control_target` (v2 authoring): which entity the
+   physical keys drive (navigation/power/volume) and WHICH keys pass
+   through. The active activity's `controls` map is the fallback, then
+   the v1 heuristics (dpad_passthrough / context.dpad). All of this is
+   pure data — under a v1 config nothing here changes behavior. */
+function controlTarget() {
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  if (sc.control_target) return sc.control_target;
+  const aid = currentActivityId();
+  return (aid && (CONFIG.activities[aid] || {}).controls) || null;
+}
+function ctPass(button) {
+  const ct = controlTarget();
+  return !!(ct && Array.isArray(ct.pass_through) && ct.pass_through.includes(button));
+}
+/* v2 input policy from config.input.physical_buttons — absent = v1 */
+function inputPB() {
+  return (CONFIG && CONFIG.input && CONFIG.input.physical_buttons) || null;
 }
 
-/* Harmony rule: on a screen declaring dpad_passthrough, a physical
-   D-pad drives the device directly (touch drives the UI). */
+/* device target for hold-Back / hold-Home: control_target.navigation,
+   the screen's passthrough entity, or the context dpad slot — null on
+   non-device screens (hold then simply behaves like tap). */
+function deviceKeyTarget() {
+  const scd = (CONFIG && screenOf(S.screen)) || {};
+  const ct = controlTarget();
+  return resolveEntity((ct && ct.navigation) ||
+    scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+}
+
+/* Harmony rule: physical D-pad drives the device when the view says so —
+   v2: control_target.pass_through covers all five nav keys;
+   v1: the screen declares dpad_passthrough. Touch always drives the UI. */
 function passthroughActive() {
+  if (!CAPS.has("physical_dpad")) return false;
   const scp = (CONFIG && screenOf(S.screen)) || {};
-  return !!(scp.dpad_passthrough && CAPS.has("physical_dpad"));
+  if (scp.control_target)
+    return ["up", "down", "left", "right", "select"].every(ctPass);
+  return !!scp.dpad_passthrough;
+}
+
+/* v2 power-to-target: controls.power may be a full {service, entity}
+   action; control_target.power is an entity (default: toggle). */
+function ctPower() {
+  const ct = controlTarget();
+  if (!ct || !ct.power) return false;
+  if (typeof ct.power === "object" && ct.power.service) {
+    const [d, s] = ct.power.service.split(".");
+    const tgt = resolveEntity(ct.power.entity || ct.power.target);
+    if (tgt) { callService(d, s, ct.power.data, tgt); return true; }
+    return false;
+  }
+  const tgt = resolveEntity(ct.power);
+  if (!tgt) return false;
+  callService("homeassistant", "toggle", null, tgt);
+  return true;
+}
+
+/* end the CURRENT activity with the standard confirm flow (shared by
+   class-scoped power and the v2 hold-power=activity_end role) */
+function endCurrentActivity() {
+  const aid = currentActivityId();
+  if (!aid) { flashBar("No activity running"); return; }
+  const a = CONFIG.activities[aid];
+  const tile = tiles().find(x => x.type === "activity" && x.activity === aid);
+  if (tile) { setFocus(tile.id); requestEnd(tile, a); return; }
+  if (a.confirm_end && !barConfirm("endact", "Press power again to end " + (a.name || aid)))
+    return;
+  endActivity(a);
+  flashBar("Ending " + (a.name || aid));
+}
+
+/* v2 routing shim: when config.input.physical_buttons declares the
+   short-press-controls-target / hold-navigates-app model, reroute the
+   primary keys BEFORE the v1 switch. Returns true when handled.
+   PHYSICAL keys only — touch taps always drive the UI. Roles
+   "control_target" and "all_off" on holds ARE the v1 defaults, so
+   they fall through (return false) and the v1 switch serves them. */
+function v2Route(button, phys) {
+  const pb = inputPB();
+  if (!pb || !phys) return false;
+  const short = pb.short_press === "control_target";
+  /* short press of back/home/power → the control target (when the view
+     passes that key through and a target resolves) */
+  if (short && ["back", "home", "power"].includes(button) && ctPass(button)) {
+    if (button === "power") return ctPower();
+    const tgt = deviceKeyTarget();
+    if (tgt) { rc(tgt, cmdFor({}, button)); return true; }
+    return false;                          // no target → fall through to UI
+  }
+  /* hold roles: back_hold/home_hold/power_hold carry the APP action */
+  const hold = pb.hold || {};
+  const role = { back_hold: hold.back, home_hold: hold.home, power_hold: hold.power }[button];
+  if (!role) return false;
+  if (role === "app_back") { act("back", false); return true; }
+  if (role === "room_home") { act("home", false); return true; }
+  if (role === "activity_end") {
+    /* hold role: END WITHOUT ASKING (tap owns the confirmation) */
+    const aid = currentActivityId();
+    if (!aid) { flashBar("No activity running"); return true; }
+    endActivity(CONFIG.activities[aid]);
+    flashBar("Ending " + (CONFIG.activities[aid].name || aid));
+    return true;
+  }
+  return false;
 }
 
 function act(button, phys) {
@@ -27,10 +120,17 @@ function act(button, phys) {
      hold-Back/Home send the device keys (see keydown). */
   if (phys && passthroughActive() &&
       ["up", "down", "left", "right", "select"].includes(button)) {
-    const scp = screenOf(S.screen);
-    rc(resolveEntity(scp.dpad_passthrough), cmdFor({}, button));
+    rc(deviceKeyTarget(), cmdFor({}, button));
+    /* the Studio preview can't show the device reacting — say where
+       the key went so the pad doesn't read as dead */
+    if (typeof PREVIEW !== "undefined" && PREVIEW)
+      flashBar("D-pad → device (passthrough)");
     return;
   }
+
+  /* v2 input policy (config.input.physical_buttons): short press →
+     control target, hold → app. No-op under a v1 config. */
+  if (v2Route(button, phys)) return;
 
   const t = tileDef(S.focusId), w = t && WIDGETS[t.type];
   const eid = t ? resolveEntity(t.entity) : null;
@@ -85,13 +185,10 @@ function act(button, phys) {
       break;
     }
     case "power_hold":
-      /* shell-owned long-press power = All Off, WITH two-press confirm
-         (user call: blast radius deserves the prompt even on the
-         deliberate gesture) */
-      if (barConfirm("alloffh", "Hold power again to turn everything off")) {
-        endActivity({});
-        flashBar("All Off");
-      }
+      /* long-press Power = end/All Off IMMEDIATELY (doctrine
+         2026-07-23: tap asks, the deliberate hold gesture doesn't) */
+      endActivity({});
+      flashBar("All Off");
       break;
     case "menu": {
       /* physical MENU key (Astrion: '#') → the device's menu command
@@ -106,10 +203,10 @@ function act(button, phys) {
          RESETS history (isBack navigation → chevron hides). */
       S.stack = [];
       const scr = screenOf(S.screen) || {};
-      const dest = (scr.parent && CONFIG.screens[scr.parent]) ? scr.parent
+      const dest = (scr.parent && screenOf(scr.parent)) ? scr.parent
         : S.screen !== CONFIG.home_screen ? CONFIG.home_screen
         : CONFIG.global.main_home;
-      if (dest && CONFIG.screens[dest] && dest !== S.screen) navigate(dest, true);
+      if (dest && screenOf(dest) && dest !== S.screen) navigate(dest, true);
       break;
     }
     case "power": {
@@ -137,22 +234,12 @@ function act(button, phys) {
         break;
       }
       if (!aid) {
-        if (cls === "room") {                    // room, nothing running → All Off
-          if (barConfirm("alloff", "Press power again to turn everything off")) {
-            endActivity({});
-            flashBar("All Off");
-          }
-        } else flashBar("No activity running");
+        /* doctrine 2026-07-23: idle view -> tap does NOTHING (hold is
+           the All Off gesture); no more idle-tap All Off confirm */
+        flashBar("Nothing running");
         break;
       }
-      const a = CONFIG.activities[aid];
-      const tile = tiles().find(x => x.type === "activity" && x.activity === aid);
-      if (tile) { setFocus(tile.id); requestEnd(tile, a); break; }
-      /* no activity tile on this screen → confirm via the status bar */
-      if (a.confirm_end && !barConfirm("endact", "Press power again to end " + (a.name || aid)))
-        break;
-      endActivity(a);
-      flashBar("Ending " + (a.name || aid));
+      endCurrentActivity();
       break;
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":

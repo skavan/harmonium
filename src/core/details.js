@@ -132,10 +132,34 @@ const DETAIL_VOL_KIND = {
   media_player: "volume", cover: "position", fan: "percentage"
 };
 
+/* the STOCK domain controllers (config.controllers.<domain>, tiles
+   bound to "$device") are the editable form of DETAIL_TILES; a
+   per-device CUSTOM copy (variant_of: <domain>, entity: <eid>) wins
+   for its device. Fallback: the hardcoded composition. */
+function bindDeviceTiles(tiles, eid) {
+  const sub = v => v === "$device" ? eid
+    : Array.isArray(v) ? v.map(sub)
+    : (v && typeof v === "object")
+      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]))
+      : v;
+  return tiles.map(sub);
+}
+function detailDef(eid) {
+  const dom = eid.split(".")[0];
+  const cs = (CONFIG && CONFIG.controllers) || {};
+  for (const c of Object.values(cs))
+    if (c && c.variant_of && c.domain === dom && c.entity === eid) return c;
+  const stock = cs[dom];
+  return (stock && stock.domain === dom) ? stock : null;
+}
 function detailScreen(eid) {
-  const gen = DETAIL_TILES[eid.split(".")[0]];
-  if (!gen) return null;
-  const tiles = gen(eid);
+  const def = detailDef(eid);
+  const raw = def
+    ? ((def.tiles && def.tiles.length) ? def.tiles
+        : (def.sections || []).flatMap(x => x.tiles || []))
+    : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
+  if (!raw || !raw.length) return null;
+  const tiles = def ? bindDeviceTiles(raw, eid) : raw;
   return {
     name: st(eid).a.friendly_name || eid.split(".")[1].replace(/_/g, " "),
     virtual: true,
@@ -143,11 +167,16 @@ function detailScreen(eid) {
     initial_focus: tiles.some(t => t.id === "ds") ? "ds" : tiles[0].id
   };
 }
-/* screen id resolution: config screens + virtual detail screens */
+/* screen id resolution: config screens + virtual detail screens +
+   LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
+   shared control surfaces; the active activity's context overlay
+   parameterizes them, same as any screen) */
 function screenOf(id) {
   if (typeof id === "string" && id.startsWith("detail:"))
     return detailScreen(id.slice(7));
-  return (CONFIG && CONFIG.screens[id]) || null;
+  if (typeof id === "string" && id.startsWith("controller:"))
+    return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
+  return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
 }
 
 /* effective trailing action for a tile: explicit config wins

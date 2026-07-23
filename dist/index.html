@@ -50,6 +50,13 @@
   #bar.pt { border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
   #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
 
+  /* two-press confirm cue: the bar title pulses for the whole confirm
+     window — red when the pending action turns things OFF, accent
+     when it turns things ON / starts an activity */
+  @keyframes cfmpulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  #bar .name.cfm-off { color: var(--danger); animation: cfmpulse .9s ease-in-out infinite; }
+  #bar .name.cfm-on { color: var(--accent); animation: cfmpulse .9s ease-in-out infinite; }
+
   /* key-event debug card (global.debug / #debug=1) — raw key delivery,
      newest line first, for diagnosing shell/KeyMapper behavior */
   #dbg {
@@ -69,6 +76,7 @@
     display: flex; align-items: center; justify-content: center;
     padding-bottom: 46px;   /* air between title and the nav strip */
   }
+  #banner.notabs { padding-bottom: 0; }   /* no strip: title truly centers */
   #banner .btitle { font-size: 34px; font-weight: 300; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
   #banner .btime {
     position: absolute; top: 10px; right: 12px;
@@ -89,37 +97,32 @@
     text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
   }
   .hstrip .hjump:last-child { justify-content: flex-end; }
+  .hstrip .hjump:only-child { justify-content: flex-start; }  /* a lone label is FIRST, not last */
   .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }
   .hjump.active { color: var(--accent); }
   .hjump.focused, #banner .btitle.focused {
     outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
   }
 
-  /* two-press confirm cue: the bar title pulses for the whole confirm
-     window — red when the pending action turns things OFF, accent
-     when it turns things ON / starts an activity */
-  @keyframes cfmpulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-  #bar .name.cfm-off { color: var(--danger); animation: cfmpulse .9s ease-in-out infinite; }
-  #bar .name.cfm-on { color: var(--accent); animation: cfmpulse .9s ease-in-out infinite; }
-
 /* per-section column override (preset grids etc.) */
   .secgrid { grid-column: 1 / -1; display: grid; gap: 10px; }
 
-  /* room cards: full-bleed image tiles */
-  .tile.wgt-room {
+  /* nav card, image style: full-bleed photo tiles (the old room card) */
+  .tile.wgt-nav.nav-image {
     position: relative; padding: 0; min-height: 132px; overflow: hidden;
   }
-  .tile.wgt-room .roomimg {
+  .tile.wgt-nav.nav-image .roomimg {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; opacity: .85;
   }
-  .tile.wgt-room .top {
+  .tile.wgt-nav.nav-image .top {
     position: absolute; left: 12px; bottom: 10px; z-index: 1;
     text-shadow: 0 1px 8px rgba(0,0,0,.8);
   }
-  .tile.wgt-room .lbl { font-size: 17px; }
-  .tile.wgt-room .ic, .tile.wgt-room .sub, .tile.wgt-room .hint { display: none; }
-  .tile.wgt-room.on { border-color: var(--accent); }
+  .tile.wgt-nav.nav-image .lbl { font-size: 17px; }
+  .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
+  .tile.wgt-nav.nav-image .hint { display: none; }
+  .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
 
   /* now-playing art hero (media tile with art: true) */
   .tile.wgt-media.art .sub { display: none; }
@@ -590,6 +593,17 @@ function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
   if (t.only && !arr(t.only).every(c => CAPS.has(c))) return false;
   if (t.unless && arr(t.unless).some(c => CAPS.has(c))) return false;
+  /* per-activity content overrides on a SHARED controller: one Watch
+     TV page, many activities — tiles opt in/out declaratively.
+       when: { activity: watch_smart }        show only then
+       when: { not_activity: [watch_smart] }  hide then
+     Re-render rides tileSig: the filtered set changes with the
+     activity, so the grid refreshes on activity switches. */
+  if (t.when) {
+    const cur = currentActivityId();
+    if (t.when.activity && !arr(t.when.activity).includes(cur)) return false;
+    if (t.when.not_activity && arr(t.when.not_activity).includes(cur)) return false;
+  }
   return true;
 }
 
@@ -612,7 +626,103 @@ function substItem(v, item) {
   }
   return v;
 }
+/* ---- app registry resolution --------------------------------------
+   An APP is a house-level identity (name/icon); LAUNCH is per-device:
+   explicit override for this media_player -> auto (its default source
+   name appears in the device's live source_list) -> hidden here.
+   Override forms: "sequence:<id>" (building block, runs HA-side),
+   plain string (a source name), or an action object (preset grammar
+   {service,...} or HA-ish {action,...}). */
+function appLaunch(app, mp) {
+  const ov = (app.launch || {})[mp];
+  if (ov != null) {
+    if (typeof ov === "string") {
+      if (ov.startsWith("sequence:"))
+        return { service: "harmonium.run", data: { sequence: ov.slice(9) } };
+      return { service: "media_player.select_source", entity: mp, data: { source: ov } };
+    }
+    if (ov.service) return ov;
+    if (ov.action)
+      return { service: ov.action, data: ov.data,
+        entity: (ov.target && ov.target.entity_id) || ov.entity || mp };
+    return null;
+  }
+  if (!app.source) return null;
+  const list = st(mp).a.source_list;
+  /* unknown source_list -> benefit of the doubt; known list decides */
+  if (Array.isArray(list) && !list.includes(app.source)) return null;
+  return { service: "media_player.select_source", entity: mp, data: { source: app.source } };
+}
+
 function expandTile(t) {
+  if (t.type === "activities") {
+    /* the activities section GENERATES from the registry: one tile
+       per activity owned by this hub (t.room), in registry order.
+       Room functions ("off") are hold-Power territory, not tiles. */
+    return Object.entries(CONFIG.activities || {})
+      .filter(([id, a]) => id !== "off" && (a.room_view || null) === (t.room || null))
+      .map(([id, a]) => ({
+        type: "activity", activity: id, id: t.id + "_" + id,
+        label: a.name || id, icon: a.icon || "material:play_circle",
+      }));
+  }
+  if (t.type === "apps") {
+    /* one preset tile per registry app launchable on the target */
+    const mp = resolveEntity(t.entity || "$context.media_player");
+    if (!mp) return [];
+    /* curation: an ordered `include` list picks WHICH apps this drawer
+       offers (a conscious choice per drawer); default = whole registry */
+    const reg = CONFIG.apps || {};
+    const ids = Array.isArray(t.include) ? t.include.filter(x => reg[x]) : Object.keys(reg);
+    return ids.map((aid) => [aid, reg[aid]]).map(([aid, app]) => {
+      const action = appLaunch(app, mp);
+      return action && {
+        type: "preset", id: t.id + "_" + aid,
+        icon: app.icon || "material:apps", label: app.name || aid,
+        action,
+      };
+    }).filter(Boolean);
+  }
+  if (t.type === "devices") {
+    /* the activity's CAST generates device tiles — primary first,
+       always in sync with Setup (the Studio's "Unlink" bakes them
+       into plain tiles when page-level art direction is wanted).
+       remote.* entities are skipped: the control surface's Remote
+       pad IS their tile — a stateless remote row is noise.
+       A BARE generator (stock controllers): the cast comes from the
+       ACTIVE activity only when that activity actually TARGETS this
+       surface (music playing must not put a Sonos on the TV page);
+       otherwise it derives from the screen's own default context.
+       surface.devices === false (the per-activity "auto-populate
+       devices" switch) suppresses it. */
+    let castAid = t.activity || null;
+    if (!castAid) {
+      const cur = currentActivityId();
+      const act = cur && (CONFIG.activities || {})[cur];
+      if (act && act.screen === S.screen) {
+        if (act.surface && act.surface.devices === false) return [];
+        castAid = cur;
+      }
+    }
+    const ents = castAid ? castOf(castAid)
+      : castFromCtx((screenOf(S.screen) || {}).context || {});
+    return ents.filter(e => e.split(".")[0] !== "remote").map(e => {
+      const s = st(e), dom = e.split(".")[0];
+      return {
+        type: "device", id: t.id + "_" + e.replace(/[^a-zA-Z0-9]+/g, "_"),
+        entity: e,
+        label: s.a.friendly_name || e.split(".").pop(),
+        icon: dom === "media_player"
+            ? (s.a.device_class === "tv" ? "material:tv" : "material:speaker")
+          : dom === "remote" ? "material:settings_remote"
+          : dom === "light" ? "material:lightbulb"
+          : dom === "climate" ? "material:thermostat"
+          : dom === "switch" ? "material:toggle_on"
+          : dom === "fan" ? "material:mode_fan"
+          : "material:devices",
+      };
+    });
+  }
   if (t.type !== "presets_from") return [t];
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
@@ -623,6 +733,30 @@ function expandTile(t) {
     if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon
     return g;
   });
+}
+
+/* An activity's CAST: explicit devices list (Studio Setup v2), else
+   derived from the role wiring in role order — primary first. */
+function castFromCtx(ctx) {
+  const seen = [];
+  for (const r of ["media_player", "dpad", "power", "volume", "volume_level"]) {
+    const v = (ctx || {})[r];
+    if (typeof v === "string" && v.includes(".") && !seen.includes(v)) seen.push(v);
+  }
+  return seen;
+}
+function castOf(aid) {
+  const a = (CONFIG.activities || {})[aid];
+  if (!a) return [];
+  if (Array.isArray(a.devices) && a.devices.length) return a.devices;
+  return castFromCtx(a.context);
+}
+
+/* A summary-style nav card's entities need subscribing (its sub shows
+   live counts) — plain/image nav cards subscribe nothing. Derivation
+   itself lives with the widget (navTargetEntities, widgets/nav.js). */
+function groupEntities(t) {
+  return t.type === "nav" && navStyle(t) === "summary" ? navTargetEntities(t) : [];
 }
 
 /* Entities for a screen = tiles ∪ groups ∪ context ∪ activity select */
@@ -646,14 +780,17 @@ function entitiesFor(screenId) {
   /* raw tiles too: a presets_from source entity must be subscribed
      even though expansion replaces the tile itself */
   rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
-    .forEach(t => { add(t.entity); add(t.level_entity); (t.entities || []).forEach(add); });
+    .forEach(t => { add(t.entity); add(t.level_entity);
+      (t.entities || []).forEach(add); groupEntities(t).forEach(add); });
   Object.values(ctxFor(screenId)).forEach(v => { if (typeof v === "string") set.add(v); });
   if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
+  activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
   return [...set];
 }
 
 function subscribeFor(screenId) {
+  if (!CONFIG || !screenId) return;   // preview mode: config not yet injected
   if (S.subId) { send({ type: "unsubscribe_events", subscription: S.subId }); S.subId = null; }
   S.subId = send({ type: "subscribe_entities", entity_ids: entitiesFor(screenId) });
 }
@@ -690,9 +827,57 @@ function applyDiff(ev) {
    power = end, with optional inline two-press confirm.
    ================================================================ */
 function actOf(t) { return (CONFIG.activities || {})[t.activity] || null; }
+
+/* ---- v2 declarative activity state --------------------------------
+   An activity may declare `state:` — the harmonia evals as data:
+     state:
+       entities: [media_player.x, ...]      # subscribed everywhere
+       on:                                   # any of these shapes:
+         all: [ {entity, state|equals|in|not_in, attribute?} ... ]
+         any: [ ...conds ]
+         any_state: [on, playing, ...]       # primary entity shortcut
+   When present, activity TRUTH is derived live from device state — the
+   input_select becomes routing cache, not truth. Absent → v1 behavior
+   (truth = the select). */
+function evalCond(c) {
+  if (!c || !c.entity) return false;
+  const s = st(c.entity);
+  const v = c.attribute ? s.a[c.attribute] : s.s;
+  if (c.equals !== undefined) return v === c.equals;
+  if (c.state !== undefined)
+    return Array.isArray(c.state) ? c.state.includes(v) : v === c.state;
+  if (c.in) return Array.isArray(c.in) && c.in.includes(v);
+  if (c.not_in) return Array.isArray(c.not_in) && !c.not_in.includes(v);
+  return ACTIVE(v);
+}
+function activityStateOn(a) {
+  const d = a && a.state;
+  if (!d || !d.on) return null;               // no declaration → v1 truth
+  const on = d.on;
+  if (Array.isArray(on)) return on.every(evalCond);
+  if (on.all) return on.all.every(evalCond);
+  if (on.any) return on.any.some(evalCond);
+  if (on.any_state) {
+    const prim = (d.entities || [])[0];
+    return prim ? on.any_state.includes(st(prim).s) : null;
+  }
+  return null;
+}
 function isActivityActive(id) {
-  const a = (CONFIG.activities || {})[id], sel = CONFIG.global.activity_select;
-  return !!(a && sel && st(sel).s === (a.state_value || id));
+  const a = (CONFIG.activities || {})[id];
+  if (!a) return false;
+  const ev = activityStateOn(a);
+  if (ev !== null) return ev;                 // v2: devices are the truth
+  const sel = CONFIG.global.activity_select;
+  return !!(sel && st(sel).s === (a.state_value || id));
+}
+/* all entities any activity's state eval depends on (subscribed on
+   every screen so activity tiles stay truthful everywhere) */
+function activityStateEntities() {
+  const set = new Set();
+  Object.values(CONFIG.activities || {}).forEach(a =>
+    ((a.state || {}).entities || []).forEach(e => set.add(e)));
+  return set;
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
@@ -727,6 +912,18 @@ function firePreset(t) {
   } else run();
   return true;
 }
+/* An activity's start/stop is an ACTION REF:
+     sequence:<id>  — a building-block sequence from the config,
+                      executed HA-side by the integration
+                      (harmonium.run); first-class citizen
+     script.<x>     — a plain HA script entity; 2nd-class but
+                      supported forever */
+function runActionRef(ref) {
+  if (!ref) return;
+  if (ref.startsWith("sequence:"))
+    callService("harmonium", "run", { sequence: ref.slice(9) });
+  else callService("script", "turn_on", null, ref);
+}
 function startActivity(id) {
   const a = (CONFIG.activities || {})[id];
   if (!a) return false;
@@ -740,14 +937,13 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
-  if (a.start) callService("script", "turn_on", null, a.start);
+  runActionRef(a.start);
   if (a.screen) navigate(a.screen);
   return true;
 }
 function endActivity(a) {
-  const stopScript = a.stop ||
-    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start);
-  if (stopScript) callService("script", "turn_on", null, stopScript);
+  runActionRef(a.stop ||
+    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start));
 }
 function requestEnd(t, a) {
   if (a.confirm_end && S.confirmTile !== t.id) {
@@ -916,10 +1112,34 @@ const DETAIL_VOL_KIND = {
   media_player: "volume", cover: "position", fan: "percentage"
 };
 
+/* the STOCK domain controllers (config.controllers.<domain>, tiles
+   bound to "$device") are the editable form of DETAIL_TILES; a
+   per-device CUSTOM copy (variant_of: <domain>, entity: <eid>) wins
+   for its device. Fallback: the hardcoded composition. */
+function bindDeviceTiles(tiles, eid) {
+  const sub = v => v === "$device" ? eid
+    : Array.isArray(v) ? v.map(sub)
+    : (v && typeof v === "object")
+      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]))
+      : v;
+  return tiles.map(sub);
+}
+function detailDef(eid) {
+  const dom = eid.split(".")[0];
+  const cs = (CONFIG && CONFIG.controllers) || {};
+  for (const c of Object.values(cs))
+    if (c && c.variant_of && c.domain === dom && c.entity === eid) return c;
+  const stock = cs[dom];
+  return (stock && stock.domain === dom) ? stock : null;
+}
 function detailScreen(eid) {
-  const gen = DETAIL_TILES[eid.split(".")[0]];
-  if (!gen) return null;
-  const tiles = gen(eid);
+  const def = detailDef(eid);
+  const raw = def
+    ? ((def.tiles && def.tiles.length) ? def.tiles
+        : (def.sections || []).flatMap(x => x.tiles || []))
+    : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
+  if (!raw || !raw.length) return null;
+  const tiles = def ? bindDeviceTiles(raw, eid) : raw;
   return {
     name: st(eid).a.friendly_name || eid.split(".")[1].replace(/_/g, " "),
     virtual: true,
@@ -927,11 +1147,16 @@ function detailScreen(eid) {
     initial_focus: tiles.some(t => t.id === "ds") ? "ds" : tiles[0].id
   };
 }
-/* screen id resolution: config screens + virtual detail screens */
+/* screen id resolution: config screens + virtual detail screens +
+   LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
+   shared control surfaces; the active activity's context overlay
+   parameterizes them, same as any screen) */
 function screenOf(id) {
   if (typeof id === "string" && id.startsWith("detail:"))
     return detailScreen(id.slice(7));
-  return (CONFIG && CONFIG.screens[id]) || null;
+  if (typeof id === "string" && id.startsWith("controller:"))
+    return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
+  return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
 }
 
 /* effective trailing action for a tile: explicit config wins
@@ -1013,7 +1238,53 @@ WIDGETS.script = {
     select: e => callService("script", "turn_on", null, e)
   };
 
-WIDGETS.nav = { sub: (e, t) => (t && t.sub) || "", select: (e, t) => navigate(t.target) };
+/* NAV CARD — one tile type that opens another page, in four styles:
+     plain   — icon + label button (the old `nav`)
+     image   — photo tile (the old `room`)
+     summary — live "<n> entities · <k> active" derived from the
+               target page's tiles (the old `group`)
+     auto    — resolved at render: tile has an image → image; target
+               page is a room → image; target page has entities →
+               summary; else plain.
+   Doctrine (2026-07-23): groups are just views; the tile that points
+   at one is a nav card. Tap = go there — the target page owns all
+   behaviour. */
+function navStyle(t) {
+  if (t.style && t.style !== "auto") return t.style;
+  if (t.image) return "image";
+  const sc = t.target ? screenOf(t.target) : null;
+  if (sc && sc.room) return "image";
+  if (navTargetEntities(t).length) return "summary";
+  return "plain";
+}
+/* summary entities: the explicit list, else DERIVED live from the
+   target page's tiles — one source of truth, no baked duplicates */
+function navTargetEntities(t) {
+  if (Array.isArray(t.entities) && t.entities.length) return t.entities;
+  if (!t.target) return [];
+  const sc = screenOf(t.target);
+  if (!sc) return [];
+  return rawTilesOf(sc).map(x => x.entity)
+    .filter(e => typeof e === "string" && e.includes("."));
+}
+
+WIDGETS.nav = {
+  sub: (e, t) => {
+    if (navStyle(t) !== "summary") return (t && t.sub) || "";
+    const ents = navTargetEntities(t);
+    const on = ents.filter(x => ACTIVE(st(x).s)).length;
+    return `${ents.length} entities · ${on} active`;
+  },
+  isOn: (e, t) =>
+    navStyle(t) === "summary" && navTargetEntities(t).some(x => ACTIVE(st(x).s)),
+  body: t => navStyle(t) === "image"
+    ? `<img class="roomimg" src="${t.image || ""}" alt="">`
+    : `<div class="meter hidden"><i></i></div>`,
+  /* style rides in as a class (nav-plain / nav-image / nav-summary)
+     so the CSS can shape each without a separate widget type */
+  wire: (el, t) => el.classList.add("nav-" + navStyle(t)),
+  select: (e, t) => { if (t.target) navigate(t.target); else flashBar("No page linked yet"); },
+};
 
 WIDGETS.preset = {
     sub: () => "",
@@ -1028,16 +1299,9 @@ WIDGETS.preset = {
       if (fired && sc.drawer) {
         flashBar(t.label);
         if (S.stack.length) navigate(S.stack.pop(), true);
-        else if (sc.parent && CONFIG.screens[sc.parent]) navigate(sc.parent, true);
+        else if (sc.parent && screenOf(sc.parent)) navigate(sc.parent, true);
       }
     }
-  };
-
-WIDGETS.room = {
-    sub: () => "",
-    isOn: (e, t) => t.target === CONFIG.home_screen,   /* mock: highlight current */
-    select: (e, t) => { if (t.target) navigate(t.target); else flashBar("Mock room"); },
-    body: t => `<img class="roomimg" src="${t.image || ""}" alt="">`
   };
 
 WIDGETS.transport = {
@@ -1128,23 +1392,22 @@ WIDGETS.activity = {
     select: (e, t) => {
       const a = actOf(t); if (!a) return;
       if (S.confirmTile === t.id) { requestEnd(t, a); return; }
-      if (isActActive(t)) { if (a.screen) navigate(a.screen); }
+      if (isActActive(t)) {
+        /* v2 self-heal: device truth says ON but the select is stale —
+           silently repair the routing cache while opening the screen */
+        const sel = CONFIG.global.activity_select;
+        if (sel && activityStateOn(a) === true &&
+            st(sel).s !== (a.state_value || t.activity))
+          callService(sel.split(".")[0], "select_option",
+            { option: a.state_value || t.activity }, sel);
+        if (a.screen) navigate(a.screen);
+      }
       else startActivity(t.activity);
     },
     hold: (e, t) => {
       const a = actOf(t);
       if (a && isActActive(t)) requestEnd(t, a);
     }
-  };
-
-WIDGETS.group = {
-    sub: (e, t) => {
-      const n = (t.entities || []).length;
-      const on = (t.entities || []).filter(x => ACTIVE(st(x).s)).length;
-      return `${n} entities · ${on} active`;
-    },
-    isOn: (e, t) => (t.entities || []).some(x => ACTIVE(st(x).s)),
-    select: (e, t) => { if (t.target) navigate(t.target); }
   };
 
 WIDGETS.climate = {
@@ -1466,6 +1729,73 @@ WIDGETS.dpad = {
     }
   };
 
+/* DEVICE tile — ONE entity, everything else resolved from its domain
+   (the Studio's "just pick the entity" tile). Doctrine:
+   - tap = the domain's obvious verb (play/pause a playing/paused
+     media_player, toggle a light/switch/fan). No clean verb (an OFF
+     media player, a thermostat, a remote) → open the device's page
+     instead: starting things properly is the activity's job
+     (warm-start doctrine), not a naked turn_on from a tile.
+   - hold (touch long-press) = always the page.
+   - the page ("Opens") is INFERRED when not set: the view of the
+     activity whose primary media_player / dpad is this entity — the
+     Porch TV tile knows about the tv screen because Watch Smart TV
+     declared it. tile.target overrides.
+   - tile.tap overrides the verb: "toggle" | "play_pause" | "open". */
+const DEVICE_VERB = {
+  media_player: e => ["playing", "paused", "buffering"].includes(st(e).s)
+    ? () => callService("media_player", "media_play_pause", null, e) : null,
+  light: e => () => callService("light", "toggle", null, e),
+  switch: e => () => callService("switch", "toggle", null, e),
+  fan: e => () => callService("fan", "toggle", null, e),
+  input_boolean: e => () => callService("input_boolean", "toggle", null, e),
+};
+
+function deviceTarget(t) {
+  if (t.target) return t.target;
+  for (const a of Object.values(CONFIG.activities || {})) {
+    const c = a.context || {};
+    const scr = a.screen || a.view;
+    if (scr && (c.media_player === t.entity || c.dpad === t.entity)) return scr;
+  }
+  return null;
+}
+
+WIDGETS.device = {
+  sub: (e, t) => {
+    const s = st(e), dom = (e || "").split(".")[0];
+    /* advanced: show a specific attribute instead of the smart summary */
+    if (t.attr) {
+      const v = s.a[t.attr];
+      return v == null ? cap(s.s) : String(v);
+    }
+    if (dom === "media_player") {
+      const detail = s.a.media_title || s.a.source;
+      return cap(s.s) + (detail && ACTIVE(s.s) ? " · " + detail : "");
+    }
+    if (dom === "light")
+      return s.s === "on"
+        ? "On · " + Math.round((s.a.brightness || 255) / 2.55) + "%" : cap(s.s);
+    if (dom === "climate")
+      return (s.a.current_temperature != null ? s.a.current_temperature + "° · " : "") + cap(s.s);
+    return cap(s.s);
+  },
+  isOn: e => ACTIVE(st(e).s),
+  detailable: true,   /* auto ⚙ trail → the generated detail screen */
+  select: (e, t) => {
+    const dom = (e || "").split(".")[0];
+    const open = () => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); };
+    if (t.tap === "open") return open();
+    const verb =
+      t.tap === "toggle" ? () => callService("homeassistant", "toggle", null, e)
+      : t.tap === "play_pause" ? () => callService("media_player", "media_play_pause", null, e)
+      : DEVICE_VERB[dom] && DEVICE_VERB[dom](e);
+    if (verb) return verb();
+    open(); /* no verb → the compound page */
+  },
+  hold: (e, t) => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); },
+};
+
 const cap = s => (s || "").charAt(0).toUpperCase() + (s || "").slice(1);
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
@@ -1511,7 +1841,10 @@ function iconHtml(t, row) {
 
 function renderBanner(sc) {
   const bn = document.getElementById("banner");
-  if (!sc.banner) { bn.classList.add("hidden"); bn.innerHTML = ""; return; }
+  /* hero off: missing OR enabled:false (settings survive the toggle) */
+  if (!sc.banner || sc.banner.enabled === false) {
+    bn.classList.add("hidden"); bn.innerHTML = ""; return;
+  }
   const b = sc.banner;
   const overlay = 1 - (b.image_opacity != null ? b.image_opacity : 0.55);
   bn.style.height = b.height || "180px";
@@ -1524,6 +1857,9 @@ function renderBanner(sc) {
     ev.stopPropagation(); heroActivate("hero_rooms");
   });
   bn.classList.remove("hidden");
+  /* tabs:false hides the section jump strip; the title re-centers
+     (padding reserved for the strip is dropped) */
+  bn.classList.toggle("notabs", b.tabs === false);
   updateClock();
 }
 
@@ -1627,7 +1963,28 @@ function makeTile(t, row) {
     : `<div class="top">${iconHtml(t, false)}<span class="lbl">${t.label}</span>${
         inline ? '<span class="sub subin"></span>' : ""}</div>
        ${inline ? "" : '<div class="sub"></div>'}${extra}<div class="hint"></div>`;
-  el.addEventListener("click", () => { setFocus(t.id); act("select"); });
+  el.addEventListener("click", () => {
+    if (el._heldFired) { el._heldFired = false; return; }
+    setFocus(t.id); act("select");
+  });
+  /* touch LONG-PRESS: widgets that declare hold() get a 550ms pointer
+     timer (a TOUCH gesture on the panel — the physical-remote hold
+     doctrine, KeyMapper-owned, is untouched) */
+  if (w.hold) {
+    let hT = null, hX = 0, hY = 0;
+    const clear = () => { if (hT) { clearTimeout(hT); hT = null; } };
+    el.addEventListener("pointerdown", ev => {
+      hX = ev.clientX; hY = ev.clientY; el._heldFired = false;
+      clear();
+      hT = setTimeout(() => { hT = null; el._heldFired = true; w.hold(t.entity, t); }, 550);
+    });
+    el.addEventListener("pointermove", ev => {
+      if (hT && Math.hypot(ev.clientX - hX, ev.clientY - hY) > 12) clear();
+    });
+    el.addEventListener("pointerup", clear);
+    el.addEventListener("pointercancel", clear);
+    el.addEventListener("pointerleave", clear);
+  }
   if (w.wire) w.wire(el, t);
   /* trailing action slot: chassis-level, any tile may declare one.
      Device tiles (detailable widgets whose entity has a detail
@@ -1693,7 +2050,8 @@ function navigate(screenId, isBack) {
     if (sec.hero_label)
       heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
   });
-  buildHeroNav(sc.banner ? heroJumps : []);
+  buildHeroNav(sc.banner && sc.banner.enabled !== false &&
+    sc.banner.tabs !== false ? heroJumps : []);
   const all = tilesOf(sc);
   setFocus(sc.initial_focus || (all[0] && all[0].id));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
@@ -1748,7 +2106,13 @@ function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
 
 function barTitle(sc) {
   const room = (CONFIG.global || {}).room;
-  return room && sc.name !== room ? room + " · " + sc.name : sc.name;
+  /* a screen the ACTIVE activity navigates to titles by the activity
+     ("Watch Fire TV"), not the library label ("TV Media Player") */
+  let name = sc.name;
+  const aid = currentActivityId();
+  const a = aid && CONFIG.activities[aid];
+  if (a && a.screen === S.screen) name = a.name || name;
+  return room && name !== room ? room + " · " + name : name;
 }
 /* flashBar(msg)            — 3s neutral notice
    flashBar(msg, tone, ms)  — confirm prompt: tone "off" pulses red
@@ -1880,19 +2244,112 @@ function enterCapture() {
    ================================================================ */
 let holdTimer = null, holdFired = false;
 
-/* device target for hold-Back / hold-Home: the screen's passthrough
-   entity or the context dpad slot — null on non-device screens
-   (hold then simply behaves like tap). */
-function deviceKeyTarget() {
-  const scd = (CONFIG && screenOf(S.screen)) || {};
-  return resolveEntity(scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+/* ---- v2 control target -------------------------------------------
+   A view may declare `control_target` (v2 authoring): which entity the
+   physical keys drive (navigation/power/volume) and WHICH keys pass
+   through. The active activity's `controls` map is the fallback, then
+   the v1 heuristics (dpad_passthrough / context.dpad). All of this is
+   pure data — under a v1 config nothing here changes behavior. */
+function controlTarget() {
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  if (sc.control_target) return sc.control_target;
+  const aid = currentActivityId();
+  return (aid && (CONFIG.activities[aid] || {}).controls) || null;
+}
+function ctPass(button) {
+  const ct = controlTarget();
+  return !!(ct && Array.isArray(ct.pass_through) && ct.pass_through.includes(button));
+}
+/* v2 input policy from config.input.physical_buttons — absent = v1 */
+function inputPB() {
+  return (CONFIG && CONFIG.input && CONFIG.input.physical_buttons) || null;
 }
 
-/* Harmony rule: on a screen declaring dpad_passthrough, a physical
-   D-pad drives the device directly (touch drives the UI). */
+/* device target for hold-Back / hold-Home: control_target.navigation,
+   the screen's passthrough entity, or the context dpad slot — null on
+   non-device screens (hold then simply behaves like tap). */
+function deviceKeyTarget() {
+  const scd = (CONFIG && screenOf(S.screen)) || {};
+  const ct = controlTarget();
+  return resolveEntity((ct && ct.navigation) ||
+    scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+}
+
+/* Harmony rule: physical D-pad drives the device when the view says so —
+   v2: control_target.pass_through covers all five nav keys;
+   v1: the screen declares dpad_passthrough. Touch always drives the UI. */
 function passthroughActive() {
+  if (!CAPS.has("physical_dpad")) return false;
   const scp = (CONFIG && screenOf(S.screen)) || {};
-  return !!(scp.dpad_passthrough && CAPS.has("physical_dpad"));
+  if (scp.control_target)
+    return ["up", "down", "left", "right", "select"].every(ctPass);
+  return !!scp.dpad_passthrough;
+}
+
+/* v2 power-to-target: controls.power may be a full {service, entity}
+   action; control_target.power is an entity (default: toggle). */
+function ctPower() {
+  const ct = controlTarget();
+  if (!ct || !ct.power) return false;
+  if (typeof ct.power === "object" && ct.power.service) {
+    const [d, s] = ct.power.service.split(".");
+    const tgt = resolveEntity(ct.power.entity || ct.power.target);
+    if (tgt) { callService(d, s, ct.power.data, tgt); return true; }
+    return false;
+  }
+  const tgt = resolveEntity(ct.power);
+  if (!tgt) return false;
+  callService("homeassistant", "toggle", null, tgt);
+  return true;
+}
+
+/* end the CURRENT activity with the standard confirm flow (shared by
+   class-scoped power and the v2 hold-power=activity_end role) */
+function endCurrentActivity() {
+  const aid = currentActivityId();
+  if (!aid) { flashBar("No activity running"); return; }
+  const a = CONFIG.activities[aid];
+  const tile = tiles().find(x => x.type === "activity" && x.activity === aid);
+  if (tile) { setFocus(tile.id); requestEnd(tile, a); return; }
+  if (a.confirm_end && !barConfirm("endact", "Press power again to end " + (a.name || aid)))
+    return;
+  endActivity(a);
+  flashBar("Ending " + (a.name || aid));
+}
+
+/* v2 routing shim: when config.input.physical_buttons declares the
+   short-press-controls-target / hold-navigates-app model, reroute the
+   primary keys BEFORE the v1 switch. Returns true when handled.
+   PHYSICAL keys only — touch taps always drive the UI. Roles
+   "control_target" and "all_off" on holds ARE the v1 defaults, so
+   they fall through (return false) and the v1 switch serves them. */
+function v2Route(button, phys) {
+  const pb = inputPB();
+  if (!pb || !phys) return false;
+  const short = pb.short_press === "control_target";
+  /* short press of back/home/power → the control target (when the view
+     passes that key through and a target resolves) */
+  if (short && ["back", "home", "power"].includes(button) && ctPass(button)) {
+    if (button === "power") return ctPower();
+    const tgt = deviceKeyTarget();
+    if (tgt) { rc(tgt, cmdFor({}, button)); return true; }
+    return false;                          // no target → fall through to UI
+  }
+  /* hold roles: back_hold/home_hold/power_hold carry the APP action */
+  const hold = pb.hold || {};
+  const role = { back_hold: hold.back, home_hold: hold.home, power_hold: hold.power }[button];
+  if (!role) return false;
+  if (role === "app_back") { act("back", false); return true; }
+  if (role === "room_home") { act("home", false); return true; }
+  if (role === "activity_end") {
+    /* hold role: END WITHOUT ASKING (tap owns the confirmation) */
+    const aid = currentActivityId();
+    if (!aid) { flashBar("No activity running"); return true; }
+    endActivity(CONFIG.activities[aid]);
+    flashBar("Ending " + (CONFIG.activities[aid].name || aid));
+    return true;
+  }
+  return false;
 }
 
 function act(button, phys) {
@@ -1904,10 +2361,17 @@ function act(button, phys) {
      hold-Back/Home send the device keys (see keydown). */
   if (phys && passthroughActive() &&
       ["up", "down", "left", "right", "select"].includes(button)) {
-    const scp = screenOf(S.screen);
-    rc(resolveEntity(scp.dpad_passthrough), cmdFor({}, button));
+    rc(deviceKeyTarget(), cmdFor({}, button));
+    /* the Studio preview can't show the device reacting — say where
+       the key went so the pad doesn't read as dead */
+    if (typeof PREVIEW !== "undefined" && PREVIEW)
+      flashBar("D-pad → device (passthrough)");
     return;
   }
+
+  /* v2 input policy (config.input.physical_buttons): short press →
+     control target, hold → app. No-op under a v1 config. */
+  if (v2Route(button, phys)) return;
 
   const t = tileDef(S.focusId), w = t && WIDGETS[t.type];
   const eid = t ? resolveEntity(t.entity) : null;
@@ -1962,13 +2426,10 @@ function act(button, phys) {
       break;
     }
     case "power_hold":
-      /* shell-owned long-press power = All Off, WITH two-press confirm
-         (user call: blast radius deserves the prompt even on the
-         deliberate gesture) */
-      if (barConfirm("alloffh", "Hold power again to turn everything off")) {
-        endActivity({});
-        flashBar("All Off");
-      }
+      /* long-press Power = end/All Off IMMEDIATELY (doctrine
+         2026-07-23: tap asks, the deliberate hold gesture doesn't) */
+      endActivity({});
+      flashBar("All Off");
       break;
     case "menu": {
       /* physical MENU key (Astrion: '#') → the device's menu command
@@ -1983,10 +2444,10 @@ function act(button, phys) {
          RESETS history (isBack navigation → chevron hides). */
       S.stack = [];
       const scr = screenOf(S.screen) || {};
-      const dest = (scr.parent && CONFIG.screens[scr.parent]) ? scr.parent
+      const dest = (scr.parent && screenOf(scr.parent)) ? scr.parent
         : S.screen !== CONFIG.home_screen ? CONFIG.home_screen
         : CONFIG.global.main_home;
-      if (dest && CONFIG.screens[dest] && dest !== S.screen) navigate(dest, true);
+      if (dest && screenOf(dest) && dest !== S.screen) navigate(dest, true);
       break;
     }
     case "power": {
@@ -2014,22 +2475,12 @@ function act(button, phys) {
         break;
       }
       if (!aid) {
-        if (cls === "room") {                    // room, nothing running → All Off
-          if (barConfirm("alloff", "Press power again to turn everything off")) {
-            endActivity({});
-            flashBar("All Off");
-          }
-        } else flashBar("No activity running");
+        /* doctrine 2026-07-23: idle view -> tap does NOTHING (hold is
+           the All Off gesture); no more idle-tap All Off confirm */
+        flashBar("Nothing running");
         break;
       }
-      const a = CONFIG.activities[aid];
-      const tile = tiles().find(x => x.type === "activity" && x.activity === aid);
-      if (tile) { setFocus(tile.id); requestEnd(tile, a); break; }
-      /* no activity tile on this screen → confirm via the status bar */
-      if (a.confirm_end && !barConfirm("endact", "Press power again to end " + (a.name || aid)))
-        break;
-      endActivity(a);
-      flashBar("Ending " + (a.name || aid));
+      endCurrentActivity();
       break;
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":
@@ -2173,6 +2624,61 @@ document.getElementById("connectBtn").addEventListener("click", () => {
   connect();
 });
 
+/* ---- Studio preview mode (v0.14) ----------------------------------
+   #preview=1 puts the engine under a PARENT'S control (the Harmonium
+   Studio): the config arrives by postMessage instead of fetch, and can
+   be re-injected on every edit for a live WYSIWYG preview. Messages
+   are same-origin only. The kiosk never sets the flag — inert there.
+     parent → engine:
+       { type: "harmonium_config", config, device? }   apply + render
+       { type: "harmonium_key", key }                  synthetic keydown/up
+     engine → parent:
+       { type: "harmonium_ready" }                     listener installed
+       { type: "harmonium_applied", screen }           config rendered */
+let PREVIEW = false;
+function applyConfig(cfg, devName) {
+  CONFIG = cfg;
+  if (!devName) devName = localStorage.getItem("hakr_device");
+  if (!devName && window.fully && CONFIG.devices)
+    devName = Object.keys(CONFIG.devices).find(k => CONFIG.devices[k].fully) || null;
+  DEVICE = (CONFIG.devices || {})[devName] || (CONFIG.devices || {}).default || {};
+  S.deviceName = devName || "default";
+  CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
+  KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
+  applyTheme(CONFIG.theme);
+  dbgInit();
+  S.stack = [];
+  /* preview re-injection keeps the screen being edited (falls back to
+     home when it no longer exists); kiosk boot always lands home */
+  const keep = PREVIEW && S.screen && screenOf(S.screen);
+  navigate(keep ? S.screen : CONFIG.home_screen, true);
+  if (S.connected) subscribeFor(S.screen);
+}
+function previewListen() {
+  window.addEventListener("message", ev => {
+    if (ev.origin !== location.origin) return;
+    const m = ev.data || {};
+    if (m.type === "harmonium_config" && m.config) {
+      try {
+        applyConfig(m.config, m.device);
+        parent.postMessage({ type: "harmonium_applied", screen: S.screen }, location.origin);
+      } catch (err) {
+        parent.postMessage({ type: "harmonium_error", message: String(err) }, location.origin);
+      }
+    } else if (m.type === "harmonium_navigate" && m.screen) {
+      if (CONFIG && screenOf(m.screen)) {
+        S.stack = [];
+        navigate(m.screen, true);
+      }
+    } else if (m.type === "harmonium_key" && m.key) {
+      const opts = { key: m.key, bubbles: true, cancelable: true };
+      document.dispatchEvent(new KeyboardEvent("keydown", opts));
+      document.dispatchEvent(new KeyboardEvent("keyup", opts));
+    }
+  });
+  parent.postMessage({ type: "harmonium_ready" }, location.origin);
+}
+
 (async () => {
   /* one-time provisioning for kiosk devices — open:
      .../index.html#host=192.168.1.87:8123&token=LLAT
@@ -2186,12 +2692,23 @@ document.getElementById("connectBtn").addEventListener("click", () => {
     const clean = v => (v || "").trim().replace(/^["']+|["']+$/g, "");
     const pHost = clean(prov.get("host")), pTok = clean(prov.get("token"));
     const pDev = clean(prov.get("device")), pDbg = clean(prov.get("debug"));
+    PREVIEW = clean(prov.get("preview")) === "1";
     if (pHost) localStorage.setItem("hakr_host", pHost);
     if (pTok) localStorage.setItem("hakr_token", pTok);
-    if (pDev) localStorage.setItem("hakr_device", pDev);
+    if (pDev && !PREVIEW) localStorage.setItem("hakr_device", pDev);
     if (pDbg === "1") localStorage.setItem("hakr_debug", "1");
     else if (pDbg === "0") localStorage.removeItem("hakr_debug");
-    if (pHost || pTok || pDev || pDbg) history.replaceState(null, "", location.pathname);
+    if ((pHost || pTok || pDev || pDbg) && !PREVIEW)
+      history.replaceState(null, "", location.pathname);
+    if (PREVIEW) {
+      /* Studio drives everything from here; still connect() so the
+         preview renders LIVE states (token shared via same-origin
+         localStorage with the sidebar remote) */
+      document.getElementById("screenName").textContent = "waiting for Studio…";
+      previewListen();
+      connect();
+      return;
+    }
   }
   try {
     CONFIG = await loadConfig();
@@ -2199,17 +2716,7 @@ document.getElementById("connectBtn").addEventListener("click", () => {
     document.getElementById("screenName").textContent = "⚠ " + err.message;
     return;
   }
-  /* device profile: ?device=<name> > Fully-kiosk sniff > "default" */
-  let devName = localStorage.getItem("hakr_device");
-  if (!devName && window.fully && CONFIG.devices)
-    devName = Object.keys(CONFIG.devices).find(k => CONFIG.devices[k].fully) || null;
-  DEVICE = (CONFIG.devices || {})[devName] || (CONFIG.devices || {}).default || {};
-  S.deviceName = devName || "default";
-  CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
-  KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
-  applyTheme(CONFIG.theme);
-  dbgInit();
-  navigate(CONFIG.home_screen);
+  applyConfig(CONFIG, localStorage.getItem("hakr_device"));
   connect();
 })();
 

@@ -1,6 +1,7 @@
 id: music
-name: Music
-kind: activity
+name: Music Media Player
+type: controller
+library: true
 parent: porch
 activities: [music]
 

@@ -10,8 +10,8 @@ await p.waitForTimeout(700);
 await p.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'off', a: {} }); S.lastAct = null;
-  navigate('tv');
+  S.states.set('select.harmonium_porch_activity', { s: 'off', a: {} }); S.lastAct = null;
+  navigate('controller:tv');
 });
 await p.waitForTimeout(150);
 
@@ -31,7 +31,7 @@ r.tapBack = await p.evaluate(() => ({
 }));
 
 // 3. HOLD back on tv (shell-mapped '{' key) -> device BACK, screen unchanged
-await p.evaluate(() => { navigate('tv'); window._sent.length = 0; });
+await p.evaluate(() => { navigate('controller:tv'); window._sent.length = 0; });
 await p.waitForTimeout(100);
 await p.keyboard.press('{');
 r.holdBack = await p.evaluate(() => ({
@@ -51,7 +51,7 @@ r.holdHome = await p.evaluate(() => ({
   cmds: window._sent.filter(m => m.type === 'call_service').map(m => (m.service_data || {}).command)
 }));
 // hold-back on a NON-device screen degrades to tap (UI back)
-await p.evaluate(() => { navigate('home', true); S.stack = []; navigate('comfort'); window._sent.length = 0; });
+await p.evaluate(() => { navigate('porch', true); S.stack = []; navigate('comfort'); window._sent.length = 0; });
 await p.waitForTimeout(100);
 await p.keyboard.press('{');
 await p.waitForTimeout(100);
@@ -59,7 +59,7 @@ r.holdBackNoDev = await p.evaluate(() => ({
   screen: S.screen,
   calls: window._sent.filter(m => m.type === 'call_service').length
 }));
-await p.evaluate(() => { navigate('tv', true); S.stack = ['home']; });
+await p.evaluate(() => { navigate('controller:tv', true); S.stack = ['porch']; });
 await p.keyboard.press('F1');
 await p.waitForTimeout(120);
 r.tapHome = await p.evaluate(() => ({
@@ -73,7 +73,7 @@ await p.waitForTimeout(120);
 r.tapHomeOnRoom = await p.evaluate(() => S.screen);
 
 // 4b. MENU short ('#') on tv -> device MENU; MENU hold ('@') -> apps drawer
-await p.evaluate(() => { navigate('tv', true); S.stack = ['home']; window._sent.length = 0; });
+await p.evaluate(() => { navigate('controller:tv', true); S.stack = ['porch']; window._sent.length = 0; });
 await p.waitForTimeout(100);
 await p.keyboard.press('#');
 r.menuShort = await p.evaluate(() => ({
@@ -92,7 +92,7 @@ await p2.waitForTimeout(700);
 await p2.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'off', a: {} }); S.lastAct = null;
+  S.states.set('select.harmonium_porch_activity', { s: 'off', a: {} }); S.lastAct = null;
   S.states.set('light.porch_lights', { s: 'on', a: { brightness: 128 } });
   S.states.set('light.remote_3_button_backlight', { s: 'off', a: {} });
   S.states.set('climate.room_air_conditioner', { s: 'off', a: { temperature: 70 } });
@@ -157,7 +157,7 @@ r.powerHold = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_
 r.powerHoldFirst = phFirst;
 
 // 8. room power, nothing running: two-press -> All Off script
-await p2.evaluate(() => { navigate('home', true); S.stack = []; window._sent.length = 0; });
+await p2.evaluate(() => { navigate('porch', true); S.stack = []; window._sent.length = 0; });
 await p2.waitForTimeout(150);
 await p2.keyboard.press('F2');
 const roomFirst = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service').length);

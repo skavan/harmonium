@@ -77,15 +77,15 @@ await p2.waitForTimeout(700);
 r.astrion = await p2.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
-  navigate('tv');
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
+  navigate('controller:tv');
   return { trailIcon: document.querySelector('#tile_t_np .trail .ic')?.textContent,
-           devTrail: !!document.querySelector('#tile_d_snd .trail') };
+           devTrail: !!document.querySelector('#tile_cast_media_player_ma_soundbar_porch .trail') };
 });
 await p2.keyboard.press('ArrowUp');
 r.astrion.passUp = await p2.evaluate(() => window._sent.map(m => (m.service_data||{}).command));
 // soundbar device tile trail -> media detail
-await p2.click('#tile_d_snd .trail');
+await p2.click('#tile_cast_media_player_ma_soundbar_porch .trail');
 await p2.waitForTimeout(150);
 r.astrion.sndDetail = await p2.evaluate(() => ({ screen: S.screen,
   transport: !!document.getElementById('tile_dt'),

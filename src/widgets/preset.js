@@ -11,7 +11,7 @@ WIDGETS.preset = {
       if (fired && sc.drawer) {
         flashBar(t.label);
         if (S.stack.length) navigate(S.stack.pop(), true);
-        else if (sc.parent && CONFIG.screens[sc.parent]) navigate(sc.parent, true);
+        else if (sc.parent && screenOf(sc.parent)) navigate(sc.parent, true);
       }
     }
   };

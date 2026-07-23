@@ -1,0 +1,33 @@
+run:
+  name: Run sequence
+  description: >-
+    Execute a Harmonium building-block sequence (stored in the Harmonium
+    config) with Home Assistant's script engine.
+  fields:
+    sequence:
+      name: Sequence
+      description: The sequence id (see Building blocks in Harmonium Studio).
+      required: true
+      example: firetv_on
+      selector:
+        text:
+
+reseed:
+  name: Reseed from deployed config
+  description: >-
+    Reload the Harmonium store from www/remote-proto/config.json — use
+    after pushing a repo build by file copy (push-to-ha.bat).
+
+set_activity:
+  name: Set activity
+  description: >-
+    Flip the owning hub's Harmonium routing select to an activity id
+    ("off" ends the room). Room inferred from the activity's owner.
+  fields:
+    activity:
+      name: Activity
+      description: Activity id from the Harmonium config.
+      required: true
+      example: watch_firetv
+      selector:
+        text:

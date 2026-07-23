@@ -11,8 +11,8 @@ await p.waitForTimeout(700);
 await p.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
-  navigate('tv');
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
+  navigate('controller:tv');
 });
 await p.waitForTimeout(200);
 r.trailExists = !!(await p.$('#tile_t_np .trail'));
@@ -26,7 +26,7 @@ r.trailRect = await p.$eval('#tile_t_np .trail', el => {
 await p.click('#tile_t_np .trail');
 await p.waitForTimeout(150);
 r.tapTrail = await p.evaluate(() => S.screen);           // expect apps
-await p.evaluate(() => { navigate('tv'); window._sent.length = 0; });
+await p.evaluate(() => { navigate('controller:tv'); window._sent.length = 0; });
 await p.click('#tile_t_np', { position: { x: 30, y: 20 } });
 await p.waitForTimeout(100);
 r.bodyClick = await p.evaluate(() =>
@@ -57,8 +57,8 @@ await p2.waitForTimeout(700);
 await p2.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
-  navigate('tv');
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
+  navigate('controller:tv');
 });
 await p2.waitForTimeout(200);
 r.astrion = {};
@@ -69,7 +69,7 @@ r.astrion.rightCmd = await p2.evaluate(() => window._sent.map(m => (m.service_da
 await p2.click('#tile_t_np .trail');
 await p2.waitForTimeout(150);
 r.astrion.tapTrail = await p2.evaluate(() => S.screen);  // expect apps
-r.astrion.appsBack = await p2.evaluate(() => { navigate('tv'); return true; });
+r.astrion.appsBack = await p2.evaluate(() => { navigate('controller:tv'); return true; });
 
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));

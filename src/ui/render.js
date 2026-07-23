@@ -14,7 +14,10 @@ function iconHtml(t, row) {
 
 function renderBanner(sc) {
   const bn = document.getElementById("banner");
-  if (!sc.banner) { bn.classList.add("hidden"); bn.innerHTML = ""; return; }
+  /* hero off: missing OR enabled:false (settings survive the toggle) */
+  if (!sc.banner || sc.banner.enabled === false) {
+    bn.classList.add("hidden"); bn.innerHTML = ""; return;
+  }
   const b = sc.banner;
   const overlay = 1 - (b.image_opacity != null ? b.image_opacity : 0.55);
   bn.style.height = b.height || "180px";
@@ -27,6 +30,9 @@ function renderBanner(sc) {
     ev.stopPropagation(); heroActivate("hero_rooms");
   });
   bn.classList.remove("hidden");
+  /* tabs:false hides the section jump strip; the title re-centers
+     (padding reserved for the strip is dropped) */
+  bn.classList.toggle("notabs", b.tabs === false);
   updateClock();
 }
 
@@ -130,7 +136,28 @@ function makeTile(t, row) {
     : `<div class="top">${iconHtml(t, false)}<span class="lbl">${t.label}</span>${
         inline ? '<span class="sub subin"></span>' : ""}</div>
        ${inline ? "" : '<div class="sub"></div>'}${extra}<div class="hint"></div>`;
-  el.addEventListener("click", () => { setFocus(t.id); act("select"); });
+  el.addEventListener("click", () => {
+    if (el._heldFired) { el._heldFired = false; return; }
+    setFocus(t.id); act("select");
+  });
+  /* touch LONG-PRESS: widgets that declare hold() get a 550ms pointer
+     timer (a TOUCH gesture on the panel — the physical-remote hold
+     doctrine, KeyMapper-owned, is untouched) */
+  if (w.hold) {
+    let hT = null, hX = 0, hY = 0;
+    const clear = () => { if (hT) { clearTimeout(hT); hT = null; } };
+    el.addEventListener("pointerdown", ev => {
+      hX = ev.clientX; hY = ev.clientY; el._heldFired = false;
+      clear();
+      hT = setTimeout(() => { hT = null; el._heldFired = true; w.hold(t.entity, t); }, 550);
+    });
+    el.addEventListener("pointermove", ev => {
+      if (hT && Math.hypot(ev.clientX - hX, ev.clientY - hY) > 12) clear();
+    });
+    el.addEventListener("pointerup", clear);
+    el.addEventListener("pointercancel", clear);
+    el.addEventListener("pointerleave", clear);
+  }
   if (w.wire) w.wire(el, t);
   /* trailing action slot: chassis-level, any tile may declare one.
      Device tiles (detailable widgets whose entity has a detail
@@ -196,7 +223,8 @@ function navigate(screenId, isBack) {
     if (sec.hero_label)
       heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
   });
-  buildHeroNav(sc.banner ? heroJumps : []);
+  buildHeroNav(sc.banner && sc.banner.enabled !== false &&
+    sc.banner.tabs !== false ? heroJumps : []);
   const all = tilesOf(sc);
   setFocus(sc.initial_focus || (all[0] && all[0].id));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
@@ -251,7 +279,13 @@ function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
 
 function barTitle(sc) {
   const room = (CONFIG.global || {}).room;
-  return room && sc.name !== room ? room + " · " + sc.name : sc.name;
+  /* a screen the ACTIVE activity navigates to titles by the activity
+     ("Watch Fire TV"), not the library label ("TV Media Player") */
+  let name = sc.name;
+  const aid = currentActivityId();
+  const a = aid && CONFIG.activities[aid];
+  if (a && a.screen === S.screen) name = a.name || name;
+  return room && name !== room ? room + " · " + name : name;
 }
 /* flashBar(msg)            — 3s neutral notice
    flashBar(msg, tone, ms)  — confirm prompt: tone "off" pulses red

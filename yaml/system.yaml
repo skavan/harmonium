@@ -12,12 +12,16 @@ navigation:
   view_order: [porch, tv, music, comfort]
 
 input:
+  # TOGGLEABLE key-ownership policy (Suresh, 2026-07-20): short press
+  # drives the APP, long press drives the DEVICE. Flip short_press to
+  # "control_target" (and holds to app_back/room_home/activity_end)
+  # for the Harmony-style inverse — the engine honors either.
   physical_buttons:
-    short_press: control_target
+    short_press: app
     hold:
-      back: app_back
-      home: room_home
-      power: activity_end
+      back: control_target     # hold-Back  -> device BACK
+      home: control_target     # hold-Home  -> device HOME
+      power: all_off           # hold-Power -> All Off (two-press confirm)
     hold_ms:
       navigation: 500
       power: 1200

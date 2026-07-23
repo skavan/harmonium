@@ -1,5 +1,5 @@
 {
-  "version": 28,
+  "version": 2,
   "entity_options": {
     "cover.maestroscreen_04_fr": {
       "invert_position": true
@@ -17,7 +17,41 @@
       "capabilities": [
         "touch",
         "pointer"
-      ]
+      ],
+      "keymap": {
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "Tab": "down",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "Enter": "select",
+        " ": "select",
+        "+": "vol_up",
+        "=": "vol_up",
+        "-": "vol_down",
+        "PageUp": "ch_up",
+        "PageDown": "ch_down",
+        "m": "mute",
+        "M": "mute",
+        "`": "mute",
+        "AudioVolumeMute": "mute",
+        "[": "back",
+        "Escape": "back",
+        "Backspace": "back",
+        "]": "home",
+        ";": "home",
+        "F1": "home",
+        "BrowserHome": "home",
+        "{": "back_hold",
+        "}": "home_hold",
+        "#": "menu",
+        "@": "menu_hold",
+        "F2": "power",
+        "p": "power",
+        "P": "power",
+        "o": "power_hold",
+        "O": "power_hold"
+      }
     },
     "astrion": {
       "fully": true,
@@ -46,10 +80,10 @@
         "[": "back",
         "Escape": "back",
         "Backspace": "back",
-        "F1": "home",
-        "BrowserHome": "home",
         "]": "back_hold",
         ";": "home_hold",
+        "F1": "home",
+        "BrowserHome": "home",
         "{": "back_hold",
         "}": "home_hold",
         "#": "menu",
@@ -96,16 +130,16 @@
     "o": "power_hold",
     "O": "power_hold"
   },
-  "home_screen": "home",
+  "home_screen": "porch",
   "screen_order": [
-    "home",
-    "tv",
-    "music",
+    "porch",
+    "controller:tv",
+    "controller:music",
     "comfort"
   ],
   "global": {
     "debug": false,
-    "activity_select": "input_select.porch_activity",
+    "activity_select": "select.harmonium_porch_activity",
     "buttons": {
       "vol_up": {
         "service": "media_player.volume_up",
@@ -120,30 +154,105 @@
       }
     },
     "room": "Porch",
-    "main_home": "rooms",
+    "main_home": "overview",
     "confirm_switch": true
+  },
+  "input": {
+    "physical_buttons": {
+      "short_press": "app",
+      "hold": {
+        "back": "control_target",
+        "home": "control_target",
+        "power": "all_off"
+      },
+      "hold_ms": {
+        "navigation": 500,
+        "power": 1200
+      }
+    },
+    "confirm_activity_switch": true,
+    "debug": false,
+    "global_buttons": {
+      "vol_up": {
+        "service": "media_player.volume_up",
+        "entity": "$context.volume"
+      },
+      "vol_down": {
+        "service": "media_player.volume_down",
+        "entity": "$context.volume"
+      },
+      "menu_hold": {
+        "navigate": "apps"
+      }
+    }
   },
   "activities": {
     "watch_firetv": {
       "name": "Watch Fire TV",
-      "start": "script.activity_watch_firetv",
-      "screen": "tv",
+      "icon": "material:live_tv",
+      "color": "#d97b3a",
+      "start": "sequence:firetv_on",
       "confirm_end": true,
       "context": {
         "media_player": "media_player.fire_tv_family_192_168_1_65",
         "dpad": "remote.fire_tv_family_192_168_1_65",
+        "power": "media_player.sts_samsung_q90_porch",
         "volume": "media_player.sts_samsung_q90_porch",
         "volume_level": "media_player.ma_soundbar_porch"
-      }
+      },
+      "controls": {
+        "navigation": "$context.dpad",
+        "back": {
+          "command": "back",
+          "entity": "$context.dpad"
+        },
+        "home": {
+          "command": "home",
+          "entity": "$context.dpad"
+        },
+        "power": {
+          "service": "media_player.toggle",
+          "entity": "$context.power"
+        },
+        "volume": "$context.volume"
+      },
+      "state": {
+        "entities": [
+          "media_player.fire_tv_family_192_168_1_65",
+          "media_player.sts_samsung_q90_porch"
+        ],
+        "on": {
+          "all": [
+            {
+              "entity": "media_player.sts_samsung_q90_porch",
+              "state": "on"
+            },
+            {
+              "entity": "media_player.sts_samsung_q90_porch",
+              "attribute": "source",
+              "in": [
+                "Fire TV",
+                "TV/HDMI"
+              ]
+            }
+          ]
+        }
+      },
+      "screen": "controller:tv",
+      "room_view": "porch"
     },
     "watch_smart": {
       "name": "Watch Smart TV",
-      "start": "script.activity_watch_smart",
-      "screen": "tv",
+      "icon": "material:tv",
+      "color": "#e89b17",
+      "start": "sequence:smart_tv_on",
       "confirm_end": true,
       "context": {
         "media_player": "media_player.sts_samsung_q90_porch",
         "dpad": "remote.sts_samsung_q90_porch",
+        "power": "media_player.sts_samsung_q90_porch",
+        "volume": "media_player.sts_samsung_q90_porch",
+        "volume_level": "media_player.ma_soundbar_porch",
         "dpad_commands": {
           "up": "KEY_UP",
           "down": "KEY_DOWN",
@@ -156,317 +265,515 @@
           "info": "KEY_INFO",
           "ch_up": "KEY_CHUP",
           "ch_down": "KEY_CHDOWN"
+        }
+      },
+      "controls": {
+        "navigation": "$context.dpad",
+        "back": {
+          "command": "back",
+          "entity": "$context.dpad"
         },
-        "volume": "media_player.sts_samsung_q90_porch",
-        "volume_level": "media_player.ma_soundbar_porch"
-      }
+        "home": {
+          "command": "home",
+          "entity": "$context.dpad"
+        },
+        "power": {
+          "service": "media_player.toggle",
+          "entity": "$context.power"
+        },
+        "volume": "$context.volume"
+      },
+      "state": {
+        "entities": [
+          "media_player.sts_samsung_q90_porch"
+        ],
+        "on": {
+          "all": [
+            {
+              "entity": "media_player.sts_samsung_q90_porch",
+              "state": "on"
+            },
+            {
+              "entity": "media_player.sts_samsung_q90_porch",
+              "attribute": "source",
+              "not_in": [
+                "Fire TV",
+                "Unknown (HDMI 1)",
+                "TV/HDMI"
+              ]
+            }
+          ]
+        }
+      },
+      "screen": "controller:tv",
+      "room_view": "porch"
     },
     "music": {
       "name": "Listen to Music",
-      "start": "script.activity_music",
-      "screen": "music",
+      "icon": "material:music_note",
+      "color": "#1e8a82",
+      "start": "sequence:music_on",
+      "stop": "sequence:music_stop",
       "context": {
         "media_player": "media_player.ma_sonos_basement",
+        "power": "media_player.ma_sonos_basement",
         "volume": "media_player.ma_sonos_basement"
       },
-      "stop": "script.activity_music_stop"
+      "controls": {
+        "power": {
+          "service": "media_player.toggle",
+          "entity": "$context.power"
+        },
+        "volume": "$context.volume"
+      },
+      "state": {
+        "entities": [
+          "media_player.ma_sonos_basement"
+        ],
+        "on": {
+          "any_state": [
+            "on",
+            "playing",
+            "paused",
+            "buffering"
+          ]
+        }
+      },
+      "screen": "controller:music",
+      "room_view": "porch"
     },
     "off": {
       "name": "All Off",
-      "start": "script.activity_off",
-      "confirm_end": true
+      "icon": "material:power_settings_new",
+      "start": "sequence:all_off",
+      "confirm_end": true,
+      "room_view": "porch"
+    }
+  },
+  "sequences": {
+    "firetv_on": {
+      "name": "Fire TV On",
+      "actions": [
+        {
+          "alias": "Set activity state",
+          "action": "harmonium.set_activity",
+          "data": {
+            "activity": "watch_firetv"
+          }
+        },
+        {
+          "alias": "Wake Fire TV if asleep (non-disruptive, best effort)",
+          "action": "media_player.turn_on",
+          "continue_on_error": true,
+          "target": {
+            "entity_id": "media_player.fire_tv_family_192_168_1_65"
+          }
+        },
+        {
+          "alias": "Cold start only: wake the Samsung",
+          "if": [
+            {
+              "condition": "state",
+              "entity_id": "media_player.sts_samsung_q90_porch",
+              "state": "off"
+            }
+          ],
+          "then": [
+            {
+              "alias": "Wake TV via wired WOL (reliable from standby)",
+              "action": "button.press",
+              "continue_on_error": true,
+              "target": {
+                "entity_id": "button.samsung_wired_wol_d4_9d_c0_2c_e5_bf"
+              }
+            },
+            {
+              "alias": "Wake TV via remote entity (best effort)",
+              "action": "remote.turn_on",
+              "continue_on_error": true,
+              "target": {
+                "entity_id": "remote.sts_samsung_q90_porch"
+              }
+            },
+            {
+              "alias": "Wait for the TV to report on (up to 6s)",
+              "wait_for_trigger": [
+                {
+                  "trigger": "state",
+                  "entity_id": "media_player.sts_samsung_q90_porch",
+                  "to": "on"
+                }
+              ],
+              "timeout": {
+                "seconds": 6
+              },
+              "continue_on_timeout": true
+            },
+            {
+              "alias": "Let the TV finish waking before the source switch",
+              "delay": {
+                "seconds": 1
+              }
+            }
+          ]
+        },
+        {
+          "alias": "Switch TV input ONLY if not already on the Fire TV",
+          "if": [
+            {
+              "condition": "not",
+              "conditions": [
+                {
+                  "condition": "state",
+                  "entity_id": "media_player.sts_samsung_q90_porch",
+                  "attribute": "source",
+                  "state": [
+                    "Fire TV",
+                    "TV/HDMI"
+                  ]
+                }
+              ]
+            }
+          ],
+          "then": [
+            {
+              "alias": "Switch TV input to Fire TV (best effort)",
+              "action": "media_player.select_source",
+              "continue_on_error": true,
+              "data": {
+                "source": "Fire TV"
+              },
+              "target": {
+                "entity_id": "media_player.sts_samsung_q90_porch"
+              }
+            }
+          ]
+        }
+      ],
+      "room": "porch"
+    },
+    "smart_tv_on": {
+      "name": "Smart TV On",
+      "actions": [
+        {
+          "alias": "Set activity state",
+          "action": "harmonium.set_activity",
+          "data": {
+            "activity": "watch_smart"
+          }
+        },
+        {
+          "alias": "Cold start only: wake the Samsung",
+          "if": [
+            {
+              "condition": "state",
+              "entity_id": "media_player.sts_samsung_q90_porch",
+              "state": "off"
+            }
+          ],
+          "then": [
+            {
+              "alias": "Wake TV via wired WOL (reliable from standby)",
+              "action": "button.press",
+              "continue_on_error": true,
+              "target": {
+                "entity_id": "button.samsung_wired_wol_d4_9d_c0_2c_e5_bf"
+              }
+            },
+            {
+              "alias": "Wake TV via remote entity (best effort)",
+              "action": "remote.turn_on",
+              "continue_on_error": true,
+              "target": {
+                "entity_id": "remote.sts_samsung_q90_porch"
+              }
+            },
+            {
+              "alias": "Wait for the TV to report on (up to 6s)",
+              "wait_for_trigger": [
+                {
+                  "trigger": "state",
+                  "entity_id": "media_player.sts_samsung_q90_porch",
+                  "to": "on"
+                }
+              ],
+              "timeout": {
+                "seconds": 6
+              },
+              "continue_on_timeout": true
+            },
+            {
+              "alias": "Let the TV finish waking before the source switch",
+              "delay": {
+                "seconds": 1
+              }
+            }
+          ]
+        },
+        {
+          "alias": "Open Prime Video (on a warm start this switch IS the point)",
+          "action": "media_player.select_source",
+          "continue_on_error": true,
+          "data": {
+            "source": "Prime Video"
+          },
+          "target": {
+            "entity_id": "media_player.sts_samsung_q90_porch"
+          }
+        }
+      ],
+      "room": "porch"
+    },
+    "music_on": {
+      "name": "Music On",
+      "actions": [
+        {
+          "alias": "Set activity state",
+          "action": "harmonium.set_activity",
+          "data": {
+            "activity": "music"
+          }
+        }
+      ],
+      "room": "porch"
+    },
+    "music_stop": {
+      "name": "Music Stop",
+      "actions": [
+        {
+          "alias": "Set activity state",
+          "action": "harmonium.set_activity",
+          "data": {
+            "activity": "off"
+          }
+        },
+        {
+          "alias": "Stop basement Sonos (best effort)",
+          "action": "media_player.media_stop",
+          "continue_on_error": true,
+          "target": {
+            "entity_id": "media_player.ma_sonos_basement"
+          }
+        }
+      ],
+      "room": "porch"
+    },
+    "all_off": {
+      "name": "All Off",
+      "actions": [
+        {
+          "alias": "Set activity state",
+          "action": "harmonium.set_activity",
+          "data": {
+            "activity": "off"
+          }
+        },
+        {
+          "alias": "TV off (best effort)",
+          "action": "media_player.turn_off",
+          "continue_on_error": true,
+          "target": {
+            "entity_id": "media_player.sts_samsung_q90_porch"
+          }
+        },
+        {
+          "alias": "Stop basement Sonos (best effort \u2014 Fire TV NEVER touched, ARC soundbar is the TV's)",
+          "action": "media_player.media_stop",
+          "continue_on_error": true,
+          "target": {
+            "entity_id": "media_player.ma_sonos_basement"
+          }
+        }
+      ],
+      "room": "porch"
+    }
+  },
+  "apps": {
+    "netflix": {
+      "name": "Netflix",
+      "icon": "material:movie",
+      "source": "Netflix",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.netflix.ninja"
+      }
+    },
+    "prime": {
+      "name": "Prime Video",
+      "icon": "material:play_circle",
+      "source": "Prime Video",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": {
+          "action": "remote.send_command",
+          "target": {
+            "entity_id": "remote.fire_tv_family_192_168_1_65"
+          },
+          "data": {
+            "command": "KEYCODE_PROG_RED"
+          }
+        }
+      }
+    },
+    "youtube": {
+      "name": "YouTube",
+      "icon": "material:smart_display",
+      "source": "YouTube",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.amazon.firetv.youtube"
+      }
+    },
+    "youtubetv": {
+      "name": "YouTube TV",
+      "icon": "material:live_tv",
+      "source": "YouTube TV",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.amazon.firetv.youtube.tv"
+      }
+    },
+    "peacock": {
+      "name": "Peacock",
+      "icon": "material:theaters",
+      "source": "Peacock TV",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.peacock.peacockfiretv"
+      }
+    },
+    "paramount": {
+      "name": "Paramount+",
+      "icon": "material:star",
+      "source": "Paramount+",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.cbs.ott"
+      }
+    },
+    "max": {
+      "name": "Max",
+      "icon": "material:local_movies",
+      "source": "Max",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": {
+          "action": "remote.send_command",
+          "target": {
+            "entity_id": "remote.fire_tv_family_192_168_1_65"
+          },
+          "data": {
+            "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
+          }
+        }
+      }
+    },
+    "appletv": {
+      "name": "Apple TV",
+      "icon": "material:tv_gen",
+      "source": "Apple TV",
+      "launch": {
+        "media_player.fire_tv_family_192_168_1_65": "com.apple.atve.amazon.appletv"
+      }
+    },
+    "hulu": {
+      "name": "Hulu",
+      "icon": "material:video_library",
+      "source": "Hulu"
+    },
+    "disney": {
+      "name": "Disney+",
+      "icon": "material:castle",
+      "source": "Disney+"
     }
   },
   "screens": {
-    "home": {
-      "name": "Porch",
-      "class": "room",
-      "parent": "rooms",
-      "banner": {
-        "image": "/local/images/Porch_Render.jpg",
-        "image_opacity": 0.5,
-        "height": "230px",
-        "min_height": "150px",
-        "show_time": true,
-        "rooms_screen": "rooms"
+    "apps": {
+      "name": "Apps",
+      "class": "group",
+      "view_kind": "library",
+      "type": "library",
+      "parent": "controller:tv",
+      "context": {
+        "media_player": "media_player.fire_tv_family_192_168_1_65",
+        "dpad": "remote.fire_tv_family_192_168_1_65",
+        "power": "media_player.sts_samsung_q90_porch",
+        "volume": "media_player.sts_samsung_q90_porch",
+        "volume_level": "media_player.ma_soundbar_porch"
       },
+      "control_target": {
+        "label": "$activity.name",
+        "navigation": "$context.dpad",
+        "power": "$context.power",
+        "volume": "$context.volume",
+        "pass_through": [
+          "power"
+        ]
+      },
+      "drawer": true,
       "grid": {
-        "columns": 1
+        "columns": 3
       },
+      "tiles": [
+        {
+          "id": "apps_grid",
+          "type": "apps",
+          "include": [
+            "netflix",
+            "youtube",
+            "youtubetv"
+          ]
+        }
+      ]
+    },
+    "comfort": {
+      "name": "HVAC & Lights",
+      "class": "group",
+      "view_kind": "hub",
+      "type": "hub",
+      "parent": "porch",
       "context": {
         "volume": "media_player.ma_soundbar_porch"
       },
       "sections": [
         {
-          "hero_label": "Activities",
+          "role": "devices",
           "tiles": [
             {
-              "id": "act_firetv",
-              "type": "activity",
-              "activity": "watch_firetv",
-              "icon": "material:live_tv",
-              "label": "Watch Fire TV"
+              "id": "c_ac",
+              "type": "climate",
+              "entity": "climate.room_air_conditioner",
+              "icon": "material:ac_unit",
+              "label": "AirCon",
+              "span": 2
             },
             {
-              "id": "act_music",
-              "type": "activity",
-              "activity": "music",
-              "icon": "material:music_note",
-              "label": "Listen to Music"
-            },
-            {
-              "id": "act_smart",
-              "type": "activity",
-              "activity": "watch_smart",
-              "icon": "material:tv",
-              "label": "Watch Smart TV"
-            }
-          ]
-        },
-        {
-          "hero_label": "Presets",
-          "title": "Presets",
-          "columns": 3,
-          "tiles": [
-            {
-              "id": "p_netflix",
-              "type": "preset",
-              "activity": "watch_firetv",
-              "icon": "material:movie",
-              "label": "Netflix",
-              "action": {
-                "service": "media_player.select_source",
-                "target": "$context.media_player",
-                "data": {
-                  "source": "Netflix"
-                }
-              }
-            },
-            {
-              "id": "p_ytv",
-              "type": "preset",
-              "activity": "watch_firetv",
-              "icon": "material:live_tv",
-              "label": "YouTube TV",
-              "action": {
-                "service": "media_player.select_source",
-                "target": "$context.media_player",
-                "data": {
-                  "source": "YouTube TV"
-                }
-              }
-            },
-            {
-              "id": "p_dim",
-              "type": "preset",
+              "id": "c_lights",
+              "type": "light",
+              "entity": "light.porch_lights",
               "icon": "material:lightbulb",
-              "label": "Porch 30%",
-              "action": {
-                "service": "light.turn_on",
-                "target": "light.porch_lights",
-                "data": {
-                  "brightness_pct": 30
-                }
-              }
-            }
-          ]
-        },
-        {
-          "hero_label": "Devices",
-          "title": "Devices",
-          "tiles": [
+              "label": "Porch Lights",
+              "span": 2
+            },
             {
-              "id": "grp_hvac",
-              "type": "group",
-              "entities": [
-                "climate.room_air_conditioner",
-                "light.porch_lights",
-                "light.remote_3_button_backlight",
-                "cover.maestroscreen_04_fr"
-              ],
-              "target": "comfort",
-              "icon": "material:layers",
-              "label": "HVAC & Lights"
+              "id": "c_back",
+              "type": "light",
+              "entity": "light.remote_3_button_backlight",
+              "icon": "material:keyboard",
+              "label": "Remote Backlight",
+              "span": 2
+            },
+            {
+              "id": "c_scr",
+              "type": "cover",
+              "entity": "cover.maestroscreen_04_fr",
+              "icon": "material:roller_shades",
+              "label": "MaestroScreen",
+              "span": 2
             }
           ]
         }
       ]
     },
-    "tv": {
-      "name": "Watch TV",
-      "class": "activity",
-      "parent": "home",
-      "context": {
-        "media_player": "media_player.fire_tv_family_192_168_1_65",
-        "dpad": "remote.fire_tv_family_192_168_1_65",
-        "volume": "media_player.sts_samsung_q90_porch",
-        "volume_level": "media_player.ma_soundbar_porch"
-      },
-      "sections": [
-        {
-          "tiles": [
-            {
-              "id": "t_np",
-              "type": "media",
-              "entity": "$context.media_player",
-              "icon": "material:smart_display",
-              "label": "Now Playing",
-              "span": 2,
-              "trailing": {
-                "icon": "material:apps",
-                "action": {
-                  "navigate": "apps"
-                }
-              }
-            },
-            {
-              "id": "t_tr",
-              "type": "transport",
-              "entity": "$context.media_player",
-              "label": "Transport",
-              "span": 2
-            },
-            {
-              "id": "t_btns",
-              "type": "buttons",
-              "entity": "$context.dpad",
-              "label": "Buttons",
-              "span": 2,
-              "only": "physical_dpad",
-              "buttons": [
-                "back",
-                "home"
-              ]
-            },
-            {
-              "id": "t_pad",
-              "type": "dpad",
-              "entity": "$context.dpad",
-              "icon": "material:gamepad",
-              "label": "Remote",
-              "span": 2,
-              "unless": "physical_dpad"
-            },
-            {
-              "id": "t_vol",
-              "type": "volume",
-              "entity": "$context.volume",
-              "level_entity": "$context.volume_level",
-              "icon": "material:volume_up",
-              "label": "Volume",
-              "span": 2
-            }
-          ]
-        },
-        {
-          "title": "Devices",
-          "columns": 1,
-          "tiles": [
-            {
-              "id": "d_ftv",
-              "type": "media",
-              "entity": "media_player.fire_tv_family_192_168_1_65",
-              "icon": "material:local_fire_department",
-              "label": "Fire TV"
-            },
-            {
-              "id": "d_tv",
-              "type": "media",
-              "entity": "media_player.sts_samsung_q90_porch",
-              "icon": "material:tv",
-              "label": "Samsung TV"
-            },
-            {
-              "id": "d_snd",
-              "type": "media",
-              "entity": "media_player.ma_soundbar_porch",
-              "icon": "material:speaker",
-              "label": "Soundbar"
-            },
-            {
-              "id": "t_pwr",
-              "type": "script",
-              "entity": "script.samsung_q90_porch_toggle",
-              "icon": "material:power_settings_new",
-              "label": "TV Power"
-            },
-            {
-              "id": "nav_h1",
-              "type": "nav",
-              "target": "home",
-              "icon": "material:home",
-              "label": "Home"
-            }
-          ]
-        }
-      ],
-      "dpad_passthrough": "$context.dpad"
-    },
-    "music": {
-      "name": "Music",
-      "class": "activity",
-      "parent": "home",
-      "context": {
-        "media_player": "media_player.ma_sonos_basement",
-        "volume": "media_player.ma_sonos_basement"
-      },
-      "buttons": {
-        "ch_up": {
-          "service": "media_player.media_next_track",
-          "entity": "$context.media_player"
-        },
-        "ch_down": {
-          "service": "media_player.media_previous_track",
-          "entity": "$context.media_player"
-        },
-        "menu_hold": {
-          "navigate": "music_drawer"
-        }
-      },
-      "tiles": [
-        {
-          "id": "m_np",
-          "type": "media",
-          "art": true,
-          "entity": "$context.media_player",
-          "icon": "material:music_note",
-          "label": "Now Playing",
-          "span": 2,
-          "trailing": {
-            "icon": "material:library_music",
-            "action": {
-              "navigate": "music_drawer"
-            }
-          }
-        },
-        {
-          "id": "m_tr",
-          "type": "transport",
-          "entity": "$context.media_player",
-          "label": "Transport",
-          "span": 2
-        },
-        {
-          "id": "m_cmd",
-          "type": "mediabtns",
-          "entity": "$context.media_player",
-          "label": "Modes",
-          "span": 2
-        },
-        {
-          "id": "m_vol",
-          "type": "volume",
-          "entity": "$context.volume",
-          "icon": "material:volume_up",
-          "label": "Volume",
-          "span": 2
-        }
-      ]
-    },
-    "music_drawer": {
+    "music_library": {
       "name": "Music Library",
-      "class": "activity",
-      "parent": "home",
+      "class": "group",
+      "view_kind": "library",
+      "type": "library",
+      "parent": "controller:music",
       "context": {
         "media_player": "media_player.ma_sonos_basement",
         "volume": "media_player.ma_sonos_basement"
@@ -481,6 +788,7 @@
           "entity": "$context.media_player"
         }
       },
+      "drawer": true,
       "grid": {
         "columns": 3
       },
@@ -519,239 +827,503 @@
             }
           }
         }
-      ],
-      "drawer": true
+      ]
     },
-    "rooms": {
-      "name": "Rooms",
+    "overview": {
+      "name": "Home",
       "class": "room",
+      "view_kind": "room hub",
+      "type": "hub",
+      "room": true,
       "grid": {
         "columns": 2
       },
-      "tiles": [
+      "sections": [
         {
-          "id": "r_porch",
-          "type": "room",
-          "target": "home",
-          "image": "/local/images/Porch_Render.jpg",
-          "label": "Porch"
-        },
-        {
-          "id": "r_living",
-          "type": "room",
-          "image": "/local/bedroom.jpg",
-          "label": "Living Room"
-        },
-        {
-          "id": "r_bed",
-          "type": "room",
-          "image": "/local/bedroom.jpg",
-          "label": "Bedroom"
-        },
-        {
-          "id": "r_kitchen",
-          "type": "room",
-          "image": "/local/images/Porch_Render.jpg",
-          "label": "Kitchen"
+          "role": "devices",
+          "tiles": [
+            {
+              "id": "r_porch",
+              "type": "nav",
+              "style": "image",
+              "target": "porch",
+              "image": "/local/images/Porch_Render.jpg",
+              "label": "Porch"
+            },
+            {
+              "id": "r_living",
+              "type": "nav",
+              "style": "image",
+              "image": "/local/bedroom.jpg",
+              "label": "Living Room"
+            },
+            {
+              "id": "r_bed",
+              "type": "nav",
+              "style": "image",
+              "image": "/local/bedroom.jpg",
+              "label": "Bedroom"
+            },
+            {
+              "id": "r_kitchen",
+              "type": "nav",
+              "style": "image",
+              "image": "/local/images/Porch_Render.jpg",
+              "label": "Kitchen"
+            }
+          ]
         }
       ]
     },
-    "comfort": {
-      "name": "Comfort",
-      "class": "group",
-      "parent": "home",
+    "porch": {
+      "name": "Porch",
+      "class": "room",
+      "view_kind": "room hub",
+      "type": "hub",
+      "room": true,
+      "parent": "overview",
       "context": {
         "volume": "media_player.ma_soundbar_porch"
       },
+      "banner": {
+        "image": "/local/images/Porch_Render.jpg",
+        "image_opacity": 0.5,
+        "height": "230px",
+        "min_height": "150px",
+        "show_time": true,
+        "rooms_screen": "overview"
+      },
+      "grid": {
+        "columns": 1
+      },
+      "sections": [
+        {
+          "tiles": [
+            {
+              "id": "acts",
+              "type": "activities",
+              "room": "porch"
+            }
+          ],
+          "hero_label": "Activities",
+          "role": "activities"
+        },
+        {
+          "columns": 3,
+          "tiles": [
+            {
+              "id": "p_netflix",
+              "type": "preset",
+              "label": "Netflix",
+              "icon": "material:movie",
+              "activity": "watch_firetv",
+              "action": {
+                "service": "media_player.select_source",
+                "target": "$context.media_player",
+                "data": {
+                  "source": "Netflix"
+                }
+              }
+            },
+            {
+              "id": "p_ytv",
+              "type": "preset",
+              "label": "YouTube TV",
+              "icon": "material:live_tv",
+              "activity": "watch_firetv",
+              "action": {
+                "service": "media_player.select_source",
+                "target": "$context.media_player",
+                "data": {
+                  "source": "YouTube TV"
+                }
+              }
+            },
+            {
+              "id": "p_dim",
+              "type": "preset",
+              "label": "Porch 30%",
+              "icon": "material:lightbulb",
+              "action": {
+                "service": "light.turn_on",
+                "target": "light.porch_lights",
+                "data": {
+                  "brightness_pct": 30
+                }
+              }
+            }
+          ],
+          "hero_label": "Presets",
+          "title": "Presets",
+          "role": "presets"
+        },
+        {
+          "tiles": [
+            {
+              "id": "dev_tv",
+              "type": "device",
+              "label": "Porch TV",
+              "icon": "material:tv",
+              "entity": "media_player.sts_samsung_q90_porch"
+            },
+            {
+              "id": "dev_music",
+              "type": "device",
+              "label": "Porch Music",
+              "icon": "material:music_note",
+              "entity": "media_player.ma_sonos_basement"
+            },
+            {
+              "id": "grp_hvac",
+              "type": "nav",
+              "style": "summary",
+              "label": "HVAC & Lights",
+              "icon": "material:layers",
+              "target": "comfort"
+            }
+          ],
+          "hero_label": "Devices",
+          "title": "Devices",
+          "role": "devices"
+        }
+      ]
+    }
+  },
+  "controllers": {
+    "tv": {
+      "name": "TV Media Player",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller",
+      "parent": "porch",
+      "context": {
+        "media_player": "media_player.fire_tv_family_192_168_1_65",
+        "dpad": "remote.fire_tv_family_192_168_1_65",
+        "power": "media_player.sts_samsung_q90_porch",
+        "volume": "media_player.sts_samsung_q90_porch",
+        "volume_level": "media_player.ma_soundbar_porch"
+      },
+      "control_target": {
+        "label": "$activity.name",
+        "navigation": "$context.dpad",
+        "power": "$context.power",
+        "volume": "$context.volume",
+        "pass_through": [
+          "up",
+          "down",
+          "left",
+          "right",
+          "select",
+          "back",
+          "home",
+          "power"
+        ]
+      },
+      "dpad_passthrough": "$context.dpad",
+      "sections": [
+        {
+          "tiles": [
+            {
+              "id": "t_np",
+              "type": "media",
+              "entity": "$context.media_player",
+              "icon": "material:smart_display",
+              "label": "Now Playing",
+              "span": 2,
+              "trailing": {
+                "icon": "material:apps",
+                "action": {
+                  "navigate": "apps"
+                }
+              }
+            },
+            {
+              "id": "t_tr",
+              "type": "transport",
+              "entity": "$context.media_player",
+              "label": "Transport",
+              "span": 2
+            },
+            {
+              "id": "t_btns",
+              "type": "buttons",
+              "entity": "$context.dpad",
+              "label": "On-screen device buttons",
+              "span": 2,
+              "only": "physical_dpad",
+              "buttons": [
+                "back",
+                "home"
+              ]
+            },
+            {
+              "id": "t_pad",
+              "type": "dpad",
+              "entity": "$context.dpad",
+              "icon": "material:gamepad",
+              "label": "Remote",
+              "span": 2,
+              "unless": "physical_dpad"
+            },
+            {
+              "id": "t_vol",
+              "type": "volume",
+              "entity": "$context.volume",
+              "level_entity": "$context.volume_level",
+              "icon": "material:volume_up",
+              "label": "Volume",
+              "span": 2
+            }
+          ]
+        },
+        {
+          "columns": 1,
+          "tiles": [
+            {
+              "id": "cast",
+              "type": "devices"
+            },
+            {
+              "id": "t_pwr",
+              "type": "script",
+              "entity": "script.samsung_q90_porch_toggle",
+              "icon": "material:power_settings_new",
+              "label": "TV Power"
+            }
+          ],
+          "title": "Devices"
+        }
+      ]
+    },
+    "music": {
+      "name": "Music Media Player",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller",
+      "parent": "porch",
+      "context": {
+        "media_player": "media_player.ma_sonos_basement",
+        "power": "media_player.ma_sonos_basement",
+        "volume": "media_player.ma_sonos_basement"
+      },
+      "buttons": {
+        "ch_up": {
+          "service": "media_player.media_next_track",
+          "entity": "$context.media_player"
+        },
+        "ch_down": {
+          "service": "media_player.media_previous_track",
+          "entity": "$context.media_player"
+        },
+        "menu_hold": {
+          "navigate": "music_library"
+        }
+      },
+      "control_target": {
+        "label": "$activity.name",
+        "power": "$context.power",
+        "volume": "$context.volume"
+      },
       "tiles": [
         {
-          "id": "c_ac",
-          "type": "climate",
-          "entity": "climate.room_air_conditioner",
-          "icon": "material:ac_unit",
-          "label": "AirCon",
+          "id": "m_np",
+          "type": "media",
+          "art": true,
+          "entity": "$context.media_player",
+          "icon": "material:music_note",
+          "label": "Now Playing",
+          "span": 2,
+          "trailing": {
+            "icon": "material:library_music",
+            "action": {
+              "navigate": "music_library"
+            }
+          }
+        },
+        {
+          "id": "m_tr",
+          "type": "transport",
+          "entity": "$context.media_player",
+          "label": "Transport",
           "span": 2
         },
         {
-          "id": "c_lights",
-          "type": "light",
-          "entity": "light.porch_lights",
-          "icon": "material:lightbulb",
-          "label": "Porch Lights",
+          "id": "m_cmd",
+          "type": "mediabtns",
+          "entity": "$context.media_player",
+          "label": "Modes",
           "span": 2
         },
         {
-          "id": "c_back",
-          "type": "light",
-          "entity": "light.remote_3_button_backlight",
-          "icon": "material:keyboard",
-          "label": "Remote Backlight",
-          "span": 2
-        },
-        {
-          "id": "c_scr",
-          "type": "cover",
-          "entity": "cover.maestroscreen_04_fr",
-          "icon": "material:roller_shades",
-          "label": "MaestroScreen",
-          "span": 2
-        },
-        {
-          "id": "nav_h2",
-          "type": "nav",
-          "target": "home",
-          "icon": "material:home",
-          "label": "Home",
+          "id": "m_vol",
+          "type": "volume",
+          "entity": "$context.volume",
+          "icon": "material:volume_up",
+          "label": "Volume",
           "span": 2
         }
       ]
     },
-    "apps": {
-      "name": "Apps",
-      "class": "activity",
-      "parent": "home",
-      "context": {
-        "media_player": "media_player.fire_tv_family_192_168_1_65",
-        "dpad": "remote.fire_tv_family_192_168_1_65",
-        "volume": "media_player.sts_samsung_q90_porch",
-        "volume_level": "media_player.ma_soundbar_porch"
-      },
-      "grid": {
-        "columns": 3
-      },
+    "climate": {
+      "name": "Climate",
       "tiles": [
         {
-          "id": "ap_netflix",
-          "type": "preset",
-          "icon": "material:movie",
-          "label": "Netflix",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Netflix"
-            }
-          }
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
         },
         {
-          "id": "ap_prime",
-          "type": "preset",
-          "icon": "material:play_circle",
-          "label": "Prime Video",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Prime Video"
-            }
-          }
+          "id": "ds",
+          "type": "stepper",
+          "kind": "temperature",
+          "entity": "$device",
+          "icon": "material:thermostat",
+          "label": "",
+          "span": 2
         },
         {
-          "id": "ap_yt",
-          "type": "preset",
-          "icon": "material:smart_display",
-          "label": "YouTube",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "YouTube"
-            }
-          }
+          "id": "dm",
+          "type": "chips",
+          "kind": "hvac_mode",
+          "entity": "$device",
+          "icon": "material:hvac",
+          "label": "",
+          "span": 2
         },
         {
-          "id": "ap_ytv",
-          "type": "preset",
-          "icon": "material:live_tv",
-          "label": "YouTube TV",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "YouTube TV"
-            }
-          }
+          "id": "df",
+          "type": "chips",
+          "kind": "fan_mode",
+          "entity": "$device",
+          "icon": "material:mode_fan",
+          "label": "",
+          "span": 2
         },
         {
-          "id": "ap_peacock",
-          "type": "preset",
-          "icon": "material:theaters",
-          "label": "Peacock",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Peacock"
-            }
-          }
-        },
-        {
-          "id": "ap_paramount",
-          "type": "preset",
-          "icon": "material:star",
-          "label": "Paramount+",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Paramount+"
-            }
-          }
-        },
-        {
-          "id": "ap_max",
-          "type": "preset",
-          "icon": "material:local_movies",
-          "label": "Max",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Max"
-            }
-          }
-        },
-        {
-          "id": "ap_appletv",
-          "type": "preset",
-          "icon": "material:tv_gen",
-          "label": "Apple TV",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Apple TV"
-            }
-          }
-        },
-        {
-          "id": "ap_hulu",
-          "type": "preset",
-          "icon": "material:video_library",
-          "label": "Hulu",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Hulu"
-            }
-          }
-        },
-        {
-          "id": "ap_disney",
-          "type": "preset",
-          "icon": "material:castle",
-          "label": "Disney+",
-          "action": {
-            "service": "media_player.select_source",
-            "target": "$context.media_player",
-            "data": {
-              "source": "Disney+"
-            }
-          }
+          "id": "dpr",
+          "type": "chips",
+          "kind": "preset",
+          "entity": "$device",
+          "icon": "material:tune",
+          "label": "",
+          "span": 2
         }
       ],
-      "drawer": true
+      "domain": "climate",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "light": {
+      "name": "Light",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "brightness",
+          "entity": "$device",
+          "icon": "material:light_mode",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "de",
+          "type": "chips",
+          "kind": "effect",
+          "entity": "$device",
+          "icon": "material:auto_awesome",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "light",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "cover": {
+      "name": "Cover",
+      "tiles": [
+        {
+          "id": "dc",
+          "type": "coverbtns",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "position",
+          "entity": "$device",
+          "icon": "material:height",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "cover",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "fan": {
+      "name": "Fan",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "percentage",
+          "entity": "$device",
+          "icon": "material:mode_fan",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "dpr",
+          "type": "chips",
+          "kind": "preset",
+          "entity": "$device",
+          "icon": "material:tune",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "fan",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "switch": {
+      "name": "Switch",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "switch",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
     }
   }
 }

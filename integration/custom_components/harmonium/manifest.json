@@ -1,0 +1,11 @@
+{
+  "domain": "harmonium",
+  "name": "Harmonium",
+  "version": "0.1.0",
+  "documentation": "https://github.com/sureshkavan/harmonium",
+  "codeowners": ["@sureshkavan"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend"],
+  "iot_class": "calculated",
+  "integration_type": "service"
+}

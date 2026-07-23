@@ -3,4 +3,5 @@ version: 2
 # Only application-wide boilerplate is shared. Every user-facing view is a
 # self-contained document under views/.
 system: !include system.yaml
+apps: !include apps.yaml
 views: !include_dir_named views

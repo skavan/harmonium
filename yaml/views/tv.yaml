@@ -2,8 +2,12 @@
 # Physical D-pad/Back/Home control the active source. Physical Power controls
 # the TV. Touchscreen chrome remains Harmonium navigation.
 id: tv
-name: Watch TV
-kind: activity
+name: TV Media Player
+type: controller
+# LIBRARY controller (phase 2): a shared control surface addressed as
+# controller:tv — activities pass their context+cast into it. The
+# remote's title bar shows the ACTIVE activity's name, not this label.
+library: true
 parent: porch
 activities: [watch_firetv, watch_smart]
 
@@ -47,7 +51,8 @@ layout:
     - heading: Devices
       columns: 1
       tiles:
-        - { id: d_ftv, type: media, entity: media_player.fire_tv_family_192_168_1_65, icon: material:local_fire_department, label: Fire TV }
-        - { id: d_tv, type: media, entity: media_player.sts_samsung_q90_porch, icon: material:tv, label: Samsung TV }
-        - { id: d_snd, type: media, entity: media_player.ma_soundbar_porch, icon: material:speaker, label: Soundbar }
+        # CAST GENERATOR: the CALLING activity's devices, not baked
+        # entities — Watch Smart TV sees its cast, Watch Fire TV sees
+        # its own. (Instances stamp the activity at attach time.)
+        - { id: cast, type: devices }
         - { id: t_pwr, type: script, entity: script.samsung_q90_porch_toggle, icon: material:power_settings_new, label: TV Power }

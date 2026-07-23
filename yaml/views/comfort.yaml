@@ -1,6 +1,6 @@
 id: comfort
-name: Comfort
-kind: group
+name: HVAC & Lights   # follows its opener tile (grp_hvac)
+type: hub
 parent: porch
 
 context:

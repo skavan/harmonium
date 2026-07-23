@@ -9,9 +9,9 @@ await p.waitForTimeout(700);
 await p.evaluate(() => {
   document.getElementById('auth').classList.add('hidden');
   window._sent = []; S.connected = true; S.ws = { send: m => window._sent.push(JSON.parse(m)) };
-  S.states.set('input_select.porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} }); S.lastAct = 'watch_firetv';
   S.states.set('cover.maestroscreen_04_fr', { s: 'closed', a: { friendly_name: 'Maestro Screen', current_position: 0 } });
-  navigate('tv');
+  navigate('controller:tv');
 });
 await p.waitForTimeout(300);
 // 1. no horizontal overflow anywhere
@@ -49,16 +49,46 @@ r.coverDetail = await p.evaluate(() => ({
 await p.click('#backBtn');
 await p.waitForTimeout(150);
 r.chevronBack = await p.evaluate(() => S.screen);
-// home: chevron hidden after home key clears stack
-await p.keyboard.press(';');
+// home: chevron hidden after home TAP clears stack (astrion: F1;
+// ';' is home_hold = device HOME via the running activity's context)
+await p.keyboard.press('F1');
 await p.waitForTimeout(150);
 r.homeChevron = await p.evaluate(() => ({ screen: S.screen, backHidden: document.getElementById('backBtn').classList.contains('hidden') }));
 // apps screen: no ap_back tile; chevron present when arrived from tv
-await p.evaluate(() => { navigate('tv'); });
+await p.evaluate(() => { navigate('controller:tv'); });
 await p.click('#tile_t_np .trail');
 await p.waitForTimeout(150);
 r.apps = await p.evaluate(() => ({ screen: S.screen, noBackTile: !document.getElementById('tile_ap_back'),
   chevron: !document.getElementById('backBtn').classList.contains('hidden') }));
+// NAV CARDS (v0.25 — one type, four styles):
+// summary style derives its sub live from the target page's tiles
+await p.evaluate(() => navigate('porch', true));
+await p.waitForTimeout(200);
+r.navSummary = await p.evaluate(() => {
+  const el = document.getElementById('tile_grp_hvac');
+  return {
+    isNav: !!el && el.className.includes('wgt-nav'),
+    styled: !!el && el.classList.contains('nav-summary'),
+    sub: el?.querySelector('.sub, .subin')?.textContent || '',
+  };
+});
+await p.click('#tile_grp_hvac');
+await p.waitForTimeout(150);
+r.navSummaryTap = await p.evaluate(() => S.screen);   // expect comfort
+// image style = the old room card (full-bleed photo)
+await p.evaluate(() => navigate('overview', true));
+await p.waitForTimeout(200);
+r.navImage = await p.evaluate(() => {
+  const el = document.getElementById('tile_r_porch');
+  return {
+    isNav: !!el && el.className.includes('wgt-nav'),
+    styled: !!el && el.classList.contains('nav-image'),
+    img: !!el?.querySelector('.roomimg'),
+  };
+});
+await p.click('#tile_r_porch');
+await p.waitForTimeout(150);
+r.navImageTap = await p.evaluate(() => S.screen);     // expect porch
 // climate detail: power row present at top, no dbar
 await p.evaluate(() => {
   S.states.set('climate.room_air_conditioner', { s: 'cool', a: { temperature: 61, hvac_modes: ['off','cool'] } });

@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Harmonium design tokens (matches the engine's dark theme) */
+@theme {
+  --color-bg: #0d0f12;
+  --color-tile: #1a1e24;
+  --color-tile-hi: #232932;
+  --color-line: #232932;
+  --color-ink: #e8eaed;
+  --color-dim: #8a919c;
+  --color-accent: #ffb300;
+  --color-accent-ink: #1a1400;
+  --color-danger: #e05252;
+  --color-ok: #4caf7d;
+  --color-field: #12151a;
+  --color-inset: #161a20;
+  --color-hover: #2c333d;
+  --font-sans: system-ui, Roboto, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* Light theme for the Studio chrome — the preview iframe keeps the
+   engine's own (dark) theme; only the panels re-skin. */
+[data-theme="light"] {
+  --color-bg: #f2f4f7;
+  --color-tile: #ffffff;
+  --color-tile-hi: #e7ebf0;
+  --color-line: #d5dbe3;
+  --color-ink: #1c2128;
+  --color-dim: #5c6570;
+  --color-accent: #b97e00;
+  --color-accent-ink: #ffffff;
+  --color-danger: #c02f2f;
+  --color-ok: #1e7d43;
+  --color-field: #ffffff;
+  --color-inset: #f6f8fa;
+  --color-hover: #dfe4ea;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: 14px/1.4 var(--font-sans);
+  overflow: hidden;
+}
+#app { height: 100%; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #2c333d; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* one-shot blip whenever the preview receives a fresh config */
+.pv-blip { animation: pvblip 1.2s ease-out forwards; }
+@keyframes pvblip { 0% { opacity: 1; } 100% { opacity: 0.15; } }

@@ -1,8 +1,7 @@
 id: apps
 name: Apps
-kind: group
+type: library
 parent: tv
-presentation: drawer
 
 context:
   media_player: media_player.fire_tv_family_192_168_1_65
@@ -11,94 +10,25 @@ context:
   volume: media_player.sts_samsung_q90_porch
   volume_level: media_player.ma_soundbar_porch
 
+# DRAWER RULE: on a drawer ALL navigation keys drive the UI — pick a
+# tile and it auto-returns; tap-Back escapes without picking. Only
+# Power passes through (it still means "the TV"). Arrows/select/back/
+# home stay app-side. (Field-settled 2026-07-20: full pass_through
+# here re-broke apps nav; device-back on a drawer is a silent trap.)
 control_target:
   label: $activity.name
   navigation: $context.dpad
   power: $context.power
   volume: $context.volume
-  pass_through: [up, down, left, right, select, back, home, power]
+  pass_through: [power]
 
+# The grid is GENERATED from the house app registry (apps.yaml):
+# one tile per app launchable on this drawer's $context.media_player
+# (override first, else default source in the live source_list).
 layout:
   columns: 3
   tiles:
-    - &source
-      id: ap_netflix
-      type: preset
-      icon: material:movie
-      label: Netflix
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Netflix }
-    - <<: *source
-      id: ap_prime
-      icon: material:play_circle
-      label: Prime Video
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Prime Video }
-    - <<: *source
-      id: ap_yt
-      icon: material:smart_display
-      label: YouTube
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: YouTube }
-    - <<: *source
-      id: ap_ytv
-      icon: material:live_tv
-      label: YouTube TV
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: YouTube TV }
-    - <<: *source
-      id: ap_peacock
-      icon: material:theaters
-      label: Peacock
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Peacock }
-    - <<: *source
-      id: ap_paramount
-      icon: material:star
-      label: Paramount+
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Paramount+ }
-    - <<: *source
-      id: ap_max
-      icon: material:local_movies
-      label: Max
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Max }
-    - <<: *source
-      id: ap_appletv
-      icon: material:tv_gen
-      label: Apple TV
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Apple TV }
-    - <<: *source
-      id: ap_hulu
-      icon: material:video_library
-      label: Hulu
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Hulu }
-    - <<: *source
-      id: ap_disney
-      icon: material:castle
-      label: Disney+
-      action:
-        service: media_player.select_source
-        target: $context.media_player
-        data: { source: Disney+ }
+    - id: apps_grid
+      type: apps
+      # conscious curation: WHICH apps this drawer offers, in order
+      include: [netflix, youtube, youtubetv]

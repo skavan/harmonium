@@ -725,3 +725,453 @@ live room.** watch_firetv/watch_smart gate the whole wake sequence on
 the target source, and never send the shared Fire TV to Home. Net
 effect: starting an activity that is effectively already live is a
 free state correction (select flips, screen opens, devices untouched).
+
+## Addendum v0.13 — v2 authoring model lands in the engine (2026-07-20)
+
+The `yaml/` directory is now the PLAN OF RECORD for authoring: one
+self-contained YAML document per view, `system.yaml` for hidden
+infrastructure, compiled to runtime JSON by `yaml/build_config.py`
+(gated in `node build.mjs` — a failing `--check` fails the build).
+The engine learned the v2 fields, all DATA-ACTIVATED — under the live
+v1 config nothing changes (proven by smoke-v2's dormancy test):
+
+- **`screen.control_target`** `{label, navigation, power, volume,
+  pass_through: [keys]}` — which entity physical keys drive, and which
+  keys pass through. Supersedes `dpad_passthrough` (still honored);
+  the active activity's `controls` map is the fallback.
+- **`config.input.physical_buttons`** — `short_press:
+  "control_target"` routes tap-Back/Home/Power to the target on views
+  that pass those keys; `hold: {back: app_back, home: room_home,
+  power: activity_end}` gives the holds to the app. This is the
+  REVERSE of the v0.11 shipped doctrine — both are now pure data, the
+  config picks.
+- **`activities.*.state`** — harmonia evals as data: `entities` list +
+  `on: {all|any: [conds]}` or `{any_state: [...]}`; conds support
+  entity/attribute/state/equals/in/not_in. When present, activity
+  truth is DERIVED from devices; the input_select becomes a routing
+  cache. State entities auto-join every screen subscription. Tapping a
+  tile that is eval-ON with a stale select silently heals the select
+  (engine-side sync — the beginning of the end for the sync
+  automation).
+- `presentation: drawer` (authoring) → `drawer: true` (runtime).
+
+Seventh suite: tests/smoke-v2.mjs. See docs/authoring-ui.md for the
+editor design this enables.
+
+## Addendum v0.13.1 — v2 CONFIG GOES LIVE (2026-07-20)
+
+The Astrion now runs the COMPILED v2 config (`yaml/` → `config.v2.json`
+→ deployed `config.json`). `node build.mjs` recompiles yaml/ on every
+build and ships it as dist/config.json; `config/config.json` is frozen
+as the v1 reference/fallback. What changed live:
+
+- **Screen ids**: home→`porch`, rooms→`overview`, music_drawer→
+  `music_library`. Drawer parents are now their openers (apps→tv,
+  music_library→music) — the Home ladder climbs sensibly.
+- **Key policy is DATA and stays as shipped** (Suresh's call): `input.
+  physical_buttons: short_press: app, hold: {back/home: control_target,
+  power: all_off}` — tap = app, hold = device, toggleable by flipping
+  `short_press: control_target` in system.yaml. Roles control_target/
+  all_off are served by the v1 switch (identical behavior); the
+  alternate mode is smoke-v2-tested.
+- **Activity truth is now DEVICE-DERIVED** via the `state:` evals
+  (Samsung on + source rules; Sonos any_state). Tiles read the
+  harmonia truth directly; the input_select is a routing cache kept
+  honest by the sync automation AND the tap self-heal.
+- **Drawer key rule**: apps passes only `power` through
+  (`pass_through: [power]`) — device-back on a drawer is a silent
+  trap; tap-Back escapes the drawer.
+- Known nit: drawers compile to class `group`, so a power TAP on a
+  drawer flashes "Nothing to switch" (preset tiles have no entities) —
+  harmless; will be resolved when power routing moves fully to
+  control_target.
+
+All 7 suites migrated to v2 ids and green. smoke-nav's home-key check
+now presses F1 (';' has been home_hold on the astrion since v24 — the
+old test comment was stale).
+
+## Addendum v0.14 — STUDIO PREVIEW HANDSHAKE + INTEGRATION (2026-07-21)
+
+The engine grew a **preview mode** and the repo grew the **custom
+integration + Harmonium Studio** — the editor whose canvas is the
+engine itself.
+
+**Engine `#preview=1`** (inert on the kiosk — nothing sets the flag
+there): skips the config fetch and instead applies configs pushed by
+its PARENT frame over same-origin postMessage. `applyConfig(cfg,
+device?)` was extracted from boot for this (device resolve → CAPS/
+KEYMAP → theme → dbg → stack reset → navigate home → resubscribe), so
+re-injection on every keystroke is a full clean re-render. Protocol:
+
+    parent → engine  { type: "harmonium_config", config, device? }
+    parent → engine  { type: "harmonium_key", key }   synthetic keydown+keyup
+    engine → parent  { type: "harmonium_ready" }
+    engine → parent  { type: "harmonium_applied", screen }
+    engine → parent  { type: "harmonium_error", message }
+
+Preview still calls `connect()` — the canvas renders LIVE entity
+states, because the token is shared same-origin via localStorage
+(`hakr_token`) with the deployed remote. `device` provisioning param
+is NOT persisted in preview (no cross-contamination of the kiosk's
+stored identity), and the URL is not rewritten. Hardening that fell
+out: `screenOf()` and `subscribeFor()` now null-guard, so a bad
+injected config degrades silently and the next good config heals —
+the live-edit loop can't kill the canvas.
+
+**Integration** (`integration/custom_components/harmonium/`, installed
+by hand — HA won't let us write custom_components via API; see
+integration/README.md): single-instance config-flow integration that
+(1) owns the runtime config in HA storage (`.storage/harmonium.config`,
+seeded on first run from the deployed config.json), (2) serves
+authenticated GET/POST `/api/harmonium/config` where POST = validate →
+store → deploy to `www/remote-proto/config.json` — `_validate()`
+mirrors build_config.py's structural checks (screen refs, tile id
+uniqueness, activity refs, parent refs), (3) serves the Studio at
+`/harmonium-static/studio.html`, and (4) registers the
+**Harmonium Studio** iframe sidebar panel (admin-only).
+
+**Studio v1** (`studio/studio.html`, single file like everything
+else): slice nav (screens.* / activities / global / input / devices /
+theme) → JSON textarea per slice → debounced parse into a DRAFT →
+whole draft re-injected into the engine iframe on every valid edit.
+Invalid JSON flags red and never clobbers the draft. Soft remote
+sends the REAL Astrion keycodes (`harmonium_key`), so key policy is
+testable in the chair. Device selector re-injects as any device
+profile. Save & Deploy posts the draft; Save + Reload Astrion also
+presses the kiosk's cache-clear + load-start-URL buttons via REST
+(button entity ids configurable, localStorage `hakr_cachebtn` /
+`hakr_reloadbtn`). Token = the shared `hakr_token`, prompted once.
+
+Ninth suites: tests/smoke-preview.mjs (handshake: ready / applied /
+re-inject / synthetic-key focus / bad-config survive+recover) and
+tests/smoke-studio.mjs (real engine in the iframe, HA API stubbed by
+Playwright routes: load, nav slices, live edit visible in preview,
+soft key moves focus, bad JSON flagged, Save posts the edited draft).
+
+Known limits (v1 by design): Studio edits the COMPILED runtime
+config, not yaml/ (port keepers back to yaml/ or build.mjs overwrites
+them on next deploy); textarea JSON now, harmonia-style form editors
+(Setup/State/Actions) are phase 2 of docs/authoring-ui.md.
+
+## Addendum v0.14.1 — STUDIO v2: VISUAL EDITORS (2026-07-21)
+
+Studio rebuilt on **Svelte 5 + Tailwind 4 + vendored shadcn-style
+components (bits-ui)** — `studio-src/` is a Vite project whose build
+emits ONE self-contained studio.html (vite-plugin-singlefile) into the
+integration's `studio/` dir. The engine remains zero-dep vanilla; the
+Studio is where UI complexity is allowed to live.
+
+Central pane is now **Visual | Code** per slice (the HA card-editor
+convention; Code = raw JSON escape hatch, always available, always
+full-fidelity). Visual editors in this cut, all binding straight into
+the reactive draft (any change → debounced re-inject into the live
+engine preview):
+
+- **Room** — name, activity select, home view, main home, view order
+  (chips), confirm-switch + debug toggles.
+- **Views** — name/class/parent/drawer, control_target form (label,
+  navigation/power/volume, pass_through key chips), and the tile
+  lists (sectioned or flat): per-tile card with type/id/label/icon/
+  entity-or-activity-or-target/span, reorder/duplicate/delete,
+  "All fields (JSON)" expander for full fidelity.
+- **Activities** — the harmonia Activity card reborn: identity
+  (name/id-rename/icon/accent color), start/stop scripts,
+  navigate-after-start, room view, confirm-end, **Setup** ($context
+  slots with live entity pickers fed from /api/states), **State**
+  (mode select: from-select / ALL rules / ANY rules / any_state;
+  condition rows entity·attribute·op(state is/equals/in/not in)·value
+  with chip lists for in/not_in), controls JSON expander.
+
+Entity pickers are datalist-backed from the live HA state registry
+(free text still allowed — $context.* etc.). Input policy / devices /
+theme slices remain Code-only this round. smoke-studio updated: visual
+room rename + code-tab label edit both survive into the saved POST.
+
+## Addendum v0.15 — SEQUENCES ARE FIRST-CLASS (2026-07-21)
+
+Suresh's doctrine, straight from HA's own tap_action philosophy: "if a
+user has a script — fine. one action — great. multiple actions —
+super." So orchestration moves INTO the config:
+
+- **`config.sequences`** — Building blocks. Named sequences in plain
+  HA action syntax (`actions:` list — service calls, delay,
+  wait_for_trigger, if/then, anything cv.SCRIPT_SCHEMA takes),
+  authored per-room in the view file (`sequences:` in porch.yaml,
+  compiler stamps `room`), stored in the runtime config.
+- **Execution is HA-SIDE**: the integration's `harmonium.run` service
+  (field: `sequence`) validates with cv.SCRIPT_SCHEMA and executes
+  with HA's own script engine (`helpers.script.Script`, mode
+  restart). The remote NEVER runs orchestration — a sleeping kiosk or
+  dropped wifi can't half-configure the TV. `harmonium.reseed`
+  reloads the store from the deployed config.json after a file-copy
+  push.
+- **Activity `start`/`stop` are now ACTION REFS**: `sequence:<id>`
+  (first-class) or a plain `script.<x>` entity (2nd-class citizen,
+  supported forever). Engine routes in `runActionRef()`; compiler and
+  integration `_validate` both check sequence refs.
+- **Ported 1:1 from the hand-written scripts** (doctrine comments
+  intact — warm-start-safe wake, Fire-TV-never-touched, ARC out of
+  scope): firetv_on, smart_tv_on, music_on, music_stop, all_off. The
+  HA `script.activity_*` entities remain as untouched fallback.
+- **Studio**: new Building blocks page (typed action rows — Call
+  service / Run script / Delay / Wait for / Custom JSON — reorder,
+  alias, per-step summaries, used-by, ▶ Test = harmonium.run of the
+  SAVED copy); Start/Stop on the Activity card are ActionPickers
+  (optgroups: building blocks / HA scripts / custom). Plus the
+  annotated-screenshot fixes: entity fields are real dropdowns of
+  compatible entities (EntityPicker select mode w/ custom escape for
+  $context.*), Room editor gained the Hero card form
+  (image/opacity/heights/clock/rooms-chip) and a Room functions shelf
+  ("off" is a special function, not a standard activity), and the
+  legacy Activity-state-select field moved behind Advanced (the
+  integration will own that entity in a coming phase — that's the
+  answer to "why do we need this?").
+
+## Addendum v0.15.1 — APP REGISTRY + ROOM SECTIONS (2026-07-21)
+
+**`config.apps`** (authored in yaml/apps.yaml, house-level): an app is
+an IDENTITY (name/icon) + default `source` name; LAUNCH is per-device,
+resolved at render time: explicit `launch[<media_player>]` override →
+auto (source name present in the device's live `source_list`) →
+hidden on that device. Override dialects: plain string (source or
+package name), `sequence:<id>` (building block, runs HA-side via
+harmonium.run), or an HA-ish action object. Dialects proven by the
+ur_firetv/ur_samsung universal-remote cards: Netflix is
+`select_source: Netflix` on the Samsung but `com.netflix.ninja` on the
+Fire TV; Prime on Fire TV needs KEYCODE_PROG_RED; Max needs adb am
+start.
+
+**Engine**: new generated tile `type: apps` (expandTile, same
+machinery as presets_from) — one preset tile per registry app
+launchable on the tile's `$context.media_player`; availability rides
+the live source_list on the normal subscription, so installing an app
+on the device grows the drawer by itself. The apps drawer view is now
+ONE generator tile (`apps_grid`) instead of ten hand-authored preset
+tiles.
+
+**Studio**: Apps page under Model (identity, default source, live
+"auto on" chips per device, override editor with source/sequence/HA
+action kinds). Room editor now also owns the room view's non-activity
+tile sections — Presets, Devices, and custom GROUPS (add/rename/
+delete sections, tiles with reorder/dup/delete) — completing the
+harmonia Room-card trio. Plus this round's structure fixes: accordion
+sections, boot-view/rooms-hub/paging demoted to Advanced with honest
+labels (screen_order is the CH◀▶ paging order — the old caption was
+wrong), activity ↑↓ reorder, nav views sub-grouped with a divider
+before Model.
+
+## Addendum v0.16 — TAXONOMY v2: HUB / CONTROLLER (2026-07-21)
+
+Suresh's collapse, adopted: the four view classes were really TWO
+structural types plus bindings plus toggles.
+
+- **`type: hub`** — a launcher page: optional hero, sections
+  (activities/presets/devices/custom groups), tiles. `room: true`
+  marks a ROOM'S hub (and the house rooms-overview) → room-scope key
+  policy (Power = All Off). A "group" no longer exists as a kind — it
+  is a hub without `room:`, optionally `presentation: drawer`.
+- **`type: controller`** — a control surface bound to its context
+  (activities flow through it via `$context`); generated
+  `detail:<entity>` pages are controllers with a fixed single-entity
+  binding.
+
+The engine's key policy still consumes `class` — the COMPILER derives
+it (hub+room→room, hub→group, controller→activity), so the engine is
+untouched and the legacy `kind:` vocabulary keeps compiling. All view
+files migrated to the new vocabulary. Studio View editor: the Class
+dropdown is gone; Type (Hub/Controller) + "Room hub" switch write
+`type`/`room` and re-derive `class`.
+
+**Per-activity content overrides on a shared controller** (`when:`):
+one Watch TV page serves many activities; tiles can now opt in/out —
+`when: {activity: watch_smart}` (show only then) /
+`when: {not_activity: [...]}`. Filtering rides visibleTile and the
+structural signature, so the grid refreshes on activity switches.
+Covered in smoke-v2.
+
+Also this round: preview follows the Studio selection
+(harmonium_navigate message; re-injection keeps the current screen
+instead of bouncing home), and the apps drawer is CURATED — the apps
+tile's ordered `include:` list picks which registry apps a drawer
+offers (live: netflix, youtube, youtubetv). Workspaces (multiple
+configs per Studio, switcher in the title bar) are designed and
+deferred to v2.
+
+## Addendum v0.16.1 — ANATOMY-COMPLETE HUBS, NESTED SUBORDINATES (2026-07-21)
+
+- **Every hub, same anatomy**: canonical section ROLES
+  (activities/presets/devices/custom) — compiler infers them for
+  existing configs and normalizes flat tile lists into a devices
+  section, so Comfort's editor is IDENTICAL to Porch's with Hero /
+  Activities / Presets switched off (and switchable on). Activity
+  ownership is now open to ANY hub (v1 caveat: one shared routing
+  select until the integration mints per-hub selects).
+- **Subordinate pages nest inside their openers**: drawers edit
+  inline within their controller (Watch TV ⌞ Apps, Music ⌞ Library);
+  group-tile pages open from their tile ("edit page →", ↑ breadcrumb
+  back). The nav shows only structural top level: hubs + controllers.
+  STORAGE is unchanged — subordinates remain real screens (navigation
+  targets, shareable later); only presentation nests.
+- **One thing, one name**: a group tile's page follows the tile's
+  label (comfort renamed "HVAC & Lights" to match its opener); group
+  tiles' summary entities now DERIVE live from their target page's
+  tiles (baked duplicate list removed from porch.yaml; engine
+  groupEntities()).
+
+## Addendum v0.16.2 — LIBRARY TYPE, NAV RETURN, WORKSPACE SAFETY (2026-07-21)
+
+- **`type: library`** — third structural type: a simple PICKER page
+  (content + grid + button mapping; pick-and-leave drawer behavior
+  built in; compiles to the proven class group + drawer semantics —
+  engine untouched). Apps and Music Library migrated. The Studio's
+  LibraryEditor asks exactly three questions: what's on it (apps
+  include list or preset tiles), grid columns, and which buttons pass
+  through. The full hub anatomy was overkill for pickers — nobody
+  edits a drawer's hero.
+- **Subordinate pages returned to the nav, indented** (⌞) under their
+  opener — hiding them entirely made Comfort "vanish". Group pages sit
+  under their hub; libraries under their controller. The controller
+  editor links to its libraries as chips instead of embedding a full
+  editor.
+- **Workspaces-mini + Export/Import/Clear** (header): Live | Scratch
+  tabs — Scratch is a sandbox autosaved to the browser
+  (localStorage hakr_scratch), for building from a clean start
+  without touching the live config; the starter keeps
+  remotes/keymaps/theme/input and wipes content. ⤓ Export downloads
+  the current workspace's draft as full-fidelity JSON; ⤒ Import loads
+  one; ✦ Clear resets to the starter. Save & Deploy still writes the
+  ONE live store from either tab (deliberate; the status bar shouts
+  when on Scratch). Full multi-workspace (own stores + deploy paths)
+  remains the v2 design.
+
+## Addendum v0.17 — THE INPUT_SELECT IS DEAD (2026-07-21)
+
+Phase two of the integration: **Harmonium mints its own routing
+selects.** New `select` platform — one `select.harmonium_<room>_activity`
+per activity-owning hub, options = the hub's activity ids (+ off),
+built from the stored config, state restored across restarts
+(RestoreEntity). New first-class service **`harmonium.set_activity`**
+(field: activity) — flips the owning hub's select, room inferred from
+the activity's owner. Sequences' "Set activity state" steps now call
+it (no entity ids in the step at all); porch's `activity_state` points
+at the minted select; the engine's tap self-heal became
+select-domain-agnostic (one line). The hand-made
+`input_select.porch_activity` helper is now UNREFERENCED by the live
+path — the HA sync automation gets retargeted to the minted select at
+deploy, and the helper + old activity_* scripts can be deleted at
+leisure. New activity-owning hubs get their select after an
+integration reload. Studio: Building blocks grouped by owner room,
+duplicate buttons for sequences AND steps, visibly-editable step
+names; scratch starter pre-wires its minted select id.
+
+## Addendum v0.19 — DEVICE TILES (2026-07-22)
+
+Suresh's cut, after discussing Harmonia's device cards: **a device
+tile is ONE entity** — multi-entity wiring stays where it already
+lives (activity roles, controller pages). New tile type
+`{type: device, entity: <id>}`; everything else resolves from the
+entity's domain. Tap = the domain's obvious verb: play/pause a
+playing/paused media_player, toggle a light/switch/fan. **No clean
+verb (an OFF media player, a thermostat, a remote) → open the
+device's page** — starting things properly is the activity's job
+(warm-start doctrine), never a naked turn_on from a tile. Touch
+LONG-PRESS (new 550ms pointer gesture, any widget may declare
+`hold`; physical-remote holds untouched) → the page. The page is
+INFERRED: the view of the activity claiming this entity as primary
+(`context.media_player`/`dpad`); `target:` overrides, `tap:`
+(play_pause | toggle | open) overrides the verb. Porch ships
+`dev_tv` + `dev_music` (Fire TV deliberately absent — it feeds the
+OTHER TV; a tap would pause someone else's show). Studio: "device"
+tile type (entity picker auto-fills the label from the friendly
+name, Tap + Opens selects); combobox domain chips always include the
+control domains (media_player, remote, light, switch, climate).
+smoke-device.mjs (10th suite) proves render/verb/no-verb/override/
+hold. Deferred: hold on verb-less lone entities (v1: nothing),
+detail levels (summary/standard/expanded), HA device-registry
+seeding.
+
+### v0.19.1 — device-first Studio flow
+
+New tiles default to `type: device`. The device form leads with Name
++ Entity (icon/label auto-fill from the entity; `device_class: tv` →
+material:tv), then Tap action / Hold action in HA speak with the
+inferred page named in the hint. `attr: <name>` (Studio: "Show
+attribute (advanced)") renders that attribute as the tile sub instead
+of the smart summary. Compiler fix: `device` joined the devices-role
+whitelist (a section of device tiles was stamped `custom`, doubling
+the Studio's Devices fold).
+
+### v0.20 — control-page mint, cast generator, Unlink
+
+`{type: devices, activity: <id>}` is the CAST GENERATOR: expands to
+one device tile per cast member (activity.devices, else derived from
+role wiring), primary first, friendly-name labels, device_class-aware
+icons. The activity editor's ＋ next to "Navigate to (after start)"
+mints a controller page carrying it (control_target → $context, Now
+Playing when the primary is a media_player) and links a.screen.
+Studio's ⛓ Unlink replaces the generator with baked device tiles — a
+snapshot you own that no longer follows the cast.
+
+### v0.20.1 — the mint produces the Watch-TV anatomy
+
+Minted control pages are control surfaces, not noun grids: Now
+Playing + Transport (media_player role), device buttons/Remote pad
+(dpad role, only/unless physical_dpad), Volume (+level_entity for the
+ARC split), then a titled columns:1 Devices section with the cast
+generator. pass_through prefills the full key set and
+dpad_passthrough is stamped when a dpad role exists. The cast
+generator and Unlink skip remote.* entities — the Remote pad is
+their representation.
+
+### v0.20.2 — page deletion
+
+"Delete this page" (Hub + View editors) calls guarded deleteScreen():
+refuses and names blockers while referenced (children, opener tiles,
+activity navigate/ownership, home anchors); on success removes the
+page from screen_order and re-selects a surviving slice.
+
+## Addendum v0.21 — polish phase 1 (2026-07-23)
+
+Sidebar: VIEWS / CONTROLLERS / MODEL / SYSTEM (controllers have
+their own home; libraries nest under them). Slice keys view.*;
+Building blocks → Actions. View ids follow the name slug until
+hand-pinned. Key-centric view metadata: Home = page:<parent>,
+Back = UI back, POWER = idle: nothing · running: tap confirms the
+end · hold ends immediately (engine change — the old idle-tap
+All-Off confirm and hold confirm are gone). ＋-minted Start/Stop
+actions are DRAFTS: Confirm & link / Discard in the Actions editor,
+return-to-origin either way. Agreed direction for phase 2:
+controllers as a library of $context-bound surfaces (caller passes
+context + cast), per-activity overrides, Save-as-variant.
+
+## Addendum v0.22 — the controller library (2026-07-23)
+
+`config.controllers` holds shared control surfaces addressed as
+`controller:<id>` (yaml: `library: true` on a view; refs rewritten at
+compile). They resolve through screenOf() like detail: screens; the
+active activity's context overlay parameterizes them, its cast feeds
+a bare `{type: devices}` generator, and the title bar names the
+activity. tv/music migrated verbatim as TV Media Player / MA Media
+Player; drawers parent to controller: refs. Studio edits them under
+CONTROLLERS (rename/delete guarded, ⧉ Duplicate variant); custom
+controller SCREENS remain the escape hatch.
+
+### v0.23 — lazy instancing
+
+Stock controllers carry the bare cast generator (no baked entities).
+Per-activity accordion on Navigate-to: `activity.surface.devices:
+false` suppresses the generator for that caller; "Create custom copy"
+materializes `<stock>__<activity>` (variant_of lineage, generator
+stamped) and relinks; "use stock" reverses and reaps the orphan.
+Sidebar: Controllers → Defaults / Custom. Device widget is
+detailable (⚙ trail → generated detail screens).
+
+## Addendum v0.24 — domain controllers (2026-07-23)
+
+The detail compositions are config now: stock domain controllers
+(controllers.<domain>, `domain` marker, "$device"-bound tiles) ship
+from the compiler and are guaranteed by the Studio. detailScreen
+resolution: per-device custom (variant_of=domain + entity) → stock
+def → hardcoded fallback. Editing the stock edits every device's
+page; "Custom copy for device" forks one. entity_options stay the
+cross-cutting per-device switches (options fold on the stock page).

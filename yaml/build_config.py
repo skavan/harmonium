@@ -84,8 +84,29 @@ def collect_activities(views: dict[str, Any]) -> dict[str, Any]:
     return activities
 
 
+def collect_sequences(views: dict[str, Any]) -> dict[str, Any]:
+    """Building blocks (ACTIONS): sequences declared per-view, room-stamped."""
+    sequences: dict[str, Any] = {}
+    for view_id, view in views.items():
+        for seq_id, seq in (view.get("sequences") or {}).items():
+            if seq_id in sequences:
+                raise ValueError(f"sequence {seq_id} is declared by more than one view")
+            item = copy.deepcopy(seq)
+            item["room"] = view_id
+            sequences[seq_id] = item
+    return sequences
+
+
+# NAV UNIFICATION (v0.25): group / room / plain-nav tiles are ONE type
+# now — `nav` with a style. Hard migration, no engine-side aliases.
+NAV_MIGRATE = {"group": "summary", "room": "image", "nav": "plain"}
+
+
 def compile_tile(tile: dict[str, Any], activities: dict[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(tile)
+    if result.get("type") in NAV_MIGRATE:
+        result.setdefault("style", NAV_MIGRATE[result["type"]])
+        result["type"] = "nav"
     if "activity" in result and "type" not in result:
         activity_id = result["activity"]
         if activity_id not in activities:
@@ -105,22 +126,28 @@ def compile_view(view_id: str, view: dict[str, Any], activities: dict[str, Any])
     if view.get("id") != view_id:
         raise ValueError(f"views/{view_id}.yaml must declare id: {view_id}")
 
-    kind = view["kind"]
-    class_map = {
-        "overview": "room",
-        "room": "room",
-        "activity": "activity",
-        "group": "group",
-        "device": "group",
-    }
-    if kind not in class_map:
-        raise ValueError(f"view {view_id} has unknown kind: {kind}")
+    # TAXONOMY v2: type hub|controller|library (+ room: true) — the
+    # compiler derives the engine's legacy class/view_kind from it.
+    vtype = view["type"]
+    room = bool(view.get("room"))
+    if vtype == "hub":
+        cls = "room" if room else "group"
+        view_kind = "room hub" if room else "hub"
+    elif vtype == "controller":
+        cls, view_kind = "activity", "controller"
+    elif vtype == "library":
+        cls, view_kind = "group", "library"
+    else:
+        raise ValueError(f"view {view_id} has unknown type: {vtype}")
 
     screen: dict[str, Any] = {
         "name": view["name"],
-        "class": class_map[kind],
-        "view_kind": kind,
+        "class": cls,
+        "view_kind": view_kind,
+        "type": vtype,
     }
+    if room:
+        screen["room"] = True
     for key in ("parent", "context", "buttons", "control_target"):
         if key in view:
             screen[key] = copy.deepcopy(view[key])
@@ -131,7 +158,7 @@ def compile_view(view_id: str, view: dict[str, Any], activities: dict[str, Any])
             banner["rooms_screen"] = banner.pop("overview_view")
         screen["banner"] = banner
 
-    if view.get("presentation") == "drawer":
+    if view.get("presentation") == "drawer" or vtype == "library":
         screen["drawer"] = True
 
     target = view.get("control_target", {})
@@ -158,10 +185,38 @@ def compile_view(view_id: str, view: dict[str, Any], activities: dict[str, Any])
     return screen
 
 
+# STOCK DOMAIN CONTROLLERS — the built-in detail surfaces as editable
+# library entries. Tiles bind "$device" (the addressed entity); the
+# engine substitutes at render. Identical to its hardcoded fallback,
+# so shipping them changes nothing until a user edits.
+DOMAIN_STOCKS: dict[str, dict[str, Any]] = {
+    "climate": {"name": "Climate", "tiles": [
+        {"id": "dp", "type": "power", "entity": "$device", "label": "", "span": 2},
+        {"id": "ds", "type": "stepper", "kind": "temperature", "entity": "$device", "icon": "material:thermostat", "label": "", "span": 2},
+        {"id": "dm", "type": "chips", "kind": "hvac_mode", "entity": "$device", "icon": "material:hvac", "label": "", "span": 2},
+        {"id": "df", "type": "chips", "kind": "fan_mode", "entity": "$device", "icon": "material:mode_fan", "label": "", "span": 2},
+        {"id": "dpr", "type": "chips", "kind": "preset", "entity": "$device", "icon": "material:tune", "label": "", "span": 2}]},
+    "light": {"name": "Light", "tiles": [
+        {"id": "dp", "type": "power", "entity": "$device", "label": "", "span": 2},
+        {"id": "ds", "type": "stepper", "kind": "brightness", "entity": "$device", "icon": "material:light_mode", "label": "", "span": 2},
+        {"id": "de", "type": "chips", "kind": "effect", "entity": "$device", "icon": "material:auto_awesome", "label": "", "span": 2}]},
+    "cover": {"name": "Cover", "tiles": [
+        {"id": "dc", "type": "coverbtns", "entity": "$device", "label": "", "span": 2},
+        {"id": "ds", "type": "stepper", "kind": "position", "entity": "$device", "icon": "material:height", "label": "", "span": 2}]},
+    "fan": {"name": "Fan", "tiles": [
+        {"id": "dp", "type": "power", "entity": "$device", "label": "", "span": 2},
+        {"id": "ds", "type": "stepper", "kind": "percentage", "entity": "$device", "icon": "material:mode_fan", "label": "", "span": 2},
+        {"id": "dpr", "type": "chips", "kind": "preset", "entity": "$device", "icon": "material:tune", "label": "", "span": 2}]},
+    "switch": {"name": "Switch", "tiles": [
+        {"id": "dp", "type": "power", "entity": "$device", "label": "", "span": 2}]},
+}
+
+
 def compile_config(source: dict[str, Any]) -> dict[str, Any]:
     system = source["system"]
     views = source["views"]
     activities = collect_activities(views)
+    sequences = collect_sequences(views)
     screens = {view_id: compile_view(view_id, view, activities) for view_id, view in views.items()}
 
     remotes: dict[str, Any] = {}
@@ -194,18 +249,77 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
         },
         "input": input_config,
         "activities": activities,
+        "sequences": sequences,
+        "apps": source.get("apps") or {},
         "screens": screens,
     }
+    # LIBRARY CONTROLLERS (phase 2 of the polish doc): a view marked
+    # `library: true` compiles into config.controllers — a shared,
+    # $context-bound control surface addressed as "controller:<id>".
+    # All refs to a library id (activity screens, screen_order,
+    # parents) are rewritten to the controller: form.
+    lib_ids = {vid for vid, v in views.items() if v.get("library")}
+    if lib_ids:
+        runtime["controllers"] = {vid: runtime["screens"].pop(vid) for vid in lib_ids}
+        runtime["screen_order"] = [
+            "controller:" + x if x in lib_ids else x for x in runtime["screen_order"]]
+        for act in runtime["activities"].values():
+            if act.get("screen") in lib_ids:
+                act["screen"] = "controller:" + act["screen"]
+        for scr in list(runtime["screens"].values()) + list(runtime["controllers"].values()):
+            if scr.get("parent") in lib_ids:
+                scr["parent"] = "controller:" + scr["parent"]
+    # ship the stock domain controllers (unless yaml overrode one)
+    runtime.setdefault("controllers", {})
+    for dom, stock in DOMAIN_STOCKS.items():
+        if dom not in runtime["controllers"]:
+            entry = copy.deepcopy(stock)
+            entry.update({"domain": dom, "class": "activity",
+                          "view_kind": "controller", "type": "controller"})
+            runtime["controllers"][dom] = entry
+    # canonicalize hub content: every hub speaks SECTIONS with ROLES
+    # (activities/presets/devices/custom); flat tile lists become a
+    # role-less devices section so every hub has the same anatomy.
+    for sid, screen in runtime["screens"].items():
+        if screen.get("type") != "hub":
+            continue
+        if "sections" in screen:
+            for section in screen["sections"]:
+                if "role" not in section:
+                    types = {t.get("type") for t in section.get("tiles", [])}
+                    if types & {"activity", "activities"}:
+                        section["role"] = "activities"
+                    elif types & {"preset", "presets_from"}:
+                        section["role"] = "presets"
+                    elif types & {"apps"}:
+                        section["role"] = "custom"
+                    elif types and types <= {"device", "devices", "light", "switch",
+                                             "climate", "cover", "fan", "media",
+                                             "nav", "script", "scene", "volume"}:
+                        section["role"] = "devices"
+                    else:
+                        section["role"] = "custom"
+            for section in screen["sections"]:
+                for tile in section.get("tiles", []):
+                    if tile.get("type") == "activities" and "room" not in tile:
+                        tile["room"] = sid
+        elif "tiles" in screen:
+            types = {t.get("type") for t in screen["tiles"]}
+            role = "custom" if types & {"apps"} else "devices"
+            screen["sections"] = [{"role": role, "tiles": screen.pop("tiles")}]
     validate(runtime, views)
     return runtime
 
 
 def validate(config: dict[str, Any], views: dict[str, Any]) -> None:
     screens = config["screens"]
+    controllers = config.get("controllers", {})
+    # a ref is navigable if it names a screen OR a library controller
+    navigable = set(screens) | {"controller:" + c for c in controllers}
     for target in (config["home_screen"], config["global"]["main_home"]):
         if target not in screens:
             raise ValueError(f"navigation references unknown view: {target}")
-    unknown_order = set(config["screen_order"]) - screens.keys()
+    unknown_order = set(config["screen_order"]) - navigable
     if unknown_order:
         raise ValueError(f"view_order contains unknown views: {sorted(unknown_order)}")
     for view_id, view in views.items():
@@ -218,14 +332,27 @@ def validate(config: dict[str, Any], views: dict[str, Any]) -> None:
             if unknown:
                 raise ValueError(f"view {view_id} references unknown activities: {sorted(unknown)}")
     for activity_id, activity in config["activities"].items():
-        if "screen" in activity and activity["screen"] not in screens:
+        if "screen" in activity and activity["screen"] not in navigable:
             raise ValueError(f"activity {activity_id} references unknown view {activity['screen']}")
-    for view_id, screen in screens.items():
+        for slot in ("start", "stop"):
+            ref = activity.get(slot)
+            if isinstance(ref, str) and ref.startswith("sequence:"):
+                if ref[9:] not in config["sequences"]:
+                    raise ValueError(
+                        f"activity {activity_id} {slot} references unknown sequence {ref[9:]}")
+    for seq_id, seq in config["sequences"].items():
+        if not isinstance(seq.get("actions"), list) or not seq["actions"]:
+            raise ValueError(f"sequence {seq_id} must have a non-empty actions list")
+    for view_id, screen in {**screens, **controllers}.items():
         groups = [screen.get("tiles", [])]
         groups += [section.get("tiles", []) for section in screen.get("sections", [])]
         ids = [tile.get("id") for group in groups for tile in group]
         if None in ids or len(ids) != len(set(ids)):
             raise ValueError(f"view {view_id} has missing or duplicate tile ids")
+        for tile in (t for group in groups for t in group):
+            if tile.get("type") == "nav" and tile.get("target") and tile["target"] not in navigable:
+                raise ValueError(
+                    f"view {view_id} nav tile {tile.get('id')} targets unknown view {tile['target']}")
 
 
 def main() -> None:

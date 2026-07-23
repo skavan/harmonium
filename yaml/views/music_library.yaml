@@ -1,8 +1,7 @@
 id: music_library
 name: Music Library
-kind: group
+type: library
 parent: music
-presentation: drawer
 
 context:
   media_player: media_player.ma_sonos_basement
