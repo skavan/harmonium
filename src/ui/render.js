@@ -100,6 +100,9 @@ function fitBanner(sc) {
   const maxH = parseInt(sc.banner.height) || 180;
   const minH = parseInt(sc.banner.min_height) || 120;
   bn.style.height = maxH + "px";
+  /* fit:false = EXACT height, no tile-boundary snapping (the fold may
+     cut a tile; scrolling reveals it) */
+  if (sc.banner.fit === false) return;
   /* Align the fold to a tile boundary: if a tile straddles the bottom
      edge of the viewport, shrink the hero just enough to reveal that
      one tile fully — never collapse further than that. */

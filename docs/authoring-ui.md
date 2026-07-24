@@ -1,5 +1,10 @@
 # Harmonium Authoring UI — design (v0.13 draft)
 
+> **Historical design notes.** This is the document the Studio was
+> built FROM; the shipped Studio has since evolved (draft-confirm ＋
+> flows, controller library, nav cards, workspaces). For current
+> behaviour see `ARCHITECTURE.md`; for history, `PROJECT.md`.
+
 What the user sees while building their app. Grounded in three things
 that already exist: the v2 view-file authoring model (`yaml/`), the
 harmonia-room-card editor (mined from `www/harmonia.js` — its UX

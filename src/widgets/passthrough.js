@@ -1,3 +1,5 @@
+/* PASSTHROUGH tile — a capture surface: while focused/active the
+   physical D-pad drives the device wholesale (Harmony doctrine). */
 WIDGETS.passthrough = {
     sub: (e, t) => t.sub || "",
     isOn: () => false,

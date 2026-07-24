@@ -1,3 +1,5 @@
+/* CLIMATE tile — current temp · state summary; tap steps through
+   nothing (detail page owns control); meter shows setpoint drift. */
 WIDGETS.climate = {
     sub: e => {
       const a = st(e).a;

@@ -49,7 +49,7 @@ entity's own attributes when you tap a tile's ⚙ trailing zone
     { "hero_label": "Presets", "title": "Presets", "columns": 3,
       "tiles": [ /* preset icon squares */ ] },
     { "hero_label": "Devices", "title": "Devices",
-      "tiles": [ /* group tile → comfort */ ] }
+      "tiles": [ /* device tiles + a summary nav card → comfort */ ] }
   ]
 }
 ```
@@ -105,8 +105,10 @@ is the only substitution in the whole system.
 }
 ```
 
-`global.activity_select` names the `input_select` HA owns; tiles bind
-their lit state to it. Select = start/open; hold or power = end.
+`global.activity_select` names the minted
+`select.harmonium_<room>_activity` the integration owns (legacy
+`input_select` still accepted); tiles bind their lit state to it.
+Select = start/open; hold or power = end.
 
 ## Device detail pages (GENERATED — zero config)
 

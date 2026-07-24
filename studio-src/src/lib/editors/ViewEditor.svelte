@@ -165,21 +165,8 @@
             options={[{ value: "hub", label: "Hub" }, { value: "controller", label: "Controller" }]} />
         </Field>
       {/if}
-      <div class="flex items-end pb-1.5">
-        <Switch
-          checked={!!scr.room}
-          label="Room view (owns activities · room-scope keys)"
-          onCheckedChange={(v) => { if (v) scr.room = true; else delete scr.room; reclass(); }}
-        />
-      </div>
       <Field label="Home key" hint="where the Home key goes; also nests this page under it">
         <Select bind:value={scr.parent} options={homeTargets} allowEmpty />
-      </Field>
-      <Field label="Grid columns" hint="page default — blank = 2; sections can override">
-        <Input type="number" min="1" max="4" value={scr.grid?.columns ?? ""} placeholder="2"
-          onchange={(e) => { const v = +e.target.value;
-            if (v >= 1) scr.grid = { ...(scr.grid || {}), columns: v };
-            else if (scr.grid) { delete scr.grid.columns; if (!Object.keys(scr.grid).length) delete scr.grid; } }} />
       </Field>
       <div class="flex items-end pb-1.5">
         <Switch
@@ -230,15 +217,6 @@
               placeholder="(no header)"
               class="w-44 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60"
             />
-            <span class="text-[11px] text-dim">Columns</span>
-            <input type="number" min="1" max="4" value={section.columns ?? ""} placeholder="page"
-              onchange={(e) => { const v = +e.target.value;
-                if (v >= 1) section.columns = v; else delete section.columns; }}
-              class="w-16 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
-            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-              title="Removes the whole section — its tiles go with it"
-              onclick={() => scr.sections.splice(si, 1)}>
-              delete section{(section.tiles || []).length ? " & " + section.tiles.length + " tiles" : ""}</button>
           </div>
           {#each section.tiles as tile, i (i)}
             <TileRow {tile} ownerScreen={screenId} tiles={section.tiles} index={i} />

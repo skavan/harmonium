@@ -6,7 +6,7 @@
      Library are the same editor with those bits absent (and they can
      be turned on). Apps is a hub too — a drawer whose content is the
      generated registry grid. */
-  import { app, ownedActivities, roomIds, schedulePreview, renameScreen, deleteScreen, setStatus, subordinateScreens, isControllerScreen, confirmPageDraft, discardPageDraft } from "../state.svelte.js";
+  import { app, ownedActivities, roomIds, schedulePreview, renameScreen, deleteScreen, setStatus, subordinateScreens, isControllerScreen, confirmPageDraft, discardPageDraft, stampHost } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
@@ -25,8 +25,7 @@
   /* owner room = it appears in roomIds (the rooms-overview hub is a
      room-scope hub but owns no activities) */
   const isOwnerRoom = $derived(roomIds().includes(screenId));
-  const owned = $derived(ownedActivities(screenId).filter((id) => id !== "off"));
-  const functions = $derived(ownedActivities(screenId).filter((id) => id === "off"));
+  const owned = $derived(ownedActivities(screenId));
   const edit = () => schedulePreview();
   const KEYS = ["up", "down", "left", "right", "select", "back", "home", "power",
     "menu", "vol_up", "vol_down", "mute", "ch_up", "ch_down"];
@@ -58,9 +57,11 @@
     }
     renameScreen(screenId, nid);
   }
-  /* Power doctrine (Suresh, 2026-07-23): view idle → nothing; view
-     running → tap needs confirmation; hold skips it. Controllers
-     pass Power to the device. */
+  /* Power is a per-page SETTING (v0.26), default Auto: a page that
+     hosts activities ends the running one (tap = confirm, hold =
+     immediate, idle = nothing); a plain page switches its devices;
+     controllers pass Power to the device. */
+  const hosts = $derived(!!scr?.room || owned.length > 0);
   /* Home-key destinations: VIEWS only — never controllers, drawers,
      or subordinate pages (Home goes UP, not sideways) */
   const homeTargets = $derived.by(() => {
@@ -70,21 +71,57 @@
         !d.screens[sid].drawer && !sub.has(sid))
       .map((sid) => ({ value: sid, label: d.screens[sid].name || sid }));
   });
-  const powerDoctrine = () =>
-    scr?.type === "controller" || scr?.class === "activity"
-      ? "passes to the device (control target)"
-      : "idle: nothing · running: tap = confirm to end · hold = end immediately";
-  let fnOpen = $state(false);
+  const isCtrlPage = $derived(scr?.type === "controller" || scr?.class === "activity");
+  const powerAutoLabel = $derived(hosts
+    ? "Auto — ends the running activity (tap confirms · hold is immediate · idle does nothing)"
+    : "Auto — switches this page's devices off/on (confirm)");
+  /* ---- KEY BINDINGS (v0.28): screen.buttons rendered honestly.
+     One action grammar: {sequence} | {navigate} | {service,…}. The
+     "All Off" of old is just an Action a power_hold binding points
+     at — nothing special left. */
+  const BIND_KEYS = [
+    ["power_hold", "Power (hold)"], ["menu_hold", "Menu (hold)"],
+    ["vol_up", "Vol +"], ["vol_down", "Vol −"],
+    ["ch_up", "CH +"], ["ch_down", "CH −"], ["mute", "Mute"],
+  ];
+  const keyLabel = (k) => BIND_KEYS.find(([id]) => id === k)?.[1] || k;
+  const bindings = $derived(Object.entries(scr?.buttons || {}));
+  const seqOptions = $derived(Object.entries(d?.sequences || {})
+    .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
+  const navOptions = $derived(Object.entries(d?.screens || {})
+    .filter(([sid]) => sid !== screenId)
+    .map(([sid, sc]) => ({ value: sid, label: sc.name || sid })));
+  const bindKind = (b) => b?.sequence != null ? "sequence"
+    : b?.navigate != null ? "navigate" : "service";
+  function addBinding() {
+    if (!scr.buttons) scr.buttons = {};
+    const free = BIND_KEYS.find(([k]) => !(k in scr.buttons));
+    if (!free) return;
+    scr.buttons[free[0]] = { sequence: seqOptions[0]?.value || "" };
+    edit();
+  }
+  function moveBinding(oldK, newK) {
+    if (!newK || newK === oldK || scr.buttons[newK]) return false;
+    const rebuilt = {};
+    for (const [k, v] of Object.entries(scr.buttons)) rebuilt[k === oldK ? newK : k] = v;
+    scr.buttons = rebuilt;
+    edit();
+    return true;
+  }
+  function setBindKind(k, kind) {
+    if (kind === "sequence") scr.buttons[k] = { sequence: seqOptions[0]?.value || "" };
+    else if (kind === "navigate") scr.buttons[k] = { navigate: navOptions[0]?.value || "" };
+    edit();
+  }
+  function dropBinding(k) {
+    delete scr.buttons[k];
+    if (!Object.keys(scr.buttons).length) delete scr.buttons;
+    edit();
+  }
   let ctOpen = $state(false);
   let advOpen = $state(false);
   let lastAdded = $state(null);
   let secOpen = $state({});
-
-  /* the physical-key policy consumes the derived class */
-  function reclass() {
-    scr.class = (scr.type || "hub") === "controller" ? "activity" : (scr.room ? "room" : "group");
-    scr.view_kind = scr.type === "controller" ? "controller" : (scr.room ? "room hub" : "hub");
-  }
 
   /* canonical anatomy: every hub has the same folds. Sections carry
      ROLES (activities/presets/devices/custom); older drafts without
@@ -153,6 +190,9 @@
       sec.tiles.push({ id: "acts", type: "activities", room: screenId });
   }
   function addActivity() {
+    /* the first activity makes this page a HOST — sticky (the minted
+       select lives as long as the page; no toggle, no ceremony) */
+    stampHost(scr);
     ensureActivitiesGenerator();
     let id = "new_activity", n = 2;
     while (d.activities[id]) id = "new_activity_" + n++;
@@ -206,13 +246,6 @@
           onchange={(e) => { if (!renameScreen(screenId, e.target.value)) e.target.value = screenId; }}
           class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
       </Field>
-      <Field label="Grid columns" hint="page default — blank = 2; each section can override below">
-        <Input type="number" min="1" max="4" value={scr.grid?.columns ?? ""} placeholder="2"
-          onchange={(e) => { const v = +e.target.value;
-            if (v >= 1) scr.grid = { ...(scr.grid || {}), columns: v };
-            else if (scr.grid) { delete scr.grid.columns; if (!Object.keys(scr.grid).length) delete scr.grid; }
-            edit(); }} />
-      </Field>
       {#if isOwnerRoom}
         <div class="flex items-end gap-6 pb-1.5">
           <Switch bind:checked={d.global.confirm_switch} label="Confirm activity switch" onCheckedChange={edit} />
@@ -235,14 +268,66 @@
         <span class="text-xs font-bold text-dim">Back</span>
         <span class="text-xs text-dim">UI back — unwinds history (chevron in the status bar)</span>
         <span class="text-xs font-bold text-dim">Power</span>
-        <span class="text-xs text-dim">{powerDoctrine()}</span>
-      </div>
-      <div class="mt-3 space-y-1.5 border-t border-line pt-2.5">
-        <div class="flex flex-wrap items-center gap-2">
-          <Switch checked={!!scr.room} label="Room view"
-            onCheckedChange={(v) => { if (v) scr.room = true; else delete scr.room; reclass(); }} />
-          <span class="text-[11px] text-dim">this view IS a room — owns activities, room-scope Power, gets the minted activity select</span>
+        {#if isCtrlPage}
+          <span class="text-xs text-dim">passes to the device (control target)</span>
+        {:else}
+          <Select value={scr.power ?? ""}
+            onchange={(e) => { if (e.target.value) scr.power = e.target.value; else delete scr.power; edit(); }}
+            options={[
+              { value: "", label: powerAutoLabel },
+              { value: "activity", label: "End the running activity" },
+              { value: "devices", label: "Switch this page's devices off/on" },
+            ]} class="max-w-md" />
+        {/if}
+</div>
+      {#if !isCtrlPage}
+        <!-- KEY BINDINGS — their own block: key → action, one line each -->
+        <div class="mt-3 border-t border-line pt-2.5">
+          <div class="mb-2 text-[10px] font-bold tracking-[.08em] text-dim/80 uppercase">Key bindings</div>
+          <div class="space-y-2">
+            {#each bindings as [bk, b] (bk)}
+              <div class="flex items-center gap-2">
+                <select value={bk} title="Which key this binding claims"
+                  onchange={(e) => { if (!moveBinding(bk, e.target.value)) e.target.value = bk; }}
+                  class="w-36 shrink-0 cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2 py-1.5 text-xs font-bold text-ink outline-none focus:border-accent/60">
+                  {#each BIND_KEYS as [k, lbl] (k)}
+                    <option value={k} disabled={k !== bk && !!scr.buttons?.[k]}>{lbl}</option>
+                  {/each}
+                </select>
+                {#if bindKind(b) === "service"}
+                  <span class="min-w-0 flex-1 truncate font-mono text-[11px] text-dim"
+                    title="A raw service binding — edit in the Code tab">{b.service} → {b.entity || b.target || "—"}</span>
+                {:else}
+                  <div class="w-36 shrink-0">
+                    <Select value={bindKind(b)} onchange={(e) => setBindKind(bk, e.target.value)}
+                      options={[{ value: "sequence", label: "Run action" }, { value: "navigate", label: "Go to page" }]} />
+                  </div>
+                  <div class="max-w-72 min-w-0 flex-1">
+                    {#if bindKind(b) === "sequence"}
+                      <Select bind:value={b.sequence} options={seqOptions} onchange={edit} />
+                    {:else}
+                      <Select bind:value={b.navigate} options={navOptions} onchange={edit} />
+                    {/if}
+                  </div>
+                {/if}
+                <button class="shrink-0 cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                  title="Remove this binding" onclick={() => dropBinding(bk)}>✕</button>
+              </div>
+            {/each}
+            {#if !scr.buttons?.power_hold}
+              <div class="flex items-center gap-2 text-[11px] text-dim">
+                <span class="w-36 shrink-0 text-xs font-bold text-dim/60">Power (hold)</span>
+                <span>default: ends the running activity immediately — bind an action to make it this page's All Off</span>
+              </div>
+            {/if}
+            {#if BIND_KEYS.some(([k]) => !(scr.buttons || {})[k])}
+              <button class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1 text-xs text-dim hover:border-accent/60 hover:text-accent"
+                onclick={addBinding}>＋ Add key binding</button>
+            {/if}
+          </div>
         </div>
+      {/if}
+      <div class="mt-3 space-y-1.5 border-t border-line pt-2.5">
         <div class="flex flex-wrap items-center gap-2">
           <Switch checked={!!scr.drawer} label="Drawer"
             onCheckedChange={(v) => { if (v) scr.drawer = true; else delete scr.drawer; }} />
@@ -260,7 +345,17 @@
           <Switch checked={scr.banner.tabs !== false} label="Section tabs"
             onCheckedChange={(v) => { if (v) delete scr.banner.tabs; else scr.banner.tabs = false; }} />
           <Switch bind:checked={scr.banner.show_time} label="Show clock" />
+          <Switch checked={scr.banner.fit !== false} label="Self-fitting height"
+            onCheckedChange={(v) => { if (v) delete scr.banner.fit; else scr.banner.fit = false; edit(); }} />
         </div>
+        <p class="m-0 text-[11px] text-dim">
+          Self-fitting: the hero treats Height as a ceiling and shrinks
+          (never below the floor) so a whole number of tiles fits above
+          the fold — that's why height edits seem to move in tile-sized
+          steps, and why each device lands slightly differently. Switch
+          it off for the exact height, always (a tile may then be cut at
+          the fold until you scroll).
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <Field label="Title override" hint="blank = the hub's name">
             <Input bind:value={scr.banner.title} placeholder={scr.name || screenId} />
@@ -271,9 +366,11 @@
           <Field label="Image opacity">
             <Input type="number" min="0" max="1" step="0.05" bind:value={scr.banner.image_opacity} />
           </Field>
-          <Field label="Height"><Input bind:value={scr.banner.height} placeholder="230px" /></Field>
-          <Field label="Min height (scrolled)"><Input bind:value={scr.banner.min_height} placeholder="150px" /></Field>
-          <Field label="Rooms chip goes to">
+          <Field label="Height" hint={scr.banner.fit === false ? "exact" : "ceiling — self-fit may shrink it"}>
+            <Input bind:value={scr.banner.height} placeholder="230px" /></Field>
+          <Field label="Height floor" hint={scr.banner.fit === false ? "unused while self-fit is off" : "self-fit never shrinks below this"}>
+            <Input bind:value={scr.banner.min_height} placeholder="150px" /></Field>
+          <Field label="Home chip goes to">
             <Select bind:value={scr.banner.rooms_screen} options={screenIds} allowEmpty />
           </Field>
         </div>
@@ -298,13 +395,7 @@
         {/each}
         <Button onclick={addActivity}>＋ Add activity</Button>
       </SectionFold>
-      {#if functions.length}
-        <SectionFold label="Room functions" badge="special — hold-Power / All Off target" bind:open={fnOpen}>
-          {#each functions as id (id)}
-            <ActivityCard {id} open={id === lastAdded} onrename={(nid) => (lastAdded = nid)} />
-          {/each}
-        </SectionFold>
-      {/if}
+
     {/if}
 
     <!-- PRESETS — canonical fold, off until added -->
@@ -315,18 +406,11 @@
         {#each rs.s.tiles as tile, ti (ti)}
           <TileRow {tile} ownerScreen={screenId} tiles={rs.s.tiles} index={ti} />
         {/each}
-        <div class="flex items-center gap-2">
-          <Button size="sm" onclick={() => newTile(rs.s.tiles)}>＋ Add preset</Button>
-          <span class="ml-2 text-[11px] text-dim">Columns</span>
-          <input type="number" min="1" max="4" value={rs.s.columns ?? ""} placeholder="page"
-            onchange={(e) => { const v = +e.target.value;
-              if (v >= 1) rs.s.columns = v; else delete rs.s.columns; edit(); }}
-            class="w-16 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
-          {#if !(rs.s.tiles || []).length}
-            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-              onclick={() => scr.sections.splice(rs.i, 1)}>remove section</button>
-          {/if}
-        </div>
+        <Button size="sm" onclick={() => newTile(rs.s.tiles)}>＋ Add preset</Button>
+        {#if !(rs.s.tiles || []).length}
+          <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
+            onclick={() => scr.sections.splice(rs.i, 1)}>remove section</button>
+        {/if}
       </SectionFold>
     {:else}
       <SectionFold label="Presets" badge="off — switch on"
@@ -343,19 +427,14 @@
         {#each ds.s.tiles as tile, ti (ti)}
           <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} />
         {/each}
-        <div class="flex items-center gap-2">
+        <div class="flex gap-2">
           <Button size="sm" onclick={() => newTile(ds.s.tiles)}>＋ Add device</Button>
           <Button size="sm" onclick={() => newNavTile(ds.s.tiles)}>＋ Add nav card</Button>
-          <span class="ml-2 text-[11px] text-dim">Columns</span>
-          <input type="number" min="1" max="4" value={ds.s.columns ?? ""} placeholder="page"
-            onchange={(e) => { const v = +e.target.value;
-              if (v >= 1) ds.s.columns = v; else delete ds.s.columns; edit(); }}
-            class="w-16 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
-          {#if !(ds.s.tiles || []).length}
-            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-              onclick={() => scr.sections.splice(ds.i, 1)}>remove section</button>
-          {/if}
         </div>
+        {#if !(ds.s.tiles || []).length}
+          <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
+            onclick={() => scr.sections.splice(ds.i, 1)}>remove section</button>
+        {/if}
       </SectionFold>
     {:else}
       <SectionFold label="Devices" badge="off — switch on"
@@ -373,15 +452,10 @@
           <span class="text-[11px] text-dim">Group label</span>
           <input bind:value={s.hero_label} placeholder="(no header)"
             class="w-44 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
-          <span class="text-[11px] text-dim">Columns</span>
-          <input type="number" min="1" max="4" value={s.columns ?? ""} placeholder="page"
-            onchange={(e) => { const v = +e.target.value;
-              if (v >= 1) s.columns = v; else delete s.columns; edit(); }}
-            class="w-16 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
-          <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-            title="Removes the whole group — its tiles go with it (the devices themselves are untouched)"
-            onclick={() => scr.sections.splice(i, 1)}>
-            delete group{(s.tiles || []).length ? " & " + s.tiles.length + " tiles" : ""}</button>
+          {#if !(s.tiles || []).length}
+            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
+              onclick={() => scr.sections.splice(i, 1)}>delete empty group</button>
+          {/if}
         </div>
         {#each s.tiles as tile, ti (ti)}
           <TileRow {tile} ownerScreen={screenId} tiles={s.tiles} index={ti} />
@@ -426,14 +500,14 @@
       {/if}
     </SectionFold>
 
-    <!-- ADVANCED — config-level knobs, on the owner room's hub -->
+    <!-- ADVANCED — config-level knobs, on the owner page's hub -->
     {#if isOwnerRoom}
       <SectionFold label="Advanced" badge="boot · hub · paging · routing" bind:open={advOpen}>
         <div class="grid grid-cols-2 gap-3">
-          <Field label="Boot view" hint="where a remote lands on startup and Home — normally the room itself">
+          <Field label="Boot view" hint="where a remote lands on startup and Home — normally this page">
             <Select bind:value={d.home_screen} options={Object.keys(d.screens)} onchange={edit} />
           </Field>
-          <Field label="Rooms hub" hint="top of the Home ladder (the all-rooms overview)">
+          <Field label="Home hub" hint="top of the Home ladder (the overview of all pages)">
             <Select bind:value={d.global.main_home} options={Object.keys(d.screens)} allowEmpty onchange={edit} />
           </Field>
         </div>
@@ -441,10 +515,10 @@
           <Chips bind:items={d.screen_order} suggestions={Object.keys(d.screens)} placeholder="add view…" />
         </Field>
         <Field label="Activity state select"
-          hint="The routing cache. The integration MINTS select.harmonium_<room>_activity per activity-owning hub — point here at the minted one (input_select still accepted for legacy configs).">
+          hint="The routing cache. The integration MINTS select.harmonium_<page>_activity per activity-owning page — point here at the minted one (input_select still accepted for legacy configs).">
           <EntityPicker bind:value={d.global.activity_select} domains={["select", "input_select"]} onchange={edit} />
         </Field>
-        <Field label="Room-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
+        <Field label="Page-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
           <div class="rounded-[8px] border border-line bg-field p-2 font-mono text-[11px] text-dim">
             {Object.keys(d.global.buttons || {}).join(" · ") || "none"}
           </div>

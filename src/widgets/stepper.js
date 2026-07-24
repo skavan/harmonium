@@ -1,3 +1,5 @@
+/* STEPPER — the − value + row (brightness, setpoint, position,
+   percentage…); kind picks entity attribute + service. */
 WIDGETS.stepper = {
     /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
        Kinds with a bounded 0-100 range also get a fat slider track

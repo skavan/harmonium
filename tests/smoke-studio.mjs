@@ -83,7 +83,7 @@ await p.waitForTimeout(500);
 // 3b. All-activities INDEX groups by owner room
 await navClick('All activities');
 r.index = await p.evaluate(() => ({
-  grouped: document.body.textContent.includes('edit in room'),
+  grouped: document.body.textContent.includes('edit in page'),
   rows: [...document.querySelectorAll('button')]
     .filter(b => /watch_firetv|watch_smart|music/.test(b.textContent)).length >= 3,
   noOrphans: !document.body.textContent.includes('Unassigned')
@@ -291,64 +291,64 @@ for (const nm of ['Watch Fire TV', 'Watch Smart TV', 'Listen to Music']) {
 }
 r.allCardsOpen.crashes = errs.length;
 
-// 11a. ＋ Create control page: mints the controller view (control
-//      target pre-wired, cast generator inside), links it, and JUMPS
-//      in as a PAGE DRAFT (same contract as ＋ actions) — Keep
-//      returns to the card with the link standing
+// 11a. ＋ Create control page: mints the controller view AND jumps
+//      into it as a PAGE DRAFT (the generalized ＋ contract); Keep
+//      returns to the card with the link in place
 await p.evaluate(() => {
   document.querySelector('button[title*="Create control page"]')?.click();
 });
-await p.waitForTimeout(500);
+await p.waitForTimeout(600);
 r.createPage = await p.evaluate(() => ({
   draftBanner: document.body.textContent.includes('Discard removes it and unlinks'),
+  onPageEditor: [...document.querySelectorAll('input')].some(i => i.value === 'veranda_watch_bluray'),
 }));
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Keep this page'))?.click();
 });
 await p.waitForTimeout(600);
-Object.assign(r.createPage, await p.evaluate(() => ({
-  linked: [...document.querySelectorAll('select')].some(s => s.value === 'veranda_watch_bluray'),
-  editLink: [...document.querySelectorAll('button')].some(b => b.title === 'Open this page'),
-})));
+r.createPage.linked = await p.evaluate(() =>
+  [...document.querySelectorAll('select')].some(s => s.value === 'veranda_watch_bluray'));
+r.createPage.editLink = await p.evaluate(() =>
+  [...document.querySelectorAll('button')].some(b => b.title === 'Open this page'));
 
-// 11c. NAV CARD ＋-mint: add a nav card in the room's Devices fold,
-//      ＋ mints its page and jumps in as a draft — DISCARD deletes
-//      the page and unlinks the card
+// 11c. NAV CARD: ＋ Add nav card in Devices, ＋ mints its page and
+//      jumps in as a draft; DISCARD deletes the page and unlinks
 await p.evaluate(() => {
+  /* open the Devices fold, then add a nav card */
   [...document.querySelectorAll('button')]
-    .find(b => /^[▶▼] Devices/.test(b.textContent.trim().replace(/\s+/g, ' ')))?.click();
+    .find(b => /^[▶] Devices/.test(b.textContent.trim()))?.click();
 });
-await p.waitForTimeout(300);
+await p.waitForTimeout(250);
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add nav card'))?.click();
 });
-await p.waitForTimeout(300);
+await p.waitForTimeout(400);
+r.navCard = await p.evaluate(() => ({
+  added: [...document.querySelectorAll('.font-semibold')]
+    .some(el => el.textContent === 'New nav card'),
+}));
 await p.evaluate(() => {
-  /* open the fresh card, then its ＋ (mint the page) */
+  /* open the new tile's card row, then hit its ＋ (mint page) */
   [...document.querySelectorAll('.font-semibold')]
     .find(el => el.textContent === 'New nav card')?.closest('button')?.click();
 });
 await p.waitForTimeout(300);
 await p.evaluate(() => {
-  [...document.querySelectorAll('button')]
-    .find(b => (b.title || '').startsWith('Create the page'))?.click();
+  [...document.querySelectorAll('button')].find(b => b.title?.startsWith('Create the page'))?.click();
 });
-await p.waitForTimeout(500);
-r.navCard = await p.evaluate(() => ({
-  draftBanner: document.body.textContent.includes('Discard removes it and unlinks'),
-}));
+await p.waitForTimeout(600);
+r.navCard.draftBanner = await p.evaluate(() =>
+  document.body.textContent.includes('Discard removes it and unlinks'));
+r.navCard.pageMade = await p.evaluate(() =>
+  [...document.querySelectorAll('input')].some(i => i.value === 'new_nav_card'));
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === '✕ Discard')?.click();
 });
 await p.waitForTimeout(600);
-Object.assign(r.navCard, await p.evaluate(() => ({
-  backOnRoom: [...document.querySelectorAll('input')].some(i => i.value === 'Veranda'),
-})));
-await p.click('#saveBtn');
-await p.waitForTimeout(400);
-r.navCard.pageGone = postedConfig && !postedConfig.screens.new_nav_card;
-r.navCard.unlinked = postedConfig && !JSON.stringify(
-  postedConfig.screens[postedConfig.home_screen] || {}).includes('new_nav_card');
+r.navCard.discarded = await p.evaluate(() => ({
+  pageGone: !document.getElementById('nav')?.textContent.includes('New nav card'),
+  backOnRoom: [...document.querySelectorAll('input')].some(i => i.value === 'porch'),
+}));
 
 // 11b. exactly ONE canonical Devices fold (device tiles must infer
 //      role "devices" in compiler AND editor — regression guard)
@@ -378,6 +378,51 @@ r.pageId = {
   castPage: !!postedConfig?.screens?.veranda_watch_bluray?.sections?.some(
     s => (s.tiles || []).some(t => t.type === 'devices' && t.activity === 'veranda_watch_bluray')),
 };
+
+// 13. HOSTING IS INFERRED (v0.26): no Room-view toggle anywhere; a
+//     fresh ＋ Add view page becomes a host (sticky room marker) the
+//     moment it gets its first activity — select-worthy on save
+r.hostInfer = { toggleGone: await p.evaluate(() =>
+  !document.body.textContent.includes('Room view')) };
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .find(b => b.title?.startsWith('Create a free-standing view'))?.click();
+});
+await p.waitForTimeout(500);
+r.hostInfer.plainBorn = await p.evaluate(() => {
+  const cfgInput = [...document.querySelectorAll('input')].find(i => i.value === 'new_view');
+  return !!cfgInput;
+});
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add activity'))?.click();
+});
+await p.waitForTimeout(500);
+await p.click('#saveBtn');
+await p.waitForTimeout(400);
+r.hostInfer.stamped = {
+  room: postedConfig?.screens?.new_view?.room === true,
+  cls: postedConfig?.screens?.new_view?.class === 'room',
+  owns: Object.values(postedConfig?.activities || {})
+    .some(a => a.room_view === 'new_view'),
+};
+
+// 14. KEY BINDINGS (v0.28): the off activity dissolved into a
+//     power_hold binding — the room shows it as a bindings row
+//     (Run action → All Off); "Page functions" is gone everywhere
+await navClick('Veranda');
+await p.waitForTimeout(400);
+r.bindings = await p.evaluate(() => ({
+  foldGone: !document.body.textContent.includes('Page functions'),
+  keyRow: [...document.querySelectorAll('select')]
+    .some(sel => sel.value === 'power_hold'),
+  action: [...document.querySelectorAll('select')]
+    .some(sel => sel.value === 'all_off'),
+  addBtn: [...document.querySelectorAll('button')]
+    .some(b => b.textContent.includes('Add key binding')),
+  offActivityGone: ![...document.querySelectorAll('.font-semibold')]
+    .some(el => el.textContent === 'All Off' && el.closest('#nav') === null &&
+      el.parentElement?.textContent.includes('off')),
+}));
 
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));

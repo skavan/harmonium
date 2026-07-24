@@ -60,35 +60,6 @@ await p.click('#tile_t_np .trail');
 await p.waitForTimeout(150);
 r.apps = await p.evaluate(() => ({ screen: S.screen, noBackTile: !document.getElementById('tile_ap_back'),
   chevron: !document.getElementById('backBtn').classList.contains('hidden') }));
-// NAV CARDS (v0.25 — one type, four styles):
-// summary style derives its sub live from the target page's tiles
-await p.evaluate(() => navigate('porch', true));
-await p.waitForTimeout(200);
-r.navSummary = await p.evaluate(() => {
-  const el = document.getElementById('tile_grp_hvac');
-  return {
-    isNav: !!el && el.className.includes('wgt-nav'),
-    styled: !!el && el.classList.contains('nav-summary'),
-    sub: el?.querySelector('.sub, .subin')?.textContent || '',
-  };
-});
-await p.click('#tile_grp_hvac');
-await p.waitForTimeout(150);
-r.navSummaryTap = await p.evaluate(() => S.screen);   // expect comfort
-// image style = the old room card (full-bleed photo)
-await p.evaluate(() => navigate('overview', true));
-await p.waitForTimeout(200);
-r.navImage = await p.evaluate(() => {
-  const el = document.getElementById('tile_r_porch');
-  return {
-    isNav: !!el && el.className.includes('wgt-nav'),
-    styled: !!el && el.classList.contains('nav-image'),
-    img: !!el?.querySelector('.roomimg'),
-  };
-});
-await p.click('#tile_r_porch');
-await p.waitForTimeout(150);
-r.navImageTap = await p.evaluate(() => S.screen);     // expect porch
 // climate detail: power row present at top, no dbar
 await p.evaluate(() => {
   S.states.set('climate.room_air_conditioner', { s: 'cool', a: { temperature: 61, hvac_modes: ['off','cool'] } });
@@ -96,6 +67,45 @@ await p.evaluate(() => {
 });
 await p.waitForTimeout(150);
 r.acDetail = await p.evaluate(() => ({ power: !!document.getElementById('tile_dp'), noDbar: !document.getElementById('tile_db') }));
+// NAV UNIFICATION (v0.25): one nav type, style resolves per tile.
+// grp_hvac (style: summary) = live entity counts; overview rooms
+// (style: image) = photo tiles; both navigate on tap.
+await p.evaluate(() => {
+  S.states.set('light.porch_lights', { s: 'on', a: {} });
+  navigate('porch', true);
+});
+await p.waitForTimeout(200);
+r.navSummary = await p.evaluate(() => {
+  const el = document.getElementById('tile_grp_hvac');
+  return {
+    cls: el?.className || '',
+    isNav: !!el?.className.includes('wgt-nav'),
+    styled: !!el?.classList.contains('nav-summary'),
+    sub: (el?.querySelector('.sub, .subin')?.textContent) || '',
+  };
+});
+await p.click('#tile_grp_hvac');
+await p.waitForTimeout(150);
+r.navSummary.opens = await p.evaluate(() => S.screen);   // expect comfort
+await p.evaluate(() => navigate('overview', true));
+await p.waitForTimeout(200);
+r.navImage = await p.evaluate(() => {
+  const el = document.getElementById('tile_r_porch');
+  return {
+    isNav: !!el?.className.includes('wgt-nav'),
+    styled: !!el?.classList.contains('nav-image'),
+    img: !!el?.querySelector('img.roomimg'),
+  };
+});
+await p.click('#tile_r_porch');
+await p.waitForTimeout(150);
+r.navImage.opens = await p.evaluate(() => S.screen);   // expect porch
+// a target-less image card flashes, doesn't crash
+await p.evaluate(() => navigate('overview', true));
+await p.waitForTimeout(150);
+await p.click('#tile_r_living');
+await p.waitForTimeout(150);
+r.navNoTarget = await p.evaluate(() => S.screen);   // still overview
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));
 await b.close();

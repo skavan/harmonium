@@ -184,12 +184,22 @@ function act(button, phys) {
       else act(base, phys);
       break;
     }
-    case "power_hold":
-      /* long-press Power = end/All Off IMMEDIATELY (doctrine
-         2026-07-23: tap asks, the deliberate hold gesture doesn't) */
-      endActivity({});
-      flashBar("All Off");
+    case "power_hold": {
+      /* long-press Power (v0.28): a power_hold BINDING is the page's
+         authored sledgehammer (screen.buttons over global.buttons —
+         "Porch All Off" is just an Action it points at). Unbound =
+         the derived default: end the running activity IMMEDIATELY
+         (tap asks, the deliberate hold doesn't); idle = nothing. */
+      const bh = Object.assign({}, CONFIG.global.buttons,
+        (screenOf(S.screen) || {}).buttons || {}).power_hold;
+      if (bh) { runAction(bh); break; }
+      const cur = currentActivityId();
+      if (!cur) { flashBar("Nothing running"); break; }
+      const ca = CONFIG.activities[cur] || {};
+      endActivity(ca);
+      flashBar("Ending " + (ca.name || cur));
       break;
+    }
     case "menu": {
       /* physical MENU key (Astrion: '#') → the device's menu command
          on screens with a device context; no-op elsewhere */
@@ -210,11 +220,11 @@ function act(button, phys) {
       break;
     }
     case "power": {
-      /* Power is SCOPED BY SCREEN CLASS:
+      /* Power is a PER-PAGE SETTING (v0.26), default Auto:
          detail → toggle the device (immediate — one device, reversible)
-         group  → all page devices off/on (status-bar confirm)
-         activity → end the running activity (confirm)
-         room   → activity end if running, else All Off (confirm) */
+         auto   → hosts activities → end the running one (confirm);
+                  plain page → all page devices off/on (confirm)
+         screen.power: "activity" | "devices" overrides Auto */
       const scp2 = screenOf(S.screen) || {};
       const cls = classOf(scp2, S.screen);
       const aid = currentActivityId();
@@ -222,7 +232,10 @@ function act(button, phys) {
         callService("homeassistant", "toggle", null, S.screen.slice(7));
         break;
       }
-      if (cls === "group") {
+      const scope = scp2.power === "activity" ? "activity"
+        : scp2.power === "devices" ? "devices"
+        : cls === "group" ? "devices" : "activity";
+      if (scope === "devices") {
         const ents = powerEntities(scp2);
         if (!ents.length) { flashBar("Nothing to switch"); break; }
         const anyOn = ents.some(x => ACTIVE(st(x).s));
@@ -273,14 +286,7 @@ function act(button, phys) {
       const bmap = Object.assign({}, CONFIG.global.buttons,
         (screenOf(S.screen) || {}).buttons || {});
       const b = bmap[button];
-      if (b) {
-        if (b.navigate) { navigate(b.navigate); break; }
-        const target = resolveEntity(b.entity || b.target);
-        if (!target) break;                    // unresolved context → no-op,
-        const [domain, service] = b.service.split(".");   // never untargeted
-        callService(domain, service, b.data, target);
-        break;
-      }
+      if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
       /* mute default (no config binding needed): toggle mute on the
          context audio path — same ARC-aware target VOL uses */
       if (button === "mute") {

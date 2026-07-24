@@ -1,3 +1,4 @@
+/* TRANSPORT strip — prev · play/pause · next for a media_player. */
 WIDGETS.transport = {
     /* transport row: rew / play-pause / ff. D-pad: ◀▶ move the roving
        highlight while focused (same model as coverbtns — the music

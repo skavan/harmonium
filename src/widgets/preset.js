@@ -1,3 +1,5 @@
+/* PRESET tile — icon square that fires an app/preset (warm-start:
+   ensures its activity first); drawer screens pop back after firing. */
 WIDGETS.preset = {
     sub: () => "",
     isOn: (e, t) => !!(t.activity && isActivityActive(t.activity)),

@@ -17,12 +17,24 @@
     --wash: rgba(255,179,0,.10);
     --danger: #e05252;
     --radius: 12px;
+    /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
+    --tile-h: 84px;
+    --font-1: system-ui, Roboto, sans-serif;   /* primary: labels/titles */
+    --fs-1: 15px;
+    --fw-1: 600;
+    --font-2: var(--font-1);                   /* secondary: subs/hints */
+    --fs-2: 13px;
+    --fw-2: 400;
+    --icon-zone: 52px;      /* row-tile icon disc */
+    --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
+    --tile-gap: 14px;       /* icon ↔ text */
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg); color: var(--text);
-    font: 15px/1.35 system-ui, Roboto, sans-serif;
+    font-family: var(--font-1);
+    font-size: var(--fs-1); line-height: 1.35;
     overflow: hidden; user-select: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
@@ -119,7 +131,7 @@
     position: absolute; left: 12px; bottom: 10px; z-index: 1;
     text-shadow: 0 1px 8px rgba(0,0,0,.8);
   }
-  .tile.wgt-nav.nav-image .lbl { font-size: 17px; }
+  .tile.wgt-nav.nav-image .lbl { font-size: calc(var(--fs-1) + 2px); }
   .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
   .tile.wgt-nav.nav-image .hint { display: none; }
   .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
@@ -225,7 +237,7 @@
   }
   .tile {
     background: var(--tile); border-radius: var(--radius);
-    padding: 12px 14px; min-height: 84px;
+    padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
     border: 2px solid transparent;
     display: block;
     min-width: 0;               /* let grid columns shrink below content */
@@ -255,18 +267,22 @@
     animation: cfmpulse .9s ease-in-out infinite;
   }
   .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tile .top > img {
+    width: 28px; height: 28px; object-fit: cover;
+    border-radius: 7px; flex: 0 0 auto;
+  }
   .tile .top .lbl {
     flex: 1; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .tile .ic { font-size: 22px; width: 28px; text-align: center; }
   .tile .ic.material-symbols-outlined { font-size: 24px; }
-  .tile .lbl { font-weight: 600; }
-  .tile .sub { color: var(--dim); font-size: 13px; margin-top: 6px; min-height: 17px; }
+  .tile .lbl { font-weight: var(--fw-1); }
+  .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
   /* inline sub: value on the title line, right-aligned, a notch bigger */
   .tile .sub.subin {
     margin: 0 0 0 auto; min-height: 0; flex-shrink: 0;
-    font-size: 15px; padding-left: 8px;
+    font-size: var(--fs-1); padding-left: 8px;
   }
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
@@ -334,21 +350,25 @@
   .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
   .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
 
-  /* list-row variant (grid.columns = 1) */
+  /* list-row variant (grid.columns = 1) — height rides the global
+     tile-height knob (6px slimmer than grid tiles, matching the 84/78
+     defaults); --tile-row-h overrides independently (Code tab) */
   .tile.row {
-    display: flex; flex-direction: row; align-items: center; gap: 14px;
-    min-height: 78px; padding: 12px 16px;
+    display: flex; flex-direction: row; align-items: center; gap: var(--tile-gap);
+    min-height: var(--tile-row-h, calc(var(--tile-h) - 6px));
+    padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 16px);
   }
   .tile.row .icwrap {
-    flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%;
+    flex: 0 0 auto; width: var(--icon-zone); height: var(--icon-zone);
+    border-radius: var(--icon-radius);
     background: #262c35; display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
-  .tile.row .icwrap .material-symbols-outlined { font-size: 27px; }
-  .tile.row .icwrap .ic { width: auto; font-size: 25px; }
+  .tile.row .icwrap .material-symbols-outlined { font-size: calc(var(--icon-zone) * .52); }
+  .tile.row .icwrap .ic { width: auto; font-size: calc(var(--icon-zone) * .48); }
   .tile.row .icwrap img { width: 100%; height: 100%; object-fit: cover; }
   .tile.row .txt { flex: 1; min-width: 0; }
-  .tile.row .lbl { font-size: 17px; }
+  .tile.row .lbl { font-size: calc(var(--fs-1) + 2px); }   /* rides Primary (15→17 default) */
   .tile.row .sub { margin-top: 3px; }
 
 /* auth overlay */
@@ -468,9 +488,16 @@ async function loadConfig() {
   return r.json();
 }
 
+let THEMED = [];   /* vars set by the last applyTheme — cleared first so
+                      a REMOVED key falls back to the stylesheet default
+                      (live Studio editing relies on this) */
 function applyTheme(theme) {
-  for (const [k, v] of Object.entries(theme || {}))
+  for (const k of THEMED) document.documentElement.style.removeProperty(k);
+  THEMED = [];
+  for (const [k, v] of Object.entries(theme || {})) {
     document.documentElement.style.setProperty("--" + k, v);
+    THEMED.push("--" + k);
+  }
 }
 
 /* ================================================================
@@ -881,14 +908,19 @@ function activityStateEntities() {
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
-/* Generic action object: { navigate: <screen> } or
-   { service, target|entity, data } — same grammar presets use. */
+/* Generic action object: { navigate: <screen> } or { sequence: <id> }
+   or { service, target|entity, data } — the ONE action grammar shared
+   by presets, trailing slots, and key bindings (v0.28). */
 function runAction(a) {
   if (!a) return;
   if (a.navigate) { navigate(a.navigate); return; }
+  if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
   const parts = (a.service || "").split(".");
-  if (parts.length === 2)
-    callService(parts[0], parts[1], a.data, resolveEntity(a.target || a.entity));
+  if (parts.length !== 2) return;
+  const ref = a.target || a.entity;
+  const target = resolveEntity(ref);
+  if (ref && !target) return;   // unresolved context → no-op, never untargeted
+  callService(parts[0], parts[1], a.data, target);
 }
 
 /* Presets: one-tap content shortcuts. If the preset names an activity,
@@ -942,8 +974,17 @@ function startActivity(id) {
   return true;
 }
 function endActivity(a) {
-  runActionRef(a.stop ||
-    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start));
+  /* the activity's own stop; WITHOUT one it falls back to its page's
+     hold-Power binding (the authored sledgehammer), then the current
+     page's, then the global one. The special "off" activity is gone
+     (v0.28) — All Off is just an Action a binding points at. */
+  if (a.stop) { runActionRef(a.stop); return; }
+  const owner = a.room_view && CONFIG.screens && CONFIG.screens[a.room_view];
+  const b = (owner && owner.buttons && owner.buttons.power_hold) ||
+    ((screenOf(S.screen) || {}).buttons || {}).power_hold ||
+    (CONFIG.global.buttons || {}).power_hold;
+  if (b) runAction(b);
+  else flashBar("No stop action set");
 }
 function requestEnd(t, a) {
   if (a.confirm_end && S.confirmTile !== t.id) {
@@ -1927,6 +1968,9 @@ function fitBanner(sc) {
   const maxH = parseInt(sc.banner.height) || 180;
   const minH = parseInt(sc.banner.min_height) || 120;
   bn.style.height = maxH + "px";
+  /* fit:false = EXACT height, no tile-boundary snapping (the fold may
+     cut a tile; scrolling reveals it) */
+  if (sc.banner.fit === false) return;
   /* Align the fold to a tile boundary: if a tile straddles the bottom
      edge of the viewport, shrink the hero just enough to reveal that
      one tile fully — never collapse further than that. */
@@ -2425,12 +2469,22 @@ function act(button, phys) {
       else act(base, phys);
       break;
     }
-    case "power_hold":
-      /* long-press Power = end/All Off IMMEDIATELY (doctrine
-         2026-07-23: tap asks, the deliberate hold gesture doesn't) */
-      endActivity({});
-      flashBar("All Off");
+    case "power_hold": {
+      /* long-press Power (v0.28): a power_hold BINDING is the page's
+         authored sledgehammer (screen.buttons over global.buttons —
+         "Porch All Off" is just an Action it points at). Unbound =
+         the derived default: end the running activity IMMEDIATELY
+         (tap asks, the deliberate hold doesn't); idle = nothing. */
+      const bh = Object.assign({}, CONFIG.global.buttons,
+        (screenOf(S.screen) || {}).buttons || {}).power_hold;
+      if (bh) { runAction(bh); break; }
+      const cur = currentActivityId();
+      if (!cur) { flashBar("Nothing running"); break; }
+      const ca = CONFIG.activities[cur] || {};
+      endActivity(ca);
+      flashBar("Ending " + (ca.name || cur));
       break;
+    }
     case "menu": {
       /* physical MENU key (Astrion: '#') → the device's menu command
          on screens with a device context; no-op elsewhere */
@@ -2451,11 +2505,11 @@ function act(button, phys) {
       break;
     }
     case "power": {
-      /* Power is SCOPED BY SCREEN CLASS:
+      /* Power is a PER-PAGE SETTING (v0.26), default Auto:
          detail → toggle the device (immediate — one device, reversible)
-         group  → all page devices off/on (status-bar confirm)
-         activity → end the running activity (confirm)
-         room   → activity end if running, else All Off (confirm) */
+         auto   → hosts activities → end the running one (confirm);
+                  plain page → all page devices off/on (confirm)
+         screen.power: "activity" | "devices" overrides Auto */
       const scp2 = screenOf(S.screen) || {};
       const cls = classOf(scp2, S.screen);
       const aid = currentActivityId();
@@ -2463,7 +2517,10 @@ function act(button, phys) {
         callService("homeassistant", "toggle", null, S.screen.slice(7));
         break;
       }
-      if (cls === "group") {
+      const scope = scp2.power === "activity" ? "activity"
+        : scp2.power === "devices" ? "devices"
+        : cls === "group" ? "devices" : "activity";
+      if (scope === "devices") {
         const ents = powerEntities(scp2);
         if (!ents.length) { flashBar("Nothing to switch"); break; }
         const anyOn = ents.some(x => ACTIVE(st(x).s));
@@ -2514,14 +2571,7 @@ function act(button, phys) {
       const bmap = Object.assign({}, CONFIG.global.buttons,
         (screenOf(S.screen) || {}).buttons || {});
       const b = bmap[button];
-      if (b) {
-        if (b.navigate) { navigate(b.navigate); break; }
-        const target = resolveEntity(b.entity || b.target);
-        if (!target) break;                    // unresolved context → no-op,
-        const [domain, service] = b.service.split(".");   // never untargeted
-        callService(domain, service, b.data, target);
-        break;
-      }
+      if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
       /* mute default (no config binding needed): toggle mute on the
          context audio path — same ARC-aware target VOL uses */
       if (button === "mute") {

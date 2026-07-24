@@ -15,6 +15,7 @@
   import AppsEditor from "./editors/AppsEditor.svelte";
   import LibraryEditor from "./editors/LibraryEditor.svelte";
   import BuiltinEditor from "./editors/BuiltinEditor.svelte";
+  import ThemeEditor from "./editors/ThemeEditor.svelte";
 </script>
 
 <div class="flex min-w-0 flex-1 flex-col">
@@ -54,6 +55,8 @@
       <SequencesEditor />
     {:else if app.selKey === "apps"}
       <AppsEditor />
+    {:else if app.selKey === "theme"}
+      <ThemeEditor />
     {:else if app.selKey?.startsWith("controller.")}
       <ViewEditor screenId={app.selKey.slice(11)} kind="controller" />
     {:else if app.selKey?.startsWith("screens.")}

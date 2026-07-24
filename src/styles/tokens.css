@@ -9,12 +9,24 @@
     --wash: rgba(255,179,0,.10);
     --danger: #e05252;
     --radius: 12px;
+    /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
+    --tile-h: 84px;
+    --font-1: system-ui, Roboto, sans-serif;   /* primary: labels/titles */
+    --fs-1: 15px;
+    --fw-1: 600;
+    --font-2: var(--font-1);                   /* secondary: subs/hints */
+    --fs-2: 13px;
+    --fw-2: 400;
+    --icon-zone: 52px;      /* row-tile icon disc */
+    --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
+    --tile-gap: 14px;       /* icon ↔ text */
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg); color: var(--text);
-    font: 15px/1.35 system-ui, Roboto, sans-serif;
+    font-family: var(--font-1);
+    font-size: var(--fs-1); line-height: 1.35;
     overflow: hidden; user-select: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }

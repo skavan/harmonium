@@ -94,6 +94,16 @@
     const dom = (eid || "").split(".")[0];
     return DOM_ICON[dom]?.(rec(eid)) || "material:devices";
   };
+  /* ONE icon field, two payloads: material:<glyph> stays `icon`; a
+     path/URL becomes `icon_image` (fills the icon zone — the branded
+     Fire-TV-logo look) */
+  function setIcon(v) {
+    v = (v || "").trim();
+    delete tile.icon; delete tile.icon_image;
+    if (!v) return;
+    if (v.startsWith("/") || v.startsWith("http")) tile.icon_image = v;
+    else tile.icon = v;
+  }
   function setDeviceEntity(v) {
     const autoLabel = !tile.label || tile.label === "New tile" ||
       tile.label === "New device" || tile.label === friendlyOf(tile.entity);
@@ -188,8 +198,9 @@
           onchange={(e) => { if (e.target.value) tile.target = e.target.value; else delete tile.target; }}
           options={screenIds} />
       </Field>
-      <Field label="Icon" hint="auto from the entity">
-        <Input bind:value={tile.icon} placeholder="material:devices" class="font-mono text-[12.5px]" />
+      <Field label="Icon" hint="auto from the entity · or an image path (/local/…) to fill the icon zone">
+        <Input value={tile.icon_image || tile.icon || ""} placeholder="material:devices"
+          class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} />
       </Field>
       <Field label="Show attribute (advanced)" hint="blank = smart summary (state · title · brightness…)">
         <Input value={tile.attr ?? ""} placeholder="e.g. media_title" class="font-mono text-[12.5px]"
@@ -211,7 +222,9 @@
           if (tile.type === "nav" && tile.target && app.draft.screens[tile.target])
             app.draft.screens[tile.target].name = e.target.value; }} />
     </Field>
-    <Field label="Icon"><Input bind:value={tile.icon} placeholder="material:lightbulb" class="font-mono text-[12.5px]" /></Field>
+    <Field label="Icon" hint="material:<glyph> · or an image path (/local/…)">
+      <Input value={tile.icon_image || tile.icon || ""} placeholder="material:lightbulb"
+        class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} /></Field>
     {#if tile.type === "apps"}
       <div class="col-span-2">
         <Field label="Apps offered (in order)" hint="conscious curation — blank = whole registry, still filtered by launchability">

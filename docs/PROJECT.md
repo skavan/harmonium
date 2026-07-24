@@ -410,53 +410,6 @@ entity/domain); per-device options (invert) tucked into a collapsed
 fold. VERIFIED: deleting the stepper in the MaestroScreen copy
 removed it from that cover's page only. builtin.* slices retired.
 
-v0.25.1 (Suresh's live findings): (1) "No way of deleting it!" —
-a custom group with tiles in it offered no delete (the link only
-appeared once empty). Custom groups now always offer "delete group
-& N tiles" (tiles go with it; devices untouched); controller-page
-sections got the same. (2) GRID DENSITY exposed: the engine already
-had both knobs (screen.grid.columns default 2, section.columns
-override) but the Studio never showed them — page-level "Grid
-columns" field (Hub + View editors) + per-section Columns inputs
-(Devices/Presets folds, custom groups, controller sections). This
-also explains the "why 2 cols?" mystery: porch pins columns:1
-(room-hub doctrine); ＋-minted pages carried no grid, so the
-engine's default 2 applied. Decision: an ACTION CARD archetype is
-blessed for a later round — scene/script/preset fold into one
-tap-runs-something card that RETAINS a Navigate-to slot.
-
-v0.25 — **NAV UNIFICATION** (Suresh: "groups are just another
-page/view… the device tile is really a NAV CARD"; go: "lets do a and
-b and see how it feels"). (a) ONE tile type `nav` with
-`style: auto|plain|image|summary` replaces group/room/nav — HARD
-migration ("we're the only user"): compiler rewrites legacy types
-(NAV_MIGRATE in compile_tile), yaml sources rewritten (overview room
-tiles → nav/image, porch grp_hvac → nav/summary), engine ships ONLY
-WIDGETS.nav (group.js/room.js deleted; navStyle() resolves auto:
-tile image → image; target room → image; target has entities →
-summary; else plain; style rides as a nav-<style> class, CSS keyed
-off .wgt-nav.nav-image). Summary sub still derives LIVE from the
-target page's tiles (navTargetEntities); subscription only for
-summary style. Studio normalizeNavTiles() heals pre-migration
-configs on load/import/scratch. Compiler validates nav targets.
-(b) ARCHETYPE ADD BUTTONS: every tile section (Hub + View editors)
-offers "＋ Add device · ＋ Add nav card" — the type dropdown demotes
-to device / nav card / Content generators / Raw widgets (group/room
-entries gone). Nav-card concertina: Opens (named views) + edit→/＋,
-Style select, Image field; label still renames its page.
-(3) PAGE DRAFTS — the ＋-action contract GENERALIZED to pages:
-beginPageDraft/confirmPageDraft/discardPageDraft (app.pending kind
-"page"); nav-card ＋ and the activity's ＋-Create-control-page both
-mint, link (preview live while drafting), and JUMP into the page
-editor showing a draft banner — Keep returns to the origin, Discard
-deletes the page and unwinds the link (tile.target / act.screen).
-renameScreen keeps an in-flight draft's sid honest (page id follows
-the name while drafting). Parked: room-summary nav content (c).
-Tests: smoke-nav asserts nav-summary (live "4 entities · 1 active",
-tap→comfort) + nav-image (roomimg, tap→porch); smoke-studio 11a now
-walks the draft-Keep path, new 11c mints a nav-card page and
-DISCARDS it (page gone, card unlinked, save verified). All 10 green.
-
 v0.24.1 (Suresh's round of polish): (1) the entity combobox
 dropdown is FIXED-positioned (measured from the input, re-glued on
 scroll/resize) — no ancestor can clip it; first attempt closed-on-
@@ -471,6 +424,171 @@ one — a full hub view named from the tile label, parented to the
 owner view, all anatomy folds present but OFF ("same anatomy, bits
 switched off"); TileRow got ownerScreen. Group-tile rendering itself
 verified fine (one summary tile on porch).
+
+v0.25 — **NAV CARDS: ONE TYPE, FOUR STYLES** (Suresh: "groups are
+just another page/view… the device tile is really a NAV CARD… our
+nav card is functionally an activity card with a jump to page";
+blessed "lets do a and b"). (a) group/room/nav tiles are ONE engine
+type — `nav` with `style: auto|plain|image|summary` (auto: image if
+the tile has one or targets a room · summary if the target page has
+entities · plain otherwise). The widget merges the old three: plain
+button / full-bleed photo (`nav-image` class carries the old room
+CSS) / live "n entities · k active" derived from the target page's
+tiles (navTargetEntities — one source of truth, no baked copies;
+only summary cards subscribe those entities). HARD migration ("we're
+the only user"): the compiler rewrites old types (NAV_MIGRATE in
+compile_tile) and validates nav targets; yaml sources rewritten;
+Studio normalizeNavTiles() heals stored/scratch/imported configs;
+the engine ships nav only (group.js/room.js deleted). (b) ARCHETYPE
+ADD BUTTONS: every tile section offers "＋ Add device · ＋ Add nav
+card" (HubEditor + ViewEditor); the Type dropdown collapsed to
+device / nav card / content generators / raw widgets. Nav-card
+concertina: label (the target page's name follows) · style · image ·
+Opens (name-labeled views · edit page → · ＋ mint). (3-agreed) PAGE
+DRAFTS generalize the action-draft contract: beginPageDraft /
+confirmPageDraft / discardPageDraft — ＋-minted pages (the nav
+card's ＋ AND the activity's ＋ Create control page) JUMP into their
+editor under a draft banner ("✓ Keep this page" / "✕ Discard";
+discard unwinds the link and deletes the page, landing back where
+you left); renameScreen keeps pending.sid honest while the page id
+follows the name. Plus: sidebar "＋ Add view" under Views (Suresh:
+"where can I add a page/view?") — mints a free-standing hub; flip
+Room view on for it to own activities. subordinateScreens is
+nav-aware (a nav target nests under its card unless the target is
+itself a room). Parked (c): room-summary nav content ("Watching
+Fire TV · 22°"). Tests: smoke-nav grew style/tap coverage
+(summary counts live, image renders, no-target flashes);
+smoke-studio 11a reworked for the draft jump + new 11c (nav-card
+mint → draft → discard). All 10 suites green.
+
+v0.26 — **ROOMS DISSOLVE INTO INFERENCE** (Suresh: "it feels
+redundant and a mental gyration — all pages can have activities;
+power should be settable anyway; we already map Home; I don't like
+us adding HA entities"). The Room-view toggle is GONE from the UI.
+Doctrine: "room" isn't declared, it's what a page BECOMES — a page
+that owns activities is a place where things run. The `room` field
+stays in the data model as the STICKY host marker: stamped when the
+first activity arrives (Studio stampHost on ＋ Add activity;
+normalizeHosts heals stored/imported/scratch configs; the compiler
+infers it for hub views that declare activities), never removed
+until the page is deleted — so the minted select NEVER flaps under
+automations (his wrinkle question: "sticky for the life of the
+page" chosen over pure inference). select.py mints per room-marked
+screen (main_home excluded — the rooms hub is a collection, not a
+host) ∪ activity owners; a host stripped bare mid-rebuild keeps its
+select at "off". POWER is now a visible per-page SETTING (Key
+Mappings row, default Auto): auto = hosts → end-the-running-activity
+(confirm/hold doctrine), plain page → switch page devices;
+`screen.power: "activity" | "devices"` overrides; controllers still
+pass through. Engine input.js honors the override before the class
+scopes. On the "beyond our remit" pushback, the select was defended
+and kept: it's not storage, it's the PUBLISHED runtime state — HA
+entities are the pub/sub bus (engine resubscribe/reconnect, multi-
+remote convergence, his sync automation, dashboards/voice see
+"what's running") — but minting is now earned (a consequence of
+owning activities), never declared. Tests: smoke-keys 6b (power
+overrides both ways), smoke-studio 13 (toggle gone; ＋ Add view →
+first activity stamps the sticky marker). All 10 suites green.
+
+v0.27 — **POLISH: "ROOM" LEAVES THE UI + THEME GROWS LAYOUT & TYPE**
+(Suresh's polish round, items 1+3; item 2 — key-mapping versatility /
+All-Off-as-action — went to DISCUSS first). (1) Wording sweep: "Room
+functions" → "Page functions", "Rooms hub" → "Home hub", "Rooms chip"
+→ "Home chip", "owner room" → "owner page", "edit in room" → "edit in
+page" — every user-facing "room" in the Studio is now "page" (data
+keys room/room_view unchanged — internal). (3) THEME EDITOR (new
+visual editor for the theme slice — was Code-tab-only): Colors (all
+tokens + radius, color pickers where hex) and a LAYOUT & TYPE global
+block — tile height (--tile-h), primary font face/size/weight
+(--font-1/--fs-1/--fw-1: labels & titles + body) and secondary
+(--font-2/--fs-2/--fw-2: subs & hints). Engine: tokens.css declares
+the vars with today's values as defaults, grid.css consumes them;
+applyTheme now CLEARS previously-set vars before applying, so
+blanking a field in the Studio falls back to the stylesheet default
+live. Cols stay per-page (grid.columns); per-page height/type
+overrides are the noted later cleverness. All 10 suites green.
+
+v0.28 — **KEY BINDINGS TABLE + ALL OFF DISSOLVES** (Suresh: "All
+Off is too fixed… isn't it just another defined activity sequence?"
+— yes, and it dissolved). ONE action grammar everywhere: runAction
+now speaks {navigate} | {sequence} | {service, entity|target, data}
+(with the unresolved-context no-op guard), shared by presets,
+trailing slots, and key bindings; the bmap dispatch in input.js
+collapsed onto it. POWER (hold): a power_hold BINDING
+(screen.buttons over global.buttons) is the page's authored
+sledgehammer — just an Action it points at ("Porch All Off");
+unbound = derived default (end the running activity IMMEDIATELY;
+idle = nothing). endActivity's fallback for a stop-less activity is
+now owner-page binding → current-page → global (the old
+activities.off.start fallback is gone). The special "off" ACTIVITY
+is retired: compiler migrates a declared off activity into its
+owner view's buttons.power_hold ({sequence:…}); porch.yaml
+rewritten (buttons: power_hold: {sequence: all_off}); Studio
+normalizeOffActivity heals stored configs. Studio KEY MAPPINGS grew
+the BINDINGS TABLE: rows of key (Power/Menu hold · Vol± · CH± ·
+Mute) → Run action (sequence picker) / Go to page (raw service
+bindings summarized, Code tab to edit); ghost row shows the
+power_hold derived default until bound; ＋ Add key binding. The
+"Page functions" fold is deleted. Stop-action hint: "blank = the
+page's hold-Power action ends it". Tests: smoke-keys 7c rewritten
+(idle+unbound = nothing; porch binding fires harmonium.run
+all_off), smoke-studio 14 (fold gone, binding row renders, off
+activity gone). All 10 suites green. NOTE: controllers' buttons
+(music CH±) still edit via Code tab — bindings-table-on-controllers
+is a later nicety.
+
+v0.28.1 (Suresh's screenshots): (1) "theme variables do nothing" —
+REAL BUG on one-column pages: `.tile.row` hard-coded min-height 78px
+over the new var; now `var(--tile-row-h, calc(var(--tile-h) - 6px))`
+(rows ride the global knob, 6px slimmer, matching the old 84/78;
+independent override via Code tab). Fonts were live all along;
+harness-verified end-to-end (78→194px at tile-h 200px). (2) Key
+Mappings de-cluttered: bindings moved OUT of the stock grid into
+their own bordered "Key bindings" sub-block — left-aligned, one line
+per binding (key select w-36, no truncation), ghost default row and
+＋ button inside it. (3) Scratch showing no binding while Live shows
+one is EXPECTED — workspaces are separate configs; the off→binding
+migration applies to whichever config carried an off activity.
+
+v0.28.2 — Primary font size was ALSO row-pinned: `.tile.row .lbl`
+(and the nav-image card label) hard-coded 17px → now
+`calc(var(--fs-1) + 2px)` (15→17 default, rides the knob;
+harness-verified 24px → 26px row labels, fs-2 6px → 6px subs).
+Layout & type block tidied into a proper table: one header row (FONT
+FACE / SIZE / WEIGHT), Primary/Secondary rows, compact tile-height
+row, weight options shortened ("600 · default") so nothing clips.
+LESSON now twice-learned: the one-column `.tile.row` variant is a
+parallel styling universe — any new global token must be checked
+against it.
+
+v0.29 — **TILE ANATOMY KNOBS** (Suresh's Fire-TV-row target).
+Theme vars: --icon-zone (row icon disc, glyphs scale at .52/.48 of
+it, images fill it), --icon-radius (50% circle · 14px squircle · 0
+square), --tile-gap (icon↔text), --tile-pad-x/--tile-pad-y (both
+tile variants — shifts the icon+text block toward/away from edges).
+Weight list is Roboto's real cuts: 100/300/400/500/700/900 (all
+on-device on Android — zero bloat; system-ui = Roboto there, and
+sans-serif-condensed gives the dense Harmony look free). ONE icon
+field in TileRow now takes either payload: material:<glyph> →
+`icon`, path/URL (/local/…) → `icon_image` (already engine-supported;
+fills the zone — the branded Fire TV look); grid tiles got sane
+28px img styling. Layout & type block: knob rows via a Svelte
+snippet (tile height · icon zone · icon shape · gap · padding ↔ ↕).
+Harness-verified end-to-end (zone 72px, radius 14px, gap 24px,
+pad-x 30px, weight 300). All 10 suites green.
+
+v0.29.1 — HERO HEIGHT DEMYSTIFIED (Suresh: "works in increments
+of 50… what does Min height (scrolled) do?"). Diagnosis: the
+self-fitting hero treats Height as a CEILING and shrinks to the
+nearest tile boundary so no tile is guillotined at the fold — hence
+tile-pitch-quantized height edits, and per-device variance (the HW
+remote's viewport snaps differently). min_height was mislabeled —
+it's the shrink FLOOR, unrelated to scrolling. Now: `banner.fit:
+false` = exact height, no snapping (harness: fit on → 230/260/290
+all land 230/233/233; fit off → exact); Studio hero fold grew a
+"Self-fitting height" switch + an explanation paragraph; fields
+relabeled Height ("ceiling — self-fit may shrink it") and Height
+floor. All 10 suites green.
 
 v0.23.1 (Suresh's live findings): (1) the Listen to Music activity
 card CRASHED on open (props_invalid_value — music lacks confirm_end;

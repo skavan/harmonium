@@ -1,3 +1,5 @@
+/* BUTTONS strip — a row of named device keys (back/home/menu/…)
+   sent via remote.send_command through cmdFor's command map. */
 WIDGETS.buttons = {
     /* device button bar (2-4 slots): each slot is a logical dpad key
        sent to `entity` through cmdFor — so the same bar emits UP vs

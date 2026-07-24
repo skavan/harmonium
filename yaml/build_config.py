@@ -126,10 +126,15 @@ def compile_view(view_id: str, view: dict[str, Any], activities: dict[str, Any])
     if view.get("id") != view_id:
         raise ValueError(f"views/{view_id}.yaml must declare id: {view_id}")
 
-    # TAXONOMY v2: type hub|controller|library (+ room: true) — the
-    # compiler derives the engine's legacy class/view_kind from it.
+    # TAXONOMY v2: type hub|controller|library — the compiler derives
+    # the engine's class/view_kind. HOSTING IS INFERRED (v0.26): a hub
+    # that declares activities IS a place where things run (the sticky
+    # `room` marker); explicit `room: true` still accepted (e.g. the
+    # rooms hub) but no longer required.
     vtype = view["type"]
-    room = bool(view.get("room"))
+    declared = view.get("activities")
+    hosts = isinstance(declared, dict) and bool(declared)
+    room = bool(view.get("room")) or (vtype == "hub" and hosts)
     if vtype == "hub":
         cls = "room" if room else "group"
         view_kind = "room hub" if room else "hub"
@@ -258,7 +263,10 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
     # $context-bound control surface addressed as "controller:<id>".
     # All refs to a library id (activity screens, screen_order,
     # parents) are rewritten to the controller: form.
-    lib_ids = {vid for vid, v in views.items() if v.get("library")}
+    # in views order (a SET here made controllers' key order follow the
+    # process hash seed — semantically fine, but it broke byte-identical
+    # builds and every hash-verification ceremony)
+    lib_ids = [vid for vid, v in views.items() if v.get("library")]
     if lib_ids:
         runtime["controllers"] = {vid: runtime["screens"].pop(vid) for vid in lib_ids}
         runtime["screen_order"] = [
@@ -269,6 +277,16 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
         for scr in list(runtime["screens"].values()) + list(runtime["controllers"].values()):
             if scr.get("parent") in lib_ids:
                 scr["parent"] = "controller:" + scr["parent"]
+    # ALL OFF DISSOLVES (v0.28): a declared "off" activity is legacy —
+    # it becomes its owner view's hold-Power binding (just an Action);
+    # the select's "off" option is minted regardless.
+    legacy_off = runtime["activities"].pop("off", None)
+    if legacy_off:
+        owner = runtime["screens"].get(legacy_off.get("room_view"))
+        start = legacy_off.get("start") or ""
+        if owner is not None and start.startswith("sequence:"):
+            owner.setdefault("buttons", {}).setdefault(
+                "power_hold", {"sequence": start[len("sequence:"):]})
     # ship the stock domain controllers (unless yaml overrode one)
     runtime.setdefault("controllers", {})
     for dom, stock in DOMAIN_STOCKS.items():

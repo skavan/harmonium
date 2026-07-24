@@ -13,6 +13,11 @@ activity_state: select.harmonium_porch_activity
 context:
   volume: media_player.ma_soundbar_porch
 
+# KEY BINDINGS (v0.28): hold-Power runs the page's authored
+# sledgehammer — just an Action; the old special "off" activity is gone
+buttons:
+  power_hold: { sequence: all_off }
+
 header:
   image: /local/images/Porch_Render.jpg
   image_opacity: 0.5
@@ -113,12 +118,6 @@ activities:
     state:
       entities: [media_player.ma_sonos_basement]
       on: { any_state: ["on", playing, paused, buffering] }
-
-  off:
-    name: All Off
-    icon: material:power_settings_new
-    start: sequence:all_off
-    confirm_end: true
 
 # Building blocks: SEQUENCES are first-class actions (HA action syntax,
 # executed HA-side by the integration's harmonium.run service — the

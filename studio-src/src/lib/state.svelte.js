@@ -149,6 +149,40 @@ export function normalizeNavTiles(cfg) {
   return cfg;
 }
 
+/* HOSTING IS INFERRED (v0.26): a page that owns activities IS a place
+   where things run. The `room` marker is the STICKY record of that —
+   stamped when the first activity arrives, never removed until the
+   page is deleted (its minted select must not flap under automations).
+   No user-facing toggle. */
+export function stampHost(scr) {
+  if (!scr || scr.room || (scr.type || "hub") === "controller") return;
+  scr.room = true;
+  scr.class = "room";
+  scr.view_kind = "room hub";
+}
+export function normalizeHosts(cfg) {
+  for (const act of Object.values(cfg?.activities || {}))
+    if (act?.room_view && cfg.screens?.[act.room_view]) stampHost(cfg.screens[act.room_view]);
+  return cfg;
+}
+
+/* ALL OFF DISSOLVES (v0.28): the special "off" activity is legacy —
+   it becomes its owner page's hold-Power binding (just an Action).
+   The select's "off" option is minted regardless. */
+export function normalizeOffActivity(cfg) {
+  const off = cfg?.activities?.off;
+  if (!off) return cfg;
+  const owner = cfg.screens?.[off.room_view];
+  const start = off.start || "";
+  if (owner && start.startsWith("sequence:")) {
+    if (!owner.buttons) owner.buttons = {};
+    if (!owner.buttons.power_hold)
+      owner.buttons.power_hold = { sequence: start.slice(9) };
+  }
+  delete cfg.activities.off;
+  return cfg;
+}
+
 /* heal scratch drafts made by older Studio builds */
 function normalizeScratch(cfg) {
   const g = cfg.global || {};
@@ -170,6 +204,8 @@ function normalizeScratch(cfg) {
   }
   ensureStockControllers(cfg);
   normalizeNavTiles(cfg);
+  normalizeHosts(cfg);
+  normalizeOffActivity(cfg);
   return cfg;
 }
 
@@ -207,7 +243,7 @@ export async function importConfig(file) {
   try {
     const cfg = JSON.parse(await file.text());
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
-    app.draft = normalizeNavTiles(cfg);
+    app.draft = normalizeOffActivity(normalizeHosts(normalizeNavTiles(cfg)));
     const rooms = roomIds();
     selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
     pushPreview();
@@ -398,14 +434,14 @@ export function slices() {
     sub: Object.keys(d.activities || {}).length + " across rooms", group: "Model" });
   s.push({ key: "input", label: "Input policy", sub: "tap/hold ownership", group: "System" });
   s.push({ key: "devices", label: "Remotes & keymaps", sub: "profiles", group: "System" });
-  s.push({ key: "theme", label: "Theme", sub: "colors", group: "System" });
+  s.push({ key: "theme", label: "Theme", sub: "colors · layout · type", group: "System" });
   return s;
 }
 
 /* which slices have a visual editor */
 export const hasVisual = (key) =>
   (key || "").startsWith("view.") || key === "activities" || key === "sequences" ||
-  key === "apps" || (key || "").startsWith("screens.") ||
+  key === "apps" || key === "theme" || (key || "").startsWith("screens.") ||
   (key || "").startsWith("controller.");
 
 export function getSlice(key) {
@@ -557,6 +593,20 @@ export function discardSeqDraft() {
   app.focusActivity = p.activityId;
   selectSlice(p.originKey);
   setStatus("draft discarded — nothing linked", "ok");
+}
+
+/* ---- ＋ Add view (sidebar): a free-standing page, born a plain hub.
+   Name it (the id follows the slug); add an activity to make it a
+   place where things run. Deliberate creation — no draft banner. */
+export function addView() {
+  const d = app.draft;
+  if (!d) return;
+  let sid = "new_view", n = 2;
+  while (d.screens[sid]) sid = "new_view_" + n++;
+  d.screens[sid] = { name: "New View", class: "group", view_kind: "hub", type: "hub", sections: [] };
+  selectSlice("screens." + sid);
+  schedulePreview();
+  setStatus("view created — name it (the id follows); add an activity to make it a place where things run", "ok");
 }
 
 /* ---- ＋-minted PAGE draft flow — the SAME contract, generalized to
@@ -913,6 +963,8 @@ export async function boot() {
     app.saved = await r.json();
   }
   normalizeNavTiles(app.saved);
+  normalizeHosts(app.saved);
+  normalizeOffActivity(app.saved);
   app.draft = JSON.parse(JSON.stringify(app.saved));
   const devs = Object.keys(app.draft.devices || {});
   app.device = devs.includes("astrion") ? "astrion" : devs[0] || "default";

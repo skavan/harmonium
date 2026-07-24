@@ -1,3 +1,5 @@
+/* DPAD pad — on-screen directional pad; capturing: while focused,
+   physical arrows go to the device (cmdFor map). */
 WIDGETS.dpad = {
     /* on-screen remote panel for touch devices (ring + side keys);
        hidden on hardware remotes via `unless: physical_dpad` */

@@ -133,6 +133,32 @@ r.gpwr2 = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_serv
 r.gpwr2TileCleared = await p2.evaluate(() =>
   !document.querySelector('#grid .tile').classList.contains('cfm-off'));
 
+// 6b. POWER OVERRIDE (v0.26): screen.power replaces the Auto scope —
+//     comfort forced to "activity" scope with nothing running = flash,
+//     no device calls; porch (a host) forced to "devices" = group path
+await p2.evaluate(() => {
+  CONFIG.screens.comfort.power = 'activity';
+  navigate('comfort', true); window._sent.length = 0;
+});
+await p2.waitForTimeout(120);
+await p2.keyboard.press('F2');
+r.pwrOverrideActivity = await p2.evaluate(() => ({
+  calls: window._sent.filter(m => m.type === 'call_service').length,   // 0
+  bar: document.getElementById('screenName').textContent,              // Nothing running
+}));
+await p2.evaluate(() => {
+  delete CONFIG.screens.comfort.power;
+  CONFIG.screens.porch.power = 'devices';
+  navigate('porch', true); window._sent.length = 0;
+});
+await p2.waitForTimeout(150);
+await p2.keyboard.press('F2');
+r.pwrOverrideDevices = await p2.evaluate(() => ({
+  confirmBar: document.getElementById('screenName').textContent.includes('Press power again'),
+}));
+await p2.evaluate(() => { delete CONFIG.screens.porch.power; navigate('comfort', true); });
+await p2.waitForTimeout(120);
+
 // 7. detail power: immediate device toggle, no confirm
 await p2.evaluate(() => { navigate('detail:light.porch_lights'); window._sent.length = 0; });
 await p2.waitForTimeout(120);
@@ -147,14 +173,23 @@ await p2.keyboard.press('m');
 r.mute = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service')
   .map(m => m.service + ':' + JSON.stringify(m.service_data) + '@' + ((m.target || {}).entity_id || '')));
 
-// 7c. power_hold ('o') = All Off WITH two-press confirm
+// 7c. power_hold ('o') v0.28: unbound + idle = NOTHING (derived
+//     default only ends a RUNNING activity); a power_hold BINDING
+//     (porch: sequence all_off) runs its Action immediately
 await p2.evaluate(() => { window._sent.length = 0; });
 await p2.keyboard.press('o');
-const phFirst = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service').length);
+r.powerHoldIdle = await p2.evaluate(() => ({
+  calls: window._sent.filter(m => m.type === 'call_service').length,   // 0
+  bar: document.getElementById('screenName').textContent,              // Nothing running
+}));
+await p2.evaluate(() => { navigate('porch', true); window._sent.length = 0; });
+await p2.waitForTimeout(150);
 await p2.keyboard.press('o');
-r.powerHold = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service')
-  .map(m => m.service + '@' + ((m.target || {}).entity_id || '')));
-r.powerHoldFirst = phFirst;
+r.powerHoldBound = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service')
+  .map(m => m.domain + '.' + m.service + ':' + JSON.stringify(m.service_data || {})));
+  // expect one harmonium.run {"sequence":"all_off"} — no confirm, it's the deliberate hold
+await p2.evaluate(() => { navigate('comfort', true); window._sent.length = 0; });
+await p2.waitForTimeout(120);
 
 // 8. room power, nothing running: two-press -> All Off script
 await p2.evaluate(() => { navigate('porch', true); S.stack = []; window._sent.length = 0; });

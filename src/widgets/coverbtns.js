@@ -1,3 +1,5 @@
+/* COVER buttons — the Open · Stop · Close trio used on generated
+   cover detail pages. */
 WIDGETS.coverbtns = {
     /* covers don't toggle on/off — they Open / Stop / Close.
        D-pad: ◀▶ move the roving highlight while focused (keys map, no

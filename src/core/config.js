@@ -30,7 +30,14 @@ async function loadConfig() {
   return r.json();
 }
 
+let THEMED = [];   /* vars set by the last applyTheme — cleared first so
+                      a REMOVED key falls back to the stylesheet default
+                      (live Studio editing relies on this) */
 function applyTheme(theme) {
-  for (const [k, v] of Object.entries(theme || {}))
+  for (const k of THEMED) document.documentElement.style.removeProperty(k);
+  THEMED = [];
+  for (const [k, v] of Object.entries(theme || {})) {
     document.documentElement.style.setProperty("--" + k, v);
+    THEMED.push("--" + k);
+  }
 }

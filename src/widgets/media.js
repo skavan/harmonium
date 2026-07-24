@@ -1,3 +1,5 @@
+/* MEDIA tile — now-playing card (art hero variant with `art: true`);
+   tap play/pauses; sub = state · title. */
 WIDGETS.media = {
     /* Now Playing tile. Plain by default; "art": true upgrades the body
        to an artwork hero — thumb (entity_picture), title/artist/album,

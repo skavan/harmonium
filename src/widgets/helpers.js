@@ -1,3 +1,6 @@
+/* Shared widget helpers — remote-command resolution (DPAD_DEFAULT <
+   tile commands < activity dpad_commands), icon map, nudge steppers
+   for light/climate. */
 const cap = s => (s || "").charAt(0).toUpperCase() + (s || "").slice(1);
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };

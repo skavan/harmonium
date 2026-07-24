@@ -1,3 +1,5 @@
+/* CHIPS row — one-tap choice pills for an entity attribute list
+   (hvac_mode, fan_mode, preset, effect …); kind picks the recipe. */
 WIDGETS.chips = {
     /* option pills from a CHIP_KINDS binding (t.kind); options are
        read from entity attributes each render, so they track the

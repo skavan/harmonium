@@ -1,5 +1,5 @@
 <script>
-  import { app, slices, selectSlice } from "./state.svelte.js";
+  import { app, slices, selectSlice, addView } from "./state.svelte.js";
   /* four fixed groups: VIEWS / CONTROLLERS / MODEL / SYSTEM
      (Suresh's sidebar); ⌞ items nest under the one above */
   const groups = $derived.by(() => {
@@ -29,5 +29,11 @@
       >{#if s.deep}<span class="text-dim">⌞ </span>{/if}{s.label} <small class="font-normal text-dim">· {s.sub}</small></button>
       {/if}
     {/each}
+    {#if g.name === "Views"}
+      <button
+        class="block w-full cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1.5 text-left font-[inherit] text-xs text-dim hover:border-accent/60 hover:text-accent"
+        title="Create a free-standing view — add an activity to make it a place where things run"
+        onclick={addView}>＋ Add view</button>
+    {/if}
   {/each}
 </nav>

@@ -1,3 +1,5 @@
+/* POWER toggle — standalone round homeassistant.toggle button (also
+   the power row on generated detail pages). */
 WIDGETS.power = {
     /* standalone round toggle (homeassistant.toggle) */
     sub: () => "",

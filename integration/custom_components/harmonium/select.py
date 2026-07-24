@@ -30,8 +30,16 @@ async def async_setup_entry(
     config = await data["store"].async_load() or {}
     activities = config.get("activities") or {}
     screens = config.get("screens") or {}
+    main_home = (config.get("global") or {}).get("main_home")
 
     rooms: dict[str, list[str]] = {}
+    # STICKY HOSTS (v0.26): any screen carrying the `room` marker keeps
+    # its select for the life of the page — stripping activities out
+    # mid-rebuild must never kill the entity (automations watch it).
+    # The rooms hub (main_home) is a collection, not a host.
+    for sid, scr in screens.items():
+        if sid != main_home and (scr or {}).get("room"):
+            rooms.setdefault(sid, [])
     for aid, act in activities.items():
         room = (act or {}).get("room_view")
         if room:

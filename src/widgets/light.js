@@ -1,3 +1,4 @@
+/* LIGHT tile — on/off + brightness%; tap toggles; meter = brightness. */
 WIDGETS.light = {
     sub: e => st(e).s === "on"
       ? "On · " + Math.round((st(e).a.brightness || 255) / 2.55) + "%"

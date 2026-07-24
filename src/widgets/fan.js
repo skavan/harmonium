@@ -1,3 +1,4 @@
+/* FAN tile — on/off + percentage summary; tap toggles. */
 WIDGETS.fan = {
   /* fan tile: tap = toggle; state line shows speed % (or preset);
      hold captures the D-pad for speed; ⚙ trail → generated detail

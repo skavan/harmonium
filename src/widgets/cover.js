@@ -1,3 +1,5 @@
+/* COVER tile — position summary; tap toggles open/close
+   (entity_options.invert_position respected). */
 WIDGETS.cover = {
     /* invert_position flips the DISPLAY (state word, %, meter) so a
        retracted screen reads "Closed · 0%"; actions are unchanged */

@@ -1175,3 +1175,73 @@ resolution: per-device custom (variant_of=domain + entity) → stock
 def → hardcoded fallback. Editing the stock edits every device's
 page; "Custom copy for device" forks one. entity_options stay the
 cross-cutting per-device switches (options fold on the stock page).
+
+## Addendum v0.25 — nav cards (2026-07-24)
+
+`group` / `room` / `nav` tiles are ONE type now:
+
+```yaml
+- id: grp_hvac
+  type: nav
+  style: summary        # auto (default) | plain | image | summary
+  label: HVAC & Lights
+  target: comfort       # any view; ＋ in the Studio mints one
+  image: /local/x.jpg   # used by image style (and auto, when set)
+```
+
+Styles: `plain` = icon+label button (old nav) · `image` = full-bleed
+photo (old room; `nav-image` class carries the CSS) · `summary` =
+live "n entities · k active" derived from the target page's tiles
+(old group; explicit `entities:` still overrides) · `auto` resolves
+image (tile has one, or target is a room) → summary (target has
+entities) → plain. Only summary cards subscribe the derived
+entities. The compiler hard-migrates old types (NAV_MIGRATE) and
+validates `target` against navigable views; the Studio heals stored
+configs (normalizeNavTiles). Studio flow: sections offer "＋ Add
+device · ＋ Add nav card"; a nav card's ＋ mints the page and jumps
+in as a PAGE DRAFT (Keep / Discard — discard unlinks and deletes),
+the same contract as ＋-minted actions; the activity's ＋ Create
+control page drafts the same way. Sidebar gained "＋ Add view".
+
+## Addendum v0.26 — hosting is inferred (2026-07-24)
+
+No more Room-view toggle. A page that owns activities IS a room —
+the `room: true` field remains in the wire format as the STICKY host
+marker: stamped when the page gains its first activity (Studio /
+compiler inference), kept until the page is deleted. Consequences of
+the marker: the integration mints `select.harmonium_<id>_activity`
+for it (sticky — survives losing all activities, sits at "off";
+`global.main_home` is excluded), Auto Power means end-the-running-
+activity there, and it lists as a top-level place in the Studio.
+
+Power is a per-page setting now:
+
+```yaml
+power: activity   # optional — end the running activity (confirm/hold)
+power: devices    # optional — switch this page's devices off/on
+# absent = Auto: hosts → activity · plain page → devices;
+# controllers pass Power to the device; detail pages toggle theirs
+```
+
+
+## Addendum v0.28 — key bindings, All Off retired (2026-07-24)
+
+`screen.buttons` / `global.buttons` entries use the ONE action
+grammar (same as presets and trailing slots):
+
+```yaml
+buttons:
+  power_hold: { sequence: all_off }        # run a named Action
+  menu_hold:  { navigate: apps }           # go to a page
+  ch_up:      { service: media_player.media_next_track,
+                entity: $context.media_player }
+```
+
+Hold-Power resolution: screen binding → global binding → derived
+default (end the running activity immediately; idle = nothing). An
+activity with no stop falls back to its owner page's power_hold
+binding (then global). The special "off" activity NO LONGER EXISTS —
+the compiler and Studio migrate it into the owner view's
+buttons.power_hold; the select's "off" option is minted regardless.
+Bindable keys in the Studio table: power_hold, menu_hold, vol_up,
+vol_down, ch_up, ch_down, mute.

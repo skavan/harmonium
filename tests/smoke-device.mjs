@@ -100,6 +100,20 @@ r.cast = await p.evaluate(() => {
   };
 });
 
+// 7. trailing: false = a clean READOUT — no ⚙ block, tap/hold only
+await p.evaluate(() => {
+  const t = CONFIG.screens.porch.sections.flatMap(s => s.tiles || [])
+    .find(x => x.id === 'dev_tv');
+  t.trailing = false;
+  navigate('porch', true);
+});
+await p.waitForTimeout(150);
+r.noTrail = await p.evaluate(() => ({
+  gone: !document.querySelector('#tile_dev_tv .trail'),
+  classClean: !document.getElementById('tile_dev_tv').classList.contains('has-trail'),
+  musicStill: !!document.querySelector('#tile_dev_music .trail'),
+}));
+
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));
 await b.close();

@@ -272,8 +272,8 @@
     d.screens[sid] = screen;
     const prev = a.screen;
     a.screen = sid;
-    /* same contract as ＋ actions: jump in as a DRAFT — Keep or
-       Discard (which unwinds the link) on the page's banner */
+    /* same contract as ＋-minted actions: jump in as a DRAFT — Keep
+       or Discard (which unwinds the link) from the banner there */
     beginPageDraft(sid, { activityId: id, prevScreen: prev });
   }
 </script>
@@ -371,7 +371,7 @@
         <Field label="Start action" hint="an Action (sequence), or a plain HA script — ＋ drafts one">
           <ActionPicker bind:value={a.start} oncreate={() => createSeq("start")}
             createTitle={"Create sequence “" + (a.name || id) + " — Start”"} /></Field>
-        <Field label="Stop action" hint="blank = room All Off ends it">
+        <Field label="Stop action" hint="blank = the page's hold-Power action ends it">
           <ActionPicker bind:value={a.stop} oncreate={() => createSeq("stop")}
             createTitle={"Create sequence “" + (a.name || id) + " — Stop”"} /></Field>
         <Field label="Navigate to (after start)" hint={a.screen ? "" : "＋ mints its control page — keys wired, cast pre-populated"}>
@@ -493,7 +493,7 @@
             </div>
           {/if}
         {:else}
-          <p class="m-0 text-xs text-dim">Truth comes from the room's activity select. Add device rules to derive it from real device state (harmonia-style).</p>
+          <p class="m-0 text-xs text-dim">Truth comes from the page's activity select. Add device rules to derive it from real device state (harmonia-style).</p>
         {/if}
       </div>
 

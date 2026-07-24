@@ -1,3 +1,6 @@
+/* ACTIVITY tile — one activity's face: lit from the room's activity
+   select (or v2 state rules); tap starts/opens, confirm-to-end rides
+   the status bar. */
 WIDGETS.activity = {
     sub: (e, t) => {
       if (S.confirmTile === t.id) return "Press again to end";

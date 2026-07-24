@@ -57,14 +57,19 @@ function activityStateEntities() {
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
-/* Generic action object: { navigate: <screen> } or
-   { service, target|entity, data } — same grammar presets use. */
+/* Generic action object: { navigate: <screen> } or { sequence: <id> }
+   or { service, target|entity, data } — the ONE action grammar shared
+   by presets, trailing slots, and key bindings (v0.28). */
 function runAction(a) {
   if (!a) return;
   if (a.navigate) { navigate(a.navigate); return; }
+  if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
   const parts = (a.service || "").split(".");
-  if (parts.length === 2)
-    callService(parts[0], parts[1], a.data, resolveEntity(a.target || a.entity));
+  if (parts.length !== 2) return;
+  const ref = a.target || a.entity;
+  const target = resolveEntity(ref);
+  if (ref && !target) return;   // unresolved context → no-op, never untargeted
+  callService(parts[0], parts[1], a.data, target);
 }
 
 /* Presets: one-tap content shortcuts. If the preset names an activity,
@@ -118,8 +123,17 @@ function startActivity(id) {
   return true;
 }
 function endActivity(a) {
-  runActionRef(a.stop ||
-    (CONFIG.activities && CONFIG.activities.off && CONFIG.activities.off.start));
+  /* the activity's own stop; WITHOUT one it falls back to its page's
+     hold-Power binding (the authored sledgehammer), then the current
+     page's, then the global one. The special "off" activity is gone
+     (v0.28) — All Off is just an Action a binding points at. */
+  if (a.stop) { runActionRef(a.stop); return; }
+  const owner = a.room_view && CONFIG.screens && CONFIG.screens[a.room_view];
+  const b = (owner && owner.buttons && owner.buttons.power_hold) ||
+    ((screenOf(S.screen) || {}).buttons || {}).power_hold ||
+    (CONFIG.global.buttons || {}).power_hold;
+  if (b) runAction(b);
+  else flashBar("No stop action set");
 }
 function requestEnd(t, a) {
   if (a.confirm_end && S.confirmTile !== t.id) {

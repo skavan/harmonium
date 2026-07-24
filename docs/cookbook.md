@@ -64,8 +64,10 @@ section — those use `"columns": 1` so tiles render as full-width rows).
 **Step 5.** Bump `"version"`, deploy, reload.
 
 Optional extras:
-- Also count it in the home page's group tile: add the entity id to
-  `grp_hvac.entities`.
+- Also count it in the room page's summary nav card: with no explicit
+  `entities` list the card derives its counts LIVE from its target
+  page's tiles, so it follows automatically; pin `grp_hvac.entities`
+  only to curate.
 - Don't want the ⚙ zone? `"trailing": false` on the tile.
 - Want the tile to open something else entirely?
   `"trailing": { "icon": "material:tune", "action": { "navigate": "somewhere" } }`.
@@ -97,9 +99,10 @@ launches the app.
 
 ## Recipe 4 — Add an activity
 
-1. HA side: create `script.activity_<name>` whose FIRST step sets
-   `input_select.porch_activity` to `<name>`; add `<name>` to the
-   input_select's options.
+1. Best path: build it in the STUDIO (＋ Add activity — devices,
+   roles, draft-confirm actions, minted control page). Hand-authoring
+   instead? Give it a `start` sequence whose first step is
+   `harmonium.set_activity` — the minted select updates itself.
 2. Config `activities` block:
 
 ```json

@@ -1,3 +1,5 @@
+/* MEDIA buttons — transport-adjacent named keys (rew/ff/…) for
+   media_player entities. */
 WIDGETS.mediabtns = {
     /* media mode bar: shuffle + repeat for the tile's player.
        Tap toggles (shuffle) / cycles (repeat off→all→one→off);

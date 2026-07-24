@@ -16,7 +16,7 @@
   <div class="space-y-6">
     <p class="m-0 text-xs text-dim">
       Activities are stored in one flat registry (the engine routes by id)
-      but each belongs to an <b>owner room</b> — edit them there. True
+      but each belongs to an <b>owner page</b> — edit them there. True
       reuse across rooms is a template concern (coming); surfacing an
       activity in another room is just a tile that references its id.
     </p>
@@ -26,7 +26,7 @@
         <div class="mb-2 flex items-center gap-3">
           <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">{d.screens[r]?.name || r}</span>
           <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-            onclick={() => selectSlice(hubKey(r))}>edit in room →</button>
+            onclick={() => selectSlice(hubKey(r))}>edit in page →</button>
         </div>
         <div class="overflow-hidden rounded-[12px] border border-line">
           {#each ownedActivities(r) as id, i (id)}
@@ -44,7 +44,7 @@
               {#if a.stop}<span class="rounded-full bg-tile-hi px-2 py-0.5 text-[10px] text-dim">own stop</span>{/if}
             </button>
           {:else}
-            <div class="bg-tile px-3 py-2.5 text-xs text-dim">No activities yet — add them in the room.</div>
+            <div class="bg-tile px-3 py-2.5 text-xs text-dim">No activities yet — add them on the page.</div>
           {/each}
         </div>
       </div>
@@ -52,7 +52,7 @@
 
     {#if unassignedActivities().length}
       <div>
-        <div class="mb-2 text-[11px] font-bold tracking-[.07em] text-danger uppercase">Unassigned — no owner room</div>
+        <div class="mb-2 text-[11px] font-bold tracking-[.07em] text-danger uppercase">Unassigned — no owner page</div>
         <div class="overflow-hidden rounded-[12px] border border-danger/40">
           {#each unassignedActivities() as id, i (id)}
             {@const a = d.activities[id]}

@@ -1,3 +1,5 @@
+/* VOLUME — up/down/mute strip + optional level slider; truth may
+   come from a separate level_entity (the ARC split). */
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */

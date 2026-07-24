@@ -16,9 +16,9 @@
   const rooms = $derived(roomIds());
   let lastAdded = $state(null);
   /* an in-flight ＋-minted ACTION draft opens its own card (page
-     drafts belong to the page editors, not here) */
-  const seqPending = $derived(app.pending?.seqId ? app.pending : null);
-  $effect(() => { if (seqPending) lastAdded = seqPending.seqId; });
+     drafts belong to their page editor, not here) */
+  const seqDraft = $derived(app.pending?.seqId ? app.pending : null);
+  $effect(() => { if (seqDraft) lastAdded = seqDraft.seqId; });
   const backKey = $derived(
     app.prevKey && app.prevKey !== "sequences" &&
     (app.prevKey.startsWith("view.") || app.prevKey.startsWith("screens.")) ? app.prevKey : null);
@@ -119,16 +119,16 @@
 
 {#if app.draft}
   <div class="space-y-3">
-    {#if backKey && !seqPending}
+    {#if backKey && !seqDraft}
       <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
         onclick={() => selectSlice(backKey)}>← back to {backLabel}</button>
     {/if}
-    {#if seqPending}
+    {#if seqDraft}
       <div class="flex flex-wrap items-center gap-3 rounded-[10px] border border-accent/50 bg-accent/10 px-3 py-2">
         <span class="text-sm text-ink">
-          Drafting <b>{seqs?.[seqPending.seqId]?.name || seqPending.seqId}</b> as
-          <b>{app.draft.activities?.[seqPending.activityId]?.name || seqPending.activityId}</b>'s
-          {seqPending.kind} action — <i>nothing is linked until you confirm</i>.
+          Drafting <b>{seqs?.[seqDraft.seqId]?.name || seqDraft.seqId}</b> as
+          <b>{app.draft.activities?.[seqDraft.activityId]?.name || seqDraft.activityId}</b>'s
+          {seqDraft.kind} action — <i>nothing is linked until you confirm</i>.
         </span>
         <Button size="sm" onclick={confirmSeqDraft}>✓ Confirm &amp; link</Button>
         <Button size="sm" variant="danger" onclick={discardSeqDraft}>✕ Discard</Button>
@@ -167,7 +167,7 @@
                 onchange={(e) => renameSeq(id, e.target.value)}
                 class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
             </Field>
-            <Field label="Group" hint="free filing — TV actions, Lighting… blank = the owner room">
+            <Field label="Group" hint="free filing — TV actions, Lighting… blank = the owner page">
               <input value={seq.group || ""} list="seqgroups" placeholder={groupOf(seq)}
                 onchange={(e) => { const v = e.target.value.trim();
                   if (v) seq.group = v; else delete seq.group; }}
