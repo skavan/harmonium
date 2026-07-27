@@ -4,9 +4,10 @@
    follows the draft on every valid edit. */
 
 const API = "/api/harmonium/config";
+const WS_API = "/api/harmonium/workspaces";
 
 export const app = $state({
-  saved: null,        // last server copy
+  saved: null,        // last server copy OF THE CURRENT WORKSPACE
   draft: null,        // working copy (deep-reactive; forms bind into it)
   selKey: null,       // selected nav slice ("room", "screens.tv", "activities", …)
   sandbox: false,     // integration absent → read-only fallback
@@ -20,13 +21,21 @@ export const app = $state({
   pvPulse: 0,       // bumps on every preview push (sync indicator)
   entities: [],       // live HA states for pickers: {entity_id, name, state}
   tab: "visual",      // central pane: "visual" | "code"
-  workspace: "live",  // "live" (the deployed config) | "scratch" (safe sandbox)
+  /* WORKSPACES (v0.34): every server workspace is one remote's whole
+     world, all live at once (main = the repo-built config.json; others
+     deploy to config.<ws>.json). "scratch" stays the browser-local
+     sandbox — publish it to make it a real workspace. */
+  workspace: "main",  // current workspace id | "scratch"
+  workspaces: {},     // id → {name, file} from the server roster
+  wsOrder: [],
   prevKey: null,      // last slice before the current one (Back on model pages)
   pending: null,      // in-flight ＋-minted action draft {seqId, kind, activityId, originKey}
   focusActivity: null, // activity card to re-open after returning from a draft
 });
 
-let liveStash = null;   // in-memory home of the live draft while on scratch
+/* in-memory homes for drafts while another workspace is on stage:
+   ws id → {draft, saved}. Scratch persists to localStorage instead. */
+const wsStash = {};
 
 /* the GUARANTEED stock: a house-neutral Media Player controller —
    pure $context (zero entity ids), the v0.20.1 mint anatomy. Present
@@ -54,6 +63,10 @@ export const GENERIC_MEDIA_CONTROLLER = {
       { id: "t_vol", type: "volume", entity: "$context.volume",
         level_entity: "$context.volume_level",
         icon: "material:volume_up", label: "Volume", span: 2 },
+      /* SOURCE tile (v0.36): role-governed — appears iff the activity
+         wires source_select (hide-unwired otherwise) */
+      { id: "t_src", type: "sources", entity: "$context.source_select",
+        icon: "material:input", label: "Source", span: 2 },
     ] },
     { columns: 1, title: "Devices", hero_label: "Devices", role: "devices",
       tiles: [{ id: "cast", type: "devices" }] },
@@ -101,10 +114,10 @@ function ensureStockControllers(cfg) {
    input policy) and wipes the content — build from a clean slate */
 export function starterConfig() {
   const cur = $state.snapshot(app.draft) || {};
-  /* the stock library always comes from the LIVE config — clearing
+  /* the stock library always comes from a SERVER workspace — clearing
      WHILE ON scratch must not inherit scratch's own (empty) library */
-  const live = app.workspace === "live" ? cur
-    : (liveStash || $state.snapshot(app.saved) || cur);
+  const live = app.workspace !== "scratch" ? cur
+    : (wsStash.main?.draft || $state.snapshot(app.saved) || cur);
   return ensureStockControllers({
     version: 2,
     entity_options: cur.entity_options || {},
@@ -114,15 +127,29 @@ export function starterConfig() {
     home_screen: "home",
     screen_order: ["home"],
     global: { room: "New Room", confirm_switch: true, debug: false,
-      activity_select: "select.harmonium_home_activity" },
-    /* the STOCK library rides along — it's system, not content */
+      /* minted select id is workspace-prefixed (main + scratch bare —
+         scratch gets retargeted server-side when published) */
+      activity_select: "select.harmonium_" +
+        (app.workspace === "scratch" || app.workspace === "main"
+          ? "" : app.workspace + "_") + "home_activity" },
+    /* the STOCK library rides along — it's system, not content. But a
+       controller's `parent` is a CONTENT-graph edge (it points at a
+       page of the old workspace) — strip it, or a blank starter fails
+       validation with "unknown parent" (Suresh, first live create) */
     controllers: Object.fromEntries(Object.entries(live.controllers || {})
       .filter(([, c]) => !c.variant_of)
-      .map(([k, v]) => [k, JSON.parse(JSON.stringify(v))])),
+      .map(([k, v]) => {
+        const c = JSON.parse(JSON.stringify(v));
+        delete c.parent;
+        return [k, c];
+      })),
     input: cur.input || {},
     activities: {},
     sequences: {},
-    apps: cur.apps || {},
+    /* the app MASTER LIST + DEVICE CLASSES are stock (system, not
+       content) — like the controller library, they come from LIVE */
+    apps: JSON.parse(JSON.stringify(live.apps || cur.apps || {})),
+    app_classes: JSON.parse(JSON.stringify(live.app_classes || cur.app_classes || {})),
     screens: {
       home: { name: "New Room", class: "room", type: "hub", room: true,
         view_kind: "room hub", grid: { columns: 1 },   // room-hub doctrine: one column; sections override
@@ -183,6 +210,23 @@ export function normalizeOffActivity(cfg) {
   return cfg;
 }
 
+/* APP CLASSES (v0.30): heal configs from the entity-keyed era — build
+   a single "tv" class from the master list's default source names so
+   the drawer keeps rendering; identity stays in the master list. */
+export function normalizeApps(cfg) {
+  if (!cfg) return cfg;
+  if (!cfg.app_classes) cfg.app_classes = {};
+  const hasLegacy = Object.values(cfg.apps || {}).some((a) => a && (a.source || a.launch));
+  if (!Object.keys(cfg.app_classes).length && hasLegacy) {
+    const entries = {};
+    for (const [aid, a] of Object.entries(cfg.apps || {}))
+      if (a && a.source) entries[aid] = { source: a.source };
+    if (Object.keys(entries).length)
+      cfg.app_classes.tv = { name: "TV", apps: entries };
+  }
+  return cfg;
+}
+
 /* heal scratch drafts made by older Studio builds */
 function normalizeScratch(cfg) {
   const g = cfg.global || {};
@@ -206,26 +250,149 @@ function normalizeScratch(cfg) {
   normalizeNavTiles(cfg);
   normalizeHosts(cfg);
   normalizeOffActivity(cfg);
+  normalizeApps(cfg);
   return cfg;
 }
 
-export function switchWorkspace(ws) {
+function normalizeConfig(cfg) {
+  normalizeNavTiles(cfg);
+  normalizeHosts(cfg);
+  normalizeOffActivity(cfg);
+  normalizeApps(cfg);
+  return cfg;
+}
+
+function stashCurrent() {
+  if (!app.draft) return;
+  if (app.workspace === "scratch")
+    localStorage.setItem("hakr_scratch", JSON.stringify($state.snapshot(app.draft)));
+  else
+    wsStash[app.workspace] = {
+      draft: $state.snapshot(app.draft),
+      saved: $state.snapshot(app.saved),
+    };
+}
+
+export async function switchWorkspace(ws) {
   if (ws === app.workspace || !app.draft) return;
+  stashCurrent();
   if (ws === "scratch") {
-    liveStash = $state.snapshot(app.draft);
     const saved = localStorage.getItem("hakr_scratch");
     app.draft = normalizeScratch(saved ? JSON.parse(saved) : starterConfig());
+    /* app stock rides along: an older scratch draft without the
+       master list / device classes inherits a server workspace's
+       (system, not content — same doctrine as the controller library) */
+    const src = wsStash.main?.draft || $state.snapshot(app.saved) || {};
+    if (!Object.keys(app.draft.apps || {}).length && src.apps)
+      app.draft.apps = JSON.parse(JSON.stringify(src.apps));
+    if (!Object.keys(app.draft.app_classes || {}).length && src.app_classes)
+      app.draft.app_classes = JSON.parse(JSON.stringify(src.app_classes));
+  } else if (wsStash[ws]) {
+    /* resume the in-memory draft (unsaved edits survive the trip) */
+    app.saved = wsStash[ws].saved;
+    app.draft = wsStash[ws].draft;
   } else {
-    localStorage.setItem("hakr_scratch", JSON.stringify($state.snapshot(app.draft)));
-    app.draft = liveStash || JSON.parse(JSON.stringify(app.saved));
+    setStatus("loading workspace…");
+    try {
+      const r = await api("GET", null, "?ws=" + encodeURIComponent(ws));
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      app.saved = normalizeConfig(await r.json());
+      app.draft = JSON.parse(JSON.stringify(app.saved));
+    } catch (e) {
+      setStatus("couldn't load workspace '" + ws + "': " + e.message, "err");
+      return;
+    }
   }
   app.workspace = ws;
+  localStorage.setItem("hakr_studio_ws", ws);
   const rooms = roomIds();
   selectSlice(rooms.length ? "view." + rooms[0] : "screens." + app.draft.home_screen);
   pushPreview();
   setStatus(ws === "scratch"
-    ? "SCRATCH workspace — kept in this browser; Save & Deploy WOULD replace the live config"
-    : "back on the live config", ws === "scratch" ? "err" : "ok");
+    ? "SCRATCH — kept in this browser only; publish it as a workspace to deploy"
+    : "workspace: " + (app.workspaces[ws]?.name || ws) +
+      (ws === "main" ? " (repo-built — deploys to config.json)"
+        : " (deploys to config." + ws + ".json)"),
+    ws === "scratch" ? "err" : "ok");
+}
+
+/* ---- workspace roster (server CRUD) ---- */
+export async function loadWorkspaces() {
+  try {
+    const r = await fetch(WS_API, { headers: { Authorization: "Bearer " + token() } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const body = await r.json();
+    app.workspaces = body.workspaces || {};
+    app.wsOrder = body.order || Object.keys(app.workspaces);
+    return true;
+  } catch {
+    /* older integration (or sandbox): pretend a main-only roster */
+    app.workspaces = { main: { name: "Main", file: "config.json" } };
+    app.wsOrder = ["main"];
+    return false;
+  }
+}
+
+async function wsAction(body) {
+  const r = await fetch(WS_API, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  let out = {};
+  try { out = await r.json(); } catch { /* non-JSON error body */ }
+  if (!r.ok) throw new Error(out.message || out.problems?.join("; ") || "HTTP " + r.status);
+  return out;
+}
+
+/* Create a workspace: source = "blank" (starter), "duplicate"
+   (server-side copy of the current server ws), or "draft" (publish the
+   CURRENT draft — this is how scratch becomes real). The server
+   retargets minted-select refs and mints the routing selects. */
+export async function createWorkspace(name, source) {
+  if (app.sandbox) return;
+  const from = app.workspace === "scratch" ? "main" : app.workspace;
+  const body = { action: "create", name };
+  if (source === "duplicate" && app.workspace !== "scratch") {
+    body.action = "duplicate";
+    body.from = from;
+  } else {
+    body.config = source === "draft"
+      ? $state.snapshot(app.draft) : starterConfig();
+    body.from = source === "draft" && app.workspace !== "scratch" ? from : "main";
+  }
+  try {
+    const out = await wsAction(body);
+    await loadWorkspaces();
+    setStatus("workspace '" + name + "' created → " + (out.file || ""), "ok");
+    await switchWorkspace(out.workspace);
+  } catch (e) {
+    setStatus("create failed: " + e.message, "err");
+  }
+}
+
+export async function renameWorkspace(id, name) {
+  if (app.sandbox || !name.trim()) return;
+  try {
+    await wsAction({ action: "rename", id, name: name.trim() });
+    await loadWorkspaces();
+    setStatus("renamed", "ok");
+  } catch (e) {
+    setStatus("rename failed: " + e.message, "err");
+  }
+}
+
+export async function deleteWorkspace(id) {
+  if (app.sandbox || id === "main") return;
+  try {
+    await wsAction({ action: "delete", id });
+    delete wsStash[id];
+    await loadWorkspaces();
+    setStatus("workspace deleted (its remotes fall back to main)", "ok");
+    if (app.workspace === id) await switchWorkspace("main");
+  } catch (e) {
+    setStatus("delete failed: " + e.message, "err");
+  }
 }
 
 export function exportConfig() {
@@ -243,7 +410,7 @@ export async function importConfig(file) {
   try {
     const cfg = JSON.parse(await file.text());
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
-    app.draft = normalizeOffActivity(normalizeHosts(normalizeNavTiles(cfg)));
+    app.draft = normalizeApps(normalizeOffActivity(normalizeHosts(normalizeNavTiles(cfg))));
     const rooms = roomIds();
     selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
     pushPreview();
@@ -266,8 +433,8 @@ export function setStatus(msg, cls = "") {
   app.status = { msg, cls };
 }
 
-async function api(method, body) {
-  const r = await fetch(API, {
+async function api(method, body, query = "") {
+  const r = await fetch(API + query, {
     method,
     headers: {
       Authorization: "Bearer " + token(),
@@ -429,20 +596,26 @@ export function slices() {
   s.push({ key: "sequences", label: "Actions",
     sub: Object.keys(d.sequences || {}).length + " sequences", group: "Model" });
   s.push({ key: "apps", label: "Apps",
-    sub: Object.keys(d.apps || {}).length + " apps", group: "Model" });
+    sub: Object.keys(d.apps || {}).length + " apps · " +
+      Object.keys(d.app_classes || {}).length + " classes", group: "Model" });
+  s.push({ key: "snippets", label: "Snippets",
+    sub: Object.keys(snips.items).length + " saved blocks", group: "Model" });
   s.push({ key: "activities", label: "All activities",
     sub: Object.keys(d.activities || {}).length + " across rooms", group: "Model" });
   s.push({ key: "input", label: "Input policy", sub: "tap/hold ownership", group: "System" });
   s.push({ key: "devices", label: "Remotes & keymaps", sub: "profiles", group: "System" });
   s.push({ key: "theme", label: "Theme", sub: "colors · layout · type", group: "System" });
+  s.push({ key: "workspaces", label: "Workspaces",
+    sub: Object.keys(app.workspaces).length + " active" +
+      (app.workspace === "scratch" ? " · on scratch" : ""), group: "System" });
   return s;
 }
 
 /* which slices have a visual editor */
 export const hasVisual = (key) =>
   (key || "").startsWith("view.") || key === "activities" || key === "sequences" ||
-  key === "apps" || key === "theme" || (key || "").startsWith("screens.") ||
-  (key || "").startsWith("controller.");
+  key === "apps" || key === "theme" || key === "snippets" || key === "workspaces" ||
+  (key || "").startsWith("screens.") || (key || "").startsWith("controller.");
 
 export function getSlice(key) {
   const d = app.draft;
@@ -818,6 +991,43 @@ export function instantiateDeviceController(dom, eid) {
   return iid;
 }
 
+/* ---- SNIPPETS (v0.33, Suresh's spec): reusable config blocks with
+   metadata, grouped by TYPE ("setup" = devices & roles, "state" =
+   state rules). Stored in localStorage — genuinely global across
+   workspaces AND immune to reseeds (they're authoring material, not
+   remote config). Export from a block's title bar; Insert offers
+   compatible snippets. */
+export const snips = $state({
+  items: JSON.parse(localStorage.getItem("hakr_snippets") || "{}"),
+});
+function persistSnips() {
+  localStorage.setItem("hakr_snippets", JSON.stringify($state.snapshot(snips.items)));
+}
+export const SNIPPET_TYPES = {
+  setup: "Setup — devices & roles",
+  state: "State rules",
+};
+export function saveSnippet(type, name, data) {
+  const base = (name || type).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || type;
+  let id = base, n = 2;
+  while (snips.items[id]) id = base + "_" + n++;
+  snips.items[id] = { name: name || id, type,
+    data: JSON.parse(JSON.stringify(data)), saved: new Date().toISOString().slice(0, 10) };
+  persistSnips();
+  setStatus("snippet “" + (name || id) + "” saved — Model → Snippets", "ok");
+  return id;
+}
+export function renameSnippet(id, name) {
+  if (snips.items[id]) { snips.items[id].name = name; persistSnips(); }
+}
+export function deleteSnippet(id) {
+  delete snips.items[id];
+  persistSnips();
+}
+export function snippetsOf(type) {
+  return Object.entries(snips.items).filter(([, x]) => x.type === type);
+}
+
 /* ---- preview plumbing ---- */
 let pvWindow = null; // set by PreviewPane
 export function bindPreview(win) { pvWindow = win; }
@@ -825,7 +1035,11 @@ export function bindPreview(win) { pvWindow = win; }
 export function pushPreview() {
   if (!app.pvReady || !app.draft || !pvWindow) return;
   pvWindow.postMessage(
-    { type: "harmonium_config", config: $state.snapshot(app.draft), device: app.device },
+    { type: "harmonium_config", config: $state.snapshot(app.draft),
+      device: app.device,
+      /* scratch previews run main's sequences (scratch has no server
+         world of its own — status quo, stated on the Test button) */
+      workspace: app.workspace === "scratch" ? "main" : app.workspace },
     location.origin,
   );
   app.pvPulse++;
@@ -882,9 +1096,17 @@ export function revert() {
 
 export async function save() {
   if (app.sandbox) return false;
+  if (app.workspace === "scratch") {
+    setStatus("Scratch is a sandbox — publish it as a workspace " +
+      "(Workspaces page) to deploy it", "err");
+    return false;
+  }
   app.problems = [];
   setStatus("saving…");
-  const r = await api("POST", $state.snapshot(app.draft));
+  const r = await api("POST", $state.snapshot(app.draft),
+    /* main omits the query — byte-compatible with the pre-workspace
+       API during the restart window */
+    app.workspace === "main" ? "" : "?ws=" + encodeURIComponent(app.workspace));
   const body = await r.json();
   if (r.status === 422) {
     app.problems = body.problems || [];
@@ -922,7 +1144,9 @@ export async function testSequence(id) {
     const r = await fetch("/api/services/harmonium/run", {
       method: "POST",
       headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ sequence: id }),
+      body: JSON.stringify(app.workspace === "scratch" || app.workspace === "main"
+        ? { sequence: id }
+        : { sequence: id, workspace: app.workspace }),
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
     setStatus("sequence '" + id + "' ran (note: Test runs the last SAVED copy)", "ok");
@@ -942,13 +1166,27 @@ export function connectToken(t) {
 /* ---- boot ---- */
 export async function boot() {
   if (!token()) { app.authOpen = true; return; }
+  await loadWorkspaces();
+  /* land on the workspace this browser was last editing (if it still
+     exists); scratch never auto-restores — it's an explicit trip */
+  const last = localStorage.getItem("hakr_studio_ws");
+  const startWs = last && last !== "scratch" && app.workspaces[last] ? last : "main";
+  app.workspace = startWs;
   let r;
-  try { r = await api("GET"); } catch { return; }
+  try {
+    r = await api("GET", null,
+      startWs === "main" ? "" : "?ws=" + encodeURIComponent(startWs));
+  } catch { return; }
+  if (r.status === 404 && startWs !== "main") {
+    /* stale pin — fall back to main */
+    app.workspace = "main";
+    try { r = await api("GET"); } catch { return; }
+  }
   if (r.status === 404) {
     /* Integration not installed (or store empty): fall back to the
        deployed config read-only. Everything works except Save. */
     try {
-      const d = await fetch("/local/remote-proto/config.json?ts=" + Date.now());
+      const d = await fetch("/local/harmonium/config.json?ts=" + Date.now());
       if (!d.ok) throw new Error("HTTP " + d.status);
       app.sandbox = true;
       app.saved = await d.json();
@@ -965,6 +1203,7 @@ export async function boot() {
   normalizeNavTiles(app.saved);
   normalizeHosts(app.saved);
   normalizeOffActivity(app.saved);
+  normalizeApps(app.saved);
   app.draft = JSON.parse(JSON.stringify(app.saved));
   const devs = Object.keys(app.draft.devices || {});
   app.device = devs.includes("astrion") ? "astrion" : devs[0] || "default";

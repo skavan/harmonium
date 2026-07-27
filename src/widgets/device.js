@@ -54,6 +54,7 @@ WIDGETS.device = {
   select: (e, t) => {
     const dom = (e || "").split(".")[0];
     const open = () => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); };
+    if (t.tap === "none") return;      /* a pure readout */
     if (t.tap === "open") return open();
     const verb =
       t.tap === "toggle" ? () => callService("homeassistant", "toggle", null, e)

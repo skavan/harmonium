@@ -31,6 +31,7 @@ document.getElementById("connectBtn").addEventListener("click", () => {
        { type: "harmonium_ready" }                     listener installed
        { type: "harmonium_applied", screen }           config rendered */
 let PREVIEW = false;
+let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
 function applyConfig(cfg, devName) {
   CONFIG = cfg;
   if (!devName) devName = localStorage.getItem("hakr_device");
@@ -55,6 +56,9 @@ function previewListen() {
     const m = ev.data || {};
     if (m.type === "harmonium_config" && m.config) {
       try {
+        /* the Studio says which workspace the preview IS — service
+           calls from the preview then run that workspace's sequences */
+        WS = m.workspace || "main";
         applyConfig(m.config, m.device);
         parent.postMessage({ type: "harmonium_applied", screen: S.screen }, location.origin);
       } catch (err) {
@@ -87,13 +91,24 @@ function previewListen() {
     const clean = v => (v || "").trim().replace(/^["']+|["']+$/g, "");
     const pHost = clean(prov.get("host")), pTok = clean(prov.get("token"));
     const pDev = clean(prov.get("device")), pDbg = clean(prov.get("debug"));
+    const pWs = clean(prov.get("ws"));   // workspace pin (v0.34), like device
+    /* pin=0 (v0.37): PEEK at a workspace without pinning this browser
+       to it — the Studio's "open the running app" link uses it, so
+       looking at Bedroom doesn't silently make this THE Bedroom
+       remote. The hash stays put so a refresh stays on the peek. */
+    const pPeek = clean(prov.get("pin")) === "0";
     PREVIEW = clean(prov.get("preview")) === "1";
     if (pHost) localStorage.setItem("hakr_host", pHost);
     if (pTok) localStorage.setItem("hakr_token", pTok);
     if (pDev && !PREVIEW) localStorage.setItem("hakr_device", pDev);
+    if (pWs && !PREVIEW && !pPeek) {
+      if (pWs === "main") localStorage.removeItem("hakr_ws");
+      else localStorage.setItem("hakr_ws", pWs);
+    }
+    if (pWs && pPeek) WS_PEEK = pWs;
     if (pDbg === "1") localStorage.setItem("hakr_debug", "1");
     else if (pDbg === "0") localStorage.removeItem("hakr_debug");
-    if ((pHost || pTok || pDev || pDbg) && !PREVIEW)
+    if ((pHost || pTok || pDev || pDbg || (pWs && !pPeek)) && !PREVIEW)
       history.replaceState(null, "", location.pathname);
     if (PREVIEW) {
       /* Studio drives everything from here; still connect() so the
@@ -105,12 +120,16 @@ function previewListen() {
       return;
     }
   }
+  let loaded;
   try {
-    CONFIG = await loadConfig();
+    loaded = await loadConfig(WS_PEEK || localStorage.getItem("hakr_ws"));
   } catch (err) {
     document.getElementById("screenName").textContent = "⚠ " + err.message;
     return;
   }
-  applyConfig(CONFIG, localStorage.getItem("hakr_device"));
+  WS = loaded.ws;
+  applyConfig(loaded.cfg, localStorage.getItem("hakr_device"));
+  if (loaded.missed)
+    flashBar("Workspace '" + loaded.missed + "' not deployed — using main", "off");
   connect();
 })();

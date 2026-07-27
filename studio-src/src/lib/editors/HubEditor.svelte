@@ -153,9 +153,10 @@
   }
   function newTile(tiles) {
     /* a device STARTS with a name and an entity — everything else
-       (renderer, icon, verbs, page) infers from the entity */
+       (renderer, icon, verbs, page) infers from the entity.
+       span 2 (full width) is the default — most devices want it */
     tiles.push({ type: "device", id: "tile_" + Math.random().toString(36).slice(2, 6),
-      label: "New device", icon: "material:devices", entity: "" });
+      label: "New device", icon: "material:devices", entity: "", span: 2 });
   }
   function newNavTile(tiles) {
     /* the OTHER archetype: a nav card — opens another page (style

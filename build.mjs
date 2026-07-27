@@ -40,7 +40,7 @@ const SCRIPTS = [
   "widgets/climate.js", "widgets/media.js", "widgets/volume.js",
   "widgets/power.js", "widgets/cover.js", "widgets/coverbtns.js",
   "widgets/stepper.js", "widgets/chips.js", "widgets/passthrough.js",
-  "widgets/dpad.js", "widgets/device.js",
+  "widgets/dpad.js", "widgets/device.js", "widgets/sources.js",
   "widgets/helpers.js",    // command maps, cmdFor, nudge helpers
   "ui/render.js",          // banner/hero/grid/tile rendering + navigate
   "ui/focus.js",           // spatial focus, trails, capture

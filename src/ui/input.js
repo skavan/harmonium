@@ -202,9 +202,11 @@ function act(button, phys) {
     }
     case "menu": {
       /* physical MENU key (Astrion: '#') → the device's menu command
-         on screens with a device context; no-op elsewhere */
+         on screens with a device context; on a multi-section page
+         without one, MENU tours the categories (wraps) */
       const mt = deviceKeyTarget();
-      if (mt) rc(mt, cmdFor({}, "menu"));
+      if (mt) { rc(mt, cmdFor({}, "menu")); break; }
+      heroCycle(1, true);
       break;
     }
     case "home": {
@@ -287,6 +289,10 @@ function act(button, phys) {
         (screenOf(S.screen) || {}).buttons || {});
       const b = bmap[button];
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
+      /* unbound CH on a multi-section page = CATEGORY/SECTION paging
+         (the Music Library's ▲▼; bindings above always win) */
+      if ((button === "ch_up" || button === "ch_down") &&
+          heroCycle(button === "ch_up" ? 1 : -1)) break;
       /* mute default (no config binding needed): toggle mute on the
          context audio path — same ARC-aware target VOL uses */
       if (button === "mute") {

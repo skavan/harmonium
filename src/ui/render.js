@@ -21,8 +21,9 @@ function renderBanner(sc) {
   const b = sc.banner;
   const overlay = 1 - (b.image_opacity != null ? b.image_opacity : 0.55);
   bn.style.height = b.height || "180px";
-  bn.style.backgroundImage =
-    `linear-gradient(rgba(13,15,18,${overlay}), rgba(13,15,18,${overlay})), url('${b.image}')`;
+  bn.style.backgroundImage = b.image
+    ? `linear-gradient(rgba(13,15,18,${overlay}), rgba(13,15,18,${overlay})), url('${b.image}')`
+    : "none";
   const roomsLink = b.rooms_screen && CONFIG.screens[b.rooms_screen];
   bn.innerHTML = `<div class="btitle${roomsLink ? " link" : ""}"${roomsLink ? ' data-fid="hero_rooms"' : ""}>${b.title || sc.name}</div>` +
     (b.show_time === false ? "" : `<div class="btime" id="btime"></div>`);
@@ -37,26 +38,54 @@ function renderBanner(sc) {
 }
 
 /* ---- hero nav: section jump labels + scroll-spy ---- */
-function buildHeroNav(jumps) {
+function buildHeroNav(jumps, strip) {
   S.heroJumps = jumps;
+  S.heroAt = null;   // fresh page: stepping re-seeds from the spy
   const bn = document.getElementById("banner");
   bn.querySelectorAll(".hstrip").forEach(x => x.remove());
   grid.onscroll = null;
-  if (bn.classList.contains("hidden") || !jumps.length) return;
-  const strip = document.createElement("div");
-  strip.className = "hstrip";
+  if (!strip || bn.classList.contains("hidden") || !jumps.length) return;
+  const stripEl = document.createElement("div");
+  stripEl.className = "hstrip";
   jumps.forEach((j, i) => {
     const el = document.createElement("div");
     el.className = "hjump";
     el.dataset.fid = "hero_" + i;
     el.textContent = j.label;
     el.addEventListener("click", ev => { ev.stopPropagation(); heroGo(i); });
-    strip.appendChild(el);
+    stripEl.appendChild(el);
     j.btn = el;
   });
-  bn.appendChild(strip);
+  bn.appendChild(stripEl);
   grid.onscroll = updateSpy;
   updateSpy();
+}
+/* CH▲▼ / MENU category stepping (v0.31): jump to the next/prev
+   labeled section with a named flash. Works bannerless too (the
+   strip is just the visible face; anchors always exist). MENU tours
+   with wrap; CH clamps at the ends. */
+function heroCycle(dir, wrap) {
+  const js = S.heroJumps || [];
+  if (js.length < 2) return false;
+  /* stepping REMEMBERS its own position (S.heroAt) — short sections
+     can't always scroll to the top, so the scroll-spy misreads them;
+     the spy (with its bottom rule) only seeds the first step */
+  let active = S.heroAt;
+  if (active == null) {
+    const top = grid.getBoundingClientRect().top + 48;
+    active = 0;
+    js.forEach((j, i) => { if (j.anchorEl.getBoundingClientRect().top <= top) active = i; });
+    /* (no bottom rule here — that's a chips-highlight nicety; the
+       stepper seeds from what's at the TOP of the viewport) */
+  }
+  let next = active + dir;
+  if (wrap) next = (next + js.length) % js.length;
+  else next = Math.min(js.length - 1, Math.max(0, next));
+  if (next === active) return false;
+  S.heroAt = next;
+  heroGo(next);
+  flashBar(js[next].label);
+  return true;
 }
 function heroGo(i) {
   const j = (S.heroJumps || [])[i];
@@ -124,7 +153,7 @@ window.addEventListener("resize", () => scheduleFit());
 
 function makeTile(t, row) {
   const el = document.createElement("div");
-  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && t.span === 2 ? " span2" : "");
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "");
   el.id = "tile_" + t.id;
   const w = WIDGETS[t.type] || {};
   const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
@@ -189,6 +218,9 @@ function navigate(screenId, isBack) {
   releaseCapture(); clearConfirm();
   S.screen = screenId;
   document.getElementById("screenName").textContent = barTitle(sc);
+  /* (the v0.35 title-bar input button lived one day — a bar icon is a
+     fingertip-hostile target on a remote. The source_select ROLE +
+     Source tile replaced it, v0.36.) */
   renderBanner(sc);
   const cols = (sc.grid && sc.grid.columns) || 2;
   /* minmax(0,1fr): columns may shrink below content min-width, so a
@@ -226,8 +258,10 @@ function navigate(screenId, isBack) {
     if (sec.hero_label)
       heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
   });
-  buildHeroNav(sc.banner && sc.banner.enabled !== false &&
-    sc.banner.tabs !== false ? heroJumps : []);
+  /* jumps ALWAYS register (CH▲▼/MENU step them even bannerless —
+     the Apps drawer); the visible strip needs a banner with tabs on */
+  buildHeroNav(heroJumps, !!(sc.banner && sc.banner.enabled !== false &&
+    sc.banner.tabs !== false));
   const all = tilesOf(sc);
   setFocus(sc.initial_focus || (all[0] && all[0].id));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
@@ -270,6 +304,13 @@ function renderStates() {
   });
 }
 
+/* the ⓘ icon replaces the always-on perf clutter in the bar —
+   tap it for boot/msgs/device/connection details (v0.32) */
+function perfInfo() {
+  flashBar((S.bootMs ?? Math.round(performance.now() - T0)) + "ms boot · " +
+    S.msgCount + " msgs · device " + (S.deviceName || "default") +
+    " · " + (S.connected ? "connected" : "offline"));
+}
 function perf() {
   /* boot time is FROZEN at first paint (it's a boot metric, not an
      uptime counter); msgs and device stay live */

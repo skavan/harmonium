@@ -1,0 +1,38 @@
+# DEVICE CLASSES (v0.30) — platform launch dialects.
+# The master list (apps.yaml) is IDENTITY; a class binds apps to how
+# THIS platform launches them. A class entry IS the curation: listed =
+# offered on surfaces speaking this dialect. Entry forms:
+#   source: X            → media_player.select_source on $context.media_player
+#   action/target/data   → any HA-style action (entity defaults to ctx mp)
+#   sequence: <id>       → run a named Action (HA-side)
+# Entries may also override name/icon/image from the master list.
+# Which class a surface speaks comes from the ACTIVITY's context
+# (app_class: firetv) — one shared Apps drawer, many dialects.
+
+firetv:
+  name: Fire TV
+  apps:
+    netflix:   { source: com.netflix.ninja }
+    prime:     { action: androidtv.adb_command, entity: $context.media_player,
+                 data: { command: am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity } }
+    youtube:   { source: com.amazon.firetv.youtube }
+    youtubetv: { source: com.amazon.firetv.youtube.tv }
+    peacock:   { source: com.peacock.peacockfiretv }
+    paramount: { source: com.cbs.ott }
+    max:       { action: androidtv.adb_command, entity: $context.media_player,
+                 data: { command: am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity } }
+    appletv:   { source: com.apple.atve.amazon.appletv }
+
+tizen:
+  name: Samsung Tizen
+  apps:
+    netflix:   { source: Netflix }
+    prime:     { source: Prime Video }
+    youtube:   { source: YouTube }
+    youtubetv: { source: YouTube TV }
+    hulu:      { source: Hulu }
+    disney:    { source: Disney+ }
+    appletv:   { source: Apple TV }
+    max:       { source: Max }
+    peacock:   { source: Peacock TV }
+    paramount: { source: Paramount+ }

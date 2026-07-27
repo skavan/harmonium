@@ -198,7 +198,9 @@
         "dpad": "remote.fire_tv_family_192_168_1_65",
         "power": "media_player.sts_samsung_q90_porch",
         "volume": "media_player.sts_samsung_q90_porch",
-        "volume_level": "media_player.ma_soundbar_porch"
+        "volume_level": "media_player.ma_soundbar_porch",
+        "source_select": "media_player.sts_samsung_q90_porch",
+        "app_class": "firetv"
       },
       "controls": {
         "navigation": "$context.dpad",
@@ -253,6 +255,8 @@
         "power": "media_player.sts_samsung_q90_porch",
         "volume": "media_player.sts_samsung_q90_porch",
         "volume_level": "media_player.ma_soundbar_porch",
+        "source_select": "media_player.sts_samsung_q90_porch",
+        "app_class": "tizen",
         "dpad_commands": {
           "up": "KEY_UP",
           "down": "KEY_DOWN",
@@ -317,7 +321,8 @@
       "context": {
         "media_player": "media_player.ma_sonos_basement",
         "power": "media_player.ma_sonos_basement",
-        "volume": "media_player.ma_sonos_basement"
+        "volume": "media_player.ma_sonos_basement",
+        "source_select": "media_player.ma_sonos_basement"
       },
       "controls": {
         "power": {
@@ -584,93 +589,117 @@
   "apps": {
     "netflix": {
       "name": "Netflix",
-      "icon": "material:movie",
-      "source": "Netflix",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.netflix.ninja"
-      }
+      "icon": "material:movie"
     },
     "prime": {
       "name": "Prime Video",
-      "icon": "material:play_circle",
-      "source": "Prime Video",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": {
-          "action": "remote.send_command",
-          "target": {
-            "entity_id": "remote.fire_tv_family_192_168_1_65"
-          },
-          "data": {
-            "command": "KEYCODE_PROG_RED"
-          }
-        }
-      }
+      "icon": "material:play_circle"
     },
     "youtube": {
       "name": "YouTube",
-      "icon": "material:smart_display",
-      "source": "YouTube",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.amazon.firetv.youtube"
-      }
+      "icon": "material:smart_display"
     },
     "youtubetv": {
       "name": "YouTube TV",
-      "icon": "material:live_tv",
-      "source": "YouTube TV",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.amazon.firetv.youtube.tv"
-      }
+      "icon": "material:live_tv"
     },
     "peacock": {
       "name": "Peacock",
-      "icon": "material:theaters",
-      "source": "Peacock TV",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.peacock.peacockfiretv"
-      }
+      "icon": "material:theaters"
     },
     "paramount": {
       "name": "Paramount+",
-      "icon": "material:star",
-      "source": "Paramount+",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.cbs.ott"
-      }
+      "icon": "material:star"
     },
     "max": {
       "name": "Max",
-      "icon": "material:local_movies",
-      "source": "Max",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": {
-          "action": "remote.send_command",
-          "target": {
-            "entity_id": "remote.fire_tv_family_192_168_1_65"
-          },
-          "data": {
-            "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
-          }
-        }
-      }
+      "icon": "material:local_movies"
     },
     "appletv": {
       "name": "Apple TV",
-      "icon": "material:tv_gen",
-      "source": "Apple TV",
-      "launch": {
-        "media_player.fire_tv_family_192_168_1_65": "com.apple.atve.amazon.appletv"
-      }
+      "icon": "material:tv_gen"
     },
     "hulu": {
       "name": "Hulu",
-      "icon": "material:video_library",
-      "source": "Hulu"
+      "icon": "material:video_library"
     },
     "disney": {
       "name": "Disney+",
-      "icon": "material:castle",
-      "source": "Disney+"
+      "icon": "material:castle"
+    }
+  },
+  "app_classes": {
+    "firetv": {
+      "name": "Fire TV",
+      "apps": {
+        "netflix": {
+          "source": "com.netflix.ninja"
+        },
+        "prime": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.media_player",
+          "data": {
+            "command": "am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity"
+          }
+        },
+        "youtube": {
+          "source": "com.amazon.firetv.youtube"
+        },
+        "youtubetv": {
+          "source": "com.amazon.firetv.youtube.tv"
+        },
+        "peacock": {
+          "source": "com.peacock.peacockfiretv"
+        },
+        "paramount": {
+          "source": "com.cbs.ott"
+        },
+        "max": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.media_player",
+          "data": {
+            "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
+          }
+        },
+        "appletv": {
+          "source": "com.apple.atve.amazon.appletv"
+        }
+      }
+    },
+    "tizen": {
+      "name": "Samsung Tizen",
+      "apps": {
+        "netflix": {
+          "source": "Netflix"
+        },
+        "prime": {
+          "source": "Prime Video"
+        },
+        "youtube": {
+          "source": "YouTube"
+        },
+        "youtubetv": {
+          "source": "YouTube TV"
+        },
+        "hulu": {
+          "source": "Hulu"
+        },
+        "disney": {
+          "source": "Disney+"
+        },
+        "appletv": {
+          "source": "Apple TV"
+        },
+        "max": {
+          "source": "Max"
+        },
+        "peacock": {
+          "source": "Peacock TV"
+        },
+        "paramount": {
+          "source": "Paramount+"
+        }
+      }
     }
   },
   "screens": {
@@ -683,6 +712,7 @@
       "context": {
         "media_player": "media_player.fire_tv_family_192_168_1_65",
         "dpad": "remote.fire_tv_family_192_168_1_65",
+        "app_class": "firetv",
         "power": "media_player.sts_samsung_q90_porch",
         "volume": "media_player.sts_samsung_q90_porch",
         "volume_level": "media_player.ma_soundbar_porch"
@@ -700,15 +730,15 @@
       "grid": {
         "columns": 3
       },
-      "tiles": [
+      "sections": [
         {
-          "id": "apps_grid",
-          "type": "apps",
-          "include": [
-            "netflix",
-            "youtube",
-            "youtubetv"
-          ]
+          "tiles": [
+            {
+              "id": "apps_grid",
+              "type": "apps"
+            }
+          ],
+          "hero_label": "Apps"
         }
       ]
     },
@@ -771,54 +801,107 @@
         "media_player": "media_player.ma_sonos_basement",
         "volume": "media_player.ma_sonos_basement"
       },
-      "buttons": {
-        "ch_up": {
-          "service": "media_player.media_next_track",
-          "entity": "$context.media_player"
-        },
-        "ch_down": {
-          "service": "media_player.media_previous_track",
-          "entity": "$context.media_player"
-        }
+      "banner": {
+        "height": "118px",
+        "min_height": "96px",
+        "show_time": false
       },
       "drawer": true,
       "grid": {
         "columns": 3
       },
-      "tiles": [
+      "sections": [
         {
-          "id": "mq_pull",
-          "type": "preset",
-          "activity": "music",
-          "icon": "material:swap_horiz",
-          "label": "Pull Music Here",
-          "action": {
-            "service": "music_assistant.transfer_queue",
-            "target": "$context.media_player",
-            "data": {
-              "auto_play": true
+          "tiles": [
+            {
+              "id": "mq_pull",
+              "type": "preset",
+              "activity": "music",
+              "icon": "material:swap_horiz",
+              "label": "Pull Music Here",
+              "action": {
+                "service": "music_assistant.transfer_queue",
+                "target": "$context.media_player",
+                "data": {
+                  "auto_play": true
+                }
+              }
+            },
+            {
+              "id": "m_pl",
+              "type": "presets_from",
+              "entity": "sensor.harmonium_music_playlists",
+              "attribute": "items",
+              "item": {
+                "label": "$item.name",
+                "icon_image": "$item.image",
+                "icon": "material:queue_music",
+                "activity": "music"
+              },
+              "action": {
+                "service": "music_assistant.play_media",
+                "target": "$context.media_player",
+                "data": {
+                  "media_id": "$item.uri",
+                  "media_type": "$item.media_type"
+                }
+              }
             }
-          }
+          ],
+          "hero_label": "Playlists",
+          "title": "Playlists"
         },
         {
-          "id": "mfav",
-          "type": "presets_from",
-          "entity": "sensor.porch_music_favorites",
-          "attribute": "favorites",
-          "item": {
-            "label": "$item.name",
-            "icon_image": "$item.image",
-            "icon": "material:music_note",
-            "activity": "music"
-          },
-          "action": {
-            "service": "music_assistant.play_media",
-            "target": "$context.media_player",
-            "data": {
-              "media_id": "$item.uri",
-              "media_type": "$item.media_type"
+          "tiles": [
+            {
+              "id": "m_ar",
+              "type": "presets_from",
+              "entity": "sensor.harmonium_music_artists",
+              "attribute": "items",
+              "item": {
+                "label": "$item.name",
+                "icon_image": "$item.image",
+                "icon": "material:person",
+                "activity": "music"
+              },
+              "action": {
+                "service": "music_assistant.play_media",
+                "target": "$context.media_player",
+                "data": {
+                  "media_id": "$item.uri",
+                  "media_type": "$item.media_type"
+                }
+              }
             }
-          }
+          ],
+          "hero_label": "Artists",
+          "title": "Artists"
+        },
+        {
+          "tiles": [
+            {
+              "id": "m_al",
+              "type": "presets_from",
+              "entity": "sensor.harmonium_music_albums",
+              "attribute": "items",
+              "item": {
+                "label": "$item.name",
+                "icon_image": "$item.image",
+                "icon": "material:album",
+                "activity": "music"
+              },
+              "action": {
+                "service": "music_assistant.play_media",
+                "target": "$context.media_player",
+                "data": {
+                  "media_id": "$item.uri",
+                  "media_type": "$item.media_type"
+                }
+              }
+            }
+          ],
+          "hero_label": "Albums",
+          "title": "Albums"
         }
       ]
     },
@@ -1054,6 +1137,14 @@
           "icon": "material:volume_up",
           "label": "Volume",
           "span": 2
+        },
+        {
+          "id": "m_src",
+          "type": "sources",
+          "entity": "$context.source_select",
+          "icon": "material:input",
+          "label": "Source",
+          "span": 2
         }
       ]
     },
@@ -1066,6 +1157,7 @@
       "context": {
         "media_player": "media_player.fire_tv_family_192_168_1_65",
         "dpad": "remote.fire_tv_family_192_168_1_65",
+        "app_class": "firetv",
         "power": "media_player.sts_samsung_q90_porch",
         "volume": "media_player.sts_samsung_q90_porch",
         "volume_level": "media_player.ma_soundbar_porch"
@@ -1133,12 +1225,33 @@
               "unless": "physical_dpad"
             },
             {
+              "id": "t_btns2",
+              "type": "buttons",
+              "entity": "$context.dpad",
+              "label": "",
+              "span": 2,
+              "unless": "physical_dpad",
+              "buttons": [
+                "back",
+                "home",
+                "power"
+              ]
+            },
+            {
               "id": "t_vol",
               "type": "volume",
               "entity": "$context.volume",
               "level_entity": "$context.volume_level",
               "icon": "material:volume_up",
               "label": "Volume",
+              "span": 2
+            },
+            {
+              "id": "t_src",
+              "type": "sources",
+              "entity": "$context.source_select",
+              "icon": "material:input",
+              "label": "Source",
               "span": 2
             }
           ]

@@ -14,14 +14,52 @@ const config = JSON.parse(readFileSync(join(ROOT, 'dist', 'config.json'), 'utf8'
 
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
-const r = {}; const errs = []; let postedConfig = null;
+const r = {}; const errs = []; let postedConfig = null; let postedWs = null;
+const wsPosts = [];
 
-await ctx.route('**/api/harmonium/config', route => {
+/* WORKSPACES (v0.34): stateful roster stub — main + den to start,
+   creates append. Config GET/POST dispatches on ?ws=. */
+const denCfg = {
+  version: 2, theme: {}, devices: config.devices, keymap: config.keymap,
+  home_screen: 'den', screen_order: ['den'],
+  global: { room: 'Den', activity_select: 'select.harmonium_den_den_activity' },
+  input: {}, controllers: {},
+  activities: { watch_den: { name: 'Watch Den TV', room_view: 'den' } },
+  sequences: {},
+  screens: { den: { name: 'Den', type: 'hub', room: true,
+    sections: [{ role: 'activities', hero_label: 'Activities',
+      tiles: [{ id: 'acts', type: 'activities', room: 'den' }] }] } },
+};
+const roster = { order: ['main', 'den'], workspaces: {
+  main: { name: 'Main', file: 'config.json' },
+  den: { name: 'Den', file: 'config.den.json' } } };
+const wsConfigs = { main: config, den: denCfg };
+
+await ctx.route('**/api/harmonium/config*', route => {
+  const ws = new URL(route.request().url()).searchParams.get('ws') || 'main';
   if (route.request().method() === 'POST') {
     postedConfig = route.request().postDataJSON();
-    return route.fulfill({ json: { ok: true, deployed: 'stub' } });
+    postedWs = ws;
+    return route.fulfill({ json: { ok: true, workspace: ws, deployed: 'stub' } });
   }
-  return route.fulfill({ json: config });
+  return wsConfigs[ws]
+    ? route.fulfill({ json: wsConfigs[ws] })
+    : route.fulfill({ status: 404, json: { message: 'no such workspace' } });
+});
+await ctx.route('**/api/harmonium/workspaces', route => {
+  if (route.request().method() === 'POST') {
+    const b = route.request().postDataJSON();
+    wsPosts.push(b);
+    if (b.action === 'create' || b.action === 'duplicate') {
+      const id = (b.id || b.name).toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      roster.order.push(id);
+      roster.workspaces[id] = { name: b.name, file: 'config.' + id + '.json' };
+      wsConfigs[id] = b.config || wsConfigs[b.from] || config;
+      return route.fulfill({ json: { ok: true, workspace: id, file: 'config.' + id + '.json' } });
+    }
+    return route.fulfill({ json: { ok: true } });
+  }
+  return route.fulfill({ json: roster });
 });
 await ctx.route('**/api/states', route => route.fulfill({ json: [
   { entity_id: 'media_player.demo_tv', state: 'on', attributes: { friendly_name: 'Demo TV' } },
@@ -33,7 +71,7 @@ await ctx.route('**/api/services/harmonium/run', route => {
   ranSequence = route.request().postDataJSON();
   return route.fulfill({ json: [] });
 });
-await ctx.route('**/local/remote-proto/index.html*', route =>
+await ctx.route('**/local/harmonium/index.html*', route =>
   route.fulfill({ body: engine, contentType: 'text/html' }));
 await ctx.route('**/harmonium-static/studio.html', route =>
   route.fulfill({ body: studio, contentType: 'text/html' }));
@@ -58,7 +96,7 @@ r.load = await p.evaluate(() => ({
 }));
 
 // 2. preview booted with the real config (frame realm for engine internals)
-const fr = p.frames().find(f => f.url().includes('remote-proto'));
+const fr = p.frames().find(f => f.url().includes('/local/harmonium'));
 r.preview = await fr.evaluate(() => ({
   screen: S.screen,
   tiles: document.querySelectorAll('#grid .tile').length > 0
@@ -423,6 +461,55 @@ r.bindings = await p.evaluate(() => ({
     .some(el => el.textContent === 'All Off' && el.closest('#nav') === null &&
       el.parentElement?.textContent.includes('off')),
 }));
+
+// 15. WORKSPACES (v0.34): roster pills, per-workspace save routing,
+//     the manager page, and create-from-starter
+r.ws = { pills: await p.evaluate(() => ({
+  main: document.getElementById('wsLive')?.textContent,
+  den: document.getElementById('ws_den')?.textContent,
+  scratch: !!document.getElementById('wsScratch'),
+})) };
+await p.click('#ws_den');
+await p.waitForTimeout(900);
+const fr2 = p.frames().find(f => f.url().includes('/local/harmonium'));
+r.ws.denPreview = await fr2.evaluate(() => ({ screen: S.screen, ws: WS }));
+await p.click('#saveBtn');
+await p.waitForTimeout(400);
+r.ws.savedTo = postedWs;
+r.ws.denPosted = postedConfig?.home_screen === 'den';
+await navClick('Workspaces');
+await p.waitForTimeout(400);
+r.ws.manager = await p.evaluate(() => ({
+  mainRow: document.body.textContent.includes('repo-built'),
+  denEditing: document.body.textContent.includes('editing now'),
+  scratchRow: document.body.textContent.includes('this browser only'),
+  createBtn: [...document.querySelectorAll('button')]
+    .some(b => b.textContent.includes('Create & deploy')),
+}));
+await p.evaluate(() => {
+  const inp = [...document.querySelectorAll('input')].find(i => i.placeholder === 'Bedroom');
+  inp.value = 'Guest Room';
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await p.waitForTimeout(200);
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Create & deploy'))?.click();
+});
+await p.waitForTimeout(1000);
+const created = wsPosts.find(x => x.action === 'create');
+r.ws.created = {
+  posted: !!created,
+  hasConfig: !!created?.config?.screens,
+  /* the stock library rides WITHOUT content-graph edges — a parent
+     pointing at the old workspace's pages fails server validation
+     ("unknown parent 'porch'", Suresh's first live create) */
+  noStaleParents: Object.values(created?.config?.controllers || {})
+    .every(c => !c.parent),
+  librarySurvived: Object.keys(created?.config?.controllers || {}).length > 0,
+  pillAppeared: await p.evaluate(() => !!document.getElementById('ws_guest_room')),
+  nowEditing: await p.evaluate(() =>
+    document.getElementById('ws_guest_room')?.className.includes('bg-accent')),
+};
 
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));

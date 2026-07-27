@@ -590,6 +590,323 @@ all land 230/233/233; fit off → exact); Studio hero fold grew a
 relabeled Height ("ceiling — self-fit may shrink it") and Height
 floor. All 10 suites green.
 
+v0.30 — **APP STRATEGY: MASTER LIST + DEVICE CLASSES** (Suresh's
+heavy lift #1, design agreed). Three layers: config.apps = MASTER
+LIST, identity only (name + icon/image, could be 100 items);
+config.app_classes = DEVICE CLASSES, the platform launch dialects
+(firetv/tizen/…) — a class's entry per app IS the curation (listed =
+offered) and speaks three forms: `source:` (select_source on
+$context.media_player), full HA action (entity defaults ctx mp;
+$context refs fine — Fire TV's PROG_RED/adb rows target
+$context.dpad), or `sequence:` (run a named Action); entries may
+override name/icon/image. Layer 3 binds by CONTEXT, not controller:
+the activity's `app_class` (watch_firetv → firetv, watch_smart →
+tizen) rides the normal context overlay, so ONE shared Apps drawer
+speaks the running activity's dialect; tile-level `class:` hard-wires
+when needed; tv.yaml's surface context carries the idle default
+(firetv). Engine: classLaunch replaces appLaunch — the source_list
+sniffing/launchability era is GONE (the class is the truth); tile
+resolution class → $context.app_class → only-class fallback → empty.
+Compiler: app_classes passthrough + validation (class app ids ⊂
+master; literal tile class refs must exist). yaml hard-migrated:
+apps.yaml = 10 identities; app_classes.yaml = firetv (8, from the
+proven per-entity overrides) + tizen (10, from the old source
+names). Studio: AppsEditor rebuilt (classes lead — per-class app
+rows with Source/HA action/Run action forms, add-from-master picker,
+spoken-by badges, guarded deletes; master list a collapsed phone
+book, icon-or-image field, id renames walk classes+includes);
+Activity Setup grew the App class select; apps tiles grew a Device
+class override; normalizeApps heals legacy configs into a "tv"
+class; starterConfig carries classes into scratch. Tests: smoke-nav
+dialect assertions (idle→firetv com.netflix.ninja; watch_smart
+active→tizen Netflix). All 10 suites green. Music Library is lift
+#2 (decisions pinned: favorites only; Playlists/Artists/Albums on by
+default; CH± cycles categories; menu = on-screen category picker).
+
+v0.30.1 (Suresh: "hangover from the past") — (1) the apps drawer's
+include: [3 ids] curation dropped from apps.yaml: the CLASS is the
+curation now, so the drawer offers everything the dialect lists
+(firetv 8 / tizen 10); include: stays available to narrow
+special-purpose drawers. (2) APP STOCK DOCTRINE: the master list +
+device classes are SYSTEM, not content — same as the controller
+library: starterConfig sources them from LIVE, and switching to an
+older scratch draft inherits LIVE's when absent. All 10 suites green
+(smoke-nav expects the full 8 now).
+
+v0.31 — **MUSIC LIBRARY: CATEGORIES** (heavy lift #2, decisions
+pinned by Suresh: favorites only · Playlists/Artists/Albums default ·
+CH± steps · menu tours). INTEGRATION grew a sensor platform
+(sensor.py, PLATFORMS += sensor): a DataUpdateCoordinator calls
+music_assistant.get_library HA-side per category (playlist/artist/
+album/track/radio, favorite=True, limit 100, hourly; tolerant first
+load — MA absent → empty, heals next cycle) and publishes
+sensor.harmonium_music_<category> (state = count; `items` attribute
+slimmed to name/uri/media_type/image, _unrecorded). The remote stays
+a dumb renderer: music_library.yaml became SECTIONS (Playlists w/
+Pull-Music-Here + presets_from per category; Tracks/Radio are one
+more section when wanted), fed by the new sensors — the hand-built
+sensor.porch_music_favorites template sensor is RETIRABLE. A small
+imageless header (renderBanner now guards missing image) provides
+the on-screen category nav: the existing hstrip chips ARE the
+categories menu (tap to jump, scroll-spy highlights). ENGINE:
+heroCycle(dir, wrap) — CH▲▼ steps categories (unbound CH on any
+multi-section page = section paging; bindings always win, so the
+music CONTROLLER keeps CH = track skip), MENU tours with wrap when
+no device menu target resolves; stepping REMEMBERS its position
+(S.heroAt — short sections can't scroll to top, the spy misreads;
+seeded from the top-visible section, reset per page). smoke-music
+retargeted to the new sensors + new coverage (sections render, CH
+step flashes Artists, menu tours to Albums, controller CH still
+next_track). All 10 suites green.
+
+v0.32 — **FIELD-REPORT FIX BATCH + CONTAINER ROLLBACK RECOVERY.**
+INCIDENT: the cloud workspace partially rolled back to a ~Jul-24
+snapshot mid-session (v0.28–v0.31 engine/Studio/integration files
+reverted while others survived — second filesystem-trust incident
+after the staging cache). RECOVERY: G:\ is ground truth (roll-up
+hashes verified after every release) — tar'd the repo on-device,
+staged, hash-matched (a5208aba…), restored, re-applied the
+in-flight batch. THE FIXES (all harness-verified): (1) Prime/idle
+apps — apps.yaml drawer context lacked app_class (idle = empty
+drawer); firetv now the drawer default; Prime verified firing
+PROG_RED at $context.dpad. (2) Browser button bar — tv.yaml grew
+t_btns2 (menu/back/home, unless: physical_dpad). (3) VOLUME_2 ROLE
+(Sonos→amp): role in Setup (SLOT_DOMAINS media_player), cast lists,
+music.yaml + generic stock got a Volume 2 tile — plus the new
+doctrine making it free: a $context-bound tile whose role is
+UNWIRED hides itself (visibleTile). (4) span coercion: Studio wrote
+"2" as a string; makeTile now +t.span (his stuck 1-col custom
+tile). (5) Device tap: "none" (readout only) + Studio option.
+(6) Transport ⏸/▶ mirrors state; the art hero's LABEL mirrors
+state too (Paused/Off, "Now Playing" only while playing). (7) ART
+AS BACKGROUND: entity_picture washes the whole tile (gradient
+overlay), thumb shrunk 96→64 — metadata keeps full width.
+(8) TITLE BAR: perf clutter → ⓘ icon (tap = boot/msgs/device/
+connection flash); title size themable (--bar-fs). Answered: apps
+drawer pops because drawer:true (Key Mappings switch turns it
+off). All 10 suites green.
+
+v0.38 — **/local/harmonium + THE PATH IS THE WORKSPACE** (Suresh:
+"is our url strategy a good thing or a constraining thing?" →
+discussed: hash-pin = identity-in-the-device, invisible state; paths
+= identity-in-the-address, self-documenting — MORE aligned with the
+dumb-renderer doctrine. And "break out of the prototyping space").
+(1) DEPLOY HOME MOVED: www/remote-proto → www/harmonium
+(/local/harmonium/). One-time integration-side migration copies
+engine + config*.json on setup; a PERMANENT redirect stub overwrites
+the old remote-proto/index.html (hash rides along) so the Astrion's
+old start URL keeps booting untouched. push-to-ha.bat retargeted.
+(2) PATH-PER-WORKSPACE: every non-main workspace gets a 3-line entry
+stub at www/harmonium/<ws>/index.html (written by deploy(), removed
+by retire()) that hands off to the SINGLE shared engine with
+#ws=<id>&pin=0 — the path decides on every boot, nothing pinned, no
+engine copies, no version skew; extra hash params (#device=) ride
+through the stub. Workspaces API returns "path"; Studio: top-bar
+link is the pretty address, Workspaces page rows link their
+addresses, provisioning copy rewritten ("point the device at the
+URL"; #ws= pin still supported). Harness-proven: /deck/ → WS=deck,
+deck config, localStorage clean. 12 suites green + stub/redirect
+python units. ROLLBACK #5 hit before this batch (container reverted
+to Jul-21/23 wholesale) — fresh G:\ tar restore, v0.37.2 roll-up
+hash re-verified before building. Deploy: NEW BAT first, HA restart,
+reseed; Astrion needs nothing (redirect), Fully start URL can move
+to /local/harmonium/ at leisure.
+
+v0.37.2 — the Studio's "open the running app" link now follows the
+CURRENT workspace (Suresh's catch) — as a PEEK: `#ws=<id>&pin=0`
+boots that workspace for the load without provisioning the browser
+(the bare #ws= pin would have silently made his desktop THE Bedroom
+remote). Hash retained so F5 stays on the peek; tagged service calls
+still route to the peeked workspace; scratch links to main (never
+deploys), label shows /local/remote-proto/#<ws>. smoke-workspaces
+§4b covers ws/pin/hash/tagging.
+
+v0.37.1 — blank-starter create failed live ("unknown parent
+'porch'"): the stock controller library rides into a new workspace by
+doctrine, but tv/music carried their `parent:` — a CONTENT-graph edge
+into the old workspace — and the (new) server-side create validation
+caught it (scratch never validated, so it lurked). starterConfig now
+strips `parent` from inherited stock controllers; smoke-studio §15
+asserts noStaleParents + librarySurvived.
+
+v0.37 — **NON-DESTRUCTIVE RESEED: THREE-WAY MERGE + BACKUP**
+(Suresh: "every so often all my theme settings are reset" → root
+cause: reseed = wholesale repo-wins overwrite, erasing all
+Studio-side changes to main at EVERY deploy ceremony — the parked
+yaml-round-trip gap drawing blood). merge3() in workspaces.py (pure,
+HA-free, 10-scenario unit gauntlet): reseed keeps the repo build it
+last integrated as the BASE (store.base_main) and merges per key —
+repo unchanged since base → Studio's state stands (incl. Studio
+DELETIONS); Studio unchanged → repo's state stands (incl. repo
+deletions — Suresh's "no redundant superseded keys" requirement:
+nothing rides back in); both changed → REPO WINS, dotted path logged.
+Dicts recurse; lists/scalars atomic (a tiles array is one authored
+thing). Merged result runs through _validate — invalid merge falls
+back to the repo build, loudly. Outgoing main is snapshotted to
+config.main.backup.json BEFORE every reseed; new
+harmonium.restore_backup = one-deep undo (store + deployed file).
+Reseed now also deploys the MERGED config to config.json (the live
+file must match the store — remotes get the merge too; the repo's
+dist/config.json is an input, not the live artifact). First reseed
+after upgrade has no base → old replace semantics once, then
+baselines. Seed-on-first-run also sets the base. Consequence: deploy
+ceremonies stop destroying Studio work — theme re-applied once will
+now SURVIVE; "harvest to yaml" becomes housekeeping. 12 suites green
+(engine untouched). Deploy: Python changed → HA RESTART, then reseed
+(this one baselines).
+
+v0.36 — **SOURCE_SELECT ROLE + CAST CURATION** (Suresh: "clunky and
+inconsistent… the title bar is almost impossible to touch… auto
+device tiles too numerous and overlapping" — his design, discussed
+then built). (1) The v0.35 TITLE-BAR INPUT BUTTON DIED after one day
+(bar icons are fingertip-hostile on a remote): info_button /
+sources_entity removed from engine, compiler, Studio, tv.yaml.
+(2) SOURCE_SELECT is a sixth ROLE (media_player/dpad/power/volume/
+volume_level/source_select): the stock controllers (tv, music,
+GENERIC_MEDIA_CONTROLLER) carry a Source tile bound to
+$context.source_select — the tile EXISTS IFF the activity wires the
+role, which is just the hide-unwired doctrine doing its job (zero
+new conditional logic). Sub line = current input; tap → the picker.
+porch.yaml wires it: watch activities → the SAMSUNG (the display
+owns inputs), music → the Sonos. sources widget default entity is
+now $context.source_select. (3) CAST CURATION (his #1): per-device
+visibility toggle in Setup — 👁 next to ★ — writes
+activity.device_options[ent].tile = false; the devices generator
+skips those; roles stay wired (ORTHOGONAL by design: hiding the
+Samsung's redundant device tile does NOT kill its Source tile —
+harness-proven). Sidecar shape = no migration, Setup snippets ride
+along (export/import carry device_options). castFromCtx/castOf/
+Studio castOf all include source_select. Studio ＋ Add device span-2
+default kept. smoke-sources rewritten (role tile @samsung ·
+hide-unwired when idle · sonos on music · curation drops ONLY the
+samsung cast tile, Source survives) — 12 suites green. Deploy:
+engine + config.json + studio (no Python → no restart; reseed yes).
+
+v0.35 — **SOURCES V2 + MUSIC-LIBRARY SELF-HEAL** (Suresh's field
+report: "Input Sources idea is too clunky… what we need is a new
+type: Sources"). (1) SOURCES RETHOUGHT: the v0.33 inline generator
+(a drawer full of input preset tiles) is GONE. `sources` is now ONE
+tile (widgets/sources.js) — sub line shows the CURRENT input, tap →
+`sources:<mp>` virtual detail (live source_list as chips, current
+highlighted, pick → select_source, auto-back via stack). Apps
+drawer's Inputs section and the Library's Sources category removed;
+the music controller gained an m_src tile. (2) TITLE-BAR INPUT
+BUTTON: `info_button: sources` (+ optional `sources_entity`) turns
+the ⓘ into an input button — tv.yaml points it at $context.power
+(the SAMSUNG's inputs: Fire TV/TV·HDMI — the display owns inputs,
+not the streamer); everywhere else ⓘ stays. Studio: Title-bar icon
+select on view editors, sources in the tile Type list. (3) MUSIC
+LIBRARY EMPTY diagnosed live: the v0.31 MA startup race AGAIN —
+after the v0.34 restart the first fetch got zeroes and sat for 15h.
+sensor.py now: a failed/EMPTY read keeps the last data per category
+(never blank a good library), retry cadence drops to 5 min while
+all-empty, and EVENT_HOMEASSISTANT_STARTED triggers an immediate
+re-fetch. Also verified: the library's category chips DO render and
+tap in browsers — they were invisible because every section was
+empty (empty sections hide, so no chips); with content back the
+strip is the visual clue. (4) Studio ＋ Add device now defaults
+span 2 (full width — his niggle). New smoke-sources suite (tile →
+picker → select_source @sonos · tv ⓘ=input @samsung · home ⓘ=info ·
+apps drawer Inputs gone) — 12 suites green. Deploy: sensor.py
+changed → HA RESTART + reseed (config.json changed).
+
+v0.34.1 — **SUBSCRIPTION POISONING + STATE-HEADER CSS** (found
+during the v0.34 deploy ceremony + Suresh's screenshot). (1) THE
+REAL "pages need a refresh" ROOT CAUSE: entitiesFor() subscribed
+every string context value, and v0.32's `app_class: firetv` token is
+not an entity — HA rejects the ENTIRE subscribe_entities message on
+one malformed id, so every page whose context carries an app_class
+(TV controller, Apps drawer) got ZERO live updates. The v0.33
+watchdog only treated disconnects. Fix: only dot-containing context
+values subscribe. (2) FIXED-WIDTH Select/Input: raw class
+concatenation left `w-full` vs `w-64` to stylesheet order — the
+State header's mode select swallowed its row, crushing the title
+vertical and hiding the snippet controls (Suresh: "formatting broken,
+no export/import"). Root fix: twMerge in Select + Input (passed
+classes now always beat base); State/Setup headers get shrink-0 +
+width-wrapped mode select (w-72), and the ⤵ import control is ALWAYS
+visible — disabled with a "no snippets saved yet" hint instead of
+vanishing when empty. Suresh's follow-up: header order is label →
+mode dropdown → icons HARD RIGHT, and the ⤴/⤵ glyphs became proper
+upload/download tray SVGs (upload = save to Snippets, download =
+insert from Snippets; consistent bordered mini-buttons, invisible
+native select overlaid on the download icon keeps the picker).
+Verified by element screenshot.
+CONTAINER ROLLBACKS #3 AND #4 hit mid-window (v0.33/v0.34 files
+reverted to Jul-23/24 snapshots TWICE); both recovered from the G:\
+mirror via on-device tar → stage → extract → hash-match
+(6a49927b264e23b7) — the mirror-discipline doctrine is now
+load-bearing. All 11 suites green; engine rebuild byte-matches the
+mirrored fix (dbe4bb72…).
+
+v0.34 — **WORKSPACES, FOR REAL** (Suresh's heavy lift: "more than
+one workspace active — two remote controls in different rooms").
+DOCTRINE: a workspace = one complete runtime config = one remote's
+whole world; ALL workspaces are live at once. Main is the repo-built
+one and keeps every legacy path byte-identical (config.json, bare
+select ids, untagged service calls) — the Astrion notices nothing.
+(1) STORE v2: `{workspaces:{id:cfg}, meta:{id:{name}}, order}` with
+transparent legacy-wrap migration; new `workspaces.py` is pure
+(HA-free) so the container unit-tests it directly. (2) DEPLOY: main →
+config.json, others → config.<ws>.json beside it (the bat copies
+only index.html+config.json — verified — so ws files survive pushes);
+reseed = repo→main PLUS re-deploys every other ws file from the store
+(self-heal). (3) ENGINE: `#ws=bedroom` provisioning param, sticky in
+localStorage like #device=; loads config.<ws>.json, missing-file
+falls back to main with a bar flash; ONE injection point in
+callService tags harmonium.* calls with `workspace:` (main omits the
+key). (4) SERVICES: run/set_activity take optional `workspace`;
+sequences resolve per-workspace (two rooms can both have all_off).
+(5) SELECTS: minted per workspace — main keeps
+select.harmonium_<room>_activity EXACTLY (automations safe), others
+get select.harmonium_<ws>_<room>_activity; new workspaces mint
+IMMEDIATELY on create/save (platform hands its add-entities callback
+back); create/duplicate/publish retargets select refs by prefix
+rewrite server-side (string-level over the JSON — catches
+activity_select, activity_state, and sequence pokes). (6) API:
+config?ws= (no query = main = back-compat) + /api/harmonium/
+workspaces CRUD (create from blank/duplicate/current-draft; rename =
+display name only, id immutable; delete refuses main + removes the
+deployed file). (7) STUDIO: Live/Scratch pills → dynamic roster
+pills + Scratch; per-ws draft stash (unsaved edits survive
+switching); System → Workspaces manager page (rows, rename inline,
+2-press delete, create-and-deploy with provisioning hint); SCRATCH
+DOCTRINE SHIFT: Save & Deploy now REFUSES on scratch (it was a
+replace-live landmine) — publish it as a workspace instead; preview
+passes its workspace so Test buttons hit the right world;
+starterConfig mints ws-prefixed activity_select. Tests: NEW
+smoke-workspaces (pin/tag/sticky/fallback/main-clean), smoke-studio
+§15 (pills, per-ws save routing, manager, create), python unit run
+of workspaces.py (migrate/retarget round-trip/room_hosts) — 11
+suites green. NOTE: needs HA RESTART (integration .py changed).
+
+v0.33 — **ROUND 2 OF THE FIELD REPORTS.** (1) Browser button bar =
+Back|Home|Power: the buttons widget grew a `power` slot (control
+target / $context.power toggle — NOT a keycode); menu dropped (the
+dpad has it). (2) PRIME FIXED by research: Amazon moved the
+launcher — `androidtv.adb_command` with `am start com.amazon.firebat/
+com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity` (the deep-
+link router, HA community-verified 2024); Max's am-start also moved
+to adb_command (remote.send_command never ran shell). (3) volume_2
+ROLE REVERTED per Suresh ("wrong approach — add a device to a custom
+controller instead"); the hide-unwired-context-tile doctrine STAYS.
+(4) SOURCES/INPUTS: new `{type: sources}` generator — one preset per
+source_list entry of the ctx media_player (include: curates); Apps
+drawer became sections (Apps · Inputs — CH▲▼ hops them), Music
+Library grew a Sources category. Fixed en route: bannerless pages
+DISCARDED their section jumps at the buildHeroNav call site — jumps
+now always register (strip stays banner-only); local `strip` var
+shadowed the new param (engine-killing syntax error caught by
+node --check). (5) STALENESS WATCHDOG for "pages need a refresh":
+kiosk webviews doze and the socket dies silently — ping every 25s, a
+silent minute force-closes to trigger reconnect; visibility-wake
+resubscribes. (6) SNIPPETS (Suresh's spec): localStorage-backed
+(global across workspaces AND reseed-proof), typed (setup = devices
+& roles · state = state rules); ⤴ on the Setup/State title bars
+exports with metadata, ⤵ offers compatible snippets; Model →
+Snippets page groups by type (rename/edit/delete). All 10 suites
+green; sources/prime/power/jumps harness-verified.
+
 v0.23.1 (Suresh's live findings): (1) the Listen to Music activity
 card CRASHED on open (props_invalid_value — music lacks confirm_end;
 Switch bound undefined against a fallback) → function binding;

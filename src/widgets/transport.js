@@ -18,5 +18,10 @@ WIDGETS.transport = {
       <button class="dpbtn" data-tr="media_next_track"><span class="material-symbols-outlined">skip_next</span></button>
     </div>`,
     wire: (el, t) => wireTaps(el, "tr", svc =>
-      callService("media_player", svc, null, resolveEntity(t.entity)))
+      callService("media_player", svc, null, resolveEntity(t.entity))),
+    /* the big button MIRRORS state: ⏸ while playing, ▶ otherwise */
+    render: (el, e) => {
+      const g = el.querySelector('[data-tr="media_play_pause"] .material-symbols-outlined');
+      if (g) g.textContent = st(e).s === "playing" ? "pause" : "play_arrow";
+    }
   };

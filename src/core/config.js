@@ -3,6 +3,12 @@
    specific (screens, sections, activities, keymap, theme) is data.
    ================================================================ */
 let CONFIG = null;
+let WS = "main";  /* WORKSPACE (v0.34) — which world this remote lives
+                     in. main = the repo-built config.json; any other
+                     id loads config.<ws>.json (Studio-published).
+                     Provisioned like `device`: #ws=bedroom once →
+                     localStorage. Rides along on harmonium.* service
+                     calls so sequences run from the right workspace. */
 let DEVICE = {};                              // active device profile
 let CAPS = new Set(["touch", "pointer"]);     // its capabilities
 
@@ -24,10 +30,17 @@ let KEYMAP = {                    // default shell quirk table
   "o": "power_hold", "O": "power_hold"
 };
 
-async function loadConfig() {
+async function loadConfig(ws) {
+  /* a non-main workspace reads its own deployed file; if it isn't
+     there (deleted, never published) fall back to main so the remote
+     still boots — with a flag the caller can surface */
+  if (ws && ws !== "main") {
+    const r = await fetch("config." + ws + ".json", { cache: "no-store" });
+    if (r.ok) return { cfg: await r.json(), ws };
+  }
   const r = await fetch("config.json", { cache: "no-store" });
   if (!r.ok) throw new Error("config.json: HTTP " + r.status);
-  return r.json();
+  return { cfg: await r.json(), ws: "main", missed: ws && ws !== "main" ? ws : null };
 }
 
 let THEMED = [];   /* vars set by the last applyTheme — cleared first so

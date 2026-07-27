@@ -2,7 +2,7 @@
   /* One activity, full harmonia-style card: identity, Setup ($context
      devices), State rules, navigation + confirm, controls JSON escape
      hatch. Lives in the OWNING room's editor. */
-  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock } from "../state.svelte.js";
+  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf } from "../state.svelte.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
@@ -66,7 +66,24 @@
      The device list is the activity's cast (first = ★ primary, the
      activity's face). Role chips wire logical buttons/paths to a
      device; they compile to the same $context map the engine reads. */
-  const ROLES = ["media_player", "dpad", "power", "volume", "volume_level"];
+  const ROLES = ["media_player", "dpad", "power", "volume", "volume_level",
+    "source_select"];   /* source_select (v0.36): who owns inputs — wiring
+                           it makes the controller's Source tile appear */
+
+  /* CAST CURATION (v0.36): per-device "shows in Devices section"
+     toggle — device_options[ent].tile = false hides the tile, the
+     device stays wired to its roles. Default ON. */
+  const tileOn = (ent) => !(a.device_options?.[ent]?.tile === false);
+  function toggleTile(ent) {
+    if (tileOn(ent)) {
+      if (!a.device_options) a.device_options = {};
+      a.device_options[ent] = { ...(a.device_options[ent] || {}), tile: false };
+    } else {
+      delete a.device_options[ent].tile;
+      if (!Object.keys(a.device_options[ent]).length) delete a.device_options[ent];
+      if (!Object.keys(a.device_options).length) delete a.device_options;
+    }
+  }
   const deviceList = () => {
     if (a.devices) return a.devices;
     /* derive from existing $context (legacy activities) */
@@ -124,6 +141,32 @@
     }
   }
   let rawOpen = $state(false);
+
+  /* ---- SNIPPETS: ⤴ exports this block (with metadata), ⤵ inserts a
+     compatible one (Suresh's spec — same pair on Setup and State) ---- */
+  function exportSetup() {
+    const roles = {};
+    for (const r of ROLES) if (a.context?.[r]) roles[r] = a.context[r];
+    saveSnippet("setup", (a.name || id) + " setup",
+      { devices: [...deviceList()], roles,
+        ...(a.device_options ? { device_options: $state.snapshot(a.device_options) } : {}) });
+  }
+  function importSetup(sid) {
+    const sn = snippetsOf("setup").find(([k]) => k === sid)?.[1];
+    if (!sn) return;
+    a.devices = JSON.parse(JSON.stringify(sn.data.devices || []));
+    a.context = { ...(a.context || {}), ...JSON.parse(JSON.stringify(sn.data.roles || {})) };
+    if (sn.data.device_options)
+      a.device_options = JSON.parse(JSON.stringify(sn.data.device_options));
+  }
+  function exportState() {
+    if (!a.state) return;
+    saveSnippet("state", (a.name || id) + " state", $state.snapshot(a.state));
+  }
+  function importState(sid) {
+    const sn = snippetsOf("state").find(([k]) => k === sid)?.[1];
+    if (sn) a.state = JSON.parse(JSON.stringify(sn.data));
+  }
 
   /* ---- state-rule helpers ---- */
   const mode = (x) => !x.state ? "none"
@@ -311,7 +354,36 @@
       <!-- SETUP v2: devices (nouns) + role chips (wiring) — FIRST,
            so the cast exists before actions and rules reference it -->
       <div class="rounded-[10px] border border-line bg-tile p-3">
-        <div class="mb-1 text-[11px] font-bold tracking-[.07em] text-dim uppercase">Setup — devices &amp; roles</div>
+        {#snippet uploadIcon()}
+          <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15V4m0 0L8 8m4-4 4 4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+          </svg>
+        {/snippet}
+        {#snippet downloadIcon()}
+          <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 4v11m0 0-4-4m4 4 4-4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+          </svg>
+        {/snippet}
+        <div class="mb-1 flex items-center gap-1.5">
+          <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">Setup — devices &amp; roles</span>
+          <button class="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-line bg-transparent p-0 text-dim hover:text-accent"
+            title="Save this block to Snippets" onclick={exportSetup}>{@render uploadIcon()}</button>
+          <div class={"relative flex h-6 w-7 shrink-0 items-center justify-center rounded border border-line text-dim " +
+            (snippetsOf("setup").length ? "hover:text-accent" : "opacity-45")}>
+            {@render downloadIcon()}
+            <select value="" disabled={!snippetsOf("setup").length}
+              title={snippetsOf("setup").length
+                ? "Insert from Snippets"
+                : "No setup snippets saved yet — the upload icon saves this block as one"}
+              onchange={(e) => { if (e.target.value) importSetup(e.target.value); e.target.value = ""; }}
+              class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none disabled:cursor-default">
+              <option value=""></option>
+              {#each snippetsOf("setup") as [sid, sn] (sid)}<option value={sid}>{sn.name}</option>{/each}
+            </select>
+          </div>
+        </div>
         <p class="mt-0 mb-2 text-[11px] text-dim">
           Devices are what this activity involves (★ = primary, its face).
           Role chips wire the remote: which device the buttons and volume
@@ -326,6 +398,13 @@
                   (deviceList()[0] === ent ? "text-accent" : "text-dim hover:text-ink")}
                 title={deviceList()[0] === ent ? "Primary — the activity's face" : "Make primary"}
                 onclick={() => setPrimary(ent)}>{deviceList()[0] === ent ? "★" : "☆"}</button>
+              <button
+                class={"cursor-pointer border-0 bg-transparent p-0 text-[13px] " +
+                  (tileOn(ent) ? "text-accent" : "text-dim/50 hover:text-ink")}
+                title={tileOn(ent)
+                  ? "Shown in the controller's Devices section — click to hide (roles stay wired)"
+                  : "Hidden from the Devices section — click to show"}
+                onclick={() => toggleTile(ent)}>{tileOn(ent) ? "👁" : "🚫"}</button>
               <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
               {#each rolesOf(ent) as role (role)}
                 <button
@@ -354,7 +433,17 @@
             <div class="flex-1"><EntityPicker bind:value={newDev} placeholder="add a device…" /></div>
             <Button size="sm" onclick={() => addDevice(newDev)}>＋ Add device</Button>
           </div>
-          {#each Object.keys(a.context || {}).filter((k) => !ROLES.includes(k) && !deviceList().includes(a.context[k])) as slot (slot)}
+          <div class="flex items-center gap-2">
+            <span class="w-28 shrink-0 text-xs font-bold text-dim">App class</span>
+            <Select value={a.context?.app_class ?? ""} allowEmpty class="max-w-56"
+              options={Object.entries(app.draft?.app_classes || {})
+                .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+              onchange={(e) => { a.context = a.context || {};
+                if (e.target.value) a.context.app_class = e.target.value;
+                else delete a.context.app_class; }} />
+            <span class="text-[11px] text-dim">which Apps dialect this activity speaks (blank = the surface default)</span>
+          </div>
+          {#each Object.keys(a.context || {}).filter((k) => !ROLES.includes(k) && k !== "app_class" && !deviceList().includes(a.context[k])) as slot (slot)}
             <div class="flex items-center gap-2 px-1">
               <span class="w-28 shrink-0 truncate font-mono text-[11.5px] text-accent" title={slot}>{slot}</span>
               <span class="flex-1 truncate font-mono text-[11.5px] text-dim">
@@ -446,15 +535,45 @@
 
       <!-- STATE rules -->
       <div class="rounded-[10px] border border-line bg-tile p-3">
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">State — when is this activity ON?</span>
-          <Select value={mode(a)} onchange={(e) => setMode(a, e.target.value)}
+        {#snippet uploadIcon2()}
+          <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15V4m0 0L8 8m4-4 4 4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+          </svg>
+        {/snippet}
+        {#snippet downloadIcon2()}
+          <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 4v11m0 0-4-4m4 4 4-4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+          </svg>
+        {/snippet}
+        <div class="mb-2 flex items-center gap-1.5">
+          <span class="shrink-0 text-[11px] font-bold tracking-[.07em] text-dim uppercase">State — when is this activity ON?</span>
+          <div class="w-72 shrink-0"><Select value={mode(a)} onchange={(e) => setMode(a, e.target.value)}
             options={[
               { value: "none", label: "From activity select (default)" },
               { value: "all", label: "Device rules — ALL must match" },
               { value: "any", label: "Device rules — ANY may match" },
               { value: "any_state", label: "Primary entity in any of…" },
-            ]} class="w-64" />
+            ]} /></div>
+          <span class="min-w-0 flex-1"></span>
+          {#if a.state}
+            <button class="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-line bg-transparent p-0 text-dim hover:text-accent"
+              title="Save these state rules to Snippets" onclick={exportState}>{@render uploadIcon2()}</button>
+          {/if}
+          <div class={"relative flex h-6 w-7 shrink-0 items-center justify-center rounded border border-line text-dim " +
+            (snippetsOf("state").length ? "hover:text-accent" : "opacity-45")}>
+            {@render downloadIcon2()}
+            <select value="" disabled={!snippetsOf("state").length}
+              title={snippetsOf("state").length
+                ? "Insert from Snippets"
+                : "No state snippets saved yet — the upload icon saves these rules as one"}
+              onchange={(e) => { if (e.target.value) importState(e.target.value); e.target.value = ""; }}
+              class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none disabled:cursor-default">
+              <option value=""></option>
+              {#each snippetsOf("state") as [sid, sn] (sid)}<option value={sid}>{sn.name}</option>{/each}
+            </select>
+          </div>
         </div>
         {#if a.state}
           <Field label="Watched entities" class="mb-3">

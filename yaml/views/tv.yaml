@@ -14,6 +14,7 @@ activities: [watch_firetv, watch_smart]
 context:
   media_player: media_player.fire_tv_family_192_168_1_65
   dpad: remote.fire_tv_family_192_168_1_65
+  app_class: firetv
   power: media_player.sts_samsung_q90_porch
   volume: media_player.sts_samsung_q90_porch
   volume_level: media_player.ma_soundbar_porch
@@ -46,7 +47,12 @@ layout:
           only: physical_dpad
           buttons: [back, home]
         - { id: t_pad, type: dpad, entity: $context.dpad, icon: material:gamepad, label: Remote, span: 2, unless: physical_dpad }
+        - { id: t_btns2, type: buttons, entity: $context.dpad, label: '', span: 2, unless: physical_dpad, buttons: [back, home, power] }
         - { id: t_vol, type: volume, entity: $context.volume, level_entity: $context.volume_level, icon: material:volume_up, label: Volume, span: 2 }
+        # SOURCE tile (v0.36): appears iff the activity wires the
+        # source_select ROLE (hide-unwired) — the display's inputs
+        - { id: t_src, type: sources, entity: $context.source_select,
+            icon: material:input, label: Source, span: 2 }
 
     - heading: Devices
       columns: 1

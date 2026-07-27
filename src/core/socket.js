@@ -25,6 +25,7 @@ function connect() {
   S.ws = ws;
   ws.onmessage = ev => {
     S.msgCount++;
+    S.lastMsg = Date.now();
     const m = JSON.parse(ev.data);
     if (m.type === "auth_required") ws.send(JSON.stringify({ type: "auth", access_token: token }));
     else if (m.type === "auth_invalid") {
@@ -40,6 +41,20 @@ function connect() {
   ws.onerror = () => ws.close();
 }
 
+/* STALENESS WATCHDOG (v0.33): kiosk webviews doze — the socket can die
+   with no close event and the page silently freezes ("needs a refresh
+   to pick up state"). Ping every 25s; a silent minute force-closes the
+   socket so the reconnect loop heals it. Waking from hidden also
+   resubscribes for fresh adds. */
+setInterval(() => {
+  if (!S.connected || !S.ws) return;
+  if (Date.now() - (S.lastMsg || 0) > 60000) { try { S.ws.close(); } catch (e) {} return; }
+  send({ type: "ping" });
+}, 25000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && S.connected) subscribeFor(S.screen);
+});
+
 function send(msg, cb) {
   if (!S.connected && msg.type !== "auth") return;
   msg.id = ++S.msgId;
@@ -50,6 +65,11 @@ function send(msg, cb) {
 
 function callService(domain, service, data, entityId) {
   const msg = { type: "call_service", domain, service, service_data: data || {} };
+  /* harmonium.* calls route to THIS remote's workspace — the ONE
+     injection point, so run/set_activity always hit the right world.
+     Main omits the key (byte-identical with pre-workspace payloads). */
+  if (domain === "harmonium" && WS !== "main")
+    msg.service_data = Object.assign({ workspace: WS }, msg.service_data);
   if (entityId) msg.target = { entity_id: entityId };
   send(msg);
 }

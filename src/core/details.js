@@ -167,6 +167,22 @@ function detailScreen(eid) {
     initial_focus: tiles.some(t => t.id === "ds") ? "ds" : tiles[0].id
   };
 }
+/* SOURCES detail (v0.35): navigate("sources:<entity>") — the input
+   picker as a virtual screen. One chips row (kind source): the live
+   source_list, current highlighted, pick → select_source. Launched
+   by the `sources` tile and the repurposed title-bar input button. */
+function sourcesScreen(eid) {
+  if (!eid) return null;
+  const fn = st(eid).a.friendly_name;
+  return {
+    name: (fn || eid.split(".")[1].replace(/_/g, " ")) + " · Inputs",
+    virtual: true,
+    tiles: [{ id: "dsrc", type: "chips", kind: "source", entity: eid,
+      icon: "material:input", label: "", span: 2 }],
+    initial_focus: "dsrc"
+  };
+}
+
 /* screen id resolution: config screens + virtual detail screens +
    LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
    shared control surfaces; the active activity's context overlay
@@ -174,6 +190,8 @@ function detailScreen(eid) {
 function screenOf(id) {
   if (typeof id === "string" && id.startsWith("detail:"))
     return detailScreen(id.slice(7));
+  if (typeof id === "string" && id.startsWith("sources:"))
+    return sourcesScreen(id.slice(8));
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;

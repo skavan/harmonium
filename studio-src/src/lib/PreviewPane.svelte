@@ -37,7 +37,7 @@
 
   <div class="shrink-0 rounded-[22px] bg-black p-1 shadow-[0_0_0_2px_#2c333d,0_12px_40px_rgba(0,0,0,.5)]">
     <iframe id="pv" bind:this={iframe} title="Live preview"
-      src="/local/remote-proto/index.html#preview=1"
+      src="/local/harmonium/index.html#preview=1"
       class="h-[537px] w-[320px] rounded-[18px] border-0 bg-bg"></iframe>
   </div>
 

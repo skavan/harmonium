@@ -45,7 +45,7 @@
      archetypes), content generators, then raw widgets for the
      advanced hand */
   const CONTENT_TYPES = ["activity", "activities", "devices", "preset",
-    "presets_from", "apps", "scene", "script"];
+    "presets_from", "apps", "sources", "scene", "script"];
   /* cast GENERATOR (type "devices") → Unlink bakes it into plain
      device tiles (a point-in-time copy you then own) */
   function castOf(aid) {
@@ -53,7 +53,8 @@
     if (!a) return [];
     if (Array.isArray(a.devices) && a.devices.length) return a.devices;
     const seen = [];
-    for (const r of ["media_player", "dpad", "power", "volume", "volume_level"]) {
+    for (const r of ["media_player", "dpad", "power", "volume", "volume_level",
+                     "source_select"]) {
       const v = a.context?.[r];
       if (typeof v === "string" && v.includes(".") && !seen.includes(v)) seen.push(v);
     }
@@ -74,7 +75,8 @@
   const RAW_TYPES = ["light", "switch", "climate", "cover", "fan", "media",
     "volume", "transport", "mediabtns", "dpad", "buttons"];
   const ENTITY_TYPES = new Set(["light", "switch", "climate", "cover", "fan", "media",
-    "volume", "transport", "mediabtns", "script", "scene", "presets_from"]);
+    "volume", "transport", "mediabtns", "script", "scene", "presets_from",
+    "sources"]);   /* sources (v0.35): ONE tile that opens the input picker */
 
   /* ---- DEVICE tiles: a device STARTS with a name and an entity;
      type, icon, verbs and page all INFER from the entity ---- */
@@ -191,6 +193,7 @@
             { value: "play_pause", label: "Play / Pause" },
             { value: "toggle", label: "Toggle power" },
             { value: "open", label: "Open its page" },
+            { value: "none", label: "Nothing (readout only)" },
           ]} />
       </Field>
       <Field label="Hold action — opens" hint={holdHint()}>
@@ -226,8 +229,14 @@
       <Input value={tile.icon_image || tile.icon || ""} placeholder="material:lightbulb"
         class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} /></Field>
     {#if tile.type === "apps"}
+      <Field label="Device class" hint="blank = the activity's dialect ($context.app_class)">
+        <Select value={tile.class ?? ""} allowEmpty
+          options={Object.entries(app.draft?.app_classes || {})
+            .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+          onchange={(e) => { if (e.target.value) tile.class = e.target.value; else delete tile.class; }} />
+      </Field>
       <div class="col-span-2">
-        <Field label="Apps offered (in order)" hint="conscious curation — blank = whole registry, still filtered by launchability">
+        <Field label="Apps offered (in order)" hint="filters the class's list — blank = everything the class offers">
           <Chips bind:items={() => tile.include ?? [], (v) => (tile.include = v)}
             suggestions={Object.keys(app.draft?.apps || {})} placeholder="add app…" />
         </Field>

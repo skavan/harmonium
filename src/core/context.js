@@ -60,6 +60,10 @@ function powerEntities(sc) {
    capabilities from the active device profile (string or array). */
 function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
+  /* a context-bound tile whose role is UNWIRED here hides itself —
+     the Volume 2 tile only appears when the activity wires volume_2 */
+  if (typeof t.entity === "string" && t.entity.startsWith("$context.") &&
+      !resolveEntity(t.entity)) return false;
   if (t.only && !arr(t.only).every(c => CAPS.has(c))) return false;
   if (t.unless && arr(t.unless).some(c => CAPS.has(c))) return false;
   /* per-activity content overrides on a SHARED controller: one Watch
@@ -95,32 +99,27 @@ function substItem(v, item) {
   }
   return v;
 }
-/* ---- app registry resolution --------------------------------------
-   An APP is a house-level identity (name/icon); LAUNCH is per-device:
-   explicit override for this media_player -> auto (its default source
-   name appears in the device's live source_list) -> hidden here.
-   Override forms: "sequence:<id>" (building block, runs HA-side),
-   plain string (a source name), or an action object (preset grammar
-   {service,...} or HA-ish {action,...}). */
-function appLaunch(app, mp) {
-  const ov = (app.launch || {})[mp];
-  if (ov != null) {
-    if (typeof ov === "string") {
-      if (ov.startsWith("sequence:"))
-        return { service: "harmonium.run", data: { sequence: ov.slice(9) } };
-      return { service: "media_player.select_source", entity: mp, data: { source: ov } };
-    }
-    if (ov.service) return ov;
-    if (ov.action)
-      return { service: ov.action, data: ov.data,
-        entity: (ov.target && ov.target.entity_id) || ov.entity || mp };
-    return null;
-  }
-  if (!app.source) return null;
-  const list = st(mp).a.source_list;
-  /* unknown source_list -> benefit of the doubt; known list decides */
-  if (Array.isArray(list) && !list.includes(app.source)) return null;
-  return { service: "media_player.select_source", entity: mp, data: { source: app.source } };
+/* APP CLASSES (v0.30): the master list is IDENTITY (name/icon/image);
+   a device class is the platform's launch dialect — its entry per app
+   IS the curation (listed = offered). Entry forms:
+     source: X            → select_source on $context.media_player
+     action/target/data   → any HA-style action (default entity: ctx mp)
+     sequence: <id>       → run a named Action
+   (+ optional name/icon/image overrides riding the entry). */
+function classLaunch(e) {
+  if (e == null) return null;
+  if (typeof e === "string")
+    return e.startsWith("sequence:")
+      ? { service: "harmonium.run", data: { sequence: e.slice(9) } }
+      : { service: "media_player.select_source",
+          entity: "$context.media_player", data: { source: e } };
+  if (e.sequence) return { service: "harmonium.run", data: { sequence: e.sequence } };
+  if (e.source) return { service: "media_player.select_source",
+    entity: "$context.media_player", data: { source: e.source } };
+  if (e.service) return e;
+  if (e.action) return { service: e.action, data: e.data,
+    entity: (e.target && e.target.entity_id) || e.entity || "$context.media_player" };
+  return null;
 }
 
 function expandTile(t) {
@@ -136,22 +135,39 @@ function expandTile(t) {
       }));
   }
   if (t.type === "apps") {
-    /* one preset tile per registry app launchable on the target */
-    const mp = resolveEntity(t.entity || "$context.media_player");
-    if (!mp) return [];
-    /* curation: an ordered `include` list picks WHICH apps this drawer
-       offers (a conscious choice per drawer); default = whole registry */
+    /* one preset tile per app the resolved DEVICE CLASS offers.
+       Class resolution: tile `class` (literal or $context ref) →
+       $context.app_class (the running activity's dialect) → the only
+       class, when exactly one exists. No class → empty drawer. */
+    const ctx = ctxFor(S.screen);
+    let clsId = t.class || ctx.app_class;
+    if (typeof clsId === "string" && clsId.startsWith("$context."))
+      clsId = ctx[clsId.slice(9)];
+    const classes = CONFIG.app_classes || {};
+    if (!clsId && Object.keys(classes).length === 1) clsId = Object.keys(classes)[0];
+    const cls = classes[clsId];
+    if (!cls) return [];
     const reg = CONFIG.apps || {};
-    const ids = Array.isArray(t.include) ? t.include.filter(x => reg[x]) : Object.keys(reg);
-    return ids.map((aid) => [aid, reg[aid]]).map(([aid, app]) => {
-      const action = appLaunch(app, mp);
+    const entries = cls.apps || {};
+    const ids = Array.isArray(t.include)
+      ? t.include.filter((x) => entries[x] != null) : Object.keys(entries);
+    return ids.map((aid) => {
+      const e = entries[aid], meta = reg[aid] || {};
+      const ov = typeof e === "object" && e !== null ? e : {};
+      const action = classLaunch(e);
+      const image = ov.image || meta.image;
       return action && {
         type: "preset", id: t.id + "_" + aid,
-        icon: app.icon || "material:apps", label: app.name || aid,
+        icon: ov.icon || meta.icon || "material:apps",
+        ...(image ? { icon_image: image } : {}),
+        label: ov.name || meta.name || aid,
         action,
       };
     }).filter(Boolean);
   }
+  /* NOTE: `sources` stopped being a generator in v0.35 — it's a plain
+     tile now (widgets/sources.js) that opens the sources:<mp> detail.
+     The v0.33 inline expansion (one preset per input) was clunky. */
   if (t.type === "devices") {
     /* the activity's CAST generates device tiles — primary first,
        always in sync with Setup (the Studio's "Unlink" bakes them
@@ -173,9 +189,14 @@ function expandTile(t) {
         castAid = cur;
       }
     }
+    /* CAST CURATION (v0.36): Setup's per-device visibility toggle —
+       device_options[entity].tile === false keeps a cast member out
+       of the Devices section (it stays wired to its roles) */
+    const dopts = (castAid && ((CONFIG.activities || {})[castAid] || {}).device_options) || {};
     const ents = castAid ? castOf(castAid)
       : castFromCtx((screenOf(S.screen) || {}).context || {});
-    return ents.filter(e => e.split(".")[0] !== "remote").map(e => {
+    return ents.filter(e => e.split(".")[0] !== "remote")
+      .filter(e => !(dopts[e] && dopts[e].tile === false)).map(e => {
       const s = st(e), dom = e.split(".")[0];
       return {
         type: "device", id: t.id + "_" + e.replace(/[^a-zA-Z0-9]+/g, "_"),
@@ -208,7 +229,8 @@ function expandTile(t) {
    derived from the role wiring in role order — primary first. */
 function castFromCtx(ctx) {
   const seen = [];
-  for (const r of ["media_player", "dpad", "power", "volume", "volume_level"]) {
+  for (const r of ["media_player", "dpad", "power", "volume", "volume_level",
+                   "source_select"]) {
     const v = (ctx || {})[r];
     if (typeof v === "string" && v.includes(".") && !seen.includes(v)) seen.push(v);
   }
@@ -251,7 +273,14 @@ function entitiesFor(screenId) {
   rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
     .forEach(t => { add(t.entity); add(t.level_entity);
       (t.entities || []).forEach(add); groupEntities(t).forEach(add); });
-  Object.values(ctxFor(screenId)).forEach(v => { if (typeof v === "string") set.add(v); });
+  /* context values that ARE entities get subscribed — but context also
+     carries plain tokens (app_class: firetv) and ONE bad id makes HA
+     reject the WHOLE subscribe_entities message (found live 2026-07-26:
+     affected pages then got no state updates at all until a manual
+     refresh). Entity ids have a dot; tokens don't. */
+  Object.values(ctxFor(screenId)).forEach(v => {
+    if (typeof v === "string" && v.includes(".")) set.add(v);
+  });
   if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
   activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps

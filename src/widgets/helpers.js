@@ -14,7 +14,7 @@ const BTN_ICON = {
   up: "keyboard_arrow_up", down: "keyboard_arrow_down",
   left: "keyboard_arrow_left", right: "keyboard_arrow_right",
   select: "adjust", back: "undo", home: "home", menu: "menu", info: "info",
-  ch_up: "add", ch_down: "remove"
+  ch_up: "add", ch_down: "remove", power: "power_settings_new"
 };
 function cmdFor(t, key) {
   const m = Object.assign({}, DPAD_DEFAULT, t.commands || {}, ctxFor(S.screen).dpad_commands || {});

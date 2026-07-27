@@ -1245,3 +1245,39 @@ the compiler and Studio migrate it into the owner view's
 buttons.power_hold; the select's "off" option is minted regardless.
 Bindable keys in the Studio table: power_hold, menu_hold, vol_up,
 vol_down, ch_up, ch_down, mute.
+
+
+## Addendum v0.30 — app classes (2026-07-24)
+
+```yaml
+apps:                      # MASTER LIST — identity only
+  netflix: { name: Netflix, icon: material:movie }
+app_classes:               # DEVICE CLASSES — launch dialects
+  firetv:
+    name: Fire TV
+    apps:
+      netflix: { source: com.netflix.ninja }
+      prime:   { action: remote.send_command, entity: $context.dpad,
+                 data: { command: KEYCODE_PROG_RED } }
+      custom:  { sequence: my_action }
+```
+
+An apps tile resolves its class: tile `class:` (literal or $context
+ref) → `$context.app_class` (set per activity in Setup) → the only
+class when exactly one exists → empty. The class entry IS the
+curation; `include:` filters/orders it. `source:` sugar targets
+$context.media_player; action entities default there too. The old
+per-entity `launch:` map and source_list launchability are gone.
+
+
+## Addendum v0.31 — music library categories (2026-07-24)
+
+The integration publishes `sensor.harmonium_music_<category>`
+(playlists/artists/albums/tracks/radio; favorites only, hourly from
+Music Assistant; `items` = [{name, uri, media_type, image}]). The
+library view renders one labeled section per category via
+`presets_from` — the header strip chips are the on-screen category
+menu. Keys: unbound CH▲▼ on any page with 2+ labeled sections steps
+between them (screen/global `buttons` bindings always win); MENU
+tours them (wraps) when no device menu target resolves. Stepping
+remembers its own position per page (`S.heroAt`).

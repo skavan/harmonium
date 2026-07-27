@@ -6,6 +6,7 @@ parent: tv
 context:
   media_player: media_player.fire_tv_family_192_168_1_65
   dpad: remote.fire_tv_family_192_168_1_65
+  app_class: firetv
   power: media_player.sts_samsung_q90_porch
   volume: media_player.sts_samsung_q90_porch
   volume_level: media_player.ma_soundbar_porch
@@ -27,8 +28,10 @@ control_target:
 # (override first, else default source in the live source_list).
 layout:
   columns: 3
-  tiles:
-    - id: apps_grid
-      type: apps
-      # conscious curation: WHICH apps this drawer offers, in order
-      include: [netflix, youtube, youtubetv]
+  sections:
+    - label: Apps
+      tiles:
+        - id: apps_grid
+          type: apps
+          # the DEVICE CLASS is the curation (v0.30): everything the
+          # context's dialect offers; include: [ids] narrows if wanted

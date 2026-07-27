@@ -1,85 +1,15 @@
-# APP REGISTRY (house-level)
-# An app is an IDENTITY (name/icon) + a default source name. Launch is
-# resolved PER DEVICE at render time:
-#   1. an explicit launch override for that media_player, else
-#   2. auto — the default source name appears in the device's live
-#      source_list (select_source), else
-#   3. the app is hidden on that device.
-# Override forms: a plain string (source name), "sequence:<id>"
-# (building block, executed HA-side), or an HA-ish action object.
-# Per-device dialects below come from the proven ur_firetv.yaml /
-# ur_samsung.yaml universal-remote cards.
+# APP MASTER LIST (v0.30) — identity ONLY: display name + icon/image.
+# Could be 100 items; nothing here launches anything. Launch recipes
+# live per platform in app_classes.yaml (a class entry per app), and a
+# surface picks its dialect via the activity's context (app_class).
 
-netflix:
-  name: Netflix
-  icon: material:movie
-  source: Netflix
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.netflix.ninja
-
-prime:
-  name: Prime Video
-  icon: material:play_circle
-  source: Prime Video
-  launch:
-    # source action unreliable on Fire TV; the PROG_RED keycode opens Prime
-    media_player.fire_tv_family_192_168_1_65:
-      action: remote.send_command
-      target: { entity_id: remote.fire_tv_family_192_168_1_65 }
-      data: { command: KEYCODE_PROG_RED }
-
-youtube:
-  name: YouTube
-  icon: material:smart_display
-  source: YouTube
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.amazon.firetv.youtube
-
-youtubetv:
-  name: YouTube TV
-  icon: material:live_tv
-  source: YouTube TV
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.amazon.firetv.youtube.tv
-
-peacock:
-  name: Peacock
-  icon: material:theaters
-  source: Peacock TV
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.peacock.peacockfiretv
-
-paramount:
-  name: Paramount+
-  icon: material:star
-  source: Paramount+
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.cbs.ott
-
-max:
-  name: Max
-  icon: material:local_movies
-  source: Max
-  launch:
-    # no reliable source action on Fire TV; adb am start
-    media_player.fire_tv_family_192_168_1_65:
-      action: remote.send_command
-      target: { entity_id: remote.fire_tv_family_192_168_1_65 }
-      data: { command: am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity }
-
-appletv:
-  name: Apple TV
-  icon: material:tv_gen
-  source: Apple TV
-  launch:
-    media_player.fire_tv_family_192_168_1_65: com.apple.atve.amazon.appletv
-
-hulu:
-  name: Hulu
-  icon: material:video_library
-  source: Hulu
-
-disney:
-  name: Disney+
-  icon: material:castle
-  source: Disney+
+netflix:   { name: Netflix,      icon: material:movie }
+prime:     { name: Prime Video,  icon: material:play_circle }
+youtube:   { name: YouTube,      icon: material:smart_display }
+youtubetv: { name: YouTube TV,   icon: material:live_tv }
+peacock:   { name: Peacock,      icon: material:theaters }
+paramount: { name: Paramount+,   icon: material:star }
+max:       { name: Max,          icon: material:local_movies }
+appletv:   { name: Apple TV,     icon: material:tv_gen }
+hulu:      { name: Hulu,         icon: material:video_library }
+disney:    { name: Disney+,      icon: material:castle }

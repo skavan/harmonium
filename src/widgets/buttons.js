@@ -9,6 +9,15 @@ WIDGETS.buttons = {
       (t.buttons || ["info", "menu", "back", "home"]).map(k =>
         `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
       ).join("") + `</div>`,
-    wire: (el, t) => wireTaps(el, "cmd", k =>
-      rc(resolveEntity(t.entity), cmdFor(t, k)))
+    wire: (el, t) => wireTaps(el, "cmd", k => {
+      /* "power" is the DEVICE power (control target / $context.power),
+         not a remote keycode */
+      if (k === "power") {
+        if (ctPower()) return;
+        const pe = resolveEntity("$context.power");
+        if (pe) callService("homeassistant", "toggle", null, pe);
+        return;
+      }
+      rc(resolveEntity(t.entity), cmdFor(t, k));
+    })
   };

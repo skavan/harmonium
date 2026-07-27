@@ -34,18 +34,29 @@
 <div class="flex h-full flex-col">
   <header class="flex shrink-0 items-center gap-3 border-b border-line px-4 py-2.5">
     <h1 class="m-0 text-base font-[650]">Harmonium <span class="text-accent">Studio</span></h1>
-    <div class="flex overflow-hidden rounded-[9px] border border-line" role="tablist" title="Live = the deployed config · Scratch = a safe sandbox kept in this browser">
-      <button id="wsLive" class={"cursor-pointer border-0 px-3 py-1 text-xs font-semibold " +
-          (app.workspace === "live" ? "bg-accent text-accent-ink" : "bg-tile text-dim hover:text-ink")}
-        onclick={() => switchWorkspace("live")}>Live</button>
+    <div class="flex overflow-hidden rounded-[9px] border border-line" role="tablist"
+      title="Workspaces — each one is a remote's whole world, all deployed at once. Scratch = a safe sandbox kept in this browser. Manage on System → Workspaces.">
+      {#each app.wsOrder.filter((w) => app.workspaces[w]) as id (id)}
+        <button id={id === "main" ? "wsLive" : "ws_" + id}
+          class={"cursor-pointer border-0 px-3 py-1 text-xs font-semibold " +
+            (app.workspace === id ? "bg-accent text-accent-ink" : "bg-tile text-dim hover:text-ink")}
+          onclick={() => switchWorkspace(id)}>{app.workspaces[id].name}</button>
+      {/each}
       <button id="wsScratch" class={"cursor-pointer border-0 px-3 py-1 text-xs font-semibold " +
           (app.workspace === "scratch" ? "bg-accent text-accent-ink" : "bg-tile text-dim hover:text-ink")}
         onclick={() => switchWorkspace("scratch")}>Scratch</button>
     </div>
-    <a href="/local/remote-proto/index.html" target="_blank" rel="noopener"
+    <!-- the CURRENT workspace's ADDRESS (v0.38): each workspace is a
+         path under /local/harmonium/ — self-describing, nothing
+         pinned (scratch never deploys — its link opens Main) -->
+    <a href={"/local/harmonium/" +
+        (app.workspace !== "main" && app.workspace !== "scratch"
+          ? encodeURIComponent(app.workspace) + "/" : "index.html")}
+      target="_blank" rel="noopener"
       class="shrink-0 font-mono text-[11px] text-accent no-underline hover:underline"
-      title="Open the running app in a new browser tab"
-    >/local/remote-proto/ ↗</a>
+      title={"Open the running app in a new browser tab" +
+        (app.workspace === "scratch" ? " (scratch never deploys — this opens Main)" : "")}
+    >/local/harmonium/{app.workspace !== "main" && app.workspace !== "scratch" ? app.workspace + "/" : ""} ↗</a>
     <div id="status"
       class={"min-w-0 flex-1 truncate text-xs " +
         (app.status.cls === "err" ? "err text-danger" : app.status.cls === "ok" ? "ok text-ok" : "text-dim")}

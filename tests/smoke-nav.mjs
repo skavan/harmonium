@@ -106,6 +106,28 @@ await p.waitForTimeout(150);
 await p.click('#tile_r_living');
 await p.waitForTimeout(150);
 r.navNoTarget = await p.evaluate(() => S.screen);   // still overview
+// APP CLASSES (v0.30): the drawer speaks the context's dialect.
+// Idle on the tv surface → firetv (surface default, ALL 8 class
+// apps — the class is the curation); Watch Smart TV → tizen overlay.
+await p.evaluate(() => { navigate('apps', true); });
+await p.waitForTimeout(200);
+r.appsFiretv = await p.evaluate(() => {
+  const t = tiles().find(x => x.id === 'apps_grid_netflix');
+  return { count: tiles().filter(x => x.id.startsWith('apps_grid_')).length,  // 8
+    netflixSource: t?.action?.data?.source };   // com.netflix.ninja
+});
+await p.evaluate(() => {
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_smart', a: {} });
+  navigate('apps', true);
+});
+await p.waitForTimeout(200);
+r.appsTizen = await p.evaluate(() => {
+  const t = tiles().find(x => x.id === 'apps_grid_netflix');
+  return { netflixSource: t?.action?.data?.source };   // Netflix
+});
+await p.evaluate(() => {
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} });
+});
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));
 await b.close();

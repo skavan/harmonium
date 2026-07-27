@@ -18,7 +18,7 @@ await p.evaluate(() => {
     media_position_updated_at: new Date().toISOString(),
     shuffle: false, repeat: 'off',
     app_id: 'music_assistant' } });
-  S.states.set('sensor.porch_music_favorites', { s: '4', a: { favorites: [
+  S.states.set('sensor.harmonium_music_playlists', { s: '4', a: { items: [
     { name: 'talkSPORT', uri: 'library://radio/1', media_type: 'radio', image: 'r.jpg' },
     { name: 'Daily Mix 1', uri: 'library://playlist/22', media_type: 'playlist', image: 'p1.jpg' },
     { name: 'Discover Weekly', uri: 'library://playlist/14', media_type: 'playlist', image: 'p2.jpg' },
@@ -99,17 +99,17 @@ await p.waitForTimeout(250);
 r.drawer = await p.evaluate(() => ({
   screen: S.screen,
   pull: !!document.getElementById('tile_mq_pull'),
-  favCount: [...document.querySelectorAll('[id^="tile_mfav_"]')].length,
-  first: document.querySelector('#tile_mfav_0 .lbl')?.textContent,
-  firstImg: !!document.querySelector('#tile_mfav_0 .top img'),
-  noArtIcon: document.querySelector('#tile_mfav_3 .top .ic')?.textContent,
+  favCount: [...document.querySelectorAll('[id^="tile_m_pl_"]')].length,
+  first: document.querySelector('#tile_m_pl_0 .lbl')?.textContent,
+  firstImg: !!document.querySelector('#tile_m_pl_0 .top img'),
+  noArtIcon: document.querySelector('#tile_m_pl_3 .top .ic')?.textContent,
   backChevron: !document.getElementById('backBtn').classList.contains('hidden')
 }));
 
 // 4. tap a favorite -> play_media with $item substitution, then the
 //    DRAWER POPS back to the music screen (drawer: true)
 await p.evaluate(() => { window._sent.length = 0; });
-await p.click('#tile_mfav_2');
+await p.click('#tile_m_pl_2');
 await p.waitForTimeout(150);
 r.playFav = await p.evaluate(() => window._sent
   .filter(m => m.type === 'call_service')
@@ -131,20 +131,20 @@ r.pullPops = await p.evaluate(() => S.screen);
 // 6. STRUCTURAL re-render: sensor attribute changes -> tile set follows
 r.regen = await p.evaluate(() => {
   navigate('music_library');
-  const s = S.states.get('sensor.porch_music_favorites');
-  s.a = { favorites: s.a.favorites.concat(
+  const s = S.states.get('sensor.harmonium_music_playlists');
+  s.a = { items: s.a.items.concat(
     { name: 'Fresh Finds', uri: 'library://playlist/50', media_type: 'playlist', image: null }) };
-  S.states.set('sensor.porch_music_favorites', s);
+  S.states.set('sensor.harmonium_music_playlists', s);
   renderStates();
   return {
     screen: S.screen,
-    favCount: [...document.querySelectorAll('[id^="tile_mfav_"]')].length,
-    newLbl: document.querySelector('#tile_mfav_4 .lbl')?.textContent
+    favCount: [...document.querySelectorAll('[id^="tile_m_pl_"]')].length,
+    newLbl: document.querySelector('#tile_m_pl_4 .lbl')?.textContent
   };
 });
 
 // 7. dpad reaches generated tiles + select fires play_media (and pops)
-await p.evaluate(() => { setFocus('mfav_0'); window._sent.length = 0; });
+await p.evaluate(() => { setFocus('m_pl_0'); window._sent.length = 0; });
 await p.keyboard.press('Enter');
 await p.waitForTimeout(120);
 r.dpadFav = await p.evaluate(() => window._sent
@@ -200,5 +200,41 @@ r.swSame = await p.evaluate(() => ({
 }));
 
 r.errs = errs;
+// MUSIC LIBRARY CATEGORIES (v0.31): integration-published favorite
+// lists render per section; CH▲ steps categories; MENU tours (wraps)
+await p.evaluate(() => {
+  const items = (n) => Array.from({ length: n }, (_, i) => ({
+    name: 'Item ' + i, uri: 'x://u' + i, media_type: 'playlist', image: null }));
+  S.states.set('sensor.harmonium_music_artists',   { s: '2', a: { items: items(2) } });
+  S.states.set('sensor.harmonium_music_albums',    { s: '2', a: { items: items(2) } });
+  navigate('music_library', true);
+});
+await p.waitForTimeout(300);
+r.library = await p.evaluate(() => ({
+  jumps: (S.heroJumps || []).map(j => j.label),
+  strip: document.querySelectorAll('#banner .hjump').length,
+  playlists: document.querySelectorAll('[id^="tile_m_pl_"]').length,
+  artists: document.querySelectorAll('[id^="tile_m_ar_"]').length,
+  pull: !!document.getElementById('tile_mq_pull'),
+}));
+await p.evaluate(() => { window._sent.length = 0; });
+await p.keyboard.press('PageUp');   // ch_up
+await p.waitForTimeout(250);
+r.library.chStep = await p.evaluate(() => ({
+  bar: document.getElementById('screenName').textContent,   // Artists
+  calls: window._sent.filter(m => m.type === 'call_service').length,  // 0 — no track skip here
+}));
+await p.keyboard.press('#');        // menu → next category (wraps)
+await p.waitForTimeout(250);
+r.library.menuStep = await p.evaluate(() =>
+  document.getElementById('screenName').textContent);       // Albums
+// the music CONTROLLER keeps CH = track skip (binding wins)
+await p.evaluate(() => { navigate('controller:music', true); window._sent.length = 0; });
+await p.waitForTimeout(250);
+await p.keyboard.press('PageUp');
+await p.waitForTimeout(150);
+r.ctrlChTrack = await p.evaluate(() => window._sent
+  .filter(m => m.type === 'call_service').map(m => m.domain + '.' + m.service));
+
 console.log(JSON.stringify(r, null, 1));
 await b.close();

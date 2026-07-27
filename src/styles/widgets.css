@@ -22,7 +22,7 @@
   .tile.wgt-media.art .sub { display: none; }
   .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
   .npimg {
-    width: 96px; height: 96px; border-radius: 12px; object-fit: cover;
+    width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
     flex: 0 0 auto; background: #2c333d;
   }
   .npmeta { min-width: 0; flex: 1; }

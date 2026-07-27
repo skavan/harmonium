@@ -35,3 +35,7 @@ layout:
     - { id: m_tr, type: transport, entity: $context.media_player, label: Transport, span: 2 }
     - { id: m_cmd, type: mediabtns, entity: $context.media_player, label: Modes, span: 2 }
     - { id: m_vol, type: volume, entity: $context.volume, icon: material:volume_up, label: Volume, span: 2 }
+    # SOURCE tile (v0.36): role-governed — appears iff the activity
+    # wires source_select (the Sonos here); hide-unwired otherwise
+    - { id: m_src, type: sources, entity: $context.source_select,
+        icon: material:input, label: Source, span: 2 }

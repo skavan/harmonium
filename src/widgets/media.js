@@ -34,14 +34,30 @@ WIDGETS.media = {
       if (!t.art) return;
       const s = st(e);
       el.dataset.eid = e || "";
+      /* label mirrors state — "Now Playing" only while it IS */
+      const lbl = el.querySelector(".lbl");
+      if (lbl) lbl.textContent =
+        s.s === "playing" ? (t.label || "Now Playing") : cap(s.s);
+      /* ARTWORK AS BACKGROUND (Suresh): a dimmed full-tile wash —
+         metadata keeps the whole width instead of scrunching */
       const img = el.querySelector(".npimg");
       const pic = s.a.entity_picture;
       if (pic && ACTIVE(s.s)) {
+        if (el.dataset.bg !== pic) {
+          el.dataset.bg = pic;
+          el.style.backgroundImage =
+            `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
+          el.style.backgroundSize = "cover";
+          el.style.backgroundPosition = "center";
+        }
         if (img.dataset.src !== pic) {
           img.dataset.src = pic; img.src = pic;
           img.classList.remove("hidden");
         }
-      } else { img.classList.add("hidden"); img.dataset.src = ""; }
+      } else {
+        el.dataset.bg = ""; el.style.backgroundImage = "";
+        img.classList.add("hidden"); img.dataset.src = "";
+      }
       el.querySelector(".npt").textContent = s.a.media_title || cap(s.s);
       el.querySelector(".npa").textContent =
         s.a.media_artist || s.a.media_series_title || "";

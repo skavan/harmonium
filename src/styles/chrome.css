@@ -13,7 +13,7 @@
   #backBtn > * { pointer-events: none; }
   #backBtn .material-symbols-outlined { font-size: 20px; }
   #bar .name {
-    font-size: 17px; font-weight: 650; color: var(--text); flex: 1;
+    font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
   /* passthrough-mode cue: 2px accent rule + gamepad glyph — the D-pad
@@ -38,6 +38,7 @@
   }
   #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
+  #info { color: var(--dim); font-size: 20px; cursor: pointer; padding: 4px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */

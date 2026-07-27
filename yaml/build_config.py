@@ -256,6 +256,7 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
         "activities": activities,
         "sequences": sequences,
         "apps": source.get("apps") or {},
+        "app_classes": source.get("app_classes") or {},
         "screens": screens,
     }
     # LIBRARY CONTROLLERS (phase 2 of the polish doc): a view marked
@@ -313,7 +314,8 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
                         section["role"] = "custom"
                     elif types and types <= {"device", "devices", "light", "switch",
                                              "climate", "cover", "fan", "media",
-                                             "nav", "script", "scene", "volume"}:
+                                             "nav", "script", "scene", "volume",
+                                             "sources"}:
                         section["role"] = "devices"
                     else:
                         section["role"] = "custom"
@@ -371,6 +373,16 @@ def validate(config: dict[str, Any], views: dict[str, Any]) -> None:
             if tile.get("type") == "nav" and tile.get("target") and tile["target"] not in navigable:
                 raise ValueError(
                     f"view {view_id} nav tile {tile.get('id')} targets unknown view {tile['target']}")
+            if tile.get("type") == "apps" and tile.get("class") \
+                    and not str(tile["class"]).startswith("$context") \
+                    and tile["class"] not in config.get("app_classes", {}):
+                raise ValueError(
+                    f"view {view_id} apps tile {tile.get('id')} names unknown class {tile['class']}")
+    # APP CLASSES (v0.30): every class entry must name a master-list app
+    for cid, cls in config.get("app_classes", {}).items():
+        unknown = set((cls or {}).get("apps") or {}) - set(config.get("apps") or {})
+        if unknown:
+            raise ValueError(f"app class {cid} references unknown apps: {sorted(unknown)}")
 
 
 def main() -> None:

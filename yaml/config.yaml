@@ -4,4 +4,5 @@ version: 2
 # self-contained document under views/.
 system: !include system.yaml
 apps: !include apps.yaml
+app_classes: !include app_classes.yaml
 views: !include_dir_named views
