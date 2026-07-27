@@ -48,22 +48,53 @@ Three fixed panes, header bar on top:
 6. Forms lack visual rhythm: everything is the same weight, same gray, same density; no empty states, no onboarding affordances for first-run.
 7. JSON escape hatches (Code tab, "All fields (JSON)") are necessary but visually equal to primary paths.
 
-## 5 · What we want from Claude Design
+## 5 · Design principle: paradigm first (the most important section)
+
+Harmonium exists because Logitech Harmony's paradigm was right. The user's
+world is **Devices** (what they own), **Activities** (what they do:
+Watch TV, Listen to Music), **Presets** (one-touch shortcuts: Netflix,
+a playlist), organized into **Pages**. Pages are *usually* rooms
+(Porch, Den) but need not be — "Whole House Music" is a perfectly good
+page. Don't design around "Rooms" as a noun; design around Pages that
+usually smell like places.
+
+The engine underneath is maximally general — any tile type in any
+section on any page — but **generality is the engine's business, not
+the user's face**. Concretely:
+
+- A hub page IS the liturgy: **Activities → Presets → Devices**,
+  presented as blessed zones with paradigm verbs (＋ Add activity ·
+  ＋ Add preset · ＋ Add device) — not "sections" with "tiles."
+- The Devices zone holds devices *and doorways to more devices* (nav
+  cards to sub-pages like HVAC & Lights) — no new category needed.
+- Controllers have their own liturgy: Now Playing → Transport →
+  Volume → Source → the activity's device cast.
+- The generalized machinery — custom sections, the raw tile-type list,
+  JSON escape hatches — stays fully available but lives **behind
+  glass**: an advanced layer reached deliberately, never the default
+  path.
+- **Never surface the word "tile" on a primary path.** "Tile" is
+  implementation vocabulary for the advanced layer and the docs.
+
+If a design direction makes the Studio feel like a generic grid/page
+builder, it has failed this brief — the paradigm is the product.
+
+## 6 · What we want from Claude Design
 
 1. **2–3 distinct visual directions** for the Studio (moodboard + one hero screen each). Taste anchors: Linear, Raycast, Figma's own property panels — crisp, quiet, confident; NOT glassmorphism, NOT dashboard-gaudy.
 2. A **design token system**: color palette (light + dark), type ramp, spacing scale, radii, elevation, state colors — expressed as CSS variables / Tailwind theme values.
 3. **Component kit specs** for the primitives listed above, with hover/focus/disabled/danger states and real labels replacing bare glyphs where it matters.
 4. **Redesigned mockups of four key screens:** Hub editor with an activity card open (02), the controller editor (03), Workspaces (06), and the NavPane treatment.
-5. **UX suggestions welcome** on: NavPane hierarchy, progressive disclosure in ActivityCard, empty/first-run states, and the header-bar action cluster. Terminology and information model are FIXED (workspaces, views, controllers, activities, roles, actions, snippets — these names stay).
+5. **UX suggestions welcome** on: NavPane hierarchy, progressive disclosure in ActivityCard (and generally how the advanced layer goes "behind glass" per §5), empty/first-run states, and the header-bar action cluster. Terminology and information model are FIXED (devices, activities, presets, pages, workspaces, controllers, roles, actions, snippets — these names stay; "tile" never on a primary path).
 
-## 6 · Non-goals
+## 7 · Non-goals
 
 - No framework changes, no multi-file output, no external services.
 - Don't redesign the remote engine UI inside the phone preview.
 - Don't rename concepts or restructure the underlying config model.
 - No feature additions — this is skin and flow, not scope.
 
-## 7 · Where things live
+## 8 · Where things live
 
 | Thing | Path |
 |---|---|
