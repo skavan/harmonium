@@ -17,7 +17,7 @@
 <select
   value={value ?? ""}
   onchange={handle}
-  class={twMerge("w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2.5 py-1.5 font-[inherit] text-sm text-ink outline-none focus:border-accent/60", cls)}
+  class={twMerge("h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none focus:border-accent focus:[box-shadow:var(--ring-focus)]", cls)}
   {...rest}
 >
   {#if allowEmpty}<option value="">—</option>{/if}

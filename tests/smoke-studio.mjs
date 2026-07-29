@@ -82,9 +82,15 @@ await p.addInitScript(() => localStorage.setItem('hakr_token', 'stub-token'));
 await p.goto('http://localhost:8482/harmonium-static/studio.html');
 await p.waitForTimeout(1500);
 
+const cardTab = name => p.evaluate(n => {
+  [...document.querySelectorAll('button')]
+    .filter(b => b.textContent.trim().startsWith(n))
+    .forEach(b => b.click());
+}, name);
+
 const navClick = label => p.evaluate(l => {
   [...document.querySelectorAll('#nav .item')]
-    .find(el => el.textContent.startsWith(l)).click();
+    .find(el => (el.querySelector('.truncate')?.textContent || el.textContent).startsWith(l)).click();
 }, label);
 
 // 1. loaded: status + nav slices (Room + 7 views + Activities + 3 system)
@@ -101,6 +107,27 @@ r.preview = await fr.evaluate(() => ({
   screen: S.screen,
   tiles: document.querySelectorAll('#grid .tile').length > 0
 }));
+
+// 2b. WORKSPACE MAP (final round): the LANDING slice — whole workspace
+//     at a glance, read-only, Edit → is the doorway into real editors
+r.map = await p.evaluate(() => ({
+  landed: !!document.querySelector('[data-map]'),
+  navPinned: !!document.getElementById('navMap'),
+  pageCards: document.querySelectorAll('[data-map] .grid-cols-2 > div').length >= 3,
+  rootBadge: document.body.textContent.includes('Root page'),
+  controllers: [...document.querySelectorAll('[data-map] span')]
+    .some(s => s.textContent === 'Controllers'),
+  sharedNote: document.body.textContent.includes('an edit here reaches both'),
+}));
+await p.evaluate(() => {
+  const card = [...document.querySelectorAll('[data-map] .grid-cols-2 > div')]
+    .find(d => d.querySelector('span.truncate')?.textContent === 'Porch');
+  [...card.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === 'Edit')?.click();
+});
+await p.waitForTimeout(500);
+r.map.editJump = await p.evaluate(() =>
+  [...document.querySelectorAll('input')].some(i => i.value === 'Porch'));
 
 // 3. VISUAL editor: default slice is the ROOM (room.porch) — rename the
 //    room through the form; the room OWNS its activities (4 cards)
@@ -212,6 +239,9 @@ r.save = {
 //    (no device/entity required)
 await p.click('#wsScratch');
 await p.waitForTimeout(700);
+/* workspaces land on the MAP now — enter the starter room first */
+await navClick('New Room');
+await p.waitForTimeout(400);
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add activity'))?.click();
 });
@@ -248,6 +278,8 @@ r.autoId = await p.evaluate(() => ({
 // 10. ＋ on an empty Start action opens a DRAFT in the Actions editor:
 //     seeded, NOT linked until Confirm; Confirm links + returns to the
 //     origin view with the activity card re-opened
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Watch Bluray — Start"]')?.click();
 });
@@ -264,6 +296,8 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Confirm & link'))?.click();
 });
 await p.waitForTimeout(700);
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 r.createSeq.linked = await p.evaluate(() =>
   [...document.querySelectorAll('select')].some(
     s => s.value === 'sequence:veranda_watch_bluray_start'));
@@ -272,6 +306,8 @@ r.createSeq.cardReopened = await p.evaluate(() =>
 
 // 10b. the other half: ＋ on Stop, then DISCARD — nothing linked,
 //      the draft is deleted, and we land back on the card
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Watch Bluray — Stop"]')?.click();
 });
@@ -280,6 +316,8 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Discard'))?.click();
 });
 await p.waitForTimeout(600);
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 r.discard = await p.evaluate(() => ({
   noLink: ![...document.querySelectorAll('select')].some(
     s => s.value === 'sequence:veranda_watch_bluray_stop'),
@@ -290,13 +328,16 @@ r.discard = await p.evaluate(() => ({
 await navClick('Veranda'); /* section 3 renamed the room */
 await p.waitForTimeout(400);
 await p.evaluate(() => {
-  /* open the card only if its body isn't already visible (the
-     draft-confirm return leaves it open) */
-  if (![...document.querySelectorAll('input')].some(i => i.placeholder === 'add a device…'))
+  /* open the card only if it's CLOSED (a tab bar means open — the
+     draft-confirm return leaves it open on some tab) */
+  if (![...document.querySelectorAll('button')]
+      .some(b => b.textContent.trim().startsWith('Devices & roles')))
     [...document.querySelectorAll('.font-semibold')]
       .find(el => el.textContent === 'Watch Bluray')?.closest('button')?.click();
 });
 await p.waitForTimeout(300);
+await cardTab('Devices & roles');
+await p.waitForTimeout(200);
 await p.evaluate(() => {
   const inp = [...document.querySelectorAll('input')].find(i => i.placeholder === 'add a device…');
   inp.focus();
@@ -312,8 +353,11 @@ r.combo = await p.evaluate(() => {
   return out;
 });
 await p.waitForTimeout(200);
+/* picking from the dropdown now ADDS the device (v0.43.8): it joins
+   the cast and the box clears for the next one */
 r.combo.picked = await p.evaluate(() =>
-  [...document.querySelectorAll('input')].some(i => i.value === 'media_player.demo_tv'));
+  [...document.querySelectorAll('.font-mono')].some(el => el.textContent === 'media_player.demo_tv') &&
+  ![...document.querySelectorAll('input')].some(i => i.value === 'media_player.demo_tv'));
 
 // 10c. EVERY activity card opens (music lacks confirm_end — the
 //      bind-to-undefined crash class; open them all)
@@ -332,6 +376,8 @@ r.allCardsOpen.crashes = errs.length;
 // 11a. ＋ Create control page: mints the controller view AND jumps
 //      into it as a PAGE DRAFT (the generalized ＋ contract); Keep
 //      returns to the card with the link in place
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Create control page"]')?.click();
 });
@@ -344,6 +390,8 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Keep this page'))?.click();
 });
 await p.waitForTimeout(600);
+await cardTab('Start & stop');
+await p.waitForTimeout(200);
 r.createPage.linked = await p.evaluate(() =>
   [...document.querySelectorAll('select')].some(s => s.value === 'veranda_watch_bluray'));
 r.createPage.editLink = await p.evaluate(() =>
@@ -352,23 +400,18 @@ r.createPage.editLink = await p.evaluate(() =>
 // 11c. NAV CARD: ＋ Add nav card in Devices, ＋ mints its page and
 //      jumps in as a draft; DISCARD deletes the page and unlinks
 await p.evaluate(() => {
-  /* open the Devices fold, then add a nav card */
-  [...document.querySelectorAll('button')]
-    .find(b => /^[▶] Devices/.test(b.textContent.trim()))?.click();
-});
-await p.waitForTimeout(250);
-await p.evaluate(() => {
-  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add nav card'))?.click();
+  /* blessed sections (R2): Devices is always visible — add a doorway */
+  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add doorway'))?.click();
 });
 await p.waitForTimeout(400);
 r.navCard = await p.evaluate(() => ({
   added: [...document.querySelectorAll('.font-semibold')]
-    .some(el => el.textContent === 'New nav card'),
+    .some(el => el.textContent === 'New doorway'),
 }));
 await p.evaluate(() => {
   /* open the new tile's card row, then hit its ＋ (mint page) */
   [...document.querySelectorAll('.font-semibold')]
-    .find(el => el.textContent === 'New nav card')?.closest('button')?.click();
+    .find(el => el.textContent === 'New doorway')?.closest('button')?.click();
 });
 await p.waitForTimeout(300);
 await p.evaluate(() => {
@@ -378,22 +421,179 @@ await p.waitForTimeout(600);
 r.navCard.draftBanner = await p.evaluate(() =>
   document.body.textContent.includes('Discard removes it and unlinks'));
 r.navCard.pageMade = await p.evaluate(() =>
-  [...document.querySelectorAll('input')].some(i => i.value === 'new_nav_card'));
+  [...document.querySelectorAll('input')].some(i => i.value === 'new_doorway'));
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === '✕ Discard')?.click();
 });
 await p.waitForTimeout(600);
 r.navCard.discarded = await p.evaluate(() => ({
-  pageGone: !document.getElementById('nav')?.textContent.includes('New nav card'),
+  pageGone: !document.getElementById('nav')?.textContent.includes('New doorway'),
   backOnRoom: [...document.querySelectorAll('input')].some(i => i.value === 'porch'),
 }));
 
 // 11b. exactly ONE canonical Devices fold (device tiles must infer
 //      role "devices" in compiler AND editor — regression guard)
 r.devicesFold = await p.evaluate(() =>
-  [...document.querySelectorAll('button')]
-    .map(b => b.textContent.trim().replace(/\s+/g, ' '))
-    .filter(t => /^[▶▼] Devices/.test(t)).length === 1);
+  document.querySelectorAll('[data-sec="Devices"]').length === 1);
+
+// 11b2. SECTION ACCORDION (v0.43.6): editor-only fold — chevron hides
+//       the section's rows, config untouched, expand brings them back
+await p.evaluate(() => document.querySelector('[aria-label="Collapse Devices"]')?.click());
+await p.waitForTimeout(250);
+r.accordion = { folded: await p.evaluate(() =>
+  ![...document.querySelectorAll('.font-semibold')].some(e => e.textContent === 'Porch TV')) };
+await p.evaluate(() => document.querySelector('[aria-label="Expand Devices"]')?.click());
+await p.waitForTimeout(250);
+r.accordion.back = await p.evaluate(() =>
+  [...document.querySelectorAll('.font-semibold')].some(e => e.textContent === 'Porch TV'));
+
+// 11d. ITEM-CARD GRAMMAR ON TILES (R4): a fresh device opens onto
+//      "The device" tab; Styling holds Column span; Advanced (glass)
+//      holds Type + the always-on JSON
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add device'))?.click();
+});
+await p.waitForTimeout(300);
+await p.evaluate(() => {
+  [...document.querySelectorAll('.font-semibold')]
+    .find(el => el.textContent === 'New device')?.closest('button')?.click();
+});
+await p.waitForTimeout(300);
+r.tileGrammar = await p.evaluate(() => ({
+  deviceTab: [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'The device'),
+  stylingTab: [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Styling'),
+  idChip: [...document.querySelectorAll('div')].some(d => d.title?.includes('editable under Advanced')),
+  entityOnMain: [...document.querySelectorAll('span')].some(s => s.textContent.trim() === 'Entity'),
+}));
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Styling')?.click();
+});
+await p.waitForTimeout(200);
+r.tileGrammar.spanSegmented = await p.evaluate(() =>
+  [...document.querySelectorAll('span')].some(s => s.textContent.trim() === 'Column span') &&
+  [...document.querySelectorAll('[role="tablist"] button')].some(b => b.textContent.trim() === '2'));
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].filter(b => b.textContent.trim().endsWith('Advanced')).at(-1)?.click();
+});
+await p.waitForTimeout(200);
+r.tileGrammar.advanced = await p.evaluate(() => ({
+  typeSelect: [...document.querySelectorAll('option')].some(o => o.textContent.includes('device — auto from its entity')),
+  json: [...document.querySelectorAll('textarea')].some(t => t.value.includes('"New device"')),
+}));
+/* leave the board as we found it: delete the probe tile */
+await p.evaluate(() => {
+  [...document.querySelectorAll('.font-semibold')]
+    .filter(el => el.textContent === 'New device')
+    .map(el => el.closest('div')?.querySelector('button[title="Delete"]'))
+    .find(Boolean)?.click();
+});
+await p.waitForTimeout(300);
+/* the probe delete raised an undo toast — dismiss so it can't linger */
+await p.evaluate(() => document.querySelector('#undoToast button[title="Dismiss"]')?.click());
+
+// 11e. REORDER + UNDO + DIRTY (final round): ··· menu moves; Remove
+//      gets a 10s undo toast; edits wear an ● Edited chip that clears
+//      when the item matches saved again
+const rowMenuClick = async (rowTitle, item) => {
+  await p.evaluate((t) => {
+    [...document.querySelectorAll('.font-semibold')]
+      .find(el => el.textContent === t)?.closest('div')
+      ?.querySelector('button[title="More actions"]')?.click();
+  }, rowTitle);
+  await p.waitForTimeout(150);
+  await p.evaluate((l) => {
+    [...document.querySelectorAll('button')]
+      .find(b => b.textContent.trim() === l)?.click();
+  }, item);
+  await p.waitForTimeout(250);
+};
+const presetOrder = () => p.evaluate(() => {
+  const names = [...document.querySelectorAll('.font-semibold')].map(e => e.textContent);
+  return names.indexOf('Netflix') - names.indexOf('YouTube TV');
+});
+r.reorder = { before: await presetOrder() };            // negative: Netflix first
+await rowMenuClick('Netflix', 'Move down');
+r.reorder.moved = await presetOrder();                  // positive: now after
+await rowMenuClick('Netflix', 'Move up');
+r.reorder.restored = await presetOrder();
+r.reorder.ok = r.reorder.before < 0 && r.reorder.moved > 0 && r.reorder.restored < 0;
+
+await rowMenuClick('Netflix', 'Remove');
+r.undo = await p.evaluate(() => ({
+  toast: document.getElementById('undoToast')?.textContent.includes('Removed Netflix'),
+  gone: ![...document.querySelectorAll('.font-semibold')].some(e => e.textContent === 'Netflix'),
+}));
+await p.click('#undoBtn');
+await p.waitForTimeout(300);
+r.undo.restored = await p.evaluate(() =>
+  [...document.querySelectorAll('.font-semibold')].some(e => e.textContent === 'Netflix'));
+
+/* dirty chip: edit → chip; edit BACK → chip clears (set-based baseline).
+   NB the row title follows the label, so check under BOTH names. */
+const netflixEdited = () => p.evaluate(() =>
+  [...document.querySelectorAll('.font-semibold')]
+    .find(e => e.textContent === 'Netflix' || e.textContent === 'NetflixX')?.closest('button')
+    ?.textContent.includes('● Edited') ?? false);
+await p.evaluate(() => {
+  [...document.querySelectorAll('.font-semibold')]
+    .find(el => el.textContent === 'Netflix')?.closest('button')?.click();
+});
+await p.waitForTimeout(300);
+const setNetflixLabel = (v) => p.evaluate((val) => {
+  const inp = [...document.querySelectorAll('input')]
+    .find(i => i.value === (val === 'NetflixX' ? 'Netflix' : 'NetflixX'));
+  inp.value = val;
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}, v);
+r.dirty = { cleanBefore: !(await netflixEdited()) };
+await setNetflixLabel('NetflixX');
+await p.waitForTimeout(250);
+r.dirty.chipOn = await netflixEdited();
+await setNetflixLabel('Netflix');
+await p.waitForTimeout(250);
+r.dirty.chipCleared = !(await netflixEdited());
+await p.evaluate(() => {   /* close the card */
+  [...document.querySelectorAll('.font-semibold')]
+    .find(el => el.textContent === 'Netflix')?.closest('button')?.click();
+});
+await p.waitForTimeout(200);
+
+// 11f. PAGE SETTINGS PANEL (final round): Layout tab — grid columns
+//      segmented with a source chip; SET HERE ↔ Reset round-trip
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Page settings')?.click();
+});
+await p.waitForTimeout(250);
+r.pageSettings = await p.evaluate(() => ({
+  layoutTab: [...document.querySelectorAll('span')].some(s => s.textContent.trim() === 'Grid columns'),
+  /* porch ships grid.columns:1, so the chip STARTS at Set here —
+     assert a source chip exists in either state */
+  sourceChip: document.body.textContent.includes('From workspace') ||
+    document.body.textContent.includes('Set here'),
+  tileHeight: [...document.querySelectorAll('span')].some(s => s.textContent.trim() === 'Tile height'),
+  fallThrough: document.body.textContent.includes('Values fall through'),
+}));
+await p.evaluate(() => {
+  [...document.querySelectorAll('[role="tablist"] button')]
+    .find(b => b.textContent.trim() === '3')?.click();
+});
+await p.waitForTimeout(250);
+r.pageSettings.setHere = await p.evaluate(() => document.body.textContent.includes('Set here'));
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Reset')?.click();
+});
+await p.waitForTimeout(250);
+r.pageSettings.resetBack = await p.evaluate(() => document.body.textContent.includes('From workspace'));
+/* leave the fixture as found: porch ships columns:1 */
+await p.evaluate(() => {
+  [...document.querySelectorAll('[role="tablist"] button')]
+    .find(b => b.textContent.trim() === '1')?.click();
+});
+await p.waitForTimeout(200);
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Page settings')?.click();
+});
+await p.waitForTimeout(200);
 
 // 12. PAGE ID is editable: rename porch → veranda, every ref walks
 await p.evaluate(() => {
@@ -424,7 +624,7 @@ r.hostInfer = { toggleGone: await p.evaluate(() =>
   !document.body.textContent.includes('Room view')) };
 await p.evaluate(() => {
   [...document.querySelectorAll('button')]
-    .find(b => b.title?.startsWith('Create a free-standing view'))?.click();
+    .find(b => b.title?.startsWith('Create a free-standing'))?.click();
 });
 await p.waitForTimeout(500);
 r.hostInfer.plainBorn = await p.evaluate(() => {
@@ -449,6 +649,16 @@ r.hostInfer.stamped = {
 //     (Run action → All Off); "Page functions" is gone everywhere
 await navClick('Veranda');
 await p.waitForTimeout(400);
+/* key mappings live in the Page settings panel now (§6.4): open it */
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Page settings')?.click();
+});
+await p.waitForTimeout(200);
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .filter(b => b.textContent.trim().startsWith('Keys')).at(-1)?.click();
+});
+await p.waitForTimeout(300);
 r.bindings = await p.evaluate(() => ({
   foldGone: !document.body.textContent.includes('Page functions'),
   keyRow: [...document.querySelectorAll('select')]
@@ -461,6 +671,30 @@ r.bindings = await p.evaluate(() => ({
     .some(el => el.textContent === 'All Off' && el.closest('#nav') === null &&
       el.parentElement?.textContent.includes('off')),
 }));
+
+// 14b. BLESSED SECTIONS (R2): the Presets switch — off keeps items,
+//      stops rendering (preview loses the preset tiles), Save posts
+//      enabled:false; back on restores everything
+await navClick('Veranda');
+await p.waitForTimeout(400);
+const presetCount = () => fr.evaluate(() =>
+  document.querySelectorAll('[id^="tile_p_"]').length);
+r.secSwitch = { before: await presetCount() };
+await p.evaluate(() => {
+  document.querySelector('[data-sec="Presets"] [role="switch"]')?.click();
+});
+await p.waitForTimeout(700);
+r.secSwitch.offPreview = await presetCount();
+await p.click('#saveBtn');
+await p.waitForTimeout(400);
+r.secSwitch.posted = (postedConfig?.screens?.veranda?.sections || [])
+  .some(sec => sec.enabled === false);
+await p.evaluate(() => {
+  document.querySelector('[data-sec="Presets"] [role="switch"]')?.click();
+});
+await p.waitForTimeout(700);
+r.secSwitch.backOn = await presetCount();
+
 
 // 15. WORKSPACES (v0.34): roster pills, per-workspace save routing,
 //     the manager page, and create-from-starter

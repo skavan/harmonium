@@ -2,7 +2,7 @@
   /* One activity, full harmonia-style card: identity, Setup ($context
      devices), State rules, navigation + confirm, controls JSON escape
      hatch. Lives in the OWNING room's editor. */
-  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf } from "../state.svelte.js";
+  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf, showUndo, actDirty } from "../state.svelte.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
@@ -141,6 +141,45 @@
     }
   }
   let rawOpen = $state(false);
+
+  /* ---- ITEM-CARD GRAMMAR (redesign R3): identity strip stays put,
+     everything else lives on tabs; Advanced is the glass tab. ---- */
+  let tab = $state("cast");
+  /* ---- REMOVE with confirm + undo (redesign §7.1) ---- */
+  let confirmDel = $state(false);
+  const refsOf = () => {
+    const out = [];
+    for (const [sid, scr] of Object.entries(app.draft?.screens || {})) {
+      const groups = [scr.tiles || [], ...(scr.sections || []).map((s) => s.tiles || [])];
+      for (const g of groups)
+        for (const t of g) {
+          if (t.activity === id)
+            out.push((t.type || "tile") + " “" + (t.label || t.id) + "” on " + (scr.name || sid));
+          else if (t.when?.activity === id || t.when?.not_activity === id)
+            out.push("visibility rule on “" + (t.label || t.id) + "” (" + (scr.name || sid) + ")");
+        }
+    }
+    for (const [qid, seq] of Object.entries(app.draft?.sequences || {}))
+      if (JSON.stringify(seq).includes('"' + id + '"'))
+        out.push("action “" + qid + "”");
+    return out;
+  };
+  function requestDelete() {
+    open = true;
+    confirmDel = true;
+  }
+  function doDelete() {
+    const snap = JSON.parse(JSON.stringify($state.snapshot(a)));
+    delete acts[id];
+    confirmDel = false;
+    showUndo("Removed activity " + (snap.name || id), () => { acts[id] = snap; });
+  }
+  const stateCount = () => {
+    const on = a?.state?.on;
+    if (!on) return 0;
+    if (Array.isArray(on)) return on.length;
+    return (on.all?.length ?? on.any?.length ?? on.any_state?.length ?? 0);
+  };
 
   /* ---- SNIPPETS: ⤴ exports this block (with metadata), ⤵ inserts a
      compatible one (Suresh's spec — same pair on Setup and State) ---- */
@@ -323,36 +362,74 @@
 
 {#if a}
   <CardRow title={a.name || id} subtitle={id} accent={a.color || "#666"} bind:open
-    {onup} {ondown} ondelete={() => delete acts[id]}>
+    edited={actDirty(id, a)}
+    {onup} {ondown} ondelete={requestDelete}>
     <div class="space-y-4">
-      <div class="grid grid-cols-2 gap-3">
-        <Field label="Display name" hint="tiles showing this activity follow along">
-          <Input value={a.name}
+      {#if confirmDel}
+        <!-- CONFIRM (redesign §7.1): removal names its references -->
+        <div class="space-y-2 rounded-[9px] border border-danger/50 bg-danger/10 p-3">
+          <p class="m-0 text-xs text-ink">
+            Remove <b>{a.name || id}</b>?
+            {#if refsOf().length}
+              It's still referenced by: {refsOf().join(" · ")}. Those
+              references stay behind and go stale.
+            {:else}
+              Nothing else references it.
+            {/if}
+          </p>
+          <div class="flex gap-2">
+            <Button size="sm" onclick={() => (confirmDel = false)}>Cancel</Button>
+            <Button size="sm" variant="danger" onclick={doDelete}>Remove activity</Button>
+          </div>
+        </div>
+      {/if}
+      <!-- IDENTITY STRIP (grammar): present on every tab -->
+      <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1 *:min-w-0">
+        <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
+          <Input value={a.name} title="Tiles showing this activity follow along"
             onfocus={() => (autoBefore = idIsAuto())}
             oninput={(e) => { syncTiles("label", a.name, e.target.value); a.name = e.target.value; }}
             onchange={() => { if (autoBefore) renameActivity(id, autoIdFor(a.name)); }} />
         </Field>
-        <Field label="Activity id"
-          hint={idIsAuto() ? "auto-fills from the name — edit to pin it" : "renames the key everywhere in this config"}>
-          <input value={id} spellcheck="false"
-            onchange={(e) => renameActivity(id, e.target.value)}
-            class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
-        </Field>
-        <Field label="Icon">
+        </div><div class="w-[190px] min-w-[140px] flex-1"><Field label="Icon" hint="">
           <Input value={a.icon} class="font-mono text-[12.5px]"
             oninput={(e) => { syncTiles("icon", a.icon, e.target.value); a.icon = e.target.value; }} />
+        </Field></div>
+        <div class="w-[44px] shrink-0"><Field label="Accent" hint="">
+          <input type="color" bind:value={a.color}
+            class="h-[38px] w-[44px] cursor-pointer rounded-[4px] border border-line-strong bg-transparent p-1" />
         </Field>
-        <Field label="Accent color">
-          <div class="flex items-center gap-2">
-            <input type="color" bind:value={a.color}
-              class="h-8 w-12 cursor-pointer rounded border border-line bg-transparent p-0.5" />
-            <Input bind:value={a.color} class="font-mono text-[12.5px]" />
-          </div>
-        </Field>
+        </div><div class="w-[170px] min-w-[130px] flex-1"><Field label="Activity id" hint="">
+          <input value={id} spellcheck="false"
+            title={idIsAuto() ? "Auto-fills from the name — edit to pin it" : "Renames the key everywhere in this config"}
+            onchange={(e) => renameActivity(id, e.target.value)}
+            class="h-[38px] w-full rounded-[4px] border border-line-strong bg-field px-[11px] font-mono text-[12px] text-ink outline-none focus:border-accent" />
+        </Field></div>
       </div>
 
-      <!-- SETUP v2: devices (nouns) + role chips (wiring) — FIRST,
-           so the cast exists before actions and rules reference it -->
+      <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->
+      <div class="flex items-end gap-1 border-b border-line px-1">
+        {#each [
+          { k: "cast", label: "Devices & roles", n: deviceList().length },
+          { k: "startstop", label: "Start & stop", n: null },
+          { k: "controller", label: "Controller", n: null },
+          { k: "state", label: "State", n: stateCount() },
+        ] as t (t.k)}
+          <button class={"cursor-pointer border-0 bg-transparent px-2.5 py-[9px] text-xs transition-colors " +
+              (tab === t.k
+                ? "font-semibold text-accent-text [box-shadow:inset_0_-2px_0_var(--color-accent)]"
+                : "font-medium text-dim hover:text-ink")}
+            onclick={() => (tab = t.k)}>{t.label}{#if t.n}<span class="pl-1 text-[11px] font-normal text-faint">{t.n}</span>{/if}</button>
+        {/each}
+        <span class="flex-1"></span>
+        <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
+            (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
+          onclick={() => (tab = "advanced")}>
+          <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+      </div>
+
+      {#if tab === "cast"}
+      <!-- SETUP v2: devices (nouns) + role chips (wiring) -->
       <div class="rounded-[10px] border border-line bg-tile p-3">
         {#snippet uploadIcon()}
           <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
@@ -368,15 +445,15 @@
         {/snippet}
         <div class="mb-1 flex items-center gap-1.5">
           <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">Setup — devices &amp; roles</span>
-          <button class="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-line bg-transparent p-0 text-dim hover:text-accent"
-            title="Save this block to Snippets" onclick={exportSetup}>{@render uploadIcon()}</button>
-          <div class={"relative flex h-6 w-7 shrink-0 items-center justify-center rounded border border-line text-dim " +
-            (snippetsOf("setup").length ? "hover:text-accent" : "opacity-45")}>
-            {@render downloadIcon()}
+          <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
+            title="Save this block to Snippets" onclick={exportSetup}>{@render uploadIcon()} Save as snippet</button>
+          <div class={"relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong px-2 text-[11px] font-medium " +
+            (snippetsOf("setup").length ? "bg-surface text-ink-2 hover:bg-sunk" : "bg-raised text-faint")}>
+            {@render downloadIcon()} Use snippet…
             <select value="" disabled={!snippetsOf("setup").length}
               title={snippetsOf("setup").length
                 ? "Insert from Snippets"
-                : "No setup snippets saved yet — the upload icon saves this block as one"}
+                : "No setup snippets saved yet — Save as snippet captures this block"}
               onchange={(e) => { if (e.target.value) importSetup(e.target.value); e.target.value = ""; }}
               class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none disabled:cursor-default">
               <option value=""></option>
@@ -385,26 +462,20 @@
           </div>
         </div>
         <p class="mt-0 mb-2 text-[11px] text-dim">
-          Devices are what this activity involves (★ = primary, its face).
-          Role chips wire the remote: which device the buttons and volume
-          drive. Sequences are free to touch anything — this list just
-          feeds suggestions.
+          The cast: what this activity involves. <b>Primary</b> is the
+          device the activity is named after — it leads the cast and is
+          what rules mean by "the primary device". Role chips wire the
+          remote's buttons and volume. Sequences are free to touch
+          anything — this list just feeds suggestions.
         </p>
+        <div class="mb-1 flex items-center justify-end gap-4 pr-9 text-[9px] font-semibold tracking-[.1em] text-dim uppercase">
+          <span title="Leads the cast; 'the primary device' in rules">Primary</span>
+          <span title="Shown in the controller's Devices list (roles stay wired either way)">On controller</span>
+        </div>
         <div class="space-y-2">
           {#each deviceList() as ent (ent)}
-            <div class="flex flex-wrap items-center gap-2 rounded-[8px] bg-inset px-2 py-1.5">
-              <button
-                class={"cursor-pointer border-0 bg-transparent p-0 text-[15px] " +
-                  (deviceList()[0] === ent ? "text-accent" : "text-dim hover:text-ink")}
-                title={deviceList()[0] === ent ? "Primary — the activity's face" : "Make primary"}
-                onclick={() => setPrimary(ent)}>{deviceList()[0] === ent ? "★" : "☆"}</button>
-              <button
-                class={"cursor-pointer border-0 bg-transparent p-0 text-[13px] " +
-                  (tileOn(ent) ? "text-accent" : "text-dim/50 hover:text-ink")}
-                title={tileOn(ent)
-                  ? "Shown in the controller's Devices section — click to hide (roles stay wired)"
-                  : "Hidden from the Devices section — click to show"}
-                onclick={() => toggleTile(ent)}>{tileOn(ent) ? "👁" : "🚫"}</button>
+            <div class={"flex flex-wrap items-center gap-2 rounded-[8px] px-2 py-1.5 " +
+              (deviceList()[0] === ent ? "border border-note-line bg-note-bg" : "bg-inset")}>
               <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
               {#each rolesOf(ent) as role (role)}
                 <button
@@ -415,7 +486,7 @@
                 <select
                   value=""
                   onchange={(e) => { if (e.target.value) toggleRole(ent, e.target.value); e.target.value = ""; }}
-                  class="cursor-pointer rounded-full border border-line bg-transparent px-1.5 py-0.5 text-[10px] text-dim outline-none"
+                  class="ui-role-select cursor-pointer truncate rounded-full border border-line bg-transparent px-1.5 py-0.5 text-[10px] text-dim outline-none"
                   title="Assign a role to this device">
                   <option value="">+ role</option>
                   {#each ROLES.filter((r) => a.context?.[r] !== ent) as r (r)}
@@ -423,26 +494,38 @@
                   {/each}
                 </select>
               {/if}
+              <span class="ml-auto flex shrink-0 items-center gap-3">
+                <button role="switch" aria-checked={deviceList()[0] === ent}
+                  class={"relative h-[16px] w-[26px] shrink-0 cursor-pointer rounded-full border-0 transition-colors " +
+                    (deviceList()[0] === ent ? "bg-accent" : "bg-line-strong")}
+                  title={deviceList()[0] === ent
+                    ? "Primary — leads the cast; 'the primary device' in rules"
+                    : "Make this the primary device"}
+                  onclick={() => setPrimary(ent)}>
+                  <span class={"absolute top-[2px] h-[12px] w-[12px] rounded-full bg-surface transition-all " +
+                    (deviceList()[0] === ent ? "left-[12px]" : "left-[2px]")}></span>
+                </button>
+                <button role="switch" aria-checked={tileOn(ent)}
+                  class={"relative h-[16px] w-[26px] shrink-0 cursor-pointer rounded-full border-0 transition-colors " +
+                    (tileOn(ent) ? "bg-accent" : "bg-line-strong")}
+                  title={tileOn(ent)
+                    ? "Shown in the controller's Devices list — click to hide (roles stay wired)"
+                    : "Hidden from the controller's Devices list — click to show"}
+                  onclick={() => toggleTile(ent)}>
+                  <span class={"absolute top-[2px] h-[12px] w-[12px] rounded-full bg-surface transition-all " +
+                    (tileOn(ent) ? "left-[12px]" : "left-[2px]")}></span>
+                </button>
+              </span>
               <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                title="Remove device" onclick={() => removeDevice(ent)}>✕</button>
+                aria-label="Remove device" title="Remove device" onclick={() => removeDevice(ent)}>✕</button>
             </div>
           {:else}
-            <p class="m-0 text-xs text-dim">No devices yet — add the things this activity involves.</p>
+            <p class="m-0 text-xs text-dim">No devices yet — add the things this activity involves. The remote can't drive what isn't cast.</p>
           {/each}
-          <div class="flex items-center gap-2">
-            <div class="flex-1"><EntityPicker bind:value={newDev} placeholder="add a device…" /></div>
-            <Button size="sm" onclick={() => addDevice(newDev)}>＋ Add device</Button>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="w-28 shrink-0 text-xs font-bold text-dim">App class</span>
-            <Select value={a.context?.app_class ?? ""} allowEmpty class="max-w-56"
-              options={Object.entries(app.draft?.app_classes || {})
-                .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
-              onchange={(e) => { a.context = a.context || {};
-                if (e.target.value) a.context.app_class = e.target.value;
-                else delete a.context.app_class; }} />
-            <span class="text-[11px] text-dim">which Apps dialect this activity speaks (blank = the surface default)</span>
-          </div>
+          <!-- picking a device ADDS it — no second button to press
+               (Suresh v0.43.8); addDevice clears the box for the next -->
+          <EntityPicker bind:value={newDev} placeholder="add a device…"
+            onchange={() => { if (newDev?.trim()) addDevice(newDev); }} />
           {#each Object.keys(a.context || {}).filter((k) => !ROLES.includes(k) && k !== "app_class" && !deviceList().includes(a.context[k])) as slot (slot)}
             <div class="flex items-center gap-2 px-1">
               <span class="w-28 shrink-0 truncate font-mono text-[11.5px] text-accent" title={slot}>{slot}</span>
@@ -455,7 +538,9 @@
           {/each}
         </div>
       </div>
+      {/if}
 
+      {#if tab === "startstop"}
       <div class="grid grid-cols-2 gap-3">
         <Field label="Start action" hint="an Action (sequence), or a plain HA script — ＋ drafts one">
           <ActionPicker bind:value={a.start} oncreate={() => createSeq("start")}
@@ -498,7 +583,11 @@
         </Field>
 
       </div>
+      <Switch label="Confirm before ending (press twice)"
+        bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
+      {/if}
 
+      {#if tab === "controller"}
       {#if navCtrl}
         <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
           {#if navCtrl.isStock}
@@ -530,9 +619,26 @@
         </div>
       {/if}
 
-      <Switch label="Confirm before ending (press twice)"
-        bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
+      {#if !navCtrl}
+        <p class="m-0 text-xs text-dim">
+          {a.screen
+            ? "This activity lands on a page of its own (" + a.screen + ") — controllers are the shared stock surfaces."
+            : "No controller yet — set “Navigate to” on the Start & stop tab, or ＋ mint a control page there."}
+        </p>
+      {/if}
+      <div class="flex items-center gap-2">
+        <span class="w-28 shrink-0 text-xs font-bold text-dim">App class</span>
+        <Select value={a.context?.app_class ?? ""} allowEmpty class="max-w-56"
+          options={Object.entries(app.draft?.app_classes || {})
+            .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+          onchange={(e) => { a.context = a.context || {};
+            if (e.target.value) a.context.app_class = e.target.value;
+            else delete a.context.app_class; }} />
+        <span class="text-[11px] text-dim">which Apps dialect this activity speaks (blank = the surface default)</span>
+      </div>
+      {/if}
 
+      {#if tab === "state"}
       <!-- STATE rules -->
       <div class="rounded-[10px] border border-line bg-tile p-3">
         {#snippet uploadIcon2()}
@@ -558,16 +664,16 @@
             ]} /></div>
           <span class="min-w-0 flex-1"></span>
           {#if a.state}
-            <button class="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-line bg-transparent p-0 text-dim hover:text-accent"
-              title="Save these state rules to Snippets" onclick={exportState}>{@render uploadIcon2()}</button>
+            <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
+              title="Save these state rules to Snippets" onclick={exportState}>{@render uploadIcon2()} Save as snippet</button>
           {/if}
-          <div class={"relative flex h-6 w-7 shrink-0 items-center justify-center rounded border border-line text-dim " +
-            (snippetsOf("state").length ? "hover:text-accent" : "opacity-45")}>
-            {@render downloadIcon2()}
+          <div class={"relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong px-2 text-[11px] font-medium " +
+            (snippetsOf("state").length ? "bg-surface text-ink-2 hover:bg-sunk" : "bg-raised text-faint")}>
+            {@render downloadIcon2()} Use snippet…
             <select value="" disabled={!snippetsOf("state").length}
               title={snippetsOf("state").length
                 ? "Insert from Snippets"
-                : "No state snippets saved yet — the upload icon saves these rules as one"}
+                : "No state snippets saved yet — Save as snippet captures these rules"}
               onchange={(e) => { if (e.target.value) importState(e.target.value); e.target.value = ""; }}
               class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none disabled:cursor-default">
               <option value=""></option>
@@ -615,12 +721,16 @@
           <p class="m-0 text-xs text-dim">Truth comes from the page's activity select. Add device rules to derive it from real device state (harmonia-style).</p>
         {/if}
       </div>
+      {/if}
 
-      <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-        onclick={() => (rawOpen = !rawOpen)}>
-        {rawOpen ? "Hide" : "Show"} controls &amp; extras (JSON)</button>
-      {#if rawOpen}
-        <JsonArea value={$state.snapshot(a)} onchange={(v) => (acts[id] = v)} rows={12} />
+      {#if tab === "advanced"}
+      <div class="space-y-2 rounded-[9px] border border-line bg-glass p-3">
+        <p class="m-0 text-[11px] text-dim">
+          The machine view — everything this activity is, as it lives in
+          the config. Edits here are applied verbatim.
+        </p>
+        <JsonArea value={$state.snapshot(a)} onchange={(v) => (acts[id] = v)} rows={14} />
+      </div>
       {/if}
     </div>
   </CardRow>

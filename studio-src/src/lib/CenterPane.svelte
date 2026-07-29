@@ -18,6 +18,7 @@
   import ThemeEditor from "./editors/ThemeEditor.svelte";
   import SnippetsEditor from "./editors/SnippetsEditor.svelte";
   import WorkspacesEditor from "./editors/WorkspacesEditor.svelte";
+  import WorkspaceMap from "./editors/WorkspaceMap.svelte";
 </script>
 
 <div class="flex min-w-0 flex-1 flex-col">
@@ -61,6 +62,8 @@
       <ThemeEditor />
     {:else if app.selKey === "snippets"}
       <SnippetsEditor />
+    {:else if app.selKey === "map"}
+      <WorkspaceMap />
     {:else if app.selKey === "workspaces"}
       <WorkspacesEditor />
     {:else if app.selKey?.startsWith("controller.")}

@@ -31,7 +31,19 @@ export const app = $state({
   prevKey: null,      // last slice before the current one (Back on model pages)
   pending: null,      // in-flight ＋-minted action draft {seqId, kind, activityId, originKey}
   focusActivity: null, // activity card to re-open after returning from a draft
+  /* ADVANCED MODE (redesign): the generalized machinery — raw widget
+     types, JSON escape hatches — lives behind this switch (NavPane
+     bottom). Persisted per browser. */
+  advanced: typeof localStorage !== "undefined" &&
+    localStorage.getItem("hakr_studio_adv") === "1",
+  toast: null,        // undo toast {msg} — see showUndo()
+  baseVer: 0,         // bumps on rebaseline() so ● Edited chips re-check
 });
+
+export function toggleAdvanced() {
+  app.advanced = !app.advanced;
+  localStorage.setItem("hakr_studio_adv", app.advanced ? "1" : "0");
+}
 
 /* in-memory homes for drafts while another workspace is on stage:
    ws id → {draft, saved}. Scratch persists to localStorage instead. */
@@ -152,6 +164,7 @@ export function starterConfig() {
     app_classes: JSON.parse(JSON.stringify(live.app_classes || cur.app_classes || {})),
     screens: {
       home: { name: "New Room", class: "room", type: "hub", room: true,
+        banner: { image: "", image_opacity: 0.5, height: "230px", min_height: "150px", show_time: true },
         view_kind: "room hub", grid: { columns: 1 },   // room-hub doctrine: one column; sections override
         sections: [{ role: "activities", hero_label: "Activities",
           tiles: [{ id: "acts", type: "activities", room: "home" }] }] },
@@ -305,9 +318,15 @@ export async function switchWorkspace(ws) {
   }
   app.workspace = ws;
   localStorage.setItem("hakr_studio_ws", ws);
-  const rooms = roomIds();
-  selectSlice(rooms.length ? "view." + rooms[0] : "screens." + app.draft.home_screen);
+  rebaseline();
+  /* every workspace opens on its MAP (Suresh); the hidden preview
+     still follows to the workspace's home so it's warm when a real
+     editor is opened */
+  selectSlice("map");
   pushPreview();
+  if (pvWindow)
+    pvWindow.postMessage({ type: "harmonium_navigate",
+      screen: app.draft.home_screen }, location.origin);
   setStatus(ws === "scratch"
     ? "SCRATCH — kept in this browser only; publish it as a workspace to deploy"
     : "workspace: " + (app.workspaces[ws]?.name || ws) +
@@ -615,6 +634,7 @@ export function slices() {
 export const hasVisual = (key) =>
   (key || "").startsWith("view.") || key === "activities" || key === "sequences" ||
   key === "apps" || key === "theme" || key === "snippets" || key === "workspaces" ||
+  key === "map" ||
   (key || "").startsWith("screens.") || (key || "").startsWith("controller.");
 
 export function getSlice(key) {
@@ -776,7 +796,9 @@ export function addView() {
   if (!d) return;
   let sid = "new_view", n = 2;
   while (d.screens[sid]) sid = "new_view_" + n++;
-  d.screens[sid] = { name: "New View", class: "group", view_kind: "hub", type: "hub", sections: [] };
+  d.screens[sid] = { name: "New View", class: "group", view_kind: "hub", type: "hub", sections: [],
+    /* hero on by default (Suresh v0.43.9) — the page's face: title + clock */
+    banner: { image: "", image_opacity: 0.5, height: "230px", min_height: "150px", show_time: true } };
   selectSlice("screens." + sid);
   schedulePreview();
   setStatus("view created — name it (the id follows); add an activity to make it a place where things run", "ok");
@@ -1087,6 +1109,62 @@ export function entitiesFor(domains) {
   return app.entities.filter((e) => domains.includes(e.entity_id.split(".")[0]));
 }
 
+/* ---- UNDO TOAST (redesign §7.1): nothing is destructive until
+   Save & Deploy, and even in the draft a Remove gets 10 seconds of
+   regret. One toast at a time — a new one replaces the old. ---- */
+let undoFn = null;
+let toastTimer = null;
+export function showUndo(msg, fn) {
+  clearTimeout(toastTimer);
+  undoFn = fn;
+  app.toast = { msg };
+  toastTimer = setTimeout(() => { app.toast = null; undoFn = null; }, 10000);
+}
+export function undoToast() {
+  clearTimeout(toastTimer);
+  undoFn?.();
+  undoFn = null;
+  app.toast = null;
+  schedulePreview();
+}
+export function dismissToast() {
+  clearTimeout(toastTimer);
+  undoFn = null;
+  app.toast = null;
+}
+
+/* ---- DIRTY STATE (redesign §7.2): "green means you did this".
+   The baseline is the last-saved copy, held as canonical-JSON sets —
+   an item edited BACK to its saved shape reads clean again, and
+   reordering alone doesn't mark anything. Rebuilt on load, save,
+   and workspace switch (revert needs nothing: baseline is vs saved). */
+const baseline = { tiles: new Set(), acts: new Map() };
+export function rebaseline() {
+  app.baseVer++;
+  baseline.tiles.clear();
+  baseline.acts.clear();
+  const cfg = app.saved;
+  if (!cfg) return;
+  for (const scr of Object.values(cfg.screens || {})) {
+    for (const t of scr.tiles || []) baseline.tiles.add(JSON.stringify(t));
+    for (const s of scr.sections || [])
+      for (const t of s.tiles || []) baseline.tiles.add(JSON.stringify(t));
+  }
+  for (const [id, a] of Object.entries(cfg.activities || {}))
+    baseline.acts.set(id, JSON.stringify(a));
+}
+export function tileDirty(tile) {
+  void app.baseVer;   /* reactive dep: chips re-check after save */
+  if (!baseline.tiles.size && !baseline.acts.size) return false;
+  return !baseline.tiles.has(JSON.stringify($state.snapshot(tile)));
+}
+export function actDirty(id, a) {
+  void app.baseVer;
+  if (!baseline.acts.size && !baseline.tiles.size) return false;
+  const b = baseline.acts.get(id);
+  return b === undefined || b !== JSON.stringify($state.snapshot(a));
+}
+
 /* ---- toolbar actions ---- */
 export function revert() {
   app.draft = JSON.parse(JSON.stringify(app.saved));
@@ -1115,6 +1193,7 @@ export async function save() {
   }
   if (!r.ok) { setStatus("save failed: HTTP " + r.status, "err"); return false; }
   app.saved = JSON.parse(JSON.stringify($state.snapshot(app.draft)));
+  rebaseline();
   setStatus("saved & deployed — remotes pick it up on next reload", "ok");
   return true;
 }
@@ -1205,10 +1284,13 @@ export async function boot() {
   normalizeOffActivity(app.saved);
   normalizeApps(app.saved);
   app.draft = JSON.parse(JSON.stringify(app.saved));
+  rebaseline();
   const devs = Object.keys(app.draft.devices || {});
   app.device = devs.includes("astrion") ? "astrion" : devs[0] || "default";
-  const rooms = roomIds();
-  selectSlice(rooms.length ? "view." + rooms[0] : "screens." + app.draft.home_screen);
+  /* the WORKSPACE MAP is the landing slice (redesign §6.11 —
+     Suresh: default = yes): the whole workspace at a glance, every
+     card an Edit → doorway into the real editors */
+  selectSlice("map");
   pushPreview();
   loadEntities();
   setStatus(

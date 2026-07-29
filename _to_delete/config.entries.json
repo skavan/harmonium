@@ -1,0 +1,42 @@
+{
+	"created_at": "2024-09-22T19:29:49.220222+00:00",
+	"data": { "host": "192.168.1.64", "mac": "38:1B:9E:A3:FB:A9", "name": "Pergola TV" },
+	"disabled_by": null,
+	"discovery_keys": {
+		"zeroconf": [
+			{
+				"domain": "zeroconf",
+				"key": ["_androidtvremote2._tcp.local.", "Pergola TV._androidtvremote2._tcp.local."],
+				"version": 1
+			}
+		]
+	},
+	"domain": "androidtv_remote",
+	"entry_id": "01J8DKCC54J23SJZ7XW8QHYPS4",
+	"minor_version": 1,
+	"modified_at": "2026-06-26T01:47:41.397192+00:00",
+	"options": {
+		"apps": {
+			"com.amazon.amazonvideo.livingroom": { "app_icon": "fapro:amazonprime#fullcolor", "app_name": "Prime Video" },
+			"com.apple.atve.androidtv.appletv": { "app_icon": "si:appletv", "app_name": "Apple TV" },
+			"com.cbs.ott": { "app_icon": "fapro:paramounto#fullcolor", "app_name": "Paramount+" },
+			"com.disney.disneyplus": { "app_icon": "", "app_name": "Disney+" },
+			"com.google.android.apps.tv.launcherx": { "app_icon": "mdi:home", "app_name": "Home" },
+			"com.google.android.youtube": { "app_icon": "fapro:youtube#fullcolor", "app_name": "YouTube" },
+			"com.google.android.youtube.tv": { "app_icon": "fapro:youtube#fullcolor", "app_name": "YouTube" },
+			"com.google.android.youtube.tvunplugged": { "app_icon": "fapro:youtubetvicon#fullcolor", "app_name": "YouTube TV" },
+			"com.hulu.livingroomplus": { "app_icon": "fapro:hulu2019#fullcolor", "app_name": "Hulu" },
+			"com.netflix.ninja": { "app_icon": "fapro:netflix#fullcolor", "app_name": "Netflix" },
+			"com.peacocktv.peacockandroid": { "app_icon": "fapro:peacock#fullcolor", "app_name": "Peacock" },
+			"com.wbd.stream": { "app_icon": "fapro:max#fullcolor", "app_name": "Max" }
+		},
+		"enable_ime": true
+	},
+	"pref_disable_new_entities": false,
+	"pref_disable_polling": false,
+	"source": "zeroconf",
+	"subentries": [],
+	"title": "Pergola TV",
+	"unique_id": "38:1b:9e:a3:fb:a9",
+	"version": 1
+}

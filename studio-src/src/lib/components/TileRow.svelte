@@ -1,10 +1,16 @@
 <script>
-  /* One tile in a view's tile list — common fields as a form, the whole
-     tile as raw JSON behind "All fields" for full fidelity. */
-  import { app, selectSlice, beginPageDraft } from "../state.svelte.js";
+  /* One item in a page's list — the ITEM-CARD GRAMMAR (redesign R4):
+     identity strip → tabs → Advanced behind glass, same shape as the
+     ActivityCard. The first tab is the item's own voice — "The device"
+     / "Where it goes" (doorway) / "What it does" (preset) / "What it
+     shows" (generators & raw widgets). `type`, `tile id` and the raw
+     JSON live in Advanced (vocabulary: they never walk the primary
+     path). Styling = column span + how a doorway renders. */
+  import { app, selectSlice, beginPageDraft, showUndo, tileDirty } from "../state.svelte.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
+  import Segmented from "./Segmented.svelte";
   import EntityPicker from "./EntityPicker.svelte";
   import CardRow from "./CardRow.svelte";
   import Chips from "./Chips.svelte";
@@ -41,9 +47,9 @@
   const navScreenOptions = $derived(Object.entries(app.draft?.screens || {})
     .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
 
-  /* the Type list, grouped so it reads: device + nav card (the two
+  /* the Type list, grouped so it reads: device + doorway (the two
      archetypes), content generators, then raw widgets for the
-     advanced hand */
+     advanced hand — Advanced-tab furniture only */
   const CONTENT_TYPES = ["activity", "activities", "devices", "preset",
     "presets_from", "apps", "sources", "scene", "script"];
   /* cast GENERATOR (type "devices") → Unlink bakes it into plain
@@ -132,13 +138,58 @@
     }
     return null;
   };
-  const holdHint = () =>
-    inferredPage() ? "blank = auto: " + inferredPage() + " (from its activity)"
-      : "blank + no activity claims it = hold does nothing";
-
   const activityIds = $derived(Object.keys(app.draft?.activities || {}));
   const screenIds = $derived(Object.keys(app.draft?.screens || {}));
-  let showRaw = $state(false);
+  const seqIds = $derived(Object.keys(app.draft?.sequences || {}));
+  /* the spec's "Auto — controller:tv rather than an em dash": the
+     inherited value is SHOWN, in the empty option itself */
+  const holdOptions = $derived([
+    { value: "", label: inferredPage()
+        ? "Auto — " + inferredPage() + " (from its activity)"
+        : "Auto — nothing (no activity claims it)" },
+    ...screenIds.map((s) => ({ value: s, label: s })),
+  ]);
+  /* read-only cast note (§6.9): which activities cast this device,
+     and wearing which roles */
+  const castNote = () => {
+    const out = [];
+    for (const [aid, a] of Object.entries(app.draft?.activities || {})) {
+      const roles = Object.entries(a.context || {})
+        .filter(([, v]) => v === tile.entity).map(([k]) => k);
+      const inCast = (a.devices || []).includes(tile.entity) || roles.length;
+      if (inCast) out.push((a.name || aid) + (roles.length ? " (" + roles.join(", ") + ")" : ""));
+    }
+    return out;
+  };
+
+  /* ---- PRESET (§6.8): "On tap" wears the paradigm; all three
+     choices compile to the ONE action shape the engine already fires
+     (service + entity + data — no config-model change) ---- */
+  const presetMode = () => {
+    const svc = tile.action?.service || "";
+    if (svc === "harmonium.run") return "sequence";
+    if (svc === "scene.turn_on") return "scene";
+    return "service";
+  };
+  function setPresetMode(m) {
+    if (m === presetMode()) return;
+    if (m === "sequence") tile.action = { service: "harmonium.run", data: { sequence: "" } };
+    else if (m === "scene") tile.action = { service: "scene.turn_on", entity: "" };
+    else tile.action = { service: "" };
+  }
+  const PRESET_MODES = [
+    { value: "sequence", label: "Run an action — a sequence from Building blocks" },
+    { value: "scene", label: "Activate a scene" },
+    { value: "service", label: "Call a service — any HA call, verbatim" },
+  ];
+
+  /* ---- ITEM-CARD GRAMMAR (R4) ---- */
+  let tab = $state("main");
+  const FIRST_TAB = () =>
+    tile.type === "device" ? "The device"
+    : tile.type === "nav" ? "Where it goes"
+    : tile.type === "preset" ? "What it does"
+    : "What it shows";
 
   function move(dir) {
     const j = index + dir;
@@ -150,150 +201,320 @@
     copy.id = (copy.id || "tile") + "_copy";
     tiles.splice(index + 1, 0, copy);
   }
+
+  /* ---- REORDER & DELETE (redesign §7.1): three ways in, one
+     destructive path — and Remove gets an undo toast. ---- */
+  let armed = $state(false);          /* draggable only while ⠿ is held */
+  function ondragstart(e) {
+    e.dataTransfer.setData("text/hakr-tile", String(index));
+    e.dataTransfer.effectAllowed = "move";
+  }
+  function ondrop(e) {
+    e.preventDefault();
+    const from = +e.dataTransfer.getData("text/hakr-tile");
+    if (Number.isNaN(from) || from === index) return;
+    const [t] = tiles.splice(from, 1);
+    tiles.splice(index, 0, t);
+  }
+  /* other sections on the same page this tile could move to */
+  const hostSections = () => {
+    const scr = app.draft?.screens?.[ownerScreen];
+    if (!scr?.sections) return [];
+    return scr.sections
+      .filter((s) => Array.isArray(s.tiles) && s.tiles !== tiles)
+      .map((s, i) => ({
+        s,
+        label: s.title || s.hero_label ||
+          (s.role ? s.role[0].toUpperCase() + s.role.slice(1) : "Section " + (i + 1)),
+      }));
+  };
+  function moveTo(sec) {
+    const snap = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    tiles.splice(index, 1);
+    if (!Array.isArray(sec.tiles)) sec.tiles = [];
+    sec.tiles.push(snap);
+  }
+  function removeTile() {
+    const snap = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    const at = index;
+    tiles.splice(at, 1);
+    showUndo("Removed " + (snap.label || snap.id || "tile"),
+      () => tiles.splice(Math.min(at, tiles.length), 0, snap));
+  }
+  const rowMenu = () => [
+    { label: "Move up", action: () => move(-1) },
+    { label: "Move down", action: () => move(1) },
+    ...hostSections().map(({ s, label }) =>
+      ({ label: "Move to " + label, action: () => moveTo(s) })),
+    { divider: true },
+    { label: "Duplicate", action: duplicate },
+    { label: "Remove", danger: true, action: removeTile },
+  ];
 </script>
 
+<div role="listitem" draggable={armed}
+  {ondragstart}
+  ondragover={(e) => e.preventDefault()}
+  {ondrop}
+  ondragend={() => (armed = false)}>
 <CardRow
   title={tile.label || tile.id || "(untitled)"}
   subtitle={tile.type + (tile.entity ? " · " + tile.entity : tile.activity ? " · " + tile.activity : "")}
+  edited={tileDirty(tile)}
+  onarm={() => (armed = true)}
+  menu={rowMenu()}
   onup={() => move(-1)}
   ondown={() => move(1)}
   onduplicate={duplicate}
-  ondelete={() => tiles.splice(index, 1)}
+  ondelete={removeTile}
 >
-  {#snippet typeSelect()}
-    <Field label="Type" hint={tile.type === "device" ? "" : "device = the smart tile: everything infers from its entity"}>
-      <select
-        value={tile.type}
-        onchange={(e) => (tile.type = e.target.value)}
-        class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2.5 py-1.5 font-[inherit] text-sm text-ink outline-none focus:border-accent/60"
-      >
-        <option value="device">device — auto from its entity</option>
-        <option value="nav">nav card — opens another page</option>
-        <optgroup label="Content generators">
-          {#each CONTENT_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
-        </optgroup>
-        <optgroup label="Raw widgets (advanced)">
-          {#each RAW_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
-        </optgroup>
-      </select>
-    </Field>
-  {/snippet}
-  {#if tile.type === "device"}
-    <!-- DEVICE flow: name + entity lead; everything else infers -->
-    <div class="grid grid-cols-2 gap-3">
-      <Field label="Name"><Input bind:value={tile.label} /></Field>
-      <Field label="Entity" hint="renderer, icon, verbs and page all follow it">
-        <EntityPicker value={tile.entity} onchange={(e) => setDeviceEntity(e.target.value)} />
-      </Field>
-      <Field label="Tap action" hint={tapHint()}>
-        <Select value={tile.tap ?? ""}
-          onchange={(e) => { if (e.target.value) tile.tap = e.target.value; else delete tile.tap; }}
-          options={[
-            { value: "", label: "Auto" },
-            { value: "play_pause", label: "Play / Pause" },
-            { value: "toggle", label: "Toggle power" },
-            { value: "open", label: "Open its page" },
-            { value: "none", label: "Nothing (readout only)" },
-          ]} />
-      </Field>
-      <Field label="Hold action — opens" hint={holdHint()}>
-        <Select value={tile.target ?? ""} allowEmpty
-          onchange={(e) => { if (e.target.value) tile.target = e.target.value; else delete tile.target; }}
-          options={screenIds} />
-      </Field>
-      <Field label="Icon" hint="auto from the entity · or an image path (/local/…) to fill the icon zone">
+  <div class="space-y-3">
+    <!-- IDENTITY STRIP (grammar): present on every tab -->
+    <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1">
+      <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
+        {#if tile.type === "nav"}
+          <Input value={tile.label} title={tile.target ? "Its page's name follows along" : ""}
+            oninput={(e) => { tile.label = e.target.value;
+              if (tile.target && app.draft.screens[tile.target])
+                app.draft.screens[tile.target].name = e.target.value; }} />
+        {:else}
+          <Input bind:value={tile.label} />
+        {/if}
+      </Field></div>
+      <div class="w-[190px] min-w-[140px] flex-1"><Field label="Icon" hint="">
         <Input value={tile.icon_image || tile.icon || ""} placeholder="material:devices"
+          title="material:<glyph> · or an image path (/local/…) to fill the icon zone"
           class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} />
-      </Field>
-      <Field label="Show attribute (advanced)" hint="blank = smart summary (state · title · brightness…)">
-        <Input value={tile.attr ?? ""} placeholder="e.g. media_title" class="font-mono text-[12.5px]"
-          onchange={(e) => { if (e.target.value.trim()) tile.attr = e.target.value.trim(); else delete tile.attr; }} />
-      </Field>
-      <Field label="Tile id"><Input bind:value={tile.id} class="font-mono text-[12.5px]" /></Field>
-      <Field label="Span" hint="grid columns">
-        <Input type="number" min="1" max="4" bind:value={tile.span} />
-      </Field>
-      {@render typeSelect()}
+      </Field></div>
+      <div class="w-[150px] min-w-[120px] flex-1"><Field label="Id" hint="">
+        <div class="flex h-[38px] items-center truncate rounded-[4px] bg-sunk px-[11px] font-mono text-[12px] text-dim"
+          title="The tile's config key — editable under Advanced">{tile.id || "—"}</div>
+      </Field></div>
     </div>
-  {:else}
-  <div class="grid grid-cols-2 gap-3">
-    {@render typeSelect()}
-    <Field label="Tile id"><Input bind:value={tile.id} class="font-mono text-[12.5px]" /></Field>
-    <Field label="Label" hint={tile.type === "nav" && tile.target ? "its page's name follows" : ""}>
-      <Input value={tile.label}
-        oninput={(e) => { tile.label = e.target.value;
-          if (tile.type === "nav" && tile.target && app.draft.screens[tile.target])
-            app.draft.screens[tile.target].name = e.target.value; }} />
-    </Field>
-    <Field label="Icon" hint="material:<glyph> · or an image path (/local/…)">
-      <Input value={tile.icon_image || tile.icon || ""} placeholder="material:lightbulb"
-        class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} /></Field>
-    {#if tile.type === "apps"}
-      <Field label="Device class" hint="blank = the activity's dialect ($context.app_class)">
-        <Select value={tile.class ?? ""} allowEmpty
-          options={Object.entries(app.draft?.app_classes || {})
-            .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
-          onchange={(e) => { if (e.target.value) tile.class = e.target.value; else delete tile.class; }} />
-      </Field>
-      <div class="col-span-2">
-        <Field label="Apps offered (in order)" hint="filters the class's list — blank = everything the class offers">
-          <Chips bind:items={() => tile.include ?? [], (v) => (tile.include = v)}
-            suggestions={Object.keys(app.draft?.apps || {})} placeholder="add app…" />
-        </Field>
-      </div>
-    {:else if tile.type === "activity"}
-      <Field label="Activity"><Select bind:value={tile.activity} options={activityIds} allowEmpty /></Field>
-    {:else if tile.type === "devices"}
-      <Field label="Cast of activity" hint="generates one device tile per cast member — always in sync with Setup">
-        <Select bind:value={tile.activity} options={activityIds} allowEmpty />
-      </Field>
-      <div class="flex items-end pb-1.5">
-        <button
-          class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1.5 text-xs text-dim hover:border-accent/60 hover:text-accent"
-          title="Replace the generator with plain device tiles (a snapshot you then own — it no longer follows the cast)"
-          onclick={unlinkCast}>⛓ Unlink → baked tiles</button>
-      </div>
-    {:else if tile.type === "nav"}
-      <div class="flex items-end gap-2">
-        <div class="min-w-0 flex-1">
-          <Field label="Opens" hint="＋ mints a fresh view (same anatomy, bits off) and jumps in as a draft">
-            <Select bind:value={tile.target} options={navScreenOptions} allowEmpty />
+
+    <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->
+    <div class="flex items-end gap-1 border-b border-line px-1">
+      {#each [
+        { k: "main", label: FIRST_TAB() },
+        { k: "styling", label: "Styling" },
+      ] as t (t.k)}
+        <button class={"cursor-pointer border-0 bg-transparent px-2.5 py-[9px] text-xs transition-colors " +
+            (tab === t.k
+              ? "font-semibold text-accent-text [box-shadow:inset_0_-2px_0_var(--color-accent)]"
+              : "font-medium text-dim hover:text-ink")}
+          onclick={() => (tab = t.k)}>{t.label}</button>
+      {/each}
+      <span class="flex-1"></span>
+      <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
+          (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
+        onclick={() => (tab = "advanced")}>
+        <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+    </div>
+
+    {#if tab === "main"}
+      {#if tile.type === "device"}
+        <!-- THE DEVICE (§6.9): entity leads; verbs follow it -->
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Entity" hint="icon, verbs and the page it opens all follow the entity">
+            <EntityPicker value={tile.entity} onchange={(e) => setDeviceEntity(e.target.value)} />
+          </Field>
+          <Field label="Tap action" hint={tapHint()}>
+            <Select value={tile.tap ?? ""}
+              onchange={(e) => { if (e.target.value) tile.tap = e.target.value; else delete tile.tap; }}
+              options={[
+                { value: "", label: "Auto" },
+                { value: "play_pause", label: "Play / Pause" },
+                { value: "toggle", label: "Toggle power" },
+                { value: "open", label: "Open its page" },
+                { value: "none", label: "Nothing (readout only)" },
+              ]} />
+          </Field>
+          <Field label="Hold action — opens" hint="hold is the doorway verb: a page of everything this device can do">
+            <Select value={tile.target ?? ""}
+              onchange={(e) => { if (e.target.value) tile.target = e.target.value; else delete tile.target; }}
+              options={holdOptions} />
           </Field>
         </div>
-        {#if tile.target}
-          <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-            onclick={() => selectSlice("screens." + tile.target)}>edit page →</button>
-        {:else}
-          <button class="mb-6 shrink-0 cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2 py-1 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
-            title={"Create the page “" + (tile.label || "page") + "” — a full view with activities/presets switched off"}
-            onclick={mintNavPage}>＋</button>
+        {#if tile.entity}
+          <p class="m-0 text-[11px] text-dim">
+            {#if castNote().length}
+              Cast by {castNote().join(" · ")} — wiring lives on the activity's card.
+            {:else}
+              No activity casts this device — it plays solo on this page.
+            {/if}
+          </p>
+        {/if}
+      {:else if tile.type === "nav"}
+        <!-- WHERE IT GOES (§6.10): the doorway's destination -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex items-end gap-2">
+            <div class="min-w-0 flex-1">
+              <Field label="Opens" hint={tile.target ? "" : "＋ mints a fresh page (same anatomy, bits off) and jumps in as a draft"}>
+                <Select bind:value={tile.target} options={navScreenOptions} allowEmpty />
+              </Field>
+            </div>
+            {#if tile.target}
+              <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                onclick={() => selectSlice("screens." + tile.target)}>edit page →</button>
+            {:else}
+              <button class="mb-6 shrink-0 cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2 py-1 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
+                title={"Create the page “" + (tile.label || "page") + "” — a full view with activities/presets switched off"}
+                onclick={mintNavPage}>＋</button>
+            {/if}
+          </div>
+        </div>
+      {:else if tile.type === "preset"}
+        <!-- WHAT IT DOES (§6.8): one shape, three doors in -->
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="On tap" hint="">
+            <Select value={presetMode()} onchange={(e) => setPresetMode(e.target.value)}
+              options={PRESET_MODES} />
+          </Field>
+          {#if presetMode() === "sequence"}
+            <div class="flex items-end gap-2">
+              <div class="min-w-0 flex-1">
+                <Field label="Action" hint="">
+                  <Select value={tile.action?.data?.sequence ?? ""} allowEmpty
+                    onchange={(e) => { tile.action = { service: "harmonium.run", data: { sequence: e.target.value } }; }}
+                    options={seqIds} />
+                </Field>
+              </div>
+              <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                onclick={() => selectSlice("sequences")}>edit →</button>
+            </div>
+          {:else if presetMode() === "scene"}
+            <Field label="Scene" hint="">
+              <EntityPicker domains={["scene"]} value={tile.action?.entity ?? ""}
+                onchange={(e) => { tile.action = { service: "scene.turn_on", entity: e.target.value }; }} />
+            </Field>
+          {:else}
+            <Field label="Service" hint="domain.service">
+              <Input value={tile.action?.service ?? ""} placeholder="media_player.play_media"
+                class="font-mono text-[12.5px]"
+                onchange={(e) => { tile.action = { ...(tile.action || {}), service: e.target.value.trim() }; }} />
+            </Field>
+            <Field label="Target entity" hint="who receives the call — $context.* works here">
+              <!-- the engine fires action.target || action.entity — honor
+                   whichever key the tile already speaks -->
+              <EntityPicker value={tile.action?.target ?? tile.action?.entity ?? ""}
+                onchange={(e) => {
+                  const k = tile.action && "target" in tile.action ? "target" : "entity";
+                  tile.action = { ...(tile.action || {}), [k]: e.target.value };
+                }} /></Field>
+            <div class="col-span-2">
+              <Field label="Service data (JSON)" hint="">
+                <JsonArea value={$state.snapshot(tile.action?.data ?? {})} rows={3}
+                  onchange={(v) => { tile.action = { ...(tile.action || {}), data: v }; }} />
+              </Field>
+            </div>
+          {/if}
+          <Field label="Belongs to activity" hint="warm-start: the preset makes sure this activity is running first">
+            <Select value={tile.activity ?? ""} allowEmpty options={activityIds}
+              onchange={(e) => { if (e.target.value) tile.activity = e.target.value; else delete tile.activity; }} />
+          </Field>
+        </div>
+        {#if tile.activity}
+          <p class="m-0 text-[11px] text-dim">
+            This preset belongs to {app.draft?.activities?.[tile.activity]?.name || tile.activity} —
+            tapping it starts that activity if it isn't already running, then fires.
+          </p>
+        {/if}
+      {:else}
+        <!-- WHAT IT SHOWS: generators and raw widgets keep their voice -->
+        <div class="grid grid-cols-2 gap-3">
+          {#if tile.type === "apps"}
+            <Field label="Device class" hint="blank = the activity's dialect ($context.app_class)">
+              <Select value={tile.class ?? ""} allowEmpty
+                options={Object.entries(app.draft?.app_classes || {})
+                  .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+                onchange={(e) => { if (e.target.value) tile.class = e.target.value; else delete tile.class; }} />
+            </Field>
+            <div class="col-span-2">
+              <Field label="Apps offered (in order)" hint="filters the class's list — blank = everything the class offers">
+                <Chips bind:items={() => tile.include ?? [], (v) => (tile.include = v)}
+                  suggestions={Object.keys(app.draft?.apps || {})} placeholder="add app…" />
+              </Field>
+            </div>
+          {:else if tile.type === "activity"}
+            <Field label="Activity"><Select bind:value={tile.activity} options={activityIds} allowEmpty /></Field>
+          {:else if tile.type === "devices"}
+            <Field label="Cast of activity" hint="generates one device tile per cast member — always in sync with Setup">
+              <Select bind:value={tile.activity} options={activityIds} allowEmpty />
+            </Field>
+            <div class="flex items-end pb-1.5">
+              <button
+                class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1.5 text-xs text-dim hover:border-accent/60 hover:text-accent"
+                title="Replace the generator with plain device tiles (a snapshot you then own — it no longer follows the cast)"
+                onclick={unlinkCast}>⛓ Unlink → baked tiles</button>
+            </div>
+          {:else if ENTITY_TYPES.has(tile.type)}
+            <Field label="Entity"><EntityPicker bind:value={tile.entity} /></Field>
+          {:else}
+            <p class="col-span-2 m-0 text-xs text-dim">
+              A {tile.type} widget — it draws itself from the page's context.
+              Its knobs live under Advanced.
+            </p>
+          {/if}
+        </div>
+      {/if}
+    {/if}
+
+    {#if tab === "styling"}
+      <div class="grid grid-cols-2 gap-3">
+        <Field label="Column span" hint="how many grid columns this item spans">
+          <Segmented value={+(tile.span ?? 1)} options={[1, 2, 3, 4]}
+            onchange={(v) => (tile.span = v)} />
+        </Field>
+        {#if tile.type === "nav"}
+          <Field label="Style" hint="how the doorway renders — the page behind it is the same either way">
+            <Select value={tile.style ?? "auto"}
+              onchange={(e) => { if (e.target.value === "auto") delete tile.style; else tile.style = e.target.value; }}
+              options={NAV_STYLES} />
+          </Field>
+          {#if (tile.style ?? "auto") === "image" || (tile.style ?? "auto") === "auto"}
+            <Field label="Image" hint="path under /local/ (HA www/) — auto style shows it when set">
+              <Input bind:value={tile.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
+            </Field>
+          {/if}
         {/if}
       </div>
-      <Field label="Style" hint="how the card renders — the page behind it is the same either way">
-        <Select value={tile.style ?? "auto"}
-          onchange={(e) => { if (e.target.value === "auto") delete tile.style; else tile.style = e.target.value; }}
-          options={NAV_STYLES} />
-      </Field>
-      {#if (tile.style ?? "auto") === "image" || (tile.style ?? "auto") === "auto"}
-        <Field label="Image" hint="path under /local/ (HA www/) — auto style shows it when set">
-          <Input bind:value={tile.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
-        </Field>
-      {/if}
-    {:else if ENTITY_TYPES.has(tile.type)}
-      <Field label="Entity"><EntityPicker bind:value={tile.entity} /></Field>
     {/if}
-    <Field label="Span" hint="grid columns">
-      <Input type="number" min="1" max="4" bind:value={tile.span} />
-    </Field>
+
+    {#if tab === "advanced"}
+      <div class="space-y-2 rounded-[9px] border border-line bg-glass p-3">
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Type" hint={tile.type === "device" ? "" : "device = the smart tile: everything infers from its entity"}>
+            <select
+              value={tile.type}
+              onchange={(e) => (tile.type = e.target.value)}
+              class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none focus:border-accent"
+            >
+              <option value="device">device — auto from its entity</option>
+              <option value="nav">nav card — opens another page</option>
+              <optgroup label="Content generators">
+                {#each CONTENT_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
+              </optgroup>
+              {#if app.advanced || RAW_TYPES.includes(tile.type)}
+                <optgroup label="Raw widgets (advanced)">
+                  {#each RAW_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
+                </optgroup>
+              {/if}
+            </select>
+          </Field>
+          <Field label="Tile id"><Input bind:value={tile.id} class="font-mono text-[12.5px]" /></Field>
+          {#if tile.type === "device"}
+            <Field label="Show attribute" hint="blank = smart summary (state · title · brightness…)">
+              <Input value={tile.attr ?? ""} placeholder="e.g. media_title" class="font-mono text-[12.5px]"
+                onchange={(e) => { if (e.target.value.trim()) tile.attr = e.target.value.trim(); else delete tile.attr; }} />
+            </Field>
+          {/if}
+        </div>
+        <p class="m-0 text-[11px] text-dim">
+          All fields — this tile exactly as it lives in the config. Edits apply verbatim.
+        </p>
+        <JsonArea value={$state.snapshot(tile)} onchange={(v) => (tiles[index] = v)} rows={8} />
+      </div>
+    {/if}
   </div>
-  {/if}
-  <button
-    class="mt-3 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-    onclick={() => (showRaw = !showRaw)}
-  >{showRaw ? "Hide" : "All"} fields (JSON)</button>
-  {#if showRaw}
-    <div class="mt-2">
-      <JsonArea value={$state.snapshot(tile)} onchange={(v) => (tiles[index] = v)} rows={8} />
-    </div>
-  {/if}
 </CardRow>
+</div>

@@ -8,6 +8,7 @@
      generated registry grid. */
   import { app, ownedActivities, roomIds, schedulePreview, renameScreen, deleteScreen, setStatus, subordinateScreens, isControllerScreen, confirmPageDraft, discardPageDraft, stampHost } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
+  import NoteStrip from "../components/NoteStrip.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
   import Switch from "../components/Switch.svelte";
@@ -15,6 +16,10 @@
   import EntityPicker from "../components/EntityPicker.svelte";
   import ActivityCard from "../components/ActivityCard.svelte";
   import SectionFold from "../components/SectionFold.svelte";
+  import SectionHeader from "../components/SectionHeader.svelte";
+  import Segmented from "../components/Segmented.svelte";
+  import SourceChip from "../components/SourceChip.svelte";
+  import NumberField from "../components/NumberField.svelte";
   import TileRow from "../components/TileRow.svelte";
   import Button from "../components/Button.svelte";
 
@@ -45,7 +50,13 @@
   const pslug = (s) =>
     (s || "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   let pageAutoBefore = false;
-  const pageIsAuto = () => /^new_view/.test(screenId) || screenId === pslug(scr?.name);
+  /* auto includes any page still wearing the starter id "home" —
+     RETROACTIVE (v0.43.9b): workspaces born before the fix already
+     renamed the NAME, so gating on name==="New Room" left them
+     stranded; a page whose id is literally "home" follows the name,
+     full stop (a hand-typed id is never "home" by accident) */
+  const pageIsAuto = () => /^new_view/.test(screenId) || screenId === pslug(scr?.name) ||
+    screenId === "home";
   function autoRenamePage() {
     if (!pageAutoBefore) return;
     let nid = pslug(scr.name);
@@ -119,7 +130,12 @@
     edit();
   }
   let ctOpen = $state(false);
-  let advOpen = $state(false);
+  /* PAGE SETTINGS PANEL (redesign §6.4): Layout · Keys · Advanced */
+  let pgOpen = $state(false);
+  let pgTab = $state("layout");
+  const keysCount = () =>
+    Object.keys(scr?.buttons || {}).length +
+    (scr?.power ? 1 : 0) + (scr?.parent ? 1 : 0) + (scr?.drawer ? 1 : 0);
   let lastAdded = $state(null);
   let secOpen = $state({});
 
@@ -159,11 +175,48 @@
       label: "New device", icon: "material:devices", entity: "", span: 2 });
   }
   function newNavTile(tiles) {
-    /* the OTHER archetype: a nav card — opens another page (style
-       resolves auto; its concertina links or ＋-mints the page) */
+    /* a DOORWAY: a card that opens another page — the Devices zone
+       holds devices and doorways to more devices (paradigm §5) */
     tiles.push({ type: "nav", id: "tile_" + Math.random().toString(36).slice(2, 6),
-      label: "New nav card", icon: "material:layers" });
+      label: "New doorway", icon: "material:layers" });
   }
+  function newPresetTile(tiles) {
+    /* a PRESET: one-touch shortcut — pick what it does on its card */
+    tiles.push({ type: "preset", id: "tile_" + Math.random().toString(36).slice(2, 6),
+      label: "New preset", icon: "material:play_circle", action: {} });
+  }
+
+  /* ---- BLESSED SECTIONS (redesign R2): the liturgy Hero →
+     Activities → Presets → Devices, each with a switch. Off ≠ empty:
+     enabled:false keeps items but stops rendering on the remote. ---- */
+  const secEnabled = (s) => !!s && s.enabled !== false;
+  function toggleRoleSec(role, label) {
+    const rs = roleSection(role);
+    if (!rs) {                       // switching ON creates the section
+      if (role === "activities") ensureActivitiesGenerator();
+      else addRoleSection(role, label);
+      return;
+    }
+    if (rs.s.enabled === false) delete rs.s.enabled;
+    else rs.s.enabled = false;
+  }
+  function toggleHero() {
+    if (!scr.banner) {
+      scr.banner = { image: "", image_opacity: 0.5, height: "230px",
+        min_height: "150px", show_time: true };
+      return;
+    }
+    if (scr.banner.enabled === false) delete scr.banner.enabled;
+    else scr.banner.enabled = false;
+  }
+  const secSummary = (s) =>
+    ((s?.columns ?? scr?.grid?.columns ?? 2)) + " cols" +
+    (s?.columns ? "" : " · from page");
+  let secSet = $state({});            // which settings strips are open
+  /* ACCORDION (v0.43.6): editor-only folds per section — never
+     written to config; reverting the treatment = SectionHeader's
+     note + these wrappers become inert */
+  let secFold = $state({});
   /* an in-flight ＋-minted PAGE draft (this page IS the draft) */
   const pageDraft = $derived(app.pending?.kind === "page" && app.pending.sid === screenId
     ? app.pending : null);
@@ -221,6 +274,11 @@
 
 {#if scr}
   <div class="space-y-4">
+    <NoteStrip dismissKey="hub">
+      <b>A page is one screen on the remote.</b> It holds activities
+      (what you're doing), presets and devices; keys pressed here follow
+      the key bindings below.
+    </NoteStrip>
     {#if pageDraft}
       <div class="flex flex-wrap items-center gap-3 rounded-[10px] border border-accent/50 bg-accent/10 px-3 py-2">
         <span class="text-sm text-ink">
@@ -255,10 +313,84 @@
       {/if}
     </div>
 
-    <!-- KEY MAPPINGS — what the physical keys mean HERE (key-centric,
-         per Suresh's doc; Parent is presented as the Home key) -->
-    <div class="rounded-[12px] border border-line bg-tile p-3">
-      <div class="mb-2 text-[11px] font-bold tracking-[.07em] text-dim uppercase">Key mappings</div>
+    <!-- PAGE SETTINGS PANEL (redesign §6.4): sizing, keys and the
+         config-level knobs behind ONE button — the liturgy sections
+         below stay the page's whole story -->
+    <div class="flex items-center gap-2">
+      <button class={"cursor-pointer rounded-[6px] border px-2.5 py-[7px] text-[11px] font-medium transition-colors " +
+          (pgOpen ? "border-accent/60 bg-accent-wash text-accent-text"
+            : "border-line-strong bg-surface text-ink-2 hover:bg-sunk")}
+        onclick={() => (pgOpen = !pgOpen)}>Page settings</button>
+      {#if !pgOpen}
+        <span class="text-[11px] text-dim">
+          {(scr.grid?.columns ?? 2) + " cols"} · {keysCount()} keys bound
+        </span>
+      {/if}
+    </div>
+    {#if pgOpen}
+      <div class="space-y-3 rounded-[10px] border border-accent/50 bg-surface p-3 [box-shadow:0_3px_10px_rgba(168,111,0,.11)]">
+        <div class="flex items-end gap-1 border-b border-line px-1">
+          {#each [
+            { k: "layout", label: "Layout" },
+            { k: "keys", label: "Keys", n: keysCount() },
+          ] as t (t.k)}
+            <button class={"cursor-pointer border-0 bg-transparent px-2.5 py-[9px] text-xs transition-colors " +
+                (pgTab === t.k
+                  ? "font-semibold text-accent-text [box-shadow:inset_0_-2px_0_var(--color-accent)]"
+                  : "font-medium text-dim hover:text-ink")}
+              onclick={() => (pgTab = t.k)}>{t.label}{#if t.n}<span class="pl-1 text-[11px] font-normal text-faint">{t.n}</span>{/if}</button>
+          {/each}
+          <span class="flex-1"></span>
+          <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
+              (pgTab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
+            onclick={() => (pgTab = "advanced")}>
+            <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+        </div>
+
+        {#if pgTab === "layout"}
+          <div class="flex flex-wrap items-start gap-6">
+            <Field label="Grid columns" hint="">
+              <div class="flex items-center gap-2">
+                <Segmented value={scr.grid?.columns ?? 2} options={[1, 2, 3, 4]}
+                  onchange={(v) => { scr.grid = { ...(scr.grid || {}), columns: v }; edit(); }} />
+                <SourceChip source={scr.grid?.columns ? "here" : "workspace"}
+                  onreset={() => { if (scr.grid) { delete scr.grid.columns;
+                    if (!Object.keys(scr.grid).length) delete scr.grid; } edit(); }} />
+              </div>
+            </Field>
+            <Field label="Tile height" hint="workspace-wide (theme)">
+              <div class="flex items-center gap-2">
+                <NumberField min={44} max={400} placeholder="84"
+                  value={parseInt(d.theme?.["tile-h"]) || ""}
+                  onchange={(v) => { d.theme = d.theme || {};
+                    if (v) d.theme["tile-h"] = v + "px"; else delete d.theme["tile-h"]; edit(); }} />
+                <SourceChip source={d.theme?.["tile-h"] ? "here" : "theme"}
+                  onreset={() => { delete d.theme["tile-h"]; edit(); }} />
+              </div>
+            </Field>
+            <Field label="Gap" hint="workspace-wide (theme)">
+              <div class="flex items-center gap-2">
+                <NumberField min={0} max={40} placeholder="10"
+                  value={parseInt(d.theme?.["grid-gap"]) || ""}
+                  onchange={(v) => { d.theme = d.theme || {};
+                    if (v !== "" && v !== undefined) d.theme["grid-gap"] = v + "px";
+                    else delete d.theme["grid-gap"]; edit(); }} />
+                <SourceChip source={d.theme?.["grid-gap"] ? "here" : "theme"}
+                  onreset={() => { delete d.theme["grid-gap"]; edit(); }} />
+              </div>
+            </Field>
+          </div>
+          <p class="m-0 border-t border-line pt-2 text-[11px] text-dim">
+            Values fall through Theme → Page → Section → Item. Grid columns
+            set here override the default for THIS page (sections can
+            override again below); tile height and gap live on the theme,
+            so they reach every page in this workspace.
+          </p>
+        {/if}
+
+        {#if pgTab === "keys"}
+    <div class="rounded-[9px] border border-line bg-tile p-3">
+      <div class="mb-2 text-[11px] font-bold tracking-[.07em] text-dim uppercase">Key mappings — what the physical keys mean here</div>
       <div class="grid grid-cols-[64px_1fr] items-center gap-x-3 gap-y-2">
         <span class="text-xs font-bold text-dim">Home</span>
         <div class="flex items-center gap-2">
@@ -336,13 +468,51 @@
         </div>
       </div>
     </div>
+        {/if}
 
-    <!-- HERO — any hub can have one -->
-    <SectionFold label="Hero card" badge={scr.banner ? "" : "off — add one"} bind:open={heroOpen}>
+        {#if pgTab === "advanced"}
+          <div class="space-y-3 rounded-[9px] border border-line bg-glass p-3">
+            {#if isOwnerRoom}
+              <div class="grid grid-cols-2 gap-3">
+                <Field label="Boot view" hint="where a remote lands on startup and Home — normally this page">
+                  <Select bind:value={d.home_screen} options={Object.keys(d.screens)} onchange={edit} />
+                </Field>
+                <Field label="Home hub" hint="top of the Home ladder (the overview of all pages)">
+                  <Select bind:value={d.global.main_home} options={Object.keys(d.screens)} allowEmpty onchange={edit} />
+                </Field>
+              </div>
+              <Field label="View paging order" hint="what the CH◀▶ / page keys flip through, left to right — NOT tile or activity order">
+                <Chips bind:items={d.screen_order} suggestions={Object.keys(d.screens)} placeholder="add view…" />
+              </Field>
+              <Field label="Activity state select"
+                hint="The routing cache. The integration MINTS select.harmonium_<page>_activity per activity-owning page — point here at the minted one (input_select still accepted for legacy configs).">
+                <EntityPicker bind:value={d.global.activity_select} domains={["select", "input_select"]} onchange={edit} />
+              </Field>
+              <Field label="Page-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
+                <div class="rounded-[8px] border border-line bg-field p-2 font-mono text-[11px] text-dim">
+                  {Object.keys(d.global.buttons || {}).join(" · ") || "none"}
+                </div>
+              </Field>
+            {:else}
+              <p class="m-0 text-xs text-dim">
+                Config-level knobs (boot view, paging order, routing) live
+                on the owner page's Page settings.
+              </p>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- HERO — any hub can have one; its settings ARE its body, so
+         the chevron and the Section settings button share one state -->
+    <SectionHeader title="Hero" count={scr.banner && scr.banner.enabled !== false ? 1 : 0}
+      enabled={!!scr.banner && scr.banner.enabled !== false} onToggle={toggleHero}
+      bind:settingsOpen={() => secSet.hero ?? false, (v) => (secSet.hero = v)}
+      bind:collapsed={() => !(secSet.hero ?? false), (v) => (secSet.hero = !v)}>
       {#if scr.banner}
+      <div class={"space-y-3 rounded-[9px] border border-line bg-surface p-3 " + (scr.banner.enabled === false ? "opacity-50" : "")}>
         <div class="flex flex-wrap items-center gap-6">
-          <Switch checked={scr.banner.enabled !== false} label="Hero enabled"
-            onCheckedChange={(v) => { if (v) delete scr.banner.enabled; else scr.banner.enabled = false; }} />
           <Switch checked={scr.banner.tabs !== false} label="Section tabs"
             onCheckedChange={(v) => { if (v) delete scr.banner.tabs; else scr.banner.tabs = false; }} />
           <Switch bind:checked={scr.banner.show_time} label="Show clock" />
@@ -371,115 +541,151 @@
             <Input bind:value={scr.banner.height} placeholder="230px" /></Field>
           <Field label="Height floor" hint={scr.banner.fit === false ? "unused while self-fit is off" : "self-fit never shrinks below this"}>
             <Input bind:value={scr.banner.min_height} placeholder="150px" /></Field>
-          <Field label="Home chip goes to">
-            <Select bind:value={scr.banner.rooms_screen} options={screenIds} allowEmpty />
+          <Field label="Home chip goes to" hint={screenIds.length ? "blank = up the Home ladder" : ""}>
+            {#if screenIds.length}
+              <Select bind:value={scr.banner.rooms_screen} options={screenIds} allowEmpty />
+            {:else}
+              <p class="m-0 pt-2 text-xs text-dim">this is the only page — the chip has nowhere to go yet</p>
+            {/if}
           </Field>
         </div>
+      </div>
       {:else}
-        <div class="flex items-center gap-3">
-          <p class="m-0 text-xs text-dim">No hero — this hub renders a plain title bar.</p>
-          <Button size="sm" onclick={() => (scr.banner = { image: "", image_opacity: 0.5, height: "230px", min_height: "150px", show_time: true })}>Add hero</Button>
+        <p class="m-0 text-xs text-dim">No hero — this page renders a plain title bar. Switch Hero on to add one.</p>
+      {/if}
+    </SectionHeader>
+
+    {#snippet secSettings(sec)}
+      {#if sec}
+        <div class="grid grid-cols-3 items-start gap-3 rounded-[9px] border border-line bg-surface p-3">
+          <Field label="Heading" hint="shown on the page above this section; blank = none">
+            <Input value={sec.title ?? ""} onchange={(e) => { if (e.target.value.trim()) sec.title = e.target.value.trim(); else delete sec.title; }} />
+          </Field>
+          <Field label="Jump label" hint="hero chip + CH ▲▼ stop; blank = skipped">
+            <Input value={sec.hero_label ?? ""} onchange={(e) => { if (e.target.value.trim()) sec.hero_label = e.target.value.trim(); else delete sec.hero_label; }} />
+          </Field>
+          <Field label="Grid columns" hint="inherit uses the page's grid">
+            <Segmented value={sec.columns ?? 0}
+              options={[{ value: 0, label: "inherit" }, 1, 2, 3, 4]}
+              onchange={(v) => { if (v) sec.columns = v; else delete sec.columns; }} />
+          </Field>
         </div>
       {/if}
-    </SectionFold>
+    {/snippet}
 
     <!-- ACTIVITIES — every hub can own them; off until it does -->
-    {#if true}
-      <SectionFold label="Activities" badge={owned.length ? owned.length + " owned by this hub" : "off — add one to switch on"} bind:open={actsOpen}>
+    <SectionHeader title="Activities" count={owned.length}
+      enabled={roleSection("activities") ? secEnabled(roleSection("activities").s) : owned.length > 0}
+      onToggle={() => toggleRoleSec("activities", "Activities")}
+      gridSummary={roleSection("activities") ? secSummary(roleSection("activities").s) : ""}
+      bind:settingsOpen={() => secSet.acts ?? false, (v) => (secSet.acts = v)}
+      addLabel="＋ Add activity" onAdd={addActivity}
+      bind:collapsed={() => secFold.acts ?? false, (v) => (secFold.acts = v)}>
+      {#if secSet.acts}{@render secSettings(roleSection("activities")?.s)}{/if}
+      <div class={"space-y-3 " + (roleSection("activities") && !secEnabled(roleSection("activities").s) ? "opacity-50" : "")}>
         {#each owned as id, i (id)}
           <ActivityCard {id} open={id === lastAdded}
             onrename={(nid) => (lastAdded = nid)}
             onup={i > 0 ? () => moveActivity(id, -1) : null}
             ondown={i < owned.length - 1 ? () => moveActivity(id, 1) : null} />
         {:else}
-          <p class="m-0 text-xs text-dim">No activities yet.</p>
+          <p class="m-0 text-xs text-dim">No activities yet — an activity is something you do here (Watch TV, Listen to Music). ＋ Add activity starts one.</p>
         {/each}
-        <Button onclick={addActivity}>＋ Add activity</Button>
-      </SectionFold>
+      </div>
+    </SectionHeader>
 
-    {/if}
-
-    <!-- PRESETS — canonical fold, off until added -->
-    {#if roleSection("presets")}
-      {@const rs = roleSection("presets")}
-      <SectionFold label="Presets" badge={(rs.s.tiles?.length ?? 0) + " tiles"}
-        bind:open={() => secOpen["presets"] ?? false, (v) => (secOpen["presets"] = v)}>
-        {#each rs.s.tiles as tile, ti (ti)}
-          <TileRow {tile} ownerScreen={screenId} tiles={rs.s.tiles} index={ti} />
-        {/each}
-        <Button size="sm" onclick={() => newTile(rs.s.tiles)}>＋ Add preset</Button>
-        {#if !(rs.s.tiles || []).length}
-          <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-            onclick={() => scr.sections.splice(rs.i, 1)}>remove section</button>
-        {/if}
-      </SectionFold>
-    {:else}
-      <SectionFold label="Presets" badge="off — switch on"
-        bind:open={() => secOpen["presets"] ?? false, (v) => (secOpen["presets"] = v)}>
-        <Button size="sm" onclick={() => addRoleSection("presets", "Presets")}>Switch on presets</Button>
-      </SectionFold>
-    {/if}
-
-    <!-- DEVICES — canonical fold, off until added -->
-    {#if roleSection("devices")}
-      {@const ds = roleSection("devices")}
-      <SectionFold label="Devices" badge={(ds.s.tiles?.length ?? 0) + " tiles"}
-        bind:open={() => secOpen["devices"] ?? false, (v) => (secOpen["devices"] = v)}>
-        {#each ds.s.tiles as tile, ti (ti)}
-          <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} />
-        {/each}
-        <div class="flex gap-2">
-          <Button size="sm" onclick={() => newTile(ds.s.tiles)}>＋ Add device</Button>
-          <Button size="sm" onclick={() => newNavTile(ds.s.tiles)}>＋ Add nav card</Button>
+    <!-- PRESETS — blessed section -->
+    <SectionHeader title="Presets" count={roleSection("presets")?.s.tiles?.length ?? 0}
+      enabled={roleSection("presets") ? secEnabled(roleSection("presets").s) : false}
+      onToggle={() => toggleRoleSec("presets", "Presets")}
+      gridSummary={roleSection("presets") ? secSummary(roleSection("presets").s) : ""}
+      bind:settingsOpen={() => secSet.presets ?? false, (v) => (secSet.presets = v)}
+      addLabel="＋ Add preset"
+      onAdd={() => { if (!roleSection("presets")) addRoleSection("presets", "Presets"); newPresetTile(roleSection("presets").s.tiles); }}
+      bind:collapsed={() => secFold.presets ?? false, (v) => (secFold.presets = v)}>
+      {#if secSet.presets}{@render secSettings(roleSection("presets")?.s)}{/if}
+      {#if roleSection("presets")}
+        {@const rs = roleSection("presets")}
+        <div class={"space-y-2 " + (secEnabled(rs.s) ? "" : "opacity-50")}>
+          {#each rs.s.tiles as tile, ti (ti)}
+            <TileRow {tile} ownerScreen={screenId} tiles={rs.s.tiles} index={ti} />
+          {:else}
+            <p class="m-0 text-xs text-dim">No presets yet — a preset is a one-touch shortcut (Netflix, a playlist, lights at 30%).</p>
+          {/each}
         </div>
-        {#if !(ds.s.tiles || []).length}
-          <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-            onclick={() => scr.sections.splice(ds.i, 1)}>remove section</button>
-        {/if}
-      </SectionFold>
-    {:else}
-      <SectionFold label="Devices" badge="off — switch on"
-        bind:open={() => secOpen["devices"] ?? false, (v) => (secOpen["devices"] = v)}>
-        <Button size="sm" onclick={() => addRoleSection("devices", "Devices")}>Switch on devices</Button>
-      </SectionFold>
-    {/if}
+      {:else}
+        <p class="m-0 text-xs text-dim">No presets yet — a preset is a one-touch shortcut (Netflix, a playlist, lights at 30%). ＋ Add preset starts the list.</p>
+      {/if}
+    </SectionHeader>
 
-    <!-- CUSTOM GROUPS -->
+    <!-- DEVICES — blessed section (devices + doorways to more devices) -->
+    <SectionHeader title="Devices" count={roleSection("devices")?.s.tiles?.length ?? 0}
+      enabled={roleSection("devices") ? secEnabled(roleSection("devices").s) : false}
+      onToggle={() => toggleRoleSec("devices", "Devices")}
+      gridSummary={roleSection("devices") ? secSummary(roleSection("devices").s) : ""}
+      bind:settingsOpen={() => secSet.devices ?? false, (v) => (secSet.devices = v)}
+      addLabel="＋ Add device"
+      onAdd={() => { if (!roleSection("devices")) addRoleSection("devices", "Devices"); newTile(roleSection("devices").s.tiles); }}
+      add2Label="＋ Add doorway"
+      onAdd2={() => { if (!roleSection("devices")) addRoleSection("devices", "Devices"); newNavTile(roleSection("devices").s.tiles); }}
+      bind:collapsed={() => secFold.devices ?? false, (v) => (secFold.devices = v)}>
+      {#if secSet.devices}{@render secSettings(roleSection("devices")?.s)}{/if}
+      {#if roleSection("devices")}
+        {@const ds = roleSection("devices")}
+        <div class={"space-y-2 " + (secEnabled(ds.s) ? "" : "opacity-50")}>
+          {#each ds.s.tiles as tile, ti (ti)}
+            <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} />
+          {:else}
+            <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a doorway opens a page with more.</p>
+          {/each}
+        </div>
+      {:else}
+        <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a doorway opens a page with more.</p>
+      {/if}
+    </SectionHeader>
+
+    <!-- CUSTOM SECTIONS — the generalized machinery, kept visible when
+         they exist; CREATING one lives behind Advanced mode -->
     {#each customSections as { s, i } (i)}
-      <SectionFold label={s.hero_label || "Group " + (i + 1)}
-        badge={(s.tiles?.length ?? 0) + " tiles"}
-        bind:open={() => secOpen[i] ?? false, (v) => (secOpen[i] = v)}>
-        <div class="flex items-center gap-2">
-          <span class="text-[11px] text-dim">Group label</span>
-          <input bind:value={s.hero_label} placeholder="(no header)"
-            class="w-44 rounded-[8px] border border-line bg-field px-2 py-1 text-xs text-ink outline-none focus:border-accent/60" />
+      <SectionHeader title={s.hero_label || s.title || "Section " + (i + 1)}
+        count={s.tiles?.length ?? 0}
+        enabled={secEnabled(s)}
+        onToggle={() => { if (s.enabled === false) delete s.enabled; else s.enabled = false; }}
+        gridSummary={secSummary(s)}
+        bind:settingsOpen={() => secSet["c" + i] ?? false, (v) => (secSet["c" + i] = v)}
+        addLabel="＋ Add device" onAdd={() => newTile(s.tiles)}
+        add2Label="＋ Add doorway" onAdd2={() => newNavTile(s.tiles)}
+        bind:collapsed={() => secFold["c" + i] ?? false, (v) => (secFold["c" + i] = v)}>
+        {#if secSet["c" + i]}
+          {@render secSettings(s)}
           {#if !(s.tiles || []).length}
             <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-danger hover:underline"
-              onclick={() => scr.sections.splice(i, 1)}>delete empty group</button>
+              onclick={() => scr.sections.splice(i, 1)}>Delete this empty section</button>
           {/if}
+        {/if}
+        <div class={"space-y-2 " + (secEnabled(s) ? "" : "opacity-50")}>
+          {#each s.tiles as tile, ti (ti)}
+            <TileRow {tile} ownerScreen={screenId} tiles={s.tiles} index={ti} />
+          {/each}
         </div>
-        {#each s.tiles as tile, ti (ti)}
-          <TileRow {tile} ownerScreen={screenId} tiles={s.tiles} index={ti} />
-        {/each}
-        <div class="flex gap-2">
-          <Button size="sm" onclick={() => newTile(s.tiles)}>＋ Add device</Button>
-          <Button size="sm" onclick={() => newNavTile(s.tiles)}>＋ Add nav card</Button>
-        </div>
-      </SectionFold>
+      </SectionHeader>
     {/each}
     {#if scr.tiles}
-      <SectionFold label="Tiles (legacy flat list)" badge={scr.tiles.length + " tiles"}
-        bind:open={() => secOpen.flat ?? true, (v) => (secOpen.flat = v)}>
-        {#each scr.tiles as tile, ti (ti)}
-          <TileRow {tile} ownerScreen={screenId} tiles={scr.tiles} index={ti} />
-        {/each}
-        <div class="flex gap-2">
-          <Button size="sm" onclick={() => newTile(scr.tiles)}>＋ Add device</Button>
-          <Button size="sm" onclick={() => newNavTile(scr.tiles)}>＋ Add nav card</Button>
+      <SectionHeader title="Ungrouped" count={scr.tiles.length}
+        bind:settingsOpen={() => secSet.flat ?? false, (v) => (secSet.flat = v)}
+        addLabel="＋ Add device" onAdd={() => newTile(scr.tiles)}
+        add2Label="＋ Add doorway" onAdd2={() => newNavTile(scr.tiles)}
+        bind:collapsed={() => secFold.flat ?? false, (v) => (secFold.flat = v)}>
+        <div class="space-y-2">
+          {#each scr.tiles as tile, ti (ti)}
+            <TileRow {tile} ownerScreen={screenId} tiles={scr.tiles} index={ti} />
+          {/each}
         </div>
-      </SectionFold>
+      </SectionHeader>
     {/if}
-    <Button size="sm" onclick={addSection}>＋ Add custom group</Button>
+    {#if app.advanced}
+      <Button size="sm" onclick={addSection}>＋ Add custom section</Button>
+    {/if}
 
     <!-- CONTROL TARGET (drawers pass keys through, e.g. Apps' power) -->
     <SectionFold label="Control target" badge={scr.control_target ? "keys pass to a device here" : "off — keys drive the app"} bind:open={ctOpen}>
@@ -501,31 +707,6 @@
       {/if}
     </SectionFold>
 
-    <!-- ADVANCED — config-level knobs, on the owner page's hub -->
-    {#if isOwnerRoom}
-      <SectionFold label="Advanced" badge="boot · hub · paging · routing" bind:open={advOpen}>
-        <div class="grid grid-cols-2 gap-3">
-          <Field label="Boot view" hint="where a remote lands on startup and Home — normally this page">
-            <Select bind:value={d.home_screen} options={Object.keys(d.screens)} onchange={edit} />
-          </Field>
-          <Field label="Home hub" hint="top of the Home ladder (the overview of all pages)">
-            <Select bind:value={d.global.main_home} options={Object.keys(d.screens)} allowEmpty onchange={edit} />
-          </Field>
-        </div>
-        <Field label="View paging order" hint="what the CH◀▶ / page keys flip through, left to right — NOT tile or activity order">
-          <Chips bind:items={d.screen_order} suggestions={Object.keys(d.screens)} placeholder="add view…" />
-        </Field>
-        <Field label="Activity state select"
-          hint="The routing cache. The integration MINTS select.harmonium_<page>_activity per activity-owning page — point here at the minted one (input_select still accepted for legacy configs).">
-          <EntityPicker bind:value={d.global.activity_select} domains={["select", "input_select"]} onchange={edit} />
-        </Field>
-        <Field label="Page-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
-          <div class="rounded-[8px] border border-line bg-field p-2 font-mono text-[11px] text-dim">
-            {Object.keys(d.global.buttons || {}).join(" · ") || "none"}
-          </div>
-        </Field>
-      </SectionFold>
-    {/if}
     <div class="border-t border-line pt-3">
       <Button size="sm" variant="danger"
         onclick={() => { const r = deleteScreen(screenId);

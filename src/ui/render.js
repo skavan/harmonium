@@ -231,6 +231,7 @@ function navigate(screenId, isBack) {
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
   sections.forEach(sec => {
+    if (sec.enabled === false) return;   // switched off in the Studio
     const vis = sec.tiles.flatMap(expandTile).filter(visibleTile);
     if (!vis.length) return;
     let anchorEl = null;

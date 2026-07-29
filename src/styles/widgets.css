@@ -1,5 +1,5 @@
 /* per-section column override (preset grids etc.) */
-  .secgrid { grid-column: 1 / -1; display: grid; gap: 10px; }
+  .secgrid { grid-column: 1 / -1; display: grid; gap: var(--grid-gap, 10px); }
 
   /* nav card, image style: full-bleed photo tiles (the old room card) */
   .tile.wgt-nav.nav-image {

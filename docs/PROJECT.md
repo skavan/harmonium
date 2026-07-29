@@ -686,6 +686,353 @@ connection flash); title size themable (--bar-fs). Answered: apps
 drawer pops because drawer:true (Key Mappings switch turns it
 off). All 10 suites green.
 
+v0.43.9b — id-follows-name made RETROACTIVE: any page whose id is
+still the starter's "home" auto-follows the name (workspaces born
+before v0.43.9 had already renamed the name, so the New-Room gate
+left them stranded). Hero on existing pages heals with one flip of
+its switch (toggleHero mints the banner). Studio-only.
+
+v0.43.9 — **STARTER-PATH FIELD FIXES + ROLLBACK #9** (Suresh's four
+reports, all blank-starter territory the harness under-exercised).
+INCIDENT FIRST: ninth rollback (tree to Jul 24 again, ~40 min after
+the v0.43.8b build — the probe rendered the PRE-v0.38 studio, which
+is what exposed it); restored from G:\ (restore9.tgz), markers
+verified. THE FIXES: (1) PAGE ID FOLLOWS THE NAME on the starter
+page — pageIsAuto() now includes the shipped pair (id "home", name
+"New Room"), so renaming the room renames the id and every ref
+walks (was: "defaults to home, obviously non unique… doesn't
+update"). (2) HERO ON BY DEFAULT — the starter room and ＋ Add page
+pages are born with a banner (title + clock, self-fit); a page's
+face shouldn't start invisible. (3) "HOME CHIP GOES TO" tells the
+truth when it's the only page — a dim "this is the only page — the
+chip has nowhere to go yet" instead of an empty select. (4) THE
+"CORRUPTED" NEW-ACTIVITY CARD was the identity strip's FIXED grid
+columns (190+44+170px) starving the 1fr name field at narrow center
+widths (nav + preview leave ~500px on a laptop) — DISPLAY NAME
+collapsed to a sliver, labels overlapped. Both identity strips
+(ActivityCard + TileRow) are now flex-wrap with min-widths: fields
+shrink gracefully and wrap to a second line instead of crushing.
+Verified in a scratch-starter probe at 1280px: id follows (den),
+hero on, note shows, name field 242px. smoke-studio green.
+Studio-only: bat + Studio hard-refresh.
+
+v0.43.8b — open item-card bodies (Watch Fire TV…) were still
+bg-inset — now --color-tile-hi via a new knob (--ui-row-body-bg /
+.ui-row-body) in the same settings block. Studio-only.
+
+v0.43.8 — **STYLE SETTINGS ABSTRACTED + SIX NOTES + ROLLBACK #8.**
+INCIDENT: eighth container rollback (full tree to Jul 24, caught by
+marker-sweep when ActivityCard showed no tabs); recovered from G:\
+via restore8.tgz — tar → extract → swap → markers → green. Live
+studio.html was never wrong (built before the rollback). THE NOTES
+(Suresh's img-1/img-2 side-by-side): (1) sidebar group headings
+12px; (2) item rows (activities · presets · devices — one CardRow)
+sit on --color-bg; (3) section accordion bodies on --color-tile-hi;
+(4) "+ role" selects fixed at 96px — a native select otherwise
+sizes to its LONGEST OPTION, which is why they ballooned unevenly;
+(5) ＋ Add device button removed: picking in "add a device…" ADDS
+immediately (addDevice clears the box for the next; combo test
+updated — picked = joined the cast + box cleared); (6) presets and
+devices styled identically for free via the shared components.
+THE ABSTRACTION: all of it lives in the STUDIO UI SETTINGS section
+of studio-src/src/app.css as variables + semantic classes
+(--ui-fs-nav-heading · --ui-row-card-bg · --ui-sec-body-bg ·
+--ui-role-select-w → .ui-nav-heading/.ui-row-card/.ui-sec-body/
+.ui-role-select) — devs tune surfaces and control sizes in ONE
+block, components reference the class names. Studio-only: bat +
+Studio hard-refresh.
+
+v0.43.7 — **SECTIONS BECOME ACCORDION CARDS** (Suresh: "children
+(and settings too) inside the accordion body"). SectionHeader grew
+into a container: one bordered card per section — washed title bar
+(bottom border only while the body shows) + an inset body holding
+the settings strip AND the rows, so the chevron folds the whole
+thing as one object. HubEditor's six call sites became paired tags
+with their content as children; the loose {#if !secFold} wrappers
+are gone. HERO's chevron and its Section settings button now share
+one state (its settings ARE its body — closed by default, no empty
+strip). data-sec moved to the card root, so every test selector
+([data-sec="Devices"] count, the Presets switch harness, the §11b2
+fold round-trip) passes unchanged. Studio-only: bat + hard-refresh.
+
+v0.43.6 — **SECTION HEADERS: TITLE TREATMENT + ACCORDION**
+(Suresh: same washed-title look as the map's page cards, with an
+accordion button at the end; built to roll back easily). (1) Every
+SectionHeader (Hero · Activities · Presets · Devices · customs ·
+Ungrouped) wears the item-card title bar: raised wash, hairline
+border, 10px radius — one component, so one place to change back.
+(2) ACCORDION chevron at the far end (after the add verbs): folds
+the section's rows in the EDITOR only — pure UI state (secFold),
+never written to config, resets on reload; hero has no fold (its
+body is already behind Section settings). (3) ROLLBACK is written
+into the component's comment: restore the one root-div class +
+drop the `collapsed` prop; HubEditor's {#if !secFold.*} wrappers
+then never hide anything. Tests: §11b2 folds Devices (Porch TV row
+gone), expands (row back) — green with the full smoke-studio run.
+Studio-only: bat + Studio hard-refresh.
+
+v0.43.5 — **UI SETTINGS + MAP EVERYWHERE + WASHED TITLES.**
+(1) FONTS KEPT (Suresh approved the +1 step: 12→13, 12.5→13.5,
+13→14, base 14) and promoted into a labeled STUDIO UI SETTINGS
+section at the bottom of studio-src/src/app.css — four variables
+(--ui-fs-base/small/mono/body) that devtools can tune live and a
+one-line map onto Tailwind's output; explicitly Studio-only
+(config.theme → engine vars is the remote's separate system).
+(2) EVERY workspace switch lands on the WORKSPACE MAP (not just
+first load); the hidden preview still follows to the workspace's
+home_screen so it's warm when a real editor opens. smoke-studio §8
+enters the scratch starter room via nav ("New Room") — den preview
+/ save routing / create flows all green unchanged. (3) MAP page
+cards wear the item-card TITLE TREATMENT (Suresh, from the
+ActivityCard screenshot): raised wash + bottom border on the title
+row; controllers keep their plain cards. 12-suite battery not
+rerun beyond smoke-studio (engine untouched). Studio-only: bat +
+Studio hard-refresh.
+
+v0.43.4 — **MAP: THE TREE, TOLD TRUTHFULLY** (Suresh: Porch
+wrongly wore ROOT PAGE; root should lead, then children). The badge
+had conflated two concepts: home_screen (where a remote BOOTS —
+Porch, in the live config) and the hierarchy root (the parentless
+top / global.main_home — Home). Now: ROOT PAGE (green) sits on the
+true tree root only; the boot view, when it differs, wears its own
+amber "BOOTS HERE" badge (titled with the engine's words: where a
+remote lands on startup and Home). Cards SORT by tree depth — root
+first, then children, then grandchildren (stable within a level,
+main_home first among parentless) — so the map reads top-down like
+the hierarchy it draws. The "it's the hub" empty-state line follows
+the root, not the boot view. smoke-studio map asserts green.
+Studio-only: bat + Studio hard-refresh.
+
+v0.43.3 — **NAV GRACE PASS + ROLLBACK #7 RECOVERY.** INCIDENT:
+seventh container rollback, mid-turn — the cloud workspace reverted
+to a ~Jul-24 snapshot (state.svelte.js, TileRow, tests, docs,
+engine dist, WorkspaceMap all gone or stale) while the desktop
+bridge was down; the timing briefly misread as a token-file root
+cause. RECOVERY: G:\ ground truth (every batch hash-verified) —
+on-device tar → stage → extract to fresh dir → swap → marker
+gauntlet (merge3/cardTab/v0.43.2/grid-gap/showUndo/WorkspaceMap
+all present) → rebuild → 12 suites green. Cause, plainly: the
+sandbox rehydrates from a stale disk snapshot when its container
+migrates (correlates with bridge drops); mirror-every-batch is the
+defense and it worked again. THE NAV, against Suresh's design-
+intent side-by-side: (1) the wash READS now — active row is a
+rounded amber-wash pill, label in accent-text semibold, filled
+token, 2.5px inset bar; (2) type a step larger everywhere (rows
+14px, children 13.5, headers 10.5, annotations 11.5; rows 38px,
+rail 252px); (3) children clearly indented (46px + guide, no
+token — Music Library / Apps / HVAC & Lights read as nested);
+(4) quiet stock condensed to the intent's own words ("+ 5 stock
+device pages", click expands); (5) DEFAULTS/CUSTOM subheads
+dropped — the STOCK/EDITED badges already say it. Studio-only:
+bat + Studio hard-refresh.
+
+v0.43.2 — **NAV + MAP: THE ELEGANCE PASS** (Suresh: "Left menu
+sidebar way too cramped… Apps and Music Library aren't defined
+pages, they are children of the controllers… badges, color,
+dividers. Come on. We got this!"). (1) NAV against mock 2a: rail
+218→236px (the handoff's own number), rows 32→34px with air,
+RIGHT-ALIGNED one-fact annotations ("3 activities", "rooms hub",
+"library", "10 apps · 2 cl…") instead of cramming; EDITED badge
+(accent wash) joins STOCK; quiet stock controllers CONDENSE into
+one dim row ("Climate · Light · Cover · F…" — click expands, mock's
+"Cover · Fan · Switch" line); group headers get real vertical
+space; "Remotes & keymaps" and friends drop annotations that
+forced truncation. Presentation only — slices() and every nav
+contract untouched. (2) MAP: Apps and Music Library are NOT page
+cards — a library drawer whose parent is a controller is that
+controller's furniture, shown as clickable "→ Apps" / "→ Music
+Library" chips on its card (plus section chips where the def has
+them); pages count drops to the honest 3. (3) THE BIG ONE: the
+phone preview HIDES on the map (mock 3a has no phone there — an
+overview doesn't need one; iframe stays MOUNTED so engine state
+and the test frame survive). The map takes the full width and
+every truncation Suresh flagged ("HVAC & Lig…", "Watch …",
+"opens Po…") resolves — full entity ids, full activity details.
+(4) Controller cards: names untruncated (292px column), chips row,
+sharing story. 12 suites green. Studio-only: bat + hard-refresh.
+
+v0.43.1 — **MAP FIDELITY PASS** (Suresh: "spacing, font size,
+white space and other touches are off… details matter" — rebuilt
+against mock 02-workspace-map at full fidelity). (1) TITLE BLOCK:
+"Main workspace" 20/600 + "5 pages · 3 activities · 7 controllers
+· live at /local/harmonium/" + a PAGES caption line. (2) ROWS ARE
+THE DETAIL (mock's core idea): every row is a bordered 8px-radius
+shape — activity rows = accent dot + "n devices · opens <landing>",
+preset rows = what they run (runs action · X / scene · Y /
+service), device rows = domain token (CL/LT/ME…) + entity mono,
+doorway rows = → token + "opens <page>"; generator tiles wear
+WORDS not ids ("App grid", "Preset list" — m_pl read like debris).
+(3) TRUNCATION DISCIPLINE: the name wins the space fight (min 35%,
+id yields first), details truncate right; the doorway count moved
+OUT of the tab strip (it clipped at card width) into a caption
+under the rows — "4 doorways among them". (4) LEVEL CARDS: rows
+area has a 3-row min-height so sibling cards sit level (mock:
+"tabs keep the card one height whatever the page holds"); empty
+pages get dashed borders + a sentence. (5) CONTROLLERS COLUMN
+tells only stories: cards for controllers that are edited or used
+by an activity ("Shared by X and Y — an edit here reaches both" /
+"Used by X. Duplicate it to make a variant…"), untouched stock
+collapses into ONE "Stock device pages" teach card. (6) EDIT IS
+SOFT (Suresh's ruling over the mock's "Edit →"): quiet dim "Edit",
+accent underline on hover, no arrow — everywhere on the map.
+12 suites green. Studio-only: bat + Studio hard-refresh.
+
+v0.43 — **REDESIGN FINAL ROUND: MAP · SIZING · REORDER · UNDO ·
+DIRTY** ("I want everything fully implemented" — the remaining
+handoff phases in one lift). (1) WORKSPACE MAP (§6.11 + §7.3
+corrections, Suresh's default=yes): a read-only landing slice —
+pinned nav row above ① Pages, page cards with badges (ROOT PAGE ·
+in <parent> · n KEYS BOUND · DRAWER · IN CONTROLLER:x), an
+Activities · Presets · Devices tab strip per card (doorways count
+INSIDE Devices — "3 · 1 doorway", never a Tiles tab), three rows +
+"+n more", SUBPAGES footer, and a Controllers row whose story is
+sharing ("Shared by Watch Fire TV and Watch Smart TV — an edit
+here reaches both"). Every card is an Edit → doorway into the real
+editor; the Studio now OPENS on the map. (2) PAGE SETTINGS PANEL
+(§6.4, honest v1 subset): one button under the page identity,
+accent-bordered panel with Layout · Keys (n) · Advanced-glass
+tabs. Layout = Grid columns segmented with a real SourceChip
+(SET HERE ↔ Reset; FROM WORKSPACE when unset — engine default 2)
++ Tile height and Gap as px steppers writing theme vars
+(workspace-wide, chipped FROM THEME) + the fall-through footer.
+Keys = the whole key-mappings block (Home/Back/Power, bindings,
+Drawer) moved in; Advanced = the config-level knobs (boot view,
+paging, routing) off the page floor. ENGINE (2 lines): #grid and
+.secgrid gap goes through var(--grid-gap, 10px) — theme["grid-gap"]
+now real; tile-h always was. (3) REORDER & DELETE (§7.1): every
+tile row grows a hover ⠿ drag handle (wrapper is draggable only
+while the handle is held; drop reorders in-list) and a ··· menu —
+Move up · Move down · Move to <section>… · Duplicate · Remove —
+words, not glyphs. (4) UNDO TOAST: every Remove (tile or activity)
+raises "Removed X · Undo" for 10 s; activity Remove first opens an
+inline confirm NAMING its references (tiles, visibility rules,
+sequences that set it). (5) DIRTY STATE (§7.2): ● Edited chips on
+row headers from a canonical-JSON baseline of the last-saved
+config — reordering alone doesn't mark, editing BACK to saved
+clears the chip, Save & Deploy rebaselines everything.
+(6) TESTS same-commit: map landing + Edit→ doorway (§2b), ···
+reorder round-trip, Remove→Undo restore, chip on/off round-trip,
+panel SET HERE↔Reset (§11e/f), §14 keys moved behind the panel;
+§3 now ENTERS porch through the map like a user would. 12 suites
+green. Deploy: ENGINE TOUCHED — push-to-ha.bat, then Astrion
+cache-clear + load_start_url, then Studio hard-refresh (no
+restart, no reseed — config.json unchanged).
+
+v0.42 — **REDESIGN ROUND 4: ITEM-CARD GRAMMAR — EVERY TILE**
+(handoff §6.6/6.8/6.9/6.10 — learn it once, know it everywhere).
+TileRow rebuilt onto the R3 grammar; same component name and props,
+so all four editors (Hub, View, Library) ride along untouched.
+(1) IDENTITY STRIP on every tile: Display name · Icon · Id (the id
+shows as a read-only chip — editing it lives under Advanced, per
+the vocabulary rule that "tile id" never walks the primary path).
+(2) FIRST TAB SPEAKS THE ITEM'S LANGUAGE: device → "The device"
+(Entity + Tap + Hold — the hold select's empty option now SAYS
+"Auto — controller:tv (from its activity)" instead of an em dash,
+plus a read-only cast note: which activities cast this device and
+wearing which roles); doorway → "Where it goes" (Opens + edit
+page → / ＋ mint, contract preserved — the draft Keep/Discard flow
+is byte-identical); preset → "What it does" (REAL editor at last:
+On tap = Run an action (sequence) · Activate a scene · Call a
+service, all compiling to the ONE action shape the engine already
+fires — service+target+data, no config change; honors action.target
+OR action.entity, whichever the tile speaks; Belongs-to-activity
+select + warm-start sentence); generators/raw → "What it shows"
+(apps class/include, cast-of + Unlink, entity pickers unchanged).
+(3) SHARED STYLING TAB: Column span as a 1·2·3·4 segmented;
+doorway style (auto/plain/image/summary) + image moved here —
+"how the card renders; the page behind it is the same either way".
+(4) ADVANCED AS GLASS: Type select (raw widgets still gated by
+Advanced mode), Tile id, Show attribute (device), and the
+always-on JSON. (5) TESTS same-commit: §11d probes the grammar
+(fresh device → The device/Styling/Advanced walk, span segmented,
+type select + JSON in glass, probe tile deleted after); §11c
+doorway-mint contract passed UNCHANGED — the mint ＋ lives on the
+doorway's default tab. 12 suites green; screenshots r4-device /
+r4-preset / r4-doorway / r4-styling / r4-advanced in docs/design/.
+Studio-only — engine untouched: deploy = push-to-ha.bat + Studio
+hard-refresh.
+
+v0.41 — **REDESIGN ROUND 3: ITEM-CARD GRAMMAR — ACTIVITYCARD**
+(handoff phases 5 + 9b — one card, one grammar). (1) IDENTITY
+STRIP: the old 2×2 identity grid became a compact always-visible
+strip — Display name · Icon · Accent · Activity id (rename-on-
+change kept) — so the card's "who am I" never scrolls away.
+(2) TABS: the card body split into Devices & roles (device count
+chip) · Start & stop · Controller · State (rule count chip);
+active tab = inset accent underline; every pane is the old block
+wrapped, no behavior rewritten. (3) ADVANCED AS GLASS: the gated
+rawOpen JSON toggle is gone — a right-aligned glass tab (outlined-
+square glyph) holds an always-present JsonArea, the escape hatch
+made visible but visually "behind glass". (4) MOVES per handoff:
+App class left the cast block for the Controller tab (with a
+no-controller fallback line explaining why it's empty);
+confirm_end became a proper Switch in Start & stop ("Confirm
+before ending (press twice)"). (5) TESTS same-commit: cardTab()
+helper clicks tab buttons by prefix; tab-clicks inserted before
+every deep interaction (§10 start/stop picks, §10b create-page,
+§11a linked/discard/edit-link); §11's open-card guard now detects
+the tab bar — the old cast-input probe couldn't see it and was
+double-clicking the card shut. 12 suites green; screenshots
+r3-cast/r3-startstop in docs/design/. Studio-only — engine
+untouched: deploy = push-to-ha.bat + Studio hard-refresh.
+
+v0.40 — **REDESIGN ROUND 2: BLESSED SECTIONS** (handoff phase 4 —
+the liturgy made physical). (1) ENGINE: sections honor
+`enabled: false` — a switched-off section keeps its items in config
+but stops rendering AND subscribing (rawTilesOf filter + render
+skip); compiler passes the key untouched; merge3-safe. (2)
+HUBEDITOR restructured onto the blessed model: Hero · Activities ·
+Presets · Devices always present, in order, each a SectionHeader
+(new component: [switch] title (count chip) ──rule── grid summary ·
+Section settings · paradigm verb). Switch ON creates a missing
+section; OFF greys content 50% (off ≠ empty). ＋ Add preset now
+mints a real preset tile (was a device tile — latent bug); ＋ Add
+doorway replaces "Add nav card" (vocabulary: doorways are how the
+Devices zone points at more devices). Section-settings strip (v1
+real knobs only): Heading, Jump label, Grid columns segmented with
+inherit. Custom sections render with the same headers when they
+exist; CREATING one is behind Advanced mode. Legacy flat tiles →
+"Ungrouped". smoke-studio updated same-commit (doorway wording,
+data-sec assertions) + NEW §14b: Presets switch off → preview loses
+the tiles live → Save posts enabled:false → switch back heals
+(3→0→3, harness-proven). 12 suites green. Deploy: bat (engine dist +
+studio.html) + Astrion cache/reload + Studio refresh; config.json
+unchanged → no reseed, no restart.
+
+v0.39 — **REDESIGN ROUND 1: GRAPHITE RAILS FOUNDATION** (implementing
+the Claude Design handoff at docs/design response/, phases 1–3 of its
+plan; Suresh's calls: POWER column dropped — nothing in the model
+behind it; FACE→PRIMARY with honest copy; SHOW→ON CONTROLLER — the
+column header now says where the effect lands; Workspace map will be
+default landing when built). (1) TOKENS: app.css = the handoff's
+Graphite Rails system (surface/raised/sunk/field/glass, ink ramp,
+per-theme amber #ffb300/#a86f00, note surfaces, radii/heights/
+spacing/shadow tokens) with LEGACY ALIASES (tile/tile-hi/inset/hover)
+so 28 unmigrated files keep rendering — migrate per-phase, then drop.
+(2) PRIMITIVES to spec: Button (secondary/primary/quiet/danger,
+radius 6, focus ring, disabled=greyed-never-removed), Input/Select
+38px radius-4 field chrome; NEW IconButton, Segmented, NumberField
+(px+stepper), SourceChip (inheritance provenance, v1 subset),
+NoteStrip (teach strips, dismissible per editor). (3) COPY PASS:
+worded snippet buttons ("Use snippet…"/"Save as snippet"); the
+device-cast rows got PRIMARY / ON CONTROLLER switch columns with
+headers (★/👁 glyphs gone; primary row tinted note-bg); honest
+primary copy; teach strips on Hub + View editors; "Column span";
+raw widget types + JSON escape hatches now gate behind (4) ADVANCED
+MODE — a persisted switch pinned to the NavPane bottom. (5) FRAME:
+52px surface header in three tiers (identity · state · one primary
+action) — segmented workspace pills, address CHIP, ok-dot status,
+Export/Import quiet, Revert bordered, Save & Deploy filled, Clear +
+Save-Reload-Astrion behind ···. (6) NAVPANE: search + ⌘K, numbered
+groups (① Pages ② Controllers ③ Building blocks ④ System) with
+counts and rules, 18px type tokens (accent-filled when active,
+accent-wash row + inset bar), child guides, STOCK badges, ＋ Add
+page. smoke-studio's navClick + free-standing-title updated in the
+same commit (guardrail). 12 suites green; both themes screenshot-
+verified. Deploy: studio.html only — bat + Studio refresh, nothing
+else. Rounds 2+ (blessed sections, item-card grammar, settings
+surfaces, reorder/dirty, Workspace map) follow the handoff plan.
+
 v0.38 — **/local/harmonium + THE PATH IS THE WORKSPACE** (Suresh:
 "is our url strategy a good thing or a constraining thing?" →
 discussed: hash-pin = identity-in-the-device, invisible state; paths

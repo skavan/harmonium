@@ -3,6 +3,7 @@
      sectioned views get one card group per section. */
   import { app } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
+  import NoteStrip from "../components/NoteStrip.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
   import Switch from "../components/Switch.svelte";
@@ -106,6 +107,11 @@
 
 {#if scr}
   <div class="space-y-5">
+    <NoteStrip dismissKey="view">
+      <b>A controller is a shared control surface.</b> Activities pass
+      their devices and roles into it — editing it changes every
+      activity that lands here.
+    </NoteStrip>
     {#if pageDraft}
       <div class="flex flex-wrap items-center gap-3 rounded-[10px] border border-accent/50 bg-accent/10 px-3 py-2">
         <span class="text-sm text-ink">

@@ -252,7 +252,11 @@ function groupEntities(t) {
 
 /* Entities for a screen = tiles ∪ groups ∪ context ∪ activity select */
 function rawTilesOf(sc) {
-  return sc.sections ? sc.sections.flatMap(x => x.tiles) : (sc.tiles || []);
+  /* enabled:false (v0.40 blessed sections): a switched-off section
+     keeps its items in config but stops rendering AND subscribing */
+  return sc.sections
+    ? sc.sections.filter(x => x.enabled !== false).flatMap(x => x.tiles)
+    : (sc.tiles || []);
 }
 function tilesOf(sc) {
   return rawTilesOf(sc).flatMap(expandTile).filter(visibleTile);
