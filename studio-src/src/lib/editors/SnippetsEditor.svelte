@@ -14,7 +14,7 @@
     Snippets are saved with the <b>upload</b> icon on an activity's
     Setup or State block, and inserted with the <b>download</b> icon on
     any compatible block. They live in this browser — global across
-    every workspace and scratch, and reseeds never touch them.
+    every workspace, and reseeds never touch them.
   </p>
   {#each Object.entries(SNIPPET_TYPES) as [type, label] (type)}
     <div>

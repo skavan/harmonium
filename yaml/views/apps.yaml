@@ -1,15 +1,15 @@
 id: apps
 name: Apps
 type: library
+# LIBRARY CONTROLLER (v0.47.4): the drawer belongs to the PLAYER, so
+# it ships in config.controllers and travels into every workspace —
+# as a content screen it existed only in main and the player's apps
+# button dead-ended everywhere else.
+library: true
 parent: tv
 
-context:
-  media_player: media_player.fire_tv_family_192_168_1_65
-  dpad: remote.fire_tv_family_192_168_1_65
-  app_class: firetv
-  power: media_player.sts_samsung_q90_porch
-  volume: media_player.sts_samsung_q90_porch
-  volume_level: media_player.ma_soundbar_porch
+# PURE $context (v0.46.1): the drawer inherits everything from the
+# calling activity — dialect included.
 
 # DRAWER RULE: on a drawer ALL navigation keys drive the UI — pick a
 # tile and it auto-returns; tap-Back escapes without picking. Only
@@ -33,5 +33,5 @@ layout:
       tiles:
         - id: apps_grid
           type: apps
-          # the DEVICE CLASS is the curation (v0.30): everything the
+          # the DIALECT is the curation (v0.30): everything the
           # context's dialect offers; include: [ids] narrows if wanted

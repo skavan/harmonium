@@ -10,9 +10,21 @@ WIDGETS.buttons = {
         `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
       ).join("") + `</div>`,
     wire: (el, t) => wireTaps(el, "cmd", k => {
-      /* "power" is the DEVICE power (control target / $context.power),
-         not a remote keycode */
+      /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
+         is turning off the device, not the activity"): toggling the
+         activity keeps the select and the devices moving TOGETHER —
+         end (with the standard confirm) when it's running, start (the
+         full generated sequence) when it isn't. Raw device power is
+         what the PHYSICAL short-press power policy is for; pages with
+         no current activity keep the old device fallback. */
       if (k === "power") {
+        const aid = currentActivityId();
+        const a = aid && (CONFIG.activities || {})[aid];
+        if (a) {
+          if (isActivityActive(aid)) { endCurrentActivity(); renderStates(); }
+          else { startActivity(aid); flashBar("Starting " + (a.name || aid), "on"); }
+          return;
+        }
         if (ctPower()) return;
         const pe = resolveEntity("$context.power");
         if (pe) callService("homeassistant", "toggle", null, pe);

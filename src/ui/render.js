@@ -5,7 +5,7 @@ const grid = document.getElementById("grid");
 
 function iconHtml(t, row) {
   let inner;
-  if (t.icon_image) inner = `<img src="${t.icon_image}" alt="">`;
+  if (t.icon_image) inner = `<img src="${t.icon_image}" alt=""${t.icontain ? ' class="contain"' : ""}>`;
   else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
@@ -153,8 +153,12 @@ window.addEventListener("resize", () => scheduleFit());
 
 function makeTile(t, row) {
   const el = document.createElement("div");
-  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "");
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "") +
+    (t.color ? " tacc" : "") + (t.brw ? " brw" : "");
   el.id = "tile_" + t.id;
+  /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
+     circle — see grid.css .tacc */
+  if (t.color) el.style.setProperty("--tacc", t.color);
   const w = WIDGETS[t.type] || {};
   const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
   const body = `<div class="lbl">${t.label}</div>
@@ -212,6 +216,32 @@ function makeTile(t, row) {
 }
 
 function navigate(screenId, isBack) {
+  /* CROSS-WORKSPACE DOORWAY (v0.50.2 — Suresh: "a nav tile on main
+     porch page that takes me to deck and vice versa"): a `ws:<id>`
+     target switches WORLDS by canonical address — the browser leaves
+     for /local/harmonium/<id>/index.html (a peek: nothing pinned).
+     In the Studio preview, changing the iframe's world would desync
+     the editor — flash instead. */
+  if (typeof screenId === "string" && screenId.startsWith("ws:")) {
+    const w = screenId.slice(3).trim();
+    if (!w) return;
+    if (typeof PREVIEW !== "undefined" && PREVIEW) {
+      flashBar("Opens workspace '" + w + "' on the real remote");
+      return;
+    }
+    const tail = new RegExp("/" + WS + "/index\\.html$");
+    location.href = tail.test(location.pathname)
+      ? location.pathname.replace(tail, "/" + w + "/index.html")
+      : location.pathname.replace(/index\.html$/, w + "/index.html");
+    return;
+  }
+  /* LIBRARY CANONICALIZATION (v0.47.4 — Suresh: "The apps drawer
+     doesn't work"): a bare ref to a screen that now lives in the
+     controller LIBRARY (the apps drawer moved there so it travels
+     into every workspace) resolves to its controller: address —
+     heals every stale {navigate: apps} in deployed configs. */
+  if (!screenOf(screenId) && screenOf("controller:" + screenId))
+    screenId = "controller:" + screenId;
   const sc = screenOf(screenId);           // config screen or detail:<entity>
   if (!sc) return;
   if (S.screen && !isBack && screenId !== S.screen) S.stack.push(S.screen);
@@ -221,6 +251,12 @@ function navigate(screenId, isBack) {
   /* (the v0.35 title-bar input button lived one day — a bar icon is a
      fingertip-hostile target on a remote. The source_select ROLE +
      Source tile replaced it, v0.36.) */
+  /* MUSIC TYPE SCOPE (v0.52.1 — Suresh: "set Primary and Secondary
+     font for the music player separately"): screens declaring
+     font_scope: music read --font-m1/--font-m2 (they follow the
+     global pair unless the theme sets them) */
+  document.getElementById("app").classList.toggle("scr-music",
+    (sc.font_scope || "") === "music");
   renderBanner(sc);
   const cols = (sc.grid && sc.grid.columns) || 2;
   /* minmax(0,1fr): columns may shrink below content min-width, so a
@@ -230,9 +266,19 @@ function navigate(screenId, isBack) {
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
+  /* BROWSE BANDS (v0.50): a section containing a browse tile sends
+     its OTHER tiles to the fixed bar (band 1) — the grid carries
+     items only. _active re-arms per render via the generator. */
+  S.browse._active = false;
+  S.browse.barTiles = [];
   sections.forEach(sec => {
     if (sec.enabled === false) return;   // switched off in the Studio
-    const vis = sec.tiles.flatMap(expandTile).filter(visibleTile);
+    let secTiles = sec.tiles;
+    if (secTiles.some(x => x.type === "browse")) {
+      S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
+      secTiles = secTiles.filter(x => x.type === "browse");
+    }
+    const vis = secTiles.flatMap(expandTile).filter(visibleTile);
     if (!vis.length) return;
     let anchorEl = null;
     if (sec.title) {
@@ -259,10 +305,29 @@ function navigate(screenId, isBack) {
     if (sec.hero_label)
       heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
   });
+  /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
+     a page with nothing to render says WHY instead of showing void —
+     a pure controller waits for an activity; a hub waits for content */
+  if (!grid.children.length) {
+    const hint = document.createElement("div");
+    const isCtrl = sc.class === "activity" || sc.type === "controller" ||
+      sc.view_kind === "controller";
+    hint.textContent = isCtrl
+      ? "No activity is active — start one from its room page and this player fills in."
+      : "Nothing here yet — add activities or tiles to this page in the Studio, then Save & Deploy.";
+    hint.style.cssText = "grid-column:1/-1;padding:36px 16px;text-align:center;" +
+      "opacity:.45;font-size:14px;line-height:1.5;";
+    grid.appendChild(hint);
+  }
   /* jumps ALWAYS register (CH▲▼/MENU step them even bannerless —
      the Apps drawer); the visible strip needs a banner with tabs on */
   buildHeroNav(heroJumps, !!(sc.banner && sc.banner.enabled !== false &&
     sc.banner.tabs !== false));
+  /* fresh page = top of page (v0.53 — the grid keeps its scrollTop
+     across innerHTML swaps, so the PREVIOUS page's scroll position
+     leaked into this one, eating the top padding); initial_focus
+     deeper in the page still scrolls to itself via setFocus */
+  grid.scrollTop = 0;
   const all = tilesOf(sc);
   setFocus(sc.initial_focus || (all[0] && all[0].id));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
@@ -270,6 +335,8 @@ function navigate(screenId, isBack) {
   scheduleFit();
   /* global back affordance: chevron in the status bar iff history */
   document.getElementById("backBtn").classList.toggle("hidden", !S.stack.length);
+  updateBarChrome();
+  if (typeof browseBar === "function") browseBar();
   /* passthrough cue: accent rule + gamepad glyph while the physical
      D-pad drives the device (and hold-Back/Home send device keys) */
   const pt = passthroughActive();
@@ -278,9 +345,25 @@ function navigate(screenId, isBack) {
   if (S.connected) subscribeFor(screenId);
 }
 
+/* app-level bar chrome (v0.48.1 — Suresh: "In a browser, how do I turn
+   off the activity? Or Go Back a page? Or go home?"): Home + End live
+   in the title bar on TOUCH clients; physical-key remotes have real
+   keys, so the bar stays clean there. End shows while an activity is
+   current (select or pending) and rides the standard confirm flow. */
+function updateBarChrome() {
+  const touchOnly = !CAPS.has("physical_dpad");
+  const home = document.getElementById("homeBtn");
+  const end = document.getElementById("endBtn");
+  if (!home || !end) return;
+  home.classList.toggle("hidden",
+    !touchOnly || S.screen === CONFIG.home_screen);
+  end.classList.toggle("hidden", !(touchOnly && currentActivityId()));
+}
+
 function renderStates() {
   const sc = screenOf(S.screen);
   if (!sc) return;
+  updateBarChrome();
   /* generated tiles (presets_from) are STRUCTURAL: when their source
      attribute changes the tile set itself changes, so patch-in-place
      isn't enough — re-render the grid. Rare (favorites edit), cheap. */

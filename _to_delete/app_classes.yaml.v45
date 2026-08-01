@@ -1,0 +1,83 @@
+# DEVICE CLASSES (v0.30) — platform launch dialects.
+# The master list (apps.yaml) is IDENTITY; a class binds apps to how
+# THIS platform launches them. A class entry IS the curation: listed =
+# offered on surfaces speaking this dialect. Entry forms:
+#   source: X            → media_player.select_source on $context.media_player
+#   action/target/data   → any HA-style action (entity defaults to ctx mp)
+#   sequence: <id>       → run a named Action (HA-side)
+# Entries may also override name/icon/image from the master list.
+# Which class a surface speaks comes from the ACTIVITY's context
+# (app_class: firetv) — one shared Apps drawer, many dialects.
+
+firetv:
+  # channels (v0.45.2): Fire TV rides the same androidtv/ADB integration
+  name: Fire TV
+  channels:
+    commands: { integration: androidtv, domain: media_player, label: ADB channel }
+  apps:
+    netflix:   { source: com.netflix.ninja }
+    prime:     { action: androidtv.adb_command, entity: $context.media_player,
+                 data: { command: am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity } }
+    youtube:   { source: com.amazon.firetv.youtube }
+    youtubetv: { source: com.amazon.firetv.youtube.tv }
+    peacock:   { source: com.peacock.peacockfiretv }
+    paramount: { source: com.cbs.ott }
+    max:       { action: androidtv.adb_command, entity: $context.media_player,
+                 data: { command: am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity } }
+    appletv:   { source: com.apple.atve.amazon.appletv }
+
+tizen:
+  name: Samsung Tizen
+  apps:
+    netflix:   { source: Netflix }
+    prime:     { source: Prime Video }
+    youtube:   { source: YouTube }
+    youtubetv: { source: YouTube TV }
+    hulu:      { source: Hulu }
+    disney:    { source: Disney+ }
+    appletv:   { source: Apple TV }
+    max:       { source: Max }
+    peacock:   { source: Peacock TV }
+    paramount: { source: Paramount+ }
+
+googletv:
+  # GOOGLE TV (v0.44) — every launch rides the COMMANDS role (ADB):
+  # the remote transport routes bare packages through market://launch,
+  # which is Play-Store roulette; `am start -n` never bounces. All 13
+  # verified on the deck Hisense — docs/google tv/projector_reference.md
+  name: Google TV
+  # CHANNEL DECLARATION (v0.45.2 — machine-read dialect knowledge):
+  # the commands channel is the androidtv (ADB) integration's
+  # media_player — the only entity androidtv.adb_command accepts.
+  # Studio seeds and validates device claims against this FACT
+  # (entity-registry platform), never against entity names.
+  channels:
+    commands: { integration: androidtv, domain: media_player, label: ADB channel }
+  apps:
+    netflix:   { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.netflix.ninja/.MainActivity } }
+    prime:     { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity } }
+    youtube:   { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity } }
+    youtubetv: { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity } }
+    peacock:   { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity } }
+    paramount: { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity } }
+    max:       { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.wbd.stream/com.wbd.beam.BeamActivity } }
+    appletv:   { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.apple.atve.androidtv.appletv/.MainActivity } }
+    hulu:      { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.hulu.livingroomplus/.WKFactivity } }
+    disney:    { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity } }
+    fubo:      { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity } }
+    espn:      { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity } }
+    britbox:   # ADB-only on Google TV: britbox:// BROKE device pairing during verification
+               { action: androidtv.adb_command, entity: $context.commands,
+                 data: { command: adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity } }

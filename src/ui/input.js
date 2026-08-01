@@ -291,6 +291,10 @@ function act(button, phys) {
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
       /* unbound CH on a multi-section page = CATEGORY/SECTION paging
          (the Music Library's ▲▼; bindings above always win) */
+      /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
+      if ((button === "ch_up" || button === "ch_down") &&
+          typeof brStepCat === "function" &&
+          brStepCat(button === "ch_up" ? 1 : -1)) break;
       if ((button === "ch_up" || button === "ch_down") &&
           heroCycle(button === "ch_up" ? 1 : -1)) break;
       /* mute default (no config binding needed): toggle mute on the
@@ -300,6 +304,18 @@ function act(button, phys) {
         if (tgt) callService("media_player", "volume_mute",
           { is_volume_muted: !st(tgt).a.is_volume_muted }, tgt);
       }
+      break;
+    }
+    default: {
+      /* OPEN BUTTON VOCABULARY (v0.54 — Suresh: "dpad left hold and
+         right hold to do RWD and FFWD"): ANY logical button a keymap
+         can emit is bindable — a screen/global `buttons` entry runs
+         its action (shared grammar: navigate/sequence/service/seek).
+         Unbound stays a deliberate no-op. left_hold/right_hold land
+         here; new remotes can mint new names without engine edits. */
+      const bd = Object.assign({}, CONFIG.global.buttons,
+        (screenOf(S.screen) || {}).buttons || {})[button];
+      if (bd) runAction(bd);
       break;
     }
   }
@@ -344,6 +360,14 @@ window.addEventListener("keypress", e => dbgKey("·", e), true);
    (Enter delivers proper pairs and the gesture is field-verified). */
 document.addEventListener("keydown", e => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return; // let the auth form type
+  /* KEY CAPTURE screen (v0.55): log EVERYTHING (mapped or not) and
+     swallow it — a captured "back" must not navigate. Exit is the
+     title-bar ‹ chevron (a DOM click, not this path). */
+  if (S.screen === "keys:") {
+    e.preventDefault();
+    if (!e.repeat) keycapLog(e);
+    return;
+  }
   const b = KEYMAP[e.key];
   if (!b) return;
   e.preventDefault();
@@ -367,6 +391,7 @@ document.addEventListener("keydown", e => {
 
 document.addEventListener("keyup", e => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (S.screen === "keys:") { e.preventDefault(); return; }
   if (KEYMAP[e.key] !== "select") return;
   e.preventDefault();
   clearTimeout(holdTimer);

@@ -70,6 +70,10 @@ keymaps:
     P: power
     o: power_hold
     O: power_hold
+    # v0.54: dpad-hold scrubbing — the shell's long-press injects
+    # these (KeyMapper on the Astrion; the soft remote's HOLD latch)
+    ",": left_hold
+    ".": right_hold
   astrion:
     <<: *default_keymap
     "=": power_hold

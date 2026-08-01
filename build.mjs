@@ -31,16 +31,20 @@ const SCRIPTS = [
   "core/socket.js",        // websocket: auth → filtered subscribe → diffs
   "core/context.js",       // $context resolution, entity_options, subscriptions
   "core/activities.js",    // activity lifecycle, presets, actions
+  "core/browse.js",        // standard media_player/browse_media library
+  "core/queue.js",         // per-platform queue adapters + queue: screen
+  "core/keycap.js",        // key-capture virtual screen (keys:)
   "core/details.js",       // generated detail screens (steppers/chips/compositions)
   "widgets/registry.js",   // WIDGETS = {} + shared capture/wiring helpers
   // widget adapters (self-registering; order-independent)
   "widgets/light.js", "widgets/fan.js", "widgets/script.js", "widgets/nav.js",
-  "widgets/preset.js", "widgets/transport.js",
+  "widgets/preset.js", "widgets/qrow.js", "widgets/transport.js",
   "widgets/mediabtns.js", "widgets/buttons.js", "widgets/activity.js",
   "widgets/climate.js", "widgets/media.js", "widgets/volume.js",
   "widgets/power.js", "widgets/cover.js", "widgets/coverbtns.js",
   "widgets/stepper.js", "widgets/chips.js", "widgets/passthrough.js",
   "widgets/dpad.js", "widgets/device.js", "widgets/sources.js",
+  "widgets/kslot.js",      // key-capture slot tiles (keys: screen)
   "widgets/helpers.js",    // command maps, cmdFor, nudge helpers
   "ui/render.js",          // banner/hero/grid/tile rendering + navigate
   "ui/focus.js",           // spatial focus, trails, capture

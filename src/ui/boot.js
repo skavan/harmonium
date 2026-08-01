@@ -9,6 +9,29 @@ function showAuth(err) {
     (location.protocol.startsWith("http") ? location.host : "");
 }
 document.getElementById("backBtn").addEventListener("click", () => act("back"));
+/* browser chrome (v0.48.1): app-level Home + End-activity in the bar */
+document.getElementById("homeBtn").addEventListener("click", () => act("home"));
+document.getElementById("endBtn").addEventListener("click", () => {
+  endCurrentActivity();
+  renderStates();
+});
+/* ⓘ: tap = the perf flash (unchanged) · HOLD 550ms = the KEY CAPTURE
+   screen (v0.55 — a diagnostic surface behind the info icon, where
+   the family never trips on it; also reachable as nav target keys:) */
+{
+  const info = document.getElementById("info");
+  let iT = null, iHeld = false;
+  info.addEventListener("pointerdown", () => {
+    iHeld = false;
+    clearTimeout(iT);
+    iT = setTimeout(() => { iHeld = true; navigate("keys:"); }, 550);
+  });
+  const iEnd = () => clearTimeout(iT);
+  info.addEventListener("pointerup", iEnd);
+  info.addEventListener("pointercancel", iEnd);
+  info.addEventListener("pointerleave", iEnd);
+  info.addEventListener("click", () => { if (!iHeld) perfInfo(); iHeld = false; });
+}
 document.getElementById("connectBtn").addEventListener("click", () => {
   const host = document.getElementById("hostIn").value.trim();
   const token = document.getElementById("tokenIn").value.trim();
@@ -35,9 +58,12 @@ let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
 function applyConfig(cfg, devName) {
   CONFIG = cfg;
   if (!devName) devName = localStorage.getItem("hakr_device");
-  if (!devName && window.fully && CONFIG.devices)
-    devName = Object.keys(CONFIG.devices).find(k => CONFIG.devices[k].fully) || null;
-  DEVICE = (CONFIG.devices || {})[devName] || (CONFIG.devices || {}).default || {};
+  // v0.45: hardware profiles renamed devices -> remotes (devices is now
+  // the bundle library); read remotes with a legacy-config fallback
+  const REMOTES = CONFIG.remotes || CONFIG.devices || {};
+  if (!devName && window.fully)
+    devName = Object.keys(REMOTES).find(k => REMOTES[k].fully) || null;
+  DEVICE = REMOTES[devName] || REMOTES.default || {};
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
@@ -69,6 +95,10 @@ function previewListen() {
         S.stack = [];
         navigate(m.screen, true);
       }
+    } else if (m.type === "harmonium_preview_activity") {
+      /* impersonate the activity being edited (null clears) */
+      S.pvActivity = m.activity || null;
+      if (CONFIG && S.screen) { navigate(S.screen, true); subscribeFor(S.screen); }
     } else if (m.type === "harmonium_key" && m.key) {
       const opts = { key: m.key, bubbles: true, cancelable: true };
       document.dispatchEvent(new KeyboardEvent("keydown", opts));
@@ -128,6 +158,17 @@ function previewListen() {
     return;
   }
   WS = loaded.ws;
+  /* CANONICAL ADDRESS v2 (v0.48.3 — Suresh: "it should be
+     workspacename/index.html everywhere"): whatever door you came in
+     through — bare engine path, stub, hidden pin — the address bar
+     ends at <ws>/index.html, MAIN INCLUDED (main gets its own stub
+     dir server-side). The bar always tells the truth about which
+     world you're in; a refresh re-enters through the stub. Rewrite
+     only when the loaded workspace is certain (never on fallback). */
+  if (/\/index\.html$/.test(location.pathname) &&
+      !location.pathname.endsWith("/" + loaded.ws + "/index.html") &&
+      (!WS_PEEK || loaded.ws === WS_PEEK))
+    history.replaceState(null, "", loaded.ws + "/index.html");
   applyConfig(loaded.cfg, localStorage.getItem("hakr_device"));
   if (loaded.missed)
     flashBar("Workspace '" + loaded.missed + "' not deployed — using main", "off");

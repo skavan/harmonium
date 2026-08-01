@@ -17,13 +17,12 @@
   });
 
   /* any draft mutation (visual OR code) re-renders the preview and
-     flips the unsaved flag; the scratch workspace autosaves to this
-     browser so nothing is ever lost */
+     flips the unsaved flag (v0.53: the scratch workspace is GONE —
+     Suresh: "no point to it"; sandboxing is what drafts + workspace
+     duplication are for) */
   $effect(() => {
     if (app.draft) {
-      const cur = JSON.stringify(app.draft);
-      app.unsaved = cur !== JSON.stringify(app.saved);
-      if (app.workspace === "scratch") localStorage.setItem("hakr_scratch", cur);
+      app.unsaved = JSON.stringify(app.draft) !== JSON.stringify(app.saved);
       schedulePreview(false);
     }
   });
@@ -41,27 +40,21 @@
     <h1 class="m-0 text-sm font-[600] whitespace-nowrap">Harmonium <span class="text-dim">Studio</span></h1>
     <!-- workspace pills: segmented, sunk track (handoff §6.1) -->
     <div class="flex shrink-0 rounded-[7px] bg-sunk p-[3px]" role="tablist"
-      title="Workspaces — each one is a remote's whole world, all deployed at once. Scratch = a safe sandbox kept in this browser. Manage on System → Workspaces.">
+      title="Workspaces — each one is a remote's whole world, all deployed at once. Manage on System → Workspaces.">
       {#each app.wsOrder.filter((w) => app.workspaces[w]) as id (id)}
         <button id={id === "main" ? "wsLive" : "ws_" + id}
           class={"cursor-pointer rounded-[5px] border-0 px-3 py-[6px] text-xs font-medium " +
             (app.workspace === id ? "bg-accent font-semibold text-accent-ink" : "bg-transparent text-dim hover:text-ink")}
           onclick={() => switchWorkspace(id)}>{app.workspaces[id].name}</button>
       {/each}
-      <button id="wsScratch" class={"cursor-pointer rounded-[5px] border-0 px-3 py-[6px] text-xs font-medium " +
-          (app.workspace === "scratch" ? "bg-accent font-semibold text-accent-ink" : "bg-transparent text-dim hover:text-ink")}
-        onclick={() => switchWorkspace("scratch")}>Scratch</button>
     </div>
-    <!-- the CURRENT workspace's ADDRESS: a mono chip (scratch never
-         deploys — its link opens Main) -->
+    <!-- the CURRENT workspace's ADDRESS: a mono chip -->
     <a href={"/local/harmonium/" +
-        (app.workspace !== "main" && app.workspace !== "scratch"
-          ? encodeURIComponent(app.workspace) + "/" : "index.html")}
+        (app.workspace !== "main" ? encodeURIComponent(app.workspace) + "/" : "") + "index.html"}
       target="_blank" rel="noopener"
       class="shrink-0 rounded-[6px] bg-field px-2.5 py-[5px] font-mono text-[11px] text-accent-text no-underline hover:underline"
-      title={"Open the running app in a new browser tab" +
-        (app.workspace === "scratch" ? " (scratch never deploys — this opens Main)" : "")}
-    >/local/harmonium/{app.workspace !== "main" && app.workspace !== "scratch" ? app.workspace + "/" : ""} ↗</a>
+      title="Open the running app in a new browser tab"
+    >/local/harmonium/{app.workspace !== "main" ? app.workspace + "/" : ""}index.html ↗</a>
     <div class="flex min-w-0 flex-1 items-center gap-1.5">
       <span class={"h-1.5 w-1.5 shrink-0 rounded-full " +
         (app.status.cls === "err" ? "bg-danger" : "bg-ok")}></span>

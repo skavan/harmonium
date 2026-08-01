@@ -12,6 +12,20 @@
   }
   #backBtn > * { pointer-events: none; }
   #backBtn .material-symbols-outlined { font-size: 20px; }
+  /* BROWSER CHROME (v0.48.1 — Suresh: "how do I turn off the activity?
+     Or Go Back a page? Or go home?"): app-level Home + End-activity
+     live in the TITLE BAR — always reachable, never crowding the
+     grid. Hidden on physical-key remotes (they have real keys). */
+  #homeBtn, #endBtn {
+    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    border: 0; background: var(--tile-hi); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  #homeBtn > *, #endBtn > * { pointer-events: none; }
+  #homeBtn .material-symbols-outlined,
+  #endBtn .material-symbols-outlined { font-size: 20px; }
+  #endBtn { color: var(--danger, #ff5a5f); }
   #bar .name {
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;

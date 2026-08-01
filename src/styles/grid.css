@@ -4,6 +4,15 @@
     grid-auto-rows: max-content;
     gap: var(--grid-gap, 10px); padding: 10px 12px 14px; align-content: start;
     overflow-y: auto;
+    /* v0.53 (Suresh: "scrolled right to top, eating the small
+       padding"): a fresh page always opens AT the top (navigate
+       resets scrollTop — the grid keeps its scroll position across
+       innerHTML swaps, so the previous page's scroll used to leak
+       in); scroll-margin makes hero jumps and focus scrolls honor
+       the padding instead of pinning anchors flush */
+    scroll-padding-top: 10px; scroll-padding-bottom: 14px;
+    scrollbar-width: thin;                      /* Firefox */
+    scrollbar-color: var(--tile-hi, #2c333d) transparent;
   }
   .shead {
     grid-column: 1 / -1; color: var(--dim);
@@ -43,6 +52,11 @@
     animation: cfmpulse .9s ease-in-out infinite;
   }
   .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  /* browse thumbnails that are brand WORDMARKS (v0.49.1: "SONOS"
+     was center-cropping to "N") — contain on a light chip */
+  .tile .top > img.contain, .tile.row .icwrap img.contain {
+    object-fit: contain; background: #e8eaed; padding: 2px;
+  }
   .tile .top > img {
     width: 28px; height: 28px; object-fit: cover;
     border-radius: 7px; flex: 0 0 auto;
@@ -62,5 +76,109 @@
   }
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
+  /* per-tile accent (v0.48.3 — Suresh: "simply color the icon circle
+     background and leave it at that"): an activity's ACCENT paints
+     its icon circle — identity, not state; icon flips to bg ink for
+     contrast on any accent shade */
+  .tile.tacc.row .icwrap { background: var(--tacc); }   /* beats controls.css default */
+  .tile.tacc .icwrap .ic,
+  .tile.tacc .icwrap .material-symbols-outlined { color: var(--bg); }
   .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
   .tile.captured .hint { display: block; color: var(--accent); }
+
+  /* SLIM THEMED SCROLLBAR (v0.47.3 — desktop browsers drew the stock
+     Windows bar; the kiosk's overlay bar auto-hides so it was never
+     seen on-device). Touch + wheel unaffected. */
+  #grid::-webkit-scrollbar { width: 6px; }
+  #grid::-webkit-scrollbar-track { background: transparent; }
+  #grid::-webkit-scrollbar-thumb {
+    background: var(--tile-hi, #2c333d); border-radius: 3px; }
+  #grid::-webkit-scrollbar-thumb:hover { background: var(--wash, #3a4250); }
+
+  /* ---- BROWSE BANDS (v0.50 — Suresh's mock): fixed, vertically
+     tight; the grid below keeps every remaining pixel ---- */
+  #brbar { display: none; flex-direction: column; gap: 4px; padding: 2px 14px 6px; }
+  #brbar.onbar { display: flex; }
+  /* SLIM scrollbars (v0.50.2 — Suresh: "much more minimalist…
+     a little padding between the options and the scrollbar"):
+     standard properties only — Chrome IGNORES ::-webkit-scrollbar
+     styling once scrollbar-width is set, which is why the fat
+     native bar appeared */
+  .brrow {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+    scrollbar-width: thin; scrollbar-color: var(--tile-hi) transparent;
+  }
+  .brroot {
+    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+    gap: 2px; min-width: 84px; padding: 6px 10px 5px; cursor: pointer;
+    background: var(--tile); color: var(--text);
+    border: 1px solid transparent; border-radius: 10px; font: inherit;
+  }
+  .brroot.on {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  .brroot img {
+    width: 34px; height: 34px; border-radius: 7px;
+    object-fit: contain; background: #e8eaed; padding: 2px;
+  }
+  .brroot .material-symbols-outlined {
+    font-size: 26px; height: 34px; display: flex; align-items: center;
+  }
+  .brl {
+    font-size: 11.5px; max-width: 110px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brchips {
+    display: flex; gap: 16px; overflow-x: auto; padding: 2px 2px 6px;
+    scrollbar-width: thin; scrollbar-color: var(--tile-hi) transparent;
+  }
+  .brchip {
+    flex: 0 0 auto; background: none; border: 0; cursor: pointer; font: inherit;
+    color: var(--dim); font-weight: 750; letter-spacing: .07em;
+    text-transform: uppercase; font-size: 12.5px; padding: 3px 1px 5px;
+    border-bottom: 2px solid transparent;
+  }
+  .brchip.on { color: var(--accent); border-bottom-color: var(--accent); }
+  /* browse ITEM tiles: art-forward, centered column */
+  .tile.brw:not(.row) { text-align: center; }
+  .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
+  .tile.brw:not(.row) .top > img { width: 58px; height: 58px; border-radius: 10px; }
+  .tile.brw:not(.row) .top .lbl { width: 100%; }
+  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: 34px; width: auto; height: 58px; display: inline-flex; align-items: center; }
+  .tile.brw .sub { display: none; }
+  /* browse tiles' trailing ▶ shrinks to a CORNER BADGE (v0.50) — the
+     full-height right zone ate 60% of a narrow 3-col tile, so center
+     taps played instead of drilling */
+  .tile.brw.has-trail { padding-right: 0; }
+  .tile.brw .trail {
+    top: 4px; right: 4px; bottom: auto; left: auto;
+    width: 28px; height: 28px; border-radius: 8px;
+  }
+  .tile.brw .trail .ic.material-symbols-outlined { font-size: 18px; }
+
+  /* QUEUE rows (v0.51.1 — Suresh's mock): bigger art, bold title,
+     artist · album on line two, live ▶ hard right.
+     v0.52.1 (Suresh: "doesn't honor the theme… needs ellipsis"):
+     the title RIDES Primary — weight is theme+100 (bolder than the
+     house, never a hardcoded 700) — and both lines ellipsize instead
+     of wrapping. */
+  .tile.wgt-qrow { position: relative; }
+  .tile.wgt-qrow .icwrap { width: 56px; height: 56px; border-radius: 10px; }
+  /* weight/size come from the MUSIC theme fields (the queue is always
+     font_scope: music — v0.53: no derived +100 opinion, the knob is
+     the theme's) */
+  .tile.wgt-qrow .lbl {
+    font-size: calc(var(--fs-1) + 2px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tile.wgt-qrow .txt { padding-right: 44px; }
+  .tile.wgt-qrow .sub {
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .qnowic {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 28px; display: none;
+  }
+  .tile.wgt-qrow.on .qnowic { display: block; }

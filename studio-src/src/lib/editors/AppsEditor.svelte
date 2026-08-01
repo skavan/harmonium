@@ -2,13 +2,14 @@
   /* Apps (v0.30) — two layers:
      MASTER LIST: identity only (name + icon/image). Could be 100 items;
        nothing here launches anything.
-     DEVICE CLASSES: a platform's launch dialect — its entry per app IS
+     DIALECTS: a platform's launch dialect — its entry per app IS
        the curation (listed = offered). Entry forms: source (select_source
        on $context.media_player) · HA action · run a named Action.
-     A surface picks its dialect via the ACTIVITY's context (app_class) —
+     A surface picks its dialect via the ACTIVITY's context (dialect) —
      one shared Apps drawer, many dialects. */
   import { app, schedulePreview } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
+  import IconPicker from "../components/IconPicker.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
   import CardRow from "../components/CardRow.svelte";
@@ -17,7 +18,7 @@
   import Button from "../components/Button.svelte";
 
   const apps = $derived(app.draft?.apps);
-  const classes = $derived(app.draft?.app_classes);
+  const classes = $derived(app.draft?.dialects);
   const seqOptions = $derived(Object.entries(app.draft?.sequences || {})
     .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
   const edit = () => schedulePreview();
@@ -32,7 +33,7 @@
   /* which activities speak this class */
   const spokenBy = (cid) =>
     Object.values(app.draft?.activities || {})
-      .filter((a) => a.context?.app_class === cid).map((a) => a.name);
+      .filter((a) => a.context?.dialect === cid).map((a) => a.name);
 
   function setAppIcon(a, v) {
     v = (v || "").trim();
@@ -94,10 +95,10 @@
     edit();
   }
   function addClass() {
-    if (!app.draft.app_classes) app.draft.app_classes = {};
+    if (!app.draft.dialects) app.draft.dialects = {};
     let id = "new_class", n = 2;
-    while (app.draft.app_classes[id]) id = "new_class_" + n++;
-    app.draft.app_classes[id] = { name: "New Class", apps: {} };
+    while (app.draft.dialects[id]) id = "new_class_" + n++;
+    app.draft.dialects[id] = { name: "New Dialect", apps: {} };
     clsOpen[id] = true;
   }
   function renameClass(oldId, newId) {
@@ -105,13 +106,13 @@
     if (!newId || newId === oldId || classes[newId]) return;
     const rebuilt = {};
     for (const [k, v] of Object.entries(classes)) rebuilt[k === oldId ? newId : k] = v;
-    app.draft.app_classes = rebuilt;
+    app.draft.dialects = rebuilt;
     /* activity contexts + hard-wired tiles follow */
     for (const a of Object.values(app.draft.activities || {}))
-      if (a.context?.app_class === oldId) a.context.app_class = newId;
+      if (a.context?.dialect === oldId) a.context.dialect = newId;
     for (const surf of [...Object.values(app.draft.screens || {}), ...Object.values(app.draft.controllers || {})])
       for (const g of [surf.tiles || [], ...(surf.sections || []).map((s) => s.tiles || [])])
-        for (const t of g) if (t.class === oldId) t.class = newId;
+        for (const t of g) if (t.class === oldId) t.class = newId; else if (t.dialect === oldId) t.dialect = newId;
     edit();
   }
   function delClass(cid) {
@@ -124,14 +125,13 @@
 {#if app.draft}
   <div class="space-y-4">
     <p class="m-0 text-xs text-dim">
-      The <b>master list</b> is identity only — name + icon. A <b>device
-      class</b> is a platform's launch dialect: which apps it offers and
+      The <b>master list</b> is identity only — name + icon. A <b>dialect</b> is a platform's launch dialect: which apps it offers and
       how each one launches (its entry IS the curation). An activity
       picks its dialect in Setup (<b>App class</b>), so the shared Apps
       drawer speaks Fire TV for one activity and Tizen for another.
     </p>
 
-    <!-- DEVICE CLASSES — the working layer, so they lead -->
+    <!-- DIALECTS — the working layer, so they lead -->
     {#each Object.entries(classes || {}) as [cid, c] (cid)}
       <SectionFold label={(c.name || cid) + " — device class"}
         badge={Object.keys(c.apps || {}).length + " apps" +
@@ -139,7 +139,7 @@
         bind:open={() => clsOpen[cid] ?? false, (v) => (clsOpen[cid] = v)}>
         <div class="grid grid-cols-3 gap-3">
           <Field label="Class name"><Input bind:value={c.name} onchange={edit} /></Field>
-          <Field label="Class id" hint="what activities reference (context app_class)">
+          <Field label="Dialect id" hint="what activities and devices reference (context dialect)">
             <input value={cid} spellcheck="false"
               onchange={(e) => renameClass(cid, e.target.value)}
               class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
@@ -221,9 +221,8 @@
                   onchange={(e) => renameApp(id, e.target.value)}
                   class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
               </Field>
-              <Field label="Icon" hint="material:<glyph> · or an image path (/local/…)">
-                <Input value={a.image || a.icon || ""} placeholder="material:apps"
-                  class="font-mono text-[12.5px]"
+              <Field label="Icon" hint="search icons · or an image path (/local/…)">
+                <IconPicker value={a.image || a.icon || ""}
                   onchange={(e) => { setAppIcon(a, e.target.value); edit(); }} />
               </Field>
             </div>

@@ -20,12 +20,14 @@ export const app = $state({
   unsaved: false,   // draft differs from last saved copy
   pvPulse: 0,       // bumps on every preview push (sync indicator)
   entities: [],       // live HA states for pickers: {entity_id, name, state}
+  registry: {},       // entity_id → integration platform (WS entity registry)
+  services: [],       // HA service catalog for pickers: {id, name}
   tab: "visual",      // central pane: "visual" | "code"
   /* WORKSPACES (v0.34): every server workspace is one remote's whole
      world, all live at once (main = the repo-built config.json; others
-     deploy to config.<ws>.json). "scratch" stays the browser-local
-     sandbox — publish it to make it a real workspace. */
-  workspace: "main",  // current workspace id | "scratch"
+     deploy to config.<ws>.json). (v0.53: the browser-local "scratch"
+     sandbox is gone — drafts + duplication cover it.) */
+  workspace: "main",  // current workspace id
   workspaces: {},     // id → {name, file} from the server roster
   wsOrder: [],
   prevKey: null,      // last slice before the current one (Back on model pages)
@@ -80,6 +82,12 @@ export const GENERIC_MEDIA_CONTROLLER = {
       { id: "t_src", type: "sources", entity: "$context.source_select",
         icon: "material:input", label: "Source", span: 2 },
     ] },
+    /* v0.46: ONE player — dialects supply the differences. Both
+       sections self-hide when the active dialect declares nothing. */
+    { columns: 2, title: "Device keys", hero_label: "Device keys", role: "keys",
+      tiles: [{ id: "keys", type: "keys" }] },
+    { columns: 3, title: "Apps", hero_label: "Apps", role: "apps",
+      tiles: [{ id: "apps", type: "apps" }] },
     { columns: 1, title: "Devices", hero_label: "Devices", role: "devices",
       tiles: [{ id: "cast", type: "devices" }] },
   ],
@@ -108,9 +116,91 @@ export const DOMAIN_STOCKS = {
   switch: { name: "Switch", tiles: [
     { id: "dp", type: "power", entity: "$device", label: "", span: 2 } ] },
 };
+/* the APPS DRAWER is a library citizen (v0.47.4): pure, ships in
+   every workspace so the player's apps button never dead-ends —
+   mirrors the compiler's views/apps.yaml output exactly */
+export const STOCK_APPS_DRAWER = {
+  name: "Apps", class: "group", view_kind: "library", type: "library",
+  parent: "controller:tv",
+  control_target: { label: "$activity.name", navigation: "$context.dpad",
+    power: "$context.power", volume: "$context.volume", pass_through: ["power"] },
+  drawer: true,
+  grid: { columns: 3 },
+  sections: [{ tiles: [{ id: "apps_grid", type: "apps" }], hero_label: "Apps" }],
+};
+
+/* the MUSIC LIBRARY drawer — same library citizenship (v0.47.5),
+   mirrors the compiler's views/music_library.yaml output exactly */
+export const STOCK_MUSIC_LIBRARY =
+  {
+    "name": "Music Library",
+    "class": "group",
+    "view_kind": "library",
+    "type": "library",
+    "font_scope": "music",
+    "parent": "controller:music",
+    "drawer": true,
+    "grid": { "columns": 3 },
+    /* v0.49 (Suresh: "We mustn't be hardcoded to ma"): ONE browse
+       tile — the standard media_player/browse_media contract serves
+       whatever library the CAST PLAYER has (Sonos, MA, Plex, …);
+       playback is the standard media_player.play_media. Categories
+       are the tree's top level. Pull-Music-Here stays as an MA
+       nicety. */
+    "sections": [
+      {
+        "tiles": [
+          { "id": "lib", "type": "browse" }
+        ],
+        "hero_label": "Library"
+      }
+    ]
+  };
+
 /* every config gets the generic media stock + the domain stocks */
 function ensureStockControllers(cfg) {
   if (!cfg.controllers) cfg.controllers = {};
+  /* v0.47.4: plant the apps drawer where it's missing (workspaces
+     created before it joined the library — the deck bug) */
+  if (!cfg.controllers.apps && !(cfg.screens || {}).apps)
+    cfg.controllers.apps = JSON.parse(JSON.stringify(STOCK_APPS_DRAWER));
+  if (!cfg.controllers.music_library && !(cfg.screens || {}).music_library)
+    cfg.controllers.music_library = JSON.parse(JSON.stringify(STOCK_MUSIC_LIBRARY));
+  /* v0.49 MIGRATION: a stock music_library still on the retired
+     MA-sensor shape (sensor.harmonium_music_*) upgrades to the
+     standard browse tree; custom copies (variant_of) are yours. */
+  {
+    const ml = cfg.controllers.music_library;
+    if (ml && !ml.variant_of &&
+        JSON.stringify(ml).includes("sensor.harmonium_music_"))
+      cfg.controllers.music_library = JSON.parse(JSON.stringify(STOCK_MUSIC_LIBRARY));
+  }
+  /* v0.51 (Suresh: "we ditch Pull Music — too confusing"): remove the
+     Pull-Music-Here tile from stock browse-era copies */
+  {
+    const ml = cfg.controllers.music_library;
+    if (ml && !ml.variant_of && JSON.stringify(ml).includes('"browse"'))
+      (ml.sections || []).forEach(sec => {
+        sec.tiles = (sec.tiles || []).filter(x => x.id !== "mq_pull");
+      });
+  }
+  /* v0.50.2: the browse-era stock dropped its 118px banner (the bands
+     want the pixels — Suresh: "the title Music Library is redundant");
+     heal stock copies still carrying it */
+  {
+    const ml = cfg.controllers.music_library;
+    if (ml && !ml.variant_of && ml.banner &&
+        JSON.stringify(ml).includes('"browse"'))
+      delete ml.banner;
+  }
+  /* v0.52.1 (Suresh: "Primary and Secondary font for the music
+     player separately"): stock music surfaces copied before the
+     font_scope key existed gain it, so the theme's music faces
+     reach every workspace. Custom copies (variant_of) are yours. */
+  for (const cid of ["music", "music_library"]) {
+    const c = cfg.controllers[cid];
+    if (c && !c.variant_of && !c.font_scope) c.font_scope = "music";
+  }
   const hasMedia = Object.values(cfg.controllers).some(
     (c) => !c.variant_of && !c.domain);
   if (!hasMedia)
@@ -119,6 +209,16 @@ function ensureStockControllers(cfg) {
     if (!cfg.controllers[dom])
       cfg.controllers[dom] = { ...JSON.parse(JSON.stringify(stock)),
         domain: dom, class: "activity", view_kind: "controller", type: "controller" };
+  /* PURITY HEALER (v0.48.2 — Suresh's deck music page still bound to
+     the BASEMENT Sonos): stock media surfaces are pure $context by
+     doctrine (v0.46.1/v0.47.5) — activities supply everything. A
+     workspace copied before purification still carries a baked
+     context that silently aims every action at the wrong room; strip
+     it. Custom copies (variant_of) keep theirs — they're yours. */
+  for (const cid of ["tv", "music", "apps", "music_library", "media"]) {
+    const c = cfg.controllers[cid];
+    if (c && !c.variant_of && !c.domain && c.context) delete c.context;
+  }
   return cfg;
 }
 
@@ -126,24 +226,20 @@ function ensureStockControllers(cfg) {
    input policy) and wipes the content — build from a clean slate */
 export function starterConfig() {
   const cur = $state.snapshot(app.draft) || {};
-  /* the stock library always comes from a SERVER workspace — clearing
-     WHILE ON scratch must not inherit scratch's own (empty) library */
-  const live = app.workspace !== "scratch" ? cur
-    : (wsStash.main?.draft || $state.snapshot(app.saved) || cur);
+  const live = cur;
   return ensureStockControllers({
     version: 2,
     entity_options: cur.entity_options || {},
     theme: cur.theme || {},
-    devices: cur.devices || { default: { capabilities: ["touch", "pointer"] } },
+    remotes: cur.remotes || { default: { capabilities: ["touch", "pointer"] } },
+    devices: cur.devices || {},
     keymap: cur.keymap || {},
     home_screen: "home",
     screen_order: ["home"],
     global: { room: "New Room", confirm_switch: true, debug: false,
-      /* minted select id is workspace-prefixed (main + scratch bare —
-         scratch gets retargeted server-side when published) */
+      /* minted select id is workspace-prefixed (main bare) */
       activity_select: "select.harmonium_" +
-        (app.workspace === "scratch" || app.workspace === "main"
-          ? "" : app.workspace + "_") + "home_activity" },
+        (app.workspace === "main" ? "" : app.workspace + "_") + "home_activity" },
     /* the STOCK library rides along — it's system, not content. But a
        controller's `parent` is a CONTENT-graph edge (it points at a
        page of the old workspace) — strip it, or a blank starter fails
@@ -158,10 +254,10 @@ export function starterConfig() {
     input: cur.input || {},
     activities: {},
     sequences: {},
-    /* the app MASTER LIST + DEVICE CLASSES are stock (system, not
+    /* the app MASTER LIST + DIALECTS are stock (system, not
        content) — like the controller library, they come from LIVE */
     apps: JSON.parse(JSON.stringify(live.apps || cur.apps || {})),
-    app_classes: JSON.parse(JSON.stringify(live.app_classes || cur.app_classes || {})),
+    dialects: JSON.parse(JSON.stringify(live.dialects || cur.app_classes || {})),
     screens: {
       home: { name: "New Room", class: "room", type: "hub", room: true,
         banner: { image: "", image_opacity: 0.5, height: "230px", min_height: "150px", show_time: true },
@@ -228,79 +324,195 @@ export function normalizeOffActivity(cfg) {
    the drawer keeps rendering; identity stays in the master list. */
 export function normalizeApps(cfg) {
   if (!cfg) return cfg;
-  if (!cfg.app_classes) cfg.app_classes = {};
+  if (!cfg.dialects) cfg.dialects = {};
   const hasLegacy = Object.values(cfg.apps || {}).some((a) => a && (a.source || a.launch));
-  if (!Object.keys(cfg.app_classes).length && hasLegacy) {
+  if (!Object.keys(cfg.dialects).length && hasLegacy) {
     const entries = {};
     for (const [aid, a] of Object.entries(cfg.apps || {}))
       if (a && a.source) entries[aid] = { source: a.source };
     if (Object.keys(entries).length)
-      cfg.app_classes.tv = { name: "TV", apps: entries };
+      cfg.dialects.tv = { name: "TV", apps: entries };
   }
   return cfg;
 }
 
-/* heal scratch drafts made by older Studio builds */
-function normalizeScratch(cfg) {
-  const g = cfg.global || {};
-  if (g.main_home && g.main_home === cfg.home_screen) delete g.main_home;
-  const hub = cfg.screens?.[cfg.home_screen];
-  if (hub?.name && g.room !== hub.name) g.room = hub.name;
-  /* older drafts lack the activities GENERATOR tile — plant it */
-  if (hub) {
-    if (!hub.grid) hub.grid = { columns: 1 };   // room-hub doctrine
-    if (!hub.sections) hub.sections = [];
-    const all = hub.sections.flatMap((s) => s.tiles || []);
-    const hasGen = all.some((t) => t.type === "activities");
-    const hasRefs = all.some((t) => t.type === "activity");
-    if (!hasGen && !hasRefs) {
-      let sec = hub.sections.find((s) => s.role === "activities");
-      if (!sec) hub.sections.unshift(sec = { role: "activities", hero_label: "Activities", tiles: [] });
-      sec.tiles.push({ id: "acts", type: "activities", room: cfg.home_screen });
+/* DEVICE BUNDLES (v0.45 — the Device Round).
+   Top-level `devices` is the first-class device LIBRARY now; hardware
+   profiles renamed to `remotes`. Activities may carry cast (device
+   ids) + wiring (role → device id | raw entity); the engine still
+   reads the compiled context — compileContext is the JS twin of
+   build_config.py's compile_activity_devices (keep in sync). Studio
+   stores explicit per-activity exceptions in `overrides` (role pins,
+   dialect picks, custom keys) and derives context = compiled ∪
+   overrides on every wiring edit. */
+export const ROLE_KEYS = ["media_player", "dpad", "power", "volume",
+  "volume_level", "source_select", "commands"];
+
+export function compileContext(a, devices) {
+  const ctx = {};
+  for (const [role, target] of Object.entries(a?.wiring || {})) {
+    const dev = devices?.[target];
+    if (dev) {
+      const ent = dev.roles?.[role];
+      if (!ent) continue;               /* claimless wiring — UI warns */
+      ctx[role] = ent;
+      if (role === "dpad" && dev.traits?.dpad_commands)
+        ctx.dpad_commands = JSON.parse(JSON.stringify(dev.traits.dpad_commands));
+      if (role === "media_player" && (dev.dialect || dev.app_class) && !ctx.dialect)
+        ctx.dialect = dev.dialect || dev.app_class;
+    } else if (typeof target === "string" && target.includes(".")) {
+      ctx[role] = target;               /* raw-entity escape hatch */
     }
   }
+  return ctx;
+}
+export function recompileContext(a, devices) {
+  if (!a || (!a.wiring && !a.cast)) return;
+  a.context = { ...compileContext(a, devices), ...(a.overrides || {}) };
+}
+
+/* Heal pre-v0.45 configs: (1) move hardware profiles devices→remotes,
+   (2) lift each activity's context into cast/wiring by matching
+   entities against the library's role claims — unmatched entities stay
+   as raw-entity wiring; anything the compile can't reproduce becomes
+   an explicit override. Runs before rebaseline, so it never dirties. */
+export function normalizeDevices(cfg) {
+  if (!cfg) return cfg;
+  /* v0.46 (the Dialect Round): app_classes → dialects; the per-item
+     key app_class → dialect (activities' context/overrides, device
+     bundles, view contexts, apps tiles' `class` attr); retired
+     controller:googletv folds into controller:tv (one player —
+     dialects supply the differences). */
+  if (cfg.app_classes) {
+    /* another healer may have minted an empty dialects {} first —
+       merge, existing dialects entries winning */
+    cfg.dialects = { ...cfg.app_classes, ...(cfg.dialects || {}) };
+    delete cfg.app_classes;
+  }
+  const dialectKey = (o) => {
+    if (o && typeof o === "object" && "app_class" in o && !("dialect" in o)) {
+      o.dialect = o.app_class;
+      delete o.app_class;
+    }
+  };
+  for (const a of Object.values(cfg.activities || {})) {
+    dialectKey(a?.context);
+    dialectKey(a?.overrides);
+    if (a?.screen === "controller:googletv") a.screen = "controller:tv";
+  }
+  for (const d of Object.values(cfg.devices || {})) dialectKey(d);
+  for (const scr of Object.values({ ...(cfg.screens || {}), ...(cfg.controllers || {}) })) {
+    dialectKey(scr?.context);
+    for (const g of [scr?.tiles || [], ...((scr?.sections || []).map((x) => x.tiles || []))])
+      for (const t of g)
+        if (t?.type === "apps" && t.class && !t.dialect) { t.dialect = t.class; delete t.class; }
+  }
+  if (cfg.controllers?.googletv) delete cfg.controllers.googletv;
+  /* v0.45.1 (Suresh): the command-channel role renamed system→commands.
+     Heal every store-side carrier: device claims, activity context /
+     wiring / overrides, and $context.system strings baked into screens
+     and controllers (exact-value swap — never a substring replace). */
+  const renameKey = (o) => {
+    if (o && typeof o === "object" && "system" in o && !("commands" in o)) {
+      o.commands = o.system;
+      delete o.system;
+    }
+  };
+  for (const d of Object.values(cfg.devices || {})) renameKey(d.roles);
+  for (const a of Object.values(cfg.activities || {})) {
+    renameKey(a?.context);
+    renameKey(a?.wiring);
+    renameKey(a?.overrides);
+  }
+  const swapCtx = (node) => {
+    if (Array.isArray(node)) { node.forEach(swapCtx); return; }
+    if (node && typeof node === "object")
+      for (const [k, v] of Object.entries(node)) {
+        if (v === "$context.system") node[k] = "$context.commands";
+        else swapCtx(v);
+      }
+  };
+  swapCtx(cfg.screens || {});
+  swapCtx(cfg.controllers || {});
+  const looksRemote = (v) => v && typeof v === "object" &&
+    ("capabilities" in v || "keymap" in v || "fully" in v);
+  if (!cfg.remotes && cfg.devices &&
+      Object.values(cfg.devices).some(looksRemote)) {
+    cfg.remotes = cfg.devices;
+    cfg.devices = {};
+  }
+  if (!cfg.remotes) cfg.remotes = { default: { capabilities: ["touch", "pointer"] } };
+  if (!cfg.devices || Object.values(cfg.devices).some(looksRemote)) cfg.devices = {};
+  const lib = cfg.devices;
+  for (const a of Object.values(cfg.activities || {})) {
+    if (!a || a.wiring || a.cast) continue;
+    const ctx = a.context || {};
+    const wiring = {}, cast = [];
+    for (const role of ROLE_KEYS) {
+      const ent = ctx[role];
+      if (typeof ent !== "string" || !ent) continue;
+      const devId = Object.keys(lib).find((d) => lib[d]?.roles?.[role] === ent);
+      wiring[role] = devId || ent;
+      if (devId && !cast.includes(devId)) cast.push(devId);
+    }
+    if (!Object.keys(wiring).length) continue;   /* context-free activity */
+    a.wiring = wiring;
+    a.cast = cast;
+    const derived = compileContext(a, lib);
+    const overrides = {};
+    for (const [k, v] of Object.entries(ctx))
+      if (JSON.stringify(derived[k]) !== JSON.stringify(v)) overrides[k] = v;
+    if (Object.keys(overrides).length) a.overrides = overrides;
+    a.context = { ...derived, ...overrides };
+  }
+  return cfg;
+}
+
+/* THE SELECT MUST NAME A CURRENT ROOM (v0.47.2): configs renamed
+   before the renameScreen fix carry an activity_select minted for a
+   room id that no longer exists — re-mint it when the repair is
+   unambiguous (exactly one room hub). */
+export function normalizeSelect(cfg) {
+  if (!cfg) return cfg;
+  const sel = cfg.global?.activity_select;
+  if (typeof sel !== "string" || !sel.endsWith("_activity")) return cfg;
+  const rooms = Object.entries(cfg.screens || {})
+    .filter(([, scr]) => scr?.room).map(([id]) => id);
+  if (!rooms.length) return cfg;
+  if (rooms.some((r) => sel.endsWith("_" + r + "_activity"))) return cfg;  /* healthy */
+  if (rooms.length !== 1) return cfg;          /* ambiguous — leave it */
+  const ws = app.workspace;
+  cfg.global.activity_select = "select.harmonium_" +
+    (ws === "main" || !ws ? "" : ws + "_") + rooms[0] + "_activity";
+  return cfg;
+}
+
+function normalizeConfig(cfg) {
   ensureStockControllers(cfg);
   normalizeNavTiles(cfg);
   normalizeHosts(cfg);
   normalizeOffActivity(cfg);
   normalizeApps(cfg);
-  return cfg;
-}
-
-function normalizeConfig(cfg) {
-  normalizeNavTiles(cfg);
-  normalizeHosts(cfg);
-  normalizeOffActivity(cfg);
-  normalizeApps(cfg);
+  normalizeDevices(cfg);
+  normalizeSelect(cfg);
   return cfg;
 }
 
 function stashCurrent() {
   if (!app.draft) return;
-  if (app.workspace === "scratch")
-    localStorage.setItem("hakr_scratch", JSON.stringify($state.snapshot(app.draft)));
-  else
-    wsStash[app.workspace] = {
-      draft: $state.snapshot(app.draft),
-      saved: $state.snapshot(app.saved),
-    };
+  wsStash[app.workspace] = {
+    draft: $state.snapshot(app.draft),
+    saved: $state.snapshot(app.saved),
+  };
 }
 
+/* v0.53: the SCRATCH workspace is gone (Suresh: "no point to it") —
+   drafts already sandbox every workspace, and duplication covers the
+   rest. Old hakr_scratch localStorage entries are simply ignored. */
 export async function switchWorkspace(ws) {
   if (ws === app.workspace || !app.draft) return;
   stashCurrent();
-  if (ws === "scratch") {
-    const saved = localStorage.getItem("hakr_scratch");
-    app.draft = normalizeScratch(saved ? JSON.parse(saved) : starterConfig());
-    /* app stock rides along: an older scratch draft without the
-       master list / device classes inherits a server workspace's
-       (system, not content — same doctrine as the controller library) */
-    const src = wsStash.main?.draft || $state.snapshot(app.saved) || {};
-    if (!Object.keys(app.draft.apps || {}).length && src.apps)
-      app.draft.apps = JSON.parse(JSON.stringify(src.apps));
-    if (!Object.keys(app.draft.app_classes || {}).length && src.app_classes)
-      app.draft.app_classes = JSON.parse(JSON.stringify(src.app_classes));
-  } else if (wsStash[ws]) {
+  if (wsStash[ws]) {
     /* resume the in-memory draft (unsaved edits survive the trip) */
     app.saved = wsStash[ws].saved;
     app.draft = wsStash[ws].draft;
@@ -327,12 +539,9 @@ export async function switchWorkspace(ws) {
   if (pvWindow)
     pvWindow.postMessage({ type: "harmonium_navigate",
       screen: app.draft.home_screen }, location.origin);
-  setStatus(ws === "scratch"
-    ? "SCRATCH — kept in this browser only; publish it as a workspace to deploy"
-    : "workspace: " + (app.workspaces[ws]?.name || ws) +
-      (ws === "main" ? " (repo-built — deploys to config.json)"
-        : " (deploys to config." + ws + ".json)"),
-    ws === "scratch" ? "err" : "ok");
+  setStatus("workspace: " + (app.workspaces[ws]?.name || ws) +
+    (ws === "main" ? " (repo-built — deploys to config.json)"
+      : " (deploys to config." + ws + ".json)"), "ok");
 }
 
 /* ---- workspace roster (server CRUD) ---- */
@@ -365,20 +574,20 @@ async function wsAction(body) {
 }
 
 /* Create a workspace: source = "blank" (starter), "duplicate"
-   (server-side copy of the current server ws), or "draft" (publish the
-   CURRENT draft — this is how scratch becomes real). The server
-   retargets minted-select refs and mints the routing selects. */
+   (server-side copy of the current server ws), or "draft" (publish
+   the CURRENT draft). The server retargets minted-select refs and
+   mints the routing selects. */
 export async function createWorkspace(name, source) {
   if (app.sandbox) return;
-  const from = app.workspace === "scratch" ? "main" : app.workspace;
+  const from = app.workspace;
   const body = { action: "create", name };
-  if (source === "duplicate" && app.workspace !== "scratch") {
+  if (source === "duplicate") {
     body.action = "duplicate";
     body.from = from;
   } else {
     body.config = source === "draft"
       ? $state.snapshot(app.draft) : starterConfig();
-    body.from = source === "draft" && app.workspace !== "scratch" ? from : "main";
+    body.from = source === "draft" ? from : "main";
   }
   try {
     const out = await wsAction(body);
@@ -429,7 +638,7 @@ export async function importConfig(file) {
   try {
     const cfg = JSON.parse(await file.text());
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
-    app.draft = normalizeApps(normalizeOffActivity(normalizeHosts(normalizeNavTiles(cfg))));
+    app.draft = normalizeDevices(normalizeApps(normalizeOffActivity(normalizeHosts(normalizeNavTiles(cfg)))));
     const rooms = roomIds();
     selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
     pushPreview();
@@ -616,17 +825,18 @@ export function slices() {
     sub: Object.keys(d.sequences || {}).length + " sequences", group: "Model" });
   s.push({ key: "apps", label: "Apps",
     sub: Object.keys(d.apps || {}).length + " apps · " +
-      Object.keys(d.app_classes || {}).length + " classes", group: "Model" });
+      Object.keys(d.dialects || {}).length + " dialects", group: "Model" });
   s.push({ key: "snippets", label: "Snippets",
     sub: Object.keys(snips.items).length + " saved blocks", group: "Model" });
   s.push({ key: "activities", label: "All activities",
     sub: Object.keys(d.activities || {}).length + " across rooms", group: "Model" });
+  s.push({ key: "devices", label: "Pre-wired Devices",
+    sub: Object.keys(d.devices || {}).length + " defined", group: "Model" });
   s.push({ key: "input", label: "Input policy", sub: "tap/hold ownership", group: "System" });
-  s.push({ key: "devices", label: "Remotes & keymaps", sub: "profiles", group: "System" });
+  s.push({ key: "remotes", label: "Remotes & keymaps", sub: "profiles", group: "System" });
   s.push({ key: "theme", label: "Theme", sub: "colors · layout · type", group: "System" });
   s.push({ key: "workspaces", label: "Workspaces",
-    sub: Object.keys(app.workspaces).length + " active" +
-      (app.workspace === "scratch" ? " · on scratch" : ""), group: "System" });
+    sub: Object.keys(app.workspaces).length + " active", group: "System" });
   return s;
 }
 
@@ -634,7 +844,7 @@ export function slices() {
 export const hasVisual = (key) =>
   (key || "").startsWith("view.") || key === "activities" || key === "sequences" ||
   key === "apps" || key === "theme" || key === "snippets" || key === "workspaces" ||
-  key === "map" ||
+  key === "map" || key === "devices" ||
   (key || "").startsWith("screens.") || (key || "").startsWith("controller.");
 
 export function getSlice(key) {
@@ -715,10 +925,22 @@ export function renameScreen(oldId, newId) {
   walk(d.activities || {});
   walk(d.global || {});
   walk(d.input || {});
-  walk(d.devices || {});
+  walk(d.remotes || {});
   /* sequences: only the top-level room stamp — never dig into HA
      action syntax, where key names are HA's business */
   for (const s of Object.values(d.sequences || {})) if (s.room === oldId) s.room = newId;
+  /* THE MINTED SELECT follows the room id (v0.47.2 — Suresh's deck
+     split-brain: rename home→deck left activity_select pointing at
+     select.…_home_activity while the integration wrote truth to
+     …_deck_activity). The entity id EMBEDS the room id — the KEYS
+     walk can't see it, so rewrite the suffix explicitly. */
+  const tail = "_" + oldId + "_activity";
+  const g2 = d.global || {};
+  if (typeof g2.activity_select === "string" && g2.activity_select.endsWith(tail))
+    g2.activity_select = g2.activity_select.slice(0, -tail.length) + "_" + newId + "_activity";
+  for (const scr2 of Object.values(d.screens || {}))
+    if (typeof scr2.activity_state === "string" && scr2.activity_state.endsWith(tail))
+      scr2.activity_state = scr2.activity_state.slice(0, -tail.length) + "_" + newId + "_activity";
   if (app.selKey === "view." + oldId) app.selKey = "view." + newId;
   else if (app.selKey === "screens." + oldId) app.selKey = "screens." + newId;
   /* an in-flight page DRAFT follows its own rename (the page id
@@ -1053,15 +1275,23 @@ export function snippetsOf(type) {
 /* ---- preview plumbing ---- */
 let pvWindow = null; // set by PreviewPane
 export function bindPreview(win) { pvWindow = win; }
+/* PREVIEW IMPERSONATION (v0.46.1): while an activity card is open the
+   preview renders AS that activity — its cast, its dialect's keys,
+   its apps — instead of whatever the live select holds. */
+export function previewActivity(id) {
+  if (!pvWindow) return;
+  pvWindow.postMessage({ type: "harmonium_preview_activity", activity: id || null }, location.origin);
+}
+export function previewGoto(screen) {
+  if (!pvWindow || !screen) return;
+  pvWindow.postMessage({ type: "harmonium_navigate", screen }, location.origin);
+}
 
 export function pushPreview() {
   if (!app.pvReady || !app.draft || !pvWindow) return;
   pvWindow.postMessage(
     { type: "harmonium_config", config: $state.snapshot(app.draft),
-      device: app.device,
-      /* scratch previews run main's sequences (scratch has no server
-         world of its own — status quo, stated on the Test button) */
-      workspace: app.workspace === "scratch" ? "main" : app.workspace },
+      device: app.device, workspace: app.workspace },
     location.origin,
   );
   app.pvPulse++;
@@ -1104,6 +1334,124 @@ export async function loadEntities() {
       .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
   } catch { /* pickers degrade to free text */ }
 }
+/* THE PLATFORM FACT (v0.45.2, Suresh: "too much guesswork"): which
+   integration owns an entity is the TRUE discriminator for channel
+   claims (androidtv = the ADB command channel; androidtv_remote = the
+   push-state twin) — never the entity NAME. /api/states doesn't carry
+   platform, so fetch the entity registry once over the websocket.
+   Failure degrades silently: platformOf() returns null and callers
+   fall back to their old heuristics. */
+export async function loadRegistry() {
+  try {
+    const ws = new WebSocket(
+      (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/websocket");
+    const done = new Promise((resolve) => {
+      const bail = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, 6000);
+      ws.onmessage = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch { return; }
+        if (m.type === "auth_required")
+          ws.send(JSON.stringify({ type: "auth", access_token: token() }));
+        else if (m.type === "auth_ok")
+          ws.send(JSON.stringify({ id: 7, type: "config/entity_registry/list" }));
+        else if (m.type === "result" && m.id === 7) {
+          const map = {};
+          for (const e of m.result || [])
+            if (e.entity_id && e.platform) map[e.entity_id] = e.platform;
+          app.registry = map;
+          clearTimeout(bail);
+          try { ws.close(); } catch {}
+          resolve();
+        }
+      };
+      ws.onerror = () => { clearTimeout(bail); resolve(); };
+    });
+    await done;
+  } catch { /* no registry — heuristics carry on */ }
+}
+export const platformOf = (entId) => app.registry[entId] || null;
+
+/* IMPLIED DEVICES (v0.45.2 — the library is a BYPRODUCT, not a
+   prerequisite): integration siblings share the object stem
+   (media_player.X + remote.X + media_player.X_adb_…). Group by stem,
+   seed claims by PLATFORM FACT where the registry has one (androidtv
+   = the ADB commands channel), name-regex only as the fallback. */
+export function impliedStem(entId) {
+  return (entId.split(".")[1] || "")
+    .replace(/_adb(_\d+){0,4}$/, "").replace(/(_\d+){1,4}$/, "");
+}
+const isAdbEnt = (e) => {
+  const pf = platformOf(e);
+  return pf ? pf === "androidtv" : /_adb(_|$)/.test(e);
+};
+export function seedDeviceFromEntity(fromEnt) {
+  const stem = impliedStem(fromEnt) || "new_device";
+  const dev = { name: stem.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    icon: "material:tv", roles: {} };
+  const sibs = app.entities.filter((e) => impliedStem(e.entity_id) === stem)
+    .map((e) => e.entity_id);
+  const list = sibs.length ? sibs : [fromEnt];
+  const applyClaims = (e) => {
+    const dom = e.split(".")[0];
+    if (dom === "media_player") {
+      dev.roles.media_player ||= e;
+      dev.roles.power ||= e;
+      dev.roles.volume ||= e;
+      dev.roles.volume_level ||= e;
+      if ((app.entities.find((x) => x.entity_id === e)?.source_list || []).length)
+        dev.roles.source_select ||= e;
+      dev.roles.commands ||= e;
+    }
+    if (dom === "remote") dev.roles.dpad ||= e;
+  };
+  /* preferred pass: the push-state twins (androidtv_remote, tizen, …) */
+  for (const e of list.filter((e) => !isAdbEnt(e))) applyClaims(e);
+  /* the ADB media_player IS the commands channel — hard assignment */
+  for (const e of list.filter(isAdbEnt))
+    if (e.startsWith("media_player.")) dev.roles.commands = e;
+  /* gap-fill: single-integration devices (Fire TV is androidtv-only) */
+  for (const e of list.filter(isAdbEnt)) applyClaims(e);
+  /* (v0.48.3's MA-twin claim swap was REVERTED in v0.49 before it
+     ever deployed — wrong layer. The music library now speaks the
+     STANDARD media_player/browse_media + play_media contract, so the
+     NATIVE player is the right claim; no ma_ name heuristics.) */
+  return { stem, dev };
+}
+/* stem groups not yet represented in the library — the ⊞ rows the
+   unified cast picker offers (≥2 members; singles cast directly) */
+export function impliedGroups() {
+  const lib = app.draft?.devices || {};
+  const claimed = new Set();
+  for (const d of Object.values(lib))
+    for (const ent of Object.values(d.roles || {})) claimed.add(ent);
+  const groups = {};
+  for (const e of app.entities) {
+    const dom = e.entity_id.split(".")[0];
+    if (dom !== "media_player" && dom !== "remote") continue;
+    if (claimed.has(e.entity_id)) continue;
+    const stem = impliedStem(e.entity_id);
+    if (!stem) continue;
+    (groups[stem] ||= []).push(e.entity_id);
+  }
+  return Object.entries(groups).filter(([, ents]) => ents.length >= 2)
+    .map(([stem, ents]) => ({ stem, ents }));
+}
+
+/* HA SERVICE CATALOG (v0.47.6 — Suresh: "can I get a drop down of
+   what I can choose (with Search)?"): /api/services once at load;
+   pickers degrade to free text when it's unreachable. */
+export async function loadServices() {
+  try {
+    const r = await fetch("/api/services", { headers: { Authorization: "Bearer " + token() } });
+    if (!r.ok) return;
+    const doms = await r.json();
+    const out = [];
+    for (const d of doms)
+      for (const [svc, meta] of Object.entries(d.services || {}))
+        out.push({ id: d.domain + "." + svc, name: meta?.name || "" });
+    app.services = out.sort((a, b) => a.id.localeCompare(b.id));
+  } catch { /* free text carries on */ }
+}
+
 export function entitiesFor(domains) {
   if (!domains || !domains.length) return app.entities;
   return app.entities.filter((e) => domains.includes(e.entity_id.split(".")[0]));
@@ -1174,11 +1522,6 @@ export function revert() {
 
 export async function save() {
   if (app.sandbox) return false;
-  if (app.workspace === "scratch") {
-    setStatus("Scratch is a sandbox — publish it as a workspace " +
-      "(Workspaces page) to deploy it", "err");
-    return false;
-  }
   app.problems = [];
   setStatus("saving…");
   const r = await api("POST", $state.snapshot(app.draft),
@@ -1223,7 +1566,7 @@ export async function testSequence(id) {
     const r = await fetch("/api/services/harmonium/run", {
       method: "POST",
       headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-      body: JSON.stringify(app.workspace === "scratch" || app.workspace === "main"
+      body: JSON.stringify(app.workspace === "main"
         ? { sequence: id }
         : { sequence: id, workspace: app.workspace }),
     });
@@ -1247,9 +1590,9 @@ export async function boot() {
   if (!token()) { app.authOpen = true; return; }
   await loadWorkspaces();
   /* land on the workspace this browser was last editing (if it still
-     exists); scratch never auto-restores — it's an explicit trip */
+     exists) */
   const last = localStorage.getItem("hakr_studio_ws");
-  const startWs = last && last !== "scratch" && app.workspaces[last] ? last : "main";
+  const startWs = last && app.workspaces[last] ? last : "main";
   app.workspace = startWs;
   let r;
   try {
@@ -1283,9 +1626,12 @@ export async function boot() {
   normalizeHosts(app.saved);
   normalizeOffActivity(app.saved);
   normalizeApps(app.saved);
+  normalizeDevices(app.saved);
+  normalizeSelect(app.saved);
+  ensureStockControllers(app.saved);
   app.draft = JSON.parse(JSON.stringify(app.saved));
   rebaseline();
-  const devs = Object.keys(app.draft.devices || {});
+  const devs = Object.keys(app.draft.remotes || {});
   app.device = devs.includes("astrion") ? "astrion" : devs[0] || "default";
   /* the WORKSPACE MAP is the landing slice (redesign §6.11 —
      Suresh: default = yes): the whole workspace at a glance, every
@@ -1293,6 +1639,8 @@ export async function boot() {
   selectSlice("map");
   pushPreview();
   loadEntities();
+  loadRegistry();
+  loadServices();
   setStatus(
     (app.sandbox ? "SANDBOX (integration not installed — Save disabled) — " : "loaded — ") +
       Object.keys(app.draft.screens).length + " views, " +

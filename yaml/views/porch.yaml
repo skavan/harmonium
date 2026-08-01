@@ -38,17 +38,23 @@ activities:
     start: sequence:firetv_on
     view: tv
     confirm_end: true
-    context:
-      media_player: media_player.fire_tv_family_192_168_1_65
-      dpad: remote.fire_tv_family_192_168_1_65
-      power: media_player.sts_samsung_q90_porch
-      volume: media_player.sts_samsung_q90_porch
-      volume_level: media_player.ma_soundbar_porch
-      # source_select ROLE (v0.36): who owns inputs here — the DISPLAY
+    # v0.45 DEVICE GRAMMAR: cast (who's on stage) + wiring (who does
+    # which job) compile into the context: entity map the engine has
+    # always read. Devices are defined ONCE in devices.yaml; dialect
+    # rides in from the media_player device's bundle claim.
+    kind: watch
+    cast: [fire_tv, samsung_q90, porch_soundbar]
+    wiring:
+      media_player: fire_tv        # who plays it (brings dialect firetv)
+      dpad: fire_tv                # who takes the keys
+      power: samsung_q90
+      volume: samsung_q90          # volume KEYS ride the TV…
+      volume_level: porch_soundbar #   …LEVEL is read from the soundbar
+      # source_select ROLE (v0.36): who owns inputs — the DISPLAY
       # (Fire TV / TV·HDMI live on the Samsung, not the streamer).
-      # Wiring it makes the controller's Source tile appear.
-      source_select: media_player.sts_samsung_q90_porch
-      app_class: firetv          # which Apps dialect this activity speaks
+      source_select: samsung_q90
+    inputs:
+      samsung_q90: Fire TV         # display input for this activity
     controls:
       navigation: $context.dpad
       back: { command: back, entity: $context.dpad }
@@ -73,26 +79,15 @@ activities:
     start: sequence:smart_tv_on
     view: tv
     confirm_end: true
-    context:
-      media_player: media_player.sts_samsung_q90_porch
-      dpad: remote.sts_samsung_q90_porch
-      power: media_player.sts_samsung_q90_porch
-      volume: media_player.sts_samsung_q90_porch
-      volume_level: media_player.ma_soundbar_porch
-      source_select: media_player.sts_samsung_q90_porch
-      app_class: tizen           # which Apps dialect this activity speaks
-      dpad_commands:
-        up: KEY_UP
-        down: KEY_DOWN
-        left: KEY_LEFT
-        right: KEY_RIGHT
-        select: KEY_ENTER
-        back: KEY_RETURN
-        home: KEY_HOME
-        menu: KEY_MENU
-        info: KEY_INFO
-        ch_up: KEY_CHUP
-        ch_down: KEY_CHDOWN
+    kind: watch
+    cast: [samsung_q90, porch_soundbar]
+    wiring:
+      media_player: samsung_q90    # brings dialect tizen + (via dpad)
+      dpad: samsung_q90            #   the KEY_* dpad_commands trait
+      power: samsung_q90
+      volume: samsung_q90
+      volume_level: porch_soundbar
+      source_select: samsung_q90
     controls:
       navigation: $context.dpad
       back: { command: back, entity: $context.dpad }

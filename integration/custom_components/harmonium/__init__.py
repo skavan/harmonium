@@ -121,10 +121,12 @@ class HarmoniumStore:
     async def deploy(self, ws: str, config) -> Path:
         path = self.deploy_path(ws)
         await self.hass.async_add_executor_job(_write_json, path, config)
-        if ws != MAIN:
-            # the workspace's ADDRESS: /local/harmonium/<ws>/ (v0.38)
-            await self.hass.async_add_executor_job(
-                _write_text, self.stub_path(ws), stub_html(ws))
+        # the workspace's ADDRESS: /local/harmonium/<ws>/ — MAIN
+        # INCLUDED (v0.48.3, Suresh: "workspacename/index.html
+        # everywhere"). The bare engine path stays for provisioned
+        # kiosks; the engine canonicalizes the bar to <ws>/index.html.
+        await self.hass.async_add_executor_job(
+            _write_text, self.stub_path(ws), stub_html(ws))
         return path
 
     async def retire(self, ws: str) -> None:
@@ -224,9 +226,9 @@ class HarmoniumWorkspacesView(HomeAssistantView):
             "workspaces": {
                 ws: {"name": (data["meta"].get(ws) or {}).get("name") or ws,
                      "file": deploy_file(ws),
-                     # the workspace's ADDRESS (v0.38) — what a remote's
-                     # start URL should be
-                     "path": "/local/harmonium/" + ("" if ws == MAIN else ws + "/")}
+                     # the workspace's ADDRESS — what a remote's start
+                     # URL should be (v0.48.3: main/ included)
+                     "path": "/local/harmonium/" + ws + "/"}
                 for ws in data["workspaces"]
             },
         })
@@ -366,8 +368,34 @@ SERVICE_RUN_SCHEMA = vol.Schema({
 })
 SERVICE_SET_ACTIVITY_SCHEMA = vol.Schema({
     vol.Required("activity"): cv.string,
-    vol.Optional("workspace", default=MAIN): cv.string,
+    vol.Optional("room"): cv.string,
+    # NO default (v0.47.9): an unnamed workspace means "find the
+    # owner" — generated sequences and user automations shouldn't
+    # have to know which workspace an activity lives in.
+    vol.Optional("workspace"): cv.string,
 })
+
+
+def _bind_ws(node, ws: str) -> None:
+    """Walk a sequence's action tree and stamp the running workspace
+    onto any nested harmonium.set_activity / harmonium.run step that
+    doesn't name one. The remote injects `workspace` at its socket,
+    but steps executed HA-SIDE by the script engine never pass
+    through that socket — so a generated Start action's set_activity
+    used to default to main and 500 from any other workspace
+    (v0.47.9, the deck Watch-Projector bug). Recurses into if/then/
+    choose/repeat/parallel shapes via the generic dict/list walk."""
+    if isinstance(node, list):
+        for item in node:
+            _bind_ws(item, ws)
+    elif isinstance(node, dict):
+        svc = node.get("action") or node.get("service")
+        if svc in ("harmonium.set_activity", "harmonium.run"):
+            data = node.setdefault("data", {})
+            if isinstance(data, dict):
+                data.setdefault("workspace", ws)
+        for v in node.values():
+            _bind_ws(v, ws)
 PLATFORMS = ["select", "sensor"]
 
 
@@ -410,7 +438,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 f"Harmonium workspace '{ws}' has no sequence '{seq_id}' — "
                 "check Building blocks in the Studio"
             )
-        actions = seq.get("actions") or []
+        # deep-copy before stamping — the stored config must never
+        # grow baked-in workspace keys (that would break duplication)
+        actions = json.loads(json.dumps(seq.get("actions") or []))
+        _bind_ws(actions, ws)
         try:
             validated = cv.SCRIPT_SCHEMA(actions)
         except vol.Invalid as err:
@@ -520,6 +551,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except (OSError, ValueError) as err:
                 _LOGGER.warning("Could not seed from %s: %s", deployed, err)
 
+    # the MAIN entry stub (v0.48.3): make /local/harmonium/main/ real
+    # NOW — canonical addresses shouldn't wait for the next save
+    if data["workspaces"].get(MAIN) is not None:
+        await hass.async_add_executor_job(
+            _write_text, hstore.stub_path(MAIN), stub_html(MAIN))
+
     entry_data = hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "hstore": hstore,
         "selects": {},          # (ws, room) → select entity
@@ -556,7 +593,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         to an activity id ("off" ends the room). The room is inferred
         from the activity's owner (room_view) in the stored config."""
         aid = call.data["activity"]
-        ws = call.data["workspace"]
+        ws = call.data.get("workspace")
+        # "OFF" ENDS THE ROOM (v0.47.6 — the docstring always promised
+        # it; the activity lookup rejected it since off stopped being an
+        # activity in v0.28). Optional `room` targets one hub; without
+        # it every select in the workspace goes off (All-Off semantics).
+        if aid == "off":
+            ws = ws or MAIN
+            room = call.data.get("room")
+            ents = ([entry_data["selects"].get((ws, room))] if room
+                    else [e for (w, _r), e in entry_data["selects"].items()
+                          if w == ws])
+            ents = [e for e in ents if e is not None]
+            if not ents:
+                raise HomeAssistantError(
+                    f"no Harmonium selects for workspace '{ws}'"
+                    + (f" room '{room}'" if room else "")
+                    + " — reload the integration")
+            for ent in ents:
+                await ent.async_select_option("off")
+            return
+        if ws is None:
+            # FIND THE OWNER (v0.47.9): no workspace named — search
+            # them all. Callers (generated sequences, user automations)
+            # shouldn't need to know where an activity lives; only an
+            # ambiguous id (duplicated workspaces) demands the key.
+            data = await hstore.load()
+            owners = [w for w, cfg in data["workspaces"].items()
+                      if aid in ((cfg or {}).get("activities") or {})]
+            if not owners:
+                raise HomeAssistantError(
+                    f"no Harmonium workspace has an activity '{aid}'")
+            if len(owners) > 1:
+                raise HomeAssistantError(
+                    f"activity '{aid}' exists in workspaces "
+                    f"{', '.join(sorted(owners))} — pass workspace: to "
+                    "disambiguate")
+            ws = owners[0]
         config = await hstore.get_ws(ws) or {}
         act = (config.get("activities") or {}).get(aid)
         if act is None:

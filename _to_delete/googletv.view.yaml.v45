@@ -1,0 +1,114 @@
+# GOOGLE TV PLAYER — the platform controller for Google TV streamers
+# (first instance: the deck Hisense SmartLaser projector).
+#
+# TRANSPORT DOCTRINE (verified — docs/google tv/projector_reference.md):
+#   · STATE + NAVIGATION ride the Android-TV-Remote entities (instant push)
+#   · LAUNCHES + SYSTEM KEYS ride ADB via the `commands` role — the remote
+#     protocol routes launches through market://launch (Play Store roulette)
+#     and silently drops system keycodes; ADB does neither.
+# The Device-keys tiles bind $context.commands, so they HIDE on any activity
+# that hasn't wired the commands role (the v0.32 unwired-role doctrine).
+# Only VERIFIED keys appear; keycode 117 is keyboard search (84 is voice
+# search and turns the microphone on — deliberately absent).
+
+id: googletv
+name: Google TV Player
+type: controller
+library: true
+parent: porch
+
+# PURE $context — a PLATFORM controller ships with no house entities
+# (Suresh: "hard coding to my devices means we can never ship this").
+# Every slot is wired by the CALLING activity's cast: media_player /
+# dpad / power / volume from the usual roles, `commands` from the ADB
+# entity. Unwired commands → the Device-keys tiles hide themselves.
+
+control_target:
+  label: $activity.name
+  navigation: $context.dpad
+  power: $context.power
+  volume: $context.volume
+  pass_through: [up, down, left, right, select, back, home, power]
+
+layout:
+  sections:
+    - tiles:
+        - id: g_np
+          type: media
+          entity: $context.media_player
+          icon: material:smart_display
+          label: Now Playing
+          span: 2
+        - { id: g_tr, type: transport, entity: $context.media_player, label: Transport, span: 2 }
+        - id: g_btns
+          type: buttons
+          entity: $context.dpad
+          label: On-screen device buttons
+          span: 2
+          only: physical_dpad
+          buttons: [back, home]
+        - { id: g_pad, type: dpad, entity: $context.dpad, icon: material:gamepad, label: Remote, span: 2, unless: physical_dpad }
+        - { id: g_vol, type: volume, entity: $context.volume, level_entity: $context.volume_level, icon: material:volume_up, label: Volume, span: 2 }
+
+    - heading: Device keys
+      columns: 2
+      tiles:
+        - id: g_k_settings
+          type: preset
+          entity: $context.commands
+          icon: material:settings
+          label: Settings
+          action:
+            service: androidtv.adb_command
+            entity: $context.commands
+            data: { command: adb shell input keyevent 176 }
+        - id: g_k_search
+          type: preset
+          entity: $context.commands
+          icon: material:search
+          label: Search
+          # keycode 117 = KEYBOARD search (Google TV remap); 84 would be
+          # voice search and lights the microphone — never wired here
+          action:
+            service: androidtv.adb_command
+            entity: $context.commands
+            data: { command: adb shell input keyevent 117 }
+        - id: g_k_allapps
+          type: preset
+          entity: $context.commands
+          icon: material:apps
+          label: All apps
+          action:
+            service: androidtv.adb_command
+            entity: $context.commands
+            data: { command: adb shell input keyevent 284 }
+        - id: g_k_notif
+          type: preset
+          entity: $context.commands
+          icon: material:tune
+          label: Quick settings
+          action:
+            service: androidtv.adb_command
+            entity: $context.commands
+            data: { command: adb shell input keyevent 83 }
+        - id: g_k_livetv
+          type: preset
+          entity: $context.commands
+          icon: material:live_tv
+          label: Live TV
+          action:
+            service: androidtv.adb_command
+            entity: $context.commands
+            data: { command: adb shell input keyevent 170 }
+
+    - heading: Apps
+      columns: 3
+      tiles:
+        # registry-driven: one preset per app LAUNCHABLE on the target —
+        # the projector overrides in apps.yaml route via ADB
+        - { id: g_apps, type: apps, class: googletv }
+
+    - heading: Devices
+      columns: 1
+      tiles:
+        - { id: cast, type: devices }

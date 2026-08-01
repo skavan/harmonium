@@ -79,9 +79,63 @@ def collect_activities(views: dict[str, Any]) -> dict[str, Any]:
             item = copy.deepcopy(activity)
             if "view" in item:
                 item["screen"] = item.pop("view")
+            ctx = item.get("context")
+            if ctx and "app_class" in ctx and "dialect" not in ctx:
+                ctx["dialect"] = ctx.pop("app_class")     # v0.46 rename
             item["room_view"] = view_id
             activities[activity_id] = item
     return activities
+
+
+# DEVICE BUNDLES (v0.45): first-class devices. An activity may declare
+#   cast:   [device ids]             — who's on stage
+#   wiring: {role: device_id|entity} — who does which job
+# and the compiler resolves them into the SAME context: entity map the
+# engine has always consumed (the engine is unchanged by this round).
+# Explicit context entries always win (escape hatch); a wiring value
+# containing a dot is a raw entity id. The IDENTICAL algorithm lives in
+# studio-src/src/lib/state.svelte.js (compileContext) — keep in sync.
+def compile_activity_devices(activity: dict[str, Any], devices: dict[str, Any],
+                             activity_id: str) -> None:
+    cast = activity.get("cast")
+    wiring = activity.get("wiring")
+    if not cast and not wiring:
+        return
+    ctx: dict[str, Any] = {}
+    for role, target in (wiring or {}).items():
+        if isinstance(target, str) and target in devices:
+            dev = devices[target]
+            ent = (dev.get("roles") or {}).get(role)
+            if not ent:
+                raise ValueError(
+                    f"activity {activity_id} wires {role} to device {target}, "
+                    f"which claims no {role}")
+            ctx[role] = ent
+            traits = dev.get("traits") or {}
+            if role == "dpad" and traits.get("dpad_commands"):
+                ctx["dpad_commands"] = copy.deepcopy(traits["dpad_commands"])
+            if role == "media_player" and (dev.get("dialect") or dev.get("app_class")):
+                ctx.setdefault("dialect", dev.get("dialect") or dev["app_class"])
+        elif isinstance(target, str) and "." in target:
+            ctx[role] = target          # raw entity escape hatch
+        else:
+            raise ValueError(
+                f"activity {activity_id} wiring {role}: unknown device {target!r}")
+    ctx.update(activity.get("context") or {})   # explicit context wins
+    activity["context"] = ctx
+    for dev_id in cast or []:
+        if dev_id not in devices:
+            raise ValueError(f"activity {activity_id} casts unknown device {dev_id}")
+    # cast → the engine's per-activity devices array (cast tiles), unless
+    # hand-authored. Union of member entities in cast order; the engine
+    # skips remote.* on its own.
+    if cast and "devices" not in activity:
+        seen: list[str] = []
+        for dev_id in cast:
+            for ent in (devices[dev_id].get("roles") or {}).values():
+                if ent not in seen:
+                    seen.append(ent)
+        activity["devices"] = seen
 
 
 def collect_sequences(views: dict[str, Any]) -> dict[str, Any]:
@@ -153,7 +207,10 @@ def compile_view(view_id: str, view: dict[str, Any], activities: dict[str, Any])
     }
     if room:
         screen["room"] = True
-    for key in ("parent", "context", "buttons", "control_target"):
+    # font_scope (v0.52.1): music surfaces read the theme's music
+    # faces (--font-m1/--font-m2) — the key rides through verbatim
+    for key in ("parent", "context", "buttons", "control_target",
+                "font_scope"):
         if key in view:
             screen[key] = copy.deepcopy(view[key])
 
@@ -221,6 +278,9 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
     system = source["system"]
     views = source["views"]
     activities = collect_activities(views)
+    device_lib = source.get("devices") or {}
+    for activity_id, activity in activities.items():
+        compile_activity_devices(activity, device_lib, activity_id)
     sequences = collect_sequences(views)
     screens = {view_id: compile_view(view_id, view, activities) for view_id, view in views.items()}
 
@@ -240,7 +300,10 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
         "version": source["version"],
         "entity_options": system.get("entity_options", {}),
         "theme": system["theme"],
-        "devices": remotes,
+        # v0.45 RENAME: hardware profiles are `remotes` now — `devices`
+        # is the first-class device-bundle library (the Device Round)
+        "remotes": remotes,
+        "devices": device_lib,
         "keymap": system["keymaps"]["default"],
         "home_screen": nav["start_view"],
         "screen_order": nav["view_order"],
@@ -256,7 +319,10 @@ def compile_config(source: dict[str, Any]) -> dict[str, Any]:
         "activities": activities,
         "sequences": sequences,
         "apps": source.get("apps") or {},
-        "app_classes": source.get("app_classes") or {},
+        # v0.46 (the Dialect Round): app_classes renamed — a dialect is
+        # a platform's whole vocabulary (apps + keys + channels +
+        # forbidden), not just its launcher grammar
+        "dialects": source.get("dialects") or source.get("app_classes") or {},
         "screens": screens,
     }
     # LIBRARY CONTROLLERS (phase 2 of the polish doc): a view marked
@@ -373,16 +439,17 @@ def validate(config: dict[str, Any], views: dict[str, Any]) -> None:
             if tile.get("type") == "nav" and tile.get("target") and tile["target"] not in navigable:
                 raise ValueError(
                     f"view {view_id} nav tile {tile.get('id')} targets unknown view {tile['target']}")
-            if tile.get("type") == "apps" and tile.get("class") \
-                    and not str(tile["class"]).startswith("$context") \
-                    and tile["class"] not in config.get("app_classes", {}):
+            ref = tile.get("dialect") or tile.get("class")
+            if tile.get("type") == "apps" and ref \
+                    and not str(ref).startswith("$context") \
+                    and ref not in config.get("dialects", {}):
                 raise ValueError(
-                    f"view {view_id} apps tile {tile.get('id')} names unknown class {tile['class']}")
-    # APP CLASSES (v0.30): every class entry must name a master-list app
-    for cid, cls in config.get("app_classes", {}).items():
+                    f"view {view_id} apps tile {tile.get('id')} names unknown dialect {ref}")
+    # DIALECTS (v0.30 as app classes): every entry must name master-list apps
+    for cid, cls in config.get("dialects", {}).items():
         unknown = set((cls or {}).get("apps") or {}) - set(config.get("apps") or {})
         if unknown:
-            raise ValueError(f"app class {cid} references unknown apps: {sorted(unknown)}")
+            raise ValueError(f"dialect {cid} references unknown apps: {sorted(unknown)}")
 
 
 def main() -> None:

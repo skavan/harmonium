@@ -15,6 +15,7 @@ WIDGETS.mediabtns = {
     body: () => `<div class="btnrow">
       <button class="dpbtn cvsel" data-mb="shuffle"><span class="material-symbols-outlined">shuffle</span></button>
       <button class="dpbtn" data-mb="repeat"><span class="material-symbols-outlined">repeat</span></button>
+      <button class="dpbtn" data-mb="queue"><span class="material-symbols-outlined">queue_music</span></button>
     </div>`,
     wire: (el, t) => {
       el._ci = 0;                       // roving default = shuffle (matches cvsel)
@@ -36,6 +37,10 @@ WIDGETS.mediabtns = {
 function mbPress(e, k) {
   if (!e) return;
   const a = st(e).a;
+  /* QUEUE (v0.51 — Suresh: "one thing that would be nice for all music
+     players is the queue"): opens the queue view; adapter probing
+     decides how (core/queue.js) — refetched fresh on every open */
+  if (k === "queue") { S.queue.items = null; navigate("queue:" + e); return; }
   if (k === "shuffle")
     callService("media_player", "shuffle_set", { shuffle: !a.shuffle }, e);
   else {

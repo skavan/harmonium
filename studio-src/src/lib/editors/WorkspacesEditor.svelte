@@ -17,12 +17,8 @@
 
   const sources = $derived([
     { value: "blank", label: "Blank starter (keeps stock libraries)" },
-    ...(app.workspace !== "scratch"
-      ? [{ value: "duplicate", label: "Duplicate '" + (app.workspaces[app.workspace]?.name || app.workspace) + "' (last saved copy)" }]
-      : []),
-    { value: "draft", label: app.workspace === "scratch"
-      ? "Publish the current Scratch draft"
-      : "Copy of the current draft (incl. unsaved edits)" },
+    { value: "duplicate", label: "Duplicate '" + (app.workspaces[app.workspace]?.name || app.workspace) + "' (last saved copy)" },
+    { value: "draft", label: "Copy of the current draft (incl. unsaved edits)" },
   ]);
 
   async function create() {
@@ -41,9 +37,9 @@
   <p class="m-0 text-xs text-dim">
     A workspace is a complete world — screens, activities, building
     blocks, theme — published on the server, and <b>every workspace is
-    an address</b>: <b>Main</b> lives at <code>/local/harmonium/</code>
+    an address</b>: <b>Main</b> lives at <code>/local/harmonium/index.html</code>
     (built from the repo), every other workspace at
-    <code>/local/harmonium/&lt;id&gt;/</code>. All of them are live at
+    <code>/local/harmonium/&lt;id&gt;/index.html</code>. All of them are live at
     once; a remote shows whichever address it loads, so two remotes can
     share one workspace or each have their own.
   </p>
@@ -69,10 +65,10 @@
             disabled={app.sandbox} />
           <div class="truncate font-mono text-[11px] text-dim">
             <a class="text-accent no-underline hover:underline"
-              href={app.workspaces[id].path || "/local/harmonium/" + (id === "main" ? "" : id + "/")}
+              href={app.workspaces[id].path || "/local/harmonium/" + id + "/index.html"}
               target="_blank" rel="noopener"
               title="The workspace's address — a remote pointed here shows this workspace">
-              {app.workspaces[id].path || "/local/harmonium/" + (id === "main" ? "" : id + "/")}</a>
+              {app.workspaces[id].path || "/local/harmonium/" + id + "/index.html"}</a>
             · {app.workspaces[id].file}
             {#if id === "main"}· repo-built{/if}
             {#if app.workspace === id}· <span class="text-accent">editing now</span>{/if}
@@ -88,18 +84,6 @@
         {/if}
       </div>
     {/each}
-    <div class={"flex items-center gap-2 rounded-[12px] border bg-tile px-3 py-2 " +
-      (app.workspace === "scratch" ? "border-accent/70" : "border-line")}>
-      <div class="min-w-0 flex-1">
-        <div class="font-semibold">Scratch</div>
-        <div class="font-mono text-[11px] text-dim">this browser only · never deploys
-          {#if app.workspace === "scratch"}· <span class="text-accent">editing now</span>{/if}
-        </div>
-      </div>
-      {#if app.workspace !== "scratch"}
-        <Button size="sm" onclick={() => switchWorkspace("scratch")}>Open</Button>
-      {/if}
-    </div>
   </div>
 
   <div class="rounded-[12px] border border-line bg-tile px-3 py-3">
@@ -117,7 +101,7 @@
     </div>
     <p class="mb-0 mt-2 text-[11px] text-dim">
       Created workspaces deploy immediately — their address
-      (<code>/local/harmonium/&lt;id&gt;/</code>) goes live and their
+      (<code>/local/harmonium/&lt;id&gt;/index.html</code>) goes live and their
       routing selects
       (<code>select.harmonium_&lt;id&gt;_&lt;room&gt;_activity</code>)
       mint on the spot. No restart needed.

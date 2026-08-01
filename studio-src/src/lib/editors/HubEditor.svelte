@@ -178,7 +178,7 @@
     /* a DOORWAY: a card that opens another page — the Devices zone
        holds devices and doorways to more devices (paradigm §5) */
     tiles.push({ type: "nav", id: "tile_" + Math.random().toString(36).slice(2, 6),
-      label: "New doorway", icon: "material:layers" });
+      label: "New nav", icon: "material:layers" });
   }
   function newPresetTile(tiles) {
     /* a PRESET: one-touch shortcut — pick what it does on its card */
@@ -626,7 +626,7 @@
       bind:settingsOpen={() => secSet.devices ?? false, (v) => (secSet.devices = v)}
       addLabel="＋ Add device"
       onAdd={() => { if (!roleSection("devices")) addRoleSection("devices", "Devices"); newTile(roleSection("devices").s.tiles); }}
-      add2Label="＋ Add doorway"
+      add2Label="＋ Add nav"
       onAdd2={() => { if (!roleSection("devices")) addRoleSection("devices", "Devices"); newNavTile(roleSection("devices").s.tiles); }}
       bind:collapsed={() => secFold.devices ?? false, (v) => (secFold.devices = v)}>
       {#if secSet.devices}{@render secSettings(roleSection("devices")?.s)}{/if}
@@ -636,11 +636,11 @@
           {#each ds.s.tiles as tile, ti (ti)}
             <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} />
           {:else}
-            <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a doorway opens a page with more.</p>
+            <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a nav card opens another page (or another workspace).</p>
           {/each}
         </div>
       {:else}
-        <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a doorway opens a page with more.</p>
+        <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a nav card opens another page (or another workspace).</p>
       {/if}
     </SectionHeader>
 
@@ -654,7 +654,7 @@
         gridSummary={secSummary(s)}
         bind:settingsOpen={() => secSet["c" + i] ?? false, (v) => (secSet["c" + i] = v)}
         addLabel="＋ Add device" onAdd={() => newTile(s.tiles)}
-        add2Label="＋ Add doorway" onAdd2={() => newNavTile(s.tiles)}
+        add2Label="＋ Add nav" onAdd2={() => newNavTile(s.tiles)}
         bind:collapsed={() => secFold["c" + i] ?? false, (v) => (secFold["c" + i] = v)}>
         {#if secSet["c" + i]}
           {@render secSettings(s)}
@@ -674,7 +674,7 @@
       <SectionHeader title="Ungrouped" count={scr.tiles.length}
         bind:settingsOpen={() => secSet.flat ?? false, (v) => (secSet.flat = v)}
         addLabel="＋ Add device" onAdd={() => newTile(scr.tiles)}
-        add2Label="＋ Add doorway" onAdd2={() => newNavTile(scr.tiles)}
+        add2Label="＋ Add nav" onAdd2={() => newNavTile(scr.tiles)}
         bind:collapsed={() => secFold.flat ?? false, (v) => (secFold.flat = v)}>
         <div class="space-y-2">
           {#each scr.tiles as tile, ti (ti)}

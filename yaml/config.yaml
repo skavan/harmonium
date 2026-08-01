@@ -3,6 +3,7 @@ version: 2
 # Only application-wide boilerplate is shared. Every user-facing view is a
 # self-contained document under views/.
 system: !include system.yaml
+devices: !include devices.yaml
 apps: !include apps.yaml
-app_classes: !include app_classes.yaml
+dialects: !include dialects.yaml
 views: !include_dir_named views

@@ -2,7 +2,7 @@
   /* One activity, full harmonia-style card: identity, Setup ($context
      devices), State rules, navigation + confirm, controls JSON escape
      hatch. Lives in the OWNING room's editor. */
-  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf, showUndo, actDirty } from "../state.svelte.js";
+  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf, showUndo, actDirty, recompileContext, setStatus, schedulePreview, seedDeviceFromEntity, impliedGroups, platformOf, previewActivity, previewGoto } from "../state.svelte.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
@@ -10,6 +10,7 @@
   import Chips from "./Chips.svelte";
   import CardRow from "./CardRow.svelte";
   import EntityPicker from "./EntityPicker.svelte";
+  import IconPicker from "./IconPicker.svelte";
   import ActionPicker from "./ActionPicker.svelte";
   import JsonArea from "./JsonArea.svelte";
   import Button from "./Button.svelte";
@@ -48,6 +49,7 @@
         if (!Object.keys(a.surface).length) delete a.surface;
       }
     } else a.surface = { ...(a.surface || {}), devices: false };
+    schedulePreview();   // v0.48.1: the switch looked dead without this
   }
   const navPages = $derived(screenIds
     .filter((sid) => !isControllerScreen(app.draft.screens[sid]) && !app.draft.screens[sid].drawer)
@@ -61,14 +63,21 @@
     power: ["media_player", "switch", "remote"],
     volume: ["media_player"],
     volume_level: ["media_player"],
+    source_select: ["media_player"],
+    commands: ["media_player", "remote"],
   };
   /* ---- Setup v2: DEVICES are the nouns, ROLES are the wiring ----
      The device list is the activity's cast (first = ★ primary, the
      activity's face). Role chips wire logical buttons/paths to a
      device; they compile to the same $context map the engine reads. */
   const ROLES = ["media_player", "dpad", "power", "volume", "volume_level",
-    "source_select"];   /* source_select (v0.36): who owns inputs — wiring
+    "source_select",    /* source_select (v0.36): who owns inputs — wiring
                            it makes the controller's Source tile appear */
+    "commands"];        /* commands (v0.44 as `system`, renamed v0.45.1 —
+                           Suresh): the COMMAND channel — the ADB entity
+                           on Google TV / Fire TV. Launches and system
+                           keycodes route here; $context.commands-bound
+                           tiles hide when it's unwired. */
 
   /* CAST CURATION (v0.36): per-device "shows in Devices section"
      toggle — device_options[ent].tile = false hides the tile, the
@@ -83,6 +92,7 @@
       if (!Object.keys(a.device_options[ent]).length) delete a.device_options[ent];
       if (!Object.keys(a.device_options).length) delete a.device_options;
     }
+    schedulePreview();
   }
   const deviceList = () => {
     if (a.devices) return a.devices;
@@ -142,9 +152,424 @@
   }
   let rawOpen = $state(false);
 
-  /* ---- ITEM-CARD GRAMMAR (redesign R3): identity strip stays put,
-     everything else lives on tabs; Advanced is the glass tab. ---- */
-  let tab = $state("cast");
+  /* ============ THE TABBED BUILDER (v0.45 — the Device Round) ============
+     Harmony-wizard answers as ADDRESSABLE TABS, not a step-by-step flow
+     (Suresh: the audience is HA-comfortable — "tabs with a lit up dot
+     when done"). Setup · Devices · Jobs · Inputs · Actions · State, each
+     dot lighting when its facet is complete. Devices are LIBRARY BUNDLES
+     (first-class); Jobs are the plain-language role questions; wiring
+     compiles to context via recompileContext on every edit. */
+  const devLib = $derived(app.draft?.devices || {});
+  const cast = $derived(a?.cast || []);
+  const wiring = $derived(a?.wiring || {});
+  /* ROLES tab copy (Suresh's ruling, v0.45.1): control name leads,
+     mono role key beside it, effect line as the tooltip/hint — no
+     baby english; the audience speaks HA. */
+  const ROLE_CONTROLS = {
+    media_player: "Now Playing",
+    dpad: "Navigation",
+    power: "Power button",
+    volume: "Volume keys",
+    volume_level: "Volume readout",
+    source_select: "Source picker",
+    commands: "Commands",
+  };
+  const ROLE_EFFECTS = {
+    media_player: "the media tile, transport, play/pause state",
+    dpad: "arrows · select · back · home — physical remote keys pass through here",
+    power: "DEVICE power — the physical power tap and $context.power tiles toggle this; the on-screen ⏻ ends/starts the ACTIVITY itself (v0.48.1) and needs no wiring",
+    volume: "volume up/down (hardware + on-screen) send here",
+    volume_level: "where the slider reads truth, when it differs from who takes volume keys",
+    source_select: "whose input list the Source tile offers — setting every device's input at start lives in Inputs",
+    commands: "app launches + system keycodes (ADB on Android platforms)",
+  };
+  const recompile = () => { recompileContext(a, devLib); schedulePreview(); };
+  /* the entity cast (engine's a.devices) regenerates from bundles +
+     manual extras whenever the device cast changes */
+  function regenDevices() {
+    const ents = [];
+    for (const devId of a.cast || [])
+      for (const ent of Object.values(devLib[devId]?.roles || {}))
+        if (!ents.includes(ent)) ents.push(ent);
+    for (const ent of a.extra_devices || []) if (!ents.includes(ent)) ents.push(ent);
+    a.devices = ents;
+  }
+  function addCast(devId) {
+    if (!devId || !devLib[devId]) return;
+    if (!a.cast) a.cast = [];
+    if (a.cast.includes(devId)) return;
+    a.cast.push(devId);
+    /* prefill: unclaimed jobs only — first come, first served; the
+       Jobs tab is where exceptions get decided */
+    if (!a.wiring) a.wiring = {};
+    for (const role of ROLES)
+      if (!a.wiring[role] && devLib[devId].roles?.[role]) a.wiring[role] = devId;
+    regenDevices();
+    recompile();
+  }
+  function removeCast(devId) {
+    a.cast = (a.cast || []).filter((c) => c !== devId);
+    for (const [role, t] of Object.entries(a.wiring || {}))
+      if (t === devId) delete a.wiring[role];
+    if (a.inputs) delete a.inputs[devId];
+    regenDevices();
+    recompile();
+  }
+  function castPrimary(devId) {
+    a.cast = [devId, ...(a.cast || []).filter((c) => c !== devId)];
+    regenDevices();
+    recompile();
+  }
+  function addExtraEnt(ent) {
+    ent = (ent || "").trim();
+    if (!ent) return;
+    if (!a.extra_devices) a.extra_devices = [];
+    if (!a.extra_devices.includes(ent)) a.extra_devices.push(ent);
+    regenDevices();
+    recompile();
+  }
+  function removeExtraEnt(ent) {
+    a.extra_devices = (a.extra_devices || []).filter((x) => x !== ent);
+    regenDevices();
+    recompile();
+  }
+  /* LEGACY DIRECT ENTITIES (v0.53 — Suresh: "the cast has vanished
+     even though it's a green dot AND rows are filled in"): yaml-era
+     activities wire entities straight into $context with no cast /
+     extra_devices arrays. The DOT derived from context (deviceList)
+     but the cast block only rendered the arrays — so the entities
+     were invisible. Surface them as direct rows; ✕ unwires the
+     roles that point at the entity. */
+  const legacyEnts = $derived(
+    a && !(a.cast || []).length && !a.devices
+      ? deviceList().filter((e) => !(a.extra_devices || []).includes(e))
+      : []);
+  function removeLegacyEnt(ent) {
+    for (const [role, v] of Object.entries(a.context || {}))
+      if (v === ent) delete a.context[role];
+    schedulePreview();
+  }
+  /* ---- UNIFIED CAST PICKER (v0.45.2 — Suresh: the library is a
+     byproduct, not a prerequisite). ONE box: library devices, then
+     IMPLIED devices (⊞ stem-grouped entity clusters, minted into the
+     library silently on pick), then raw entities (cast directly). ---- */
+  let castQ = $state("");
+  let castOpen = $state(false);
+  let castEl = $state(null);
+  let castRect = $state(null);   /* FIXED dropdown — no ancestor can clip */
+  const placeCast = () => { castRect = castEl?.getBoundingClientRect() || null; };
+  $effect(() => {
+    if (!castOpen) return;
+    const glue = () => placeCast();
+    window.addEventListener("scroll", glue, true);   /* capture: any scroller */
+    window.addEventListener("resize", glue);
+    return () => {
+      window.removeEventListener("scroll", glue, true);
+      window.removeEventListener("resize", glue);
+    };
+  });
+  const castHit = (txt) => !castQ.trim() ||
+    txt.toLowerCase().includes(castQ.trim().toLowerCase());
+  const pickLib = $derived(Object.entries(devLib)
+    .filter(([k]) => !cast.includes(k))
+    .filter(([k, d]) => castHit((d.name || "") + " " + k))
+    .slice(0, 8));
+  const pickImplied = $derived(impliedGroups()
+    .filter((g) => !devLib[g.stem])
+    .filter((g) => castHit(g.stem + " " + g.ents.join(" ")))
+    .slice(0, 8));
+  const pickEnts = $derived(app.entities
+    .filter((e) => castHit(e.entity_id + " " + (e.name || "")))
+    .filter((e) => !(a.extra_devices || []).includes(e.entity_id))
+    .slice(0, 12));
+  function castLibDevice(devId) {
+    addCast(devId);
+    castQ = ""; castOpen = false;
+  }
+  function castImplied(g) {
+    if (!app.draft.devices) app.draft.devices = {};
+    const lib = app.draft.devices;
+    const { stem, dev } = seedDeviceFromEntity(g.ents[0]);
+    let id = stem, n = 2;
+    while (lib[id]) id = stem + "_" + n++;
+    lib[id] = dev;
+    addCast(id);
+    setStatus("⊞ " + (dev.name || id) + " added to your library and cast", "ok");
+    castQ = ""; castOpen = false;
+  }
+  function castDirect(ent) {
+    addExtraEnt(ent);
+    castQ = ""; castOpen = false;
+  }
+  /* PROMOTE A DIRECT ENTITY (v0.48.2 — Suresh: "If I select a loose
+     device, I should probably have a promote icon"): mint a pre-wired
+     device FROM the entity (integration siblings + claims, same
+     seeder as the picker's ⊞), swap it into the cast in place of the
+     bare entity — no library round-trip; tune traits there any time. */
+  function promoteExtra(ent) {
+    if (!app.draft.devices) app.draft.devices = {};
+    const lib = app.draft.devices;
+    const { stem, dev } = seedDeviceFromEntity(ent);
+    let id = stem, n = 2;
+    while (lib[id]) id = stem + "_" + n++;
+    lib[id] = dev;
+    a.extra_devices = (a.extra_devices || []).filter((x) => x !== ent);
+    addCast(id);
+    setStatus("⊞ " + (dev.name || id) + " pre-wired and cast — " + ent +
+      " now rides its bundle", "ok");
+  }
+  /* JOBS: candidates per role = cast devices claiming it; a raw entity
+     stays possible (the escape hatch is part of the grammar) */
+  const jobCandidates = (role) => cast.filter((c) => devLib[c]?.roles?.[role]);
+  function setJob(role, target) {
+    if (!a.wiring) a.wiring = {};
+    if (target) a.wiring[role] = target;
+    else delete a.wiring[role];
+    recompile();
+  }
+  let customJob = $state(null);   /* role currently picking a raw entity */
+  /* PROMOTE A CLAIM (v0.48.1 — Suresh: "I figured out the adb device
+     carried the volume level... Should I have the option of updating
+     the Pre-Wired Device?"): when a role is wired to a RAW entity that
+     belongs to a cast device's bundle, offer to save the wiring into
+     the device's claims — the library learns, every future cast of it
+     fills this role by itself. */
+  const claimTargets = (role, ent) =>
+    typeof ent === "string" && ent.includes(".")
+      ? (a.cast || []).filter((k) => {
+          const d = devLib[k];
+          return d && !(d.roles || {})[role] &&
+            Object.values(d.roles || {}).includes(ent);
+        })
+      : [];
+  function promoteClaim(role, ent, devId) {
+    const d = devLib[devId];
+    if (!d) return;
+    d.roles = { ...(d.roles || {}), [role]: ent };
+    setJob(role, devId);          /* wiring now rides the device claim */
+    setStatus("claim saved — " + (d.name || devId) + " now pre-wires " + role);
+  }
+  /* CONSUMES: which $context roles the Navigate-to surface references —
+     the controller's contract, rendered at wiring time */
+  const consumedRoles = $derived.by(() => {
+    const ref = a?.screen || "";
+    const surf = ref.startsWith("controller:")
+      ? app.draft?.controllers?.[ref.slice(11)]
+      : ref ? app.draft?.screens?.[ref] : null;
+    if (!surf) return [];
+    const s = JSON.stringify(surf);
+    const out = ROLES.filter((r) => s.includes("$context." + r));
+    /* GENERATORS consume implicitly: a keys tile expands the dialect's
+       catalog over the commands channel — no literal string to find */
+    if (s.includes('"type":"keys"') && !out.includes("commands")) out.push("commands");
+    return out;
+  });
+  /* INPUT TARGETS (v0.47 — Suresh: "two actually do!"): every cast
+     device with an input-capable claim PLUS directly-cast media_player
+     entities. The LIVE source_list is a convenience, not a gate — a
+     device that's OFF often hides its list, and the question must
+     still be answerable (typed source). Keys: device id for cast
+     devices, entity id for a direct entity. */
+  const inputTargets = $derived.by(() => [
+    ...cast
+      .filter((c) => devLib[c]?.roles?.source_select || devLib[c]?.roles?.media_player)
+      .map((c) => ({ key: c, name: devLib[c]?.name || c,
+        ent: devLib[c].roles.source_select || devLib[c].roles.media_player })),
+    ...(a?.extra_devices || [])
+      .filter((e) => e.startsWith("media_player."))
+      .map((e) => ({ key: e, name: e, ent: e })),
+  ]);
+  const sourcesOf = (ent) =>
+    app.entities.find((x) => x.entity_id === ent)?.source_list || [];
+  let typingSrc = $state(null);   /* key currently typing a source */
+  function setInput(devId, v) {
+    if (!a.inputs) a.inputs = {};
+    if (v === "__unset") { delete a.inputs[devId]; if (!Object.keys(a.inputs).length) delete a.inputs; }
+    else a.inputs[devId] = v === "__ignore" ? null : v;
+  }
+  const inputAnswer = (devId) =>
+    !a.inputs || !(devId in a.inputs) ? "__unset"
+      : a.inputs[devId] === null ? "__ignore" : a.inputs[devId];
+
+  /* ---- GENERATION (docs/wizard.md — the prime directive: NEVER guess
+     power). Start Actions follow the proven firetv_on shape; drafts are
+     ordinary editable sequences; an edited sequence is NEVER silently
+     overwritten (a _v2 is minted beside it); power-off is strictly
+     opt-in per device and never_off devices are untouchable. ---- */
+  function buildStartActions() {
+    const steps = [{ alias: "Set activity state",
+      action: "harmonium.set_activity", data: { activity: id } }];
+    for (const devId of cast) {
+      const d = devLib[devId];
+      const t = d?.traits || {};
+      if (!t.wake) continue;
+      steps.push({ alias: "Wake " + (d.name || devId) + " if asleep (best effort)",
+        action: "homeassistant.turn_on", continue_on_error: true,
+        target: { entity_id: t.wake } });
+      if (t.cold_start?.length || t.wait_timeout_s || t.settle_s) {
+        const then = [
+          ...(t.cold_start || []).map((s) => JSON.parse(JSON.stringify(s))),
+          ...(t.wait_timeout_s ? [{
+            alias: "Wait for " + (d.name || devId) + " to report on (up to " + t.wait_timeout_s + "s)",
+            wait_for_trigger: [{ trigger: "state", entity_id: t.wait_on || t.wake, to: "on" }],
+            timeout: { seconds: t.wait_timeout_s }, continue_on_timeout: true }] : []),
+          ...(t.settle_s ? [{
+            alias: "Let " + (d.name || devId) + " finish waking",
+            delay: { seconds: t.settle_s } }] : []),
+        ];
+        if (then.length)
+          steps.push({ alias: "Cold start only: bring up " + (d.name || devId),
+            if: [{ condition: "state", entity_id: t.wake, state: "off" }], then });
+      }
+    }
+    for (const [devId, src] of Object.entries(a.inputs || {})) {
+      if (src == null) continue;                     /* none / ignore */
+      const ent = devLib[devId]?.roles?.source_select ||
+        devLib[devId]?.roles?.media_player ||
+        (devId.includes(".") ? devId : null);        /* direct entity key */
+      if (!ent) continue;
+      steps.push({
+        alias: "Switch " + (devLib[devId]?.name || devId) + " to " + src + " ONLY if needed",
+        if: [{ condition: "not", conditions: [{ condition: "state",
+          entity_id: ent, attribute: "source", state: src }] }],
+        then: [{ alias: "Set input to " + src + " (best effort)",
+          action: "media_player.select_source", continue_on_error: true,
+          data: { source: src }, target: { entity_id: ent } }] });
+    }
+    return steps;
+  }
+  function buildStopActions() {
+    const steps = [{ alias: "Set activity state",
+      action: "harmonium.set_activity", data: { activity: "off" } }];
+    for (const devId of a.stop_off || []) {
+      const d = devLib[devId];
+      if (!d || d.traits?.never_off) continue;       /* the untouchables */
+      const ent = d.roles?.power || d.roles?.media_player;
+      if (!ent) continue;
+      steps.push({ alias: "Turn " + (d.name || devId) + " off (best effort)",
+        action: "homeassistant.turn_off", continue_on_error: true,
+        target: { entity_id: ent } });
+    }
+    return steps;
+  }
+  function writeGenerated(kind, steps) {
+    if (!app.draft.sequences) app.draft.sequences = {};
+    const seqs = app.draft.sequences;
+    const sig = JSON.stringify(steps);
+    const ref = a[kind] || "";
+    let sid = ref.startsWith("sequence:") ? ref.slice(9) : null;
+    if (sid && seqs[sid]) {
+      const cur = seqs[sid];
+      const untouched = cur.generated_sig &&
+        JSON.stringify(cur.actions) === cur.generated_sig;
+      if (!untouched) {
+        /* NEVER overwrite an edited (or hand-written) sequence —
+           mint a sibling and leave the original alone */
+        let v = sid.replace(/_v\d+$/, ""), n = 2;
+        while (seqs[v + "_v" + n]) n++;
+        sid = v + "_v" + n;
+      }
+    } else {
+      const base = slugify(roomLabel() + " " + (a.name || id) + " " + kind) || id + "_" + kind;
+      sid = base;
+      let n = 2;
+      while (seqs[sid]) sid = base + "_" + n++;
+    }
+    seqs[sid] = {
+      name: (a.name || id) + " — " + (kind === "start" ? "Start" : "Stop") + " (generated)",
+      room: a.room_view || undefined,
+      actions: steps,
+      generated_sig: sig,
+    };
+    a[kind] = "sequence:" + sid;
+    setStatus("generated " + sid + " — an ordinary editable Action, yours now", "ok");
+    schedulePreview();
+  }
+  function toggleStopOff(devId) {
+    if (!a.stop_off) a.stop_off = [];
+    if (a.stop_off.includes(devId)) a.stop_off = a.stop_off.filter((x) => x !== devId);
+    else a.stop_off.push(devId);
+    if (!a.stop_off.length) delete a.stop_off;
+  }
+  /* STATE from the answers: display on + source in [input] — exactly
+     the hand-built watch_firetv detection shape */
+  const stateDisplay = $derived.by(() => {
+    const devId = typeof wiring.source_select === "string" && devLib[wiring.source_select]
+      ? wiring.source_select : null;
+    if (!devId) return null;
+    const src = (a.inputs || {})[devId];
+    if (!src) return null;
+    return { devId, ent: devLib[devId].roles.source_select, src };
+  });
+  /* PRIMARY-DEVICE STATE (v0.47.7 — Suresh: "State comes from the
+     primary cast member"): the primary device's media_player claim in
+     any on-ish state = the activity is ON. One click, editable after.
+     NOT the default — the Fire TV is never off, which is why
+     watch_firetv derives from the display + input instead. */
+  const primaryMp = $derived(
+    devLib[cast[0]]?.roles?.media_player ||
+    (typeof a?.context?.media_player === "string" ? a.context.media_player : null));
+  /* IMPLIED STATE witness (v0.48.1, mirrors the engine): with NO
+     authored rule, truth derives live from the primary device's
+     media_player — unless that device is never_off (Fire TV). */
+  const impliedWitness = $derived.by(() => {
+    const d = devLib[cast[0]];
+    return d && !d.traits?.never_off ? d.roles?.media_player || null : null;
+  });
+  function generatePrimaryState() {
+    if (!primaryMp) return;
+    a.state = {
+      entities: [primaryMp],
+      on: { any_state: ["on", "playing", "paused", "buffering", "idle"] },
+    };
+    schedulePreview();
+  }
+  function generateState() {
+    if (!stateDisplay) return;
+    const mp = a.context?.media_player;
+    a.state = {
+      entities: [...new Set([mp, stateDisplay.ent].filter(Boolean))],
+      on: { all: [
+        { entity: stateDisplay.ent, state: "on" },
+        { entity: stateDisplay.ent, attribute: "source", in: [stateDisplay.src] },
+      ] },
+    };
+    schedulePreview();
+  }
+
+  /* ---- the completion DOTS: a facet is lit when answered ---- */
+  const dotSetup = $derived(!!a?.screen);
+  const dotDevices = $derived(cast.length > 0 || deviceList().length > 0);
+  const dotJobs = $derived(!!a?.context?.media_player &&
+    (!consumedRoles.length || consumedRoles.filter((r) => r !== "commands")
+      .every((r) => !!a?.context?.[r])));
+  /* v0.53 (Suresh: "inputs does not [dot] if only one is filled in…
+     it's a valid setting"): dots are TRI-STATE — true (all answered,
+     full green), "part" (some answered, lighter green), false
+     (hollow). */
+  const inputsAnswered = $derived(
+    inputTargets.filter((t) => inputAnswer(t.key) !== "__unset").length);
+  const dotInputs = $derived(!inputTargets.length ? true
+    : inputsAnswered === inputTargets.length ? true
+    : inputsAnswered ? "part" : false);
+  const dotActions = $derived(!!a?.start);
+
+  let tab = $state("setup");
+  /* while THIS card is open, the preview impersonates this activity
+     and sits on its landing surface — what you edit is what you see.
+     pvView (v0.48 — Suresh: "I can't get to the page view") lets you
+     flip the preview to the ROOM PAGE without closing the card;
+     controller stays the default every time a card opens. */
+  let pvView = $state("controller");
+  $effect(() => { if (!open) pvView = "controller"; });
+  $effect(() => {
+    if (open && a) {
+      previewActivity(id);
+      const target = pvView === "page" ? a.room_view : a.screen;
+      if (target) previewGoto(target);
+      return () => previewActivity(null);
+    }
+  });
   /* ---- REMOVE with confirm + undo (redesign §7.1) ---- */
   let confirmDel = $state(false);
   const refsOf = () => {
@@ -184,19 +609,30 @@
   /* ---- SNIPPETS: ⤴ exports this block (with metadata), ⤵ inserts a
      compatible one (Suresh's spec — same pair on Setup and State) ---- */
   function exportSetup() {
-    const roles = {};
-    for (const r of ROLES) if (a.context?.[r]) roles[r] = a.context[r];
-    saveSnippet("setup", (a.name || id) + " setup",
-      { devices: [...deviceList()], roles,
-        ...(a.device_options ? { device_options: $state.snapshot(a.device_options) } : {}) });
+    saveSnippet("setup", (a.name || id) + " setup", {
+      cast: [...(a.cast || [])],
+      wiring: $state.snapshot(a.wiring || {}),
+      ...(a.extra_devices ? { extra_devices: [...a.extra_devices] } : {}),
+      ...(a.device_options ? { device_options: $state.snapshot(a.device_options) } : {}),
+    });
   }
   function importSetup(sid) {
     const sn = snippetsOf("setup").find(([k]) => k === sid)?.[1];
     if (!sn) return;
-    a.devices = JSON.parse(JSON.stringify(sn.data.devices || []));
-    a.context = { ...(a.context || {}), ...JSON.parse(JSON.stringify(sn.data.roles || {})) };
+    /* legacy snippets carried {devices, roles} — translate on the fly */
+    if (sn.data.cast || sn.data.wiring) {
+      a.cast = JSON.parse(JSON.stringify(sn.data.cast || []));
+      a.wiring = JSON.parse(JSON.stringify(sn.data.wiring || {}));
+      if (sn.data.extra_devices) a.extra_devices = [...sn.data.extra_devices];
+    } else {
+      a.extra_devices = JSON.parse(JSON.stringify(sn.data.devices || []));
+      a.wiring = JSON.parse(JSON.stringify(sn.data.roles || {}));
+      a.cast = [];
+    }
     if (sn.data.device_options)
       a.device_options = JSON.parse(JSON.stringify(sn.data.device_options));
+    regenDevices();
+    recompile();
   }
   function exportState() {
     if (!a.state) return;
@@ -262,8 +698,8 @@
   const slugify = (s) =>
     (s || "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   /* prefix = the owner room's display NAME (what the user reads),
-     not its page key — a scratch room called Porch on page "home"
-     still yields porch_* ids */
+     not its page key — a room called Porch on page "home" still
+     yields porch_* ids */
   const roomLabel = () =>
     app.draft?.screens?.[a.room_view]?.name || a.room_view || "";
   const autoIdFor = (name) => slugify(roomLabel() + " " + (name || ""));
@@ -391,9 +827,9 @@
             oninput={(e) => { syncTiles("label", a.name, e.target.value); a.name = e.target.value; }}
             onchange={() => { if (autoBefore) renameActivity(id, autoIdFor(a.name)); }} />
         </Field>
-        </div><div class="w-[190px] min-w-[140px] flex-1"><Field label="Icon" hint="">
-          <Input value={a.icon} class="font-mono text-[12.5px]"
-            oninput={(e) => { syncTiles("icon", a.icon, e.target.value); a.icon = e.target.value; }} />
+        </div><div class="w-[230px] min-w-[180px] flex-1"><Field label="Icon" hint="">
+          <IconPicker value={a.icon}
+            onchange={(e) => { syncTiles("icon", a.icon, e.target.value); a.icon = e.target.value; }} />
         </Field></div>
         <div class="w-[44px] shrink-0"><Field label="Accent" hint="">
           <input type="color" bind:value={a.color}
@@ -410,26 +846,144 @@
       <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->
       <div class="flex items-end gap-1 border-b border-line px-1">
         {#each [
-          { k: "cast", label: "Devices & roles", n: deviceList().length },
-          { k: "startstop", label: "Start & stop", n: null },
-          { k: "controller", label: "Controller", n: null },
-          { k: "state", label: "State", n: stateCount() },
+          { k: "setup", label: "Setup", dot: dotSetup && dotDevices,
+            n: cast.length || deviceList().length || null },
+          { k: "jobs", label: "Roles", dot: dotJobs },
+          { k: "inputs", label: "Inputs", dot: dotInputs },
+          { k: "actions", label: "Actions", dot: dotActions },
+          { k: "state", label: "State", dot: stateCount() > 0, n: stateCount() },
         ] as t (t.k)}
-          <button class={"cursor-pointer border-0 bg-transparent px-2.5 py-[9px] text-xs transition-colors " +
+          <!-- FIRST-CLASS TABS (v0.48; v0.48.1 — Suresh: "the active
+               tab gets a font size bump and a background of
+               --color-tile"): one thing draws the eye — the active
+               tab's lifted tile; idle tabs stay quiet ink -->
+          <button class={"cursor-pointer border-0 px-3.5 py-[11px] transition-colors " +
               (tab === t.k
-                ? "font-semibold text-accent-text [box-shadow:inset_0_-2px_0_var(--color-accent)]"
-                : "font-medium text-dim hover:text-ink")}
-            onclick={() => (tab = t.k)}>{t.label}{#if t.n}<span class="pl-1 text-[11px] font-normal text-faint">{t.n}</span>{/if}</button>
+                ? "rounded-t-[8px] bg-tile text-[14.5px] font-bold text-accent-text [box-shadow:inset_0_-3px_0_var(--color-accent)]"
+                : "bg-transparent text-[13.5px] font-semibold text-ink-2 hover:text-ink hover:[box-shadow:inset_0_-3px_0_var(--color-line-strong)]")}
+            onclick={() => (tab = t.k)}>
+            <!-- v0.53 tri-state dot: full green = done · lighter
+                 green = partly answered (a valid setting) · hollow
+                 = untouched -->
+            {#if t.dot !== undefined}<span
+              class={"mr-1.5 inline-block h-[8px] w-[8px] rounded-full align-[0.5px] " +
+                (t.dot === true ? "bg-ok"
+                  : t.dot === "part" ? "bg-ok/45"
+                  : "border border-line-strong bg-transparent")}
+              title={t.dot === true ? "Done"
+                : t.dot === "part" ? "Partly answered — that can be a valid setting"
+                : "Not answered yet"}></span>{/if}{t.label}{#if t.n}<span class="pl-1 text-[11.5px] font-normal text-faint">{t.n}</span>{/if}</button>
         {/each}
         <span class="flex-1"></span>
+        {#if a.screen && a.room_view}
+          <span class="mr-2 flex items-center gap-1 self-center rounded-[7px] border border-line bg-inset p-[3px] text-[10.5px]"
+            title="What the preview shows while this card is open">
+            <span class="pl-1 text-faint">Preview</span>
+            <button class={"cursor-pointer rounded-[5px] border-0 px-1.5 py-0.5 " +
+                (pvView === "controller" ? "bg-surface font-semibold text-ink [box-shadow:0_1px_2px_rgba(0,0,0,.25)]" : "bg-transparent text-dim hover:text-ink")}
+              onclick={() => (pvView = "controller")}>Controller</button>
+            <button class={"cursor-pointer rounded-[5px] border-0 px-1.5 py-0.5 " +
+                (pvView === "page" ? "bg-surface font-semibold text-ink [box-shadow:0_1px_2px_rgba(0,0,0,.25)]" : "bg-transparent text-dim hover:text-ink")}
+              onclick={() => (pvView = "page")}>Room page</button>
+          </span>
+        {/if}
         <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
             (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
           onclick={() => (tab = "advanced")}>
           <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
       </div>
 
-      {#if tab === "cast"}
-      <!-- SETUP v2: devices (nouns) + role chips (wiring) -->
+      {#if tab === "setup"}
+      <div class="space-y-3">
+        <!-- items-START (v0.48 alignment round): the two fields top-align
+             on their labels so the controls sit level — items-end let a
+             one-sided hint shove its neighbour upward -->
+        <div class="flex flex-wrap items-start gap-3">
+          <div class="w-[240px]"><Field label="What are we building?" hint="shapes suggestions — never a cage">
+            <Select value={a.kind ?? ""} allowEmpty
+              options={[
+                { value: "watch", label: "Watch (TV / movie)" },
+                { value: "listen", label: "Listen (music)" },
+                { value: "play", label: "Play (game)" },
+                { value: "custom", label: "Custom" },
+              ]}
+              onchange={(e) => { if (e.target.value) a.kind = e.target.value; else delete a.kind; }} />
+          </Field></div>
+          <div class="min-w-[260px] flex-1"><Field label="Navigate to (after start)" hint={a.screen ? "" : "＋ mints its control page — keys wired, cast pre-populated"}>
+            <div class="flex items-center gap-1.5">
+              <select
+                value={a.screen ?? ""}
+                onchange={(e) => (a.screen = e.target.value || undefined)}
+                class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none focus:border-accent"
+              >
+                <option value="">—</option>
+                {#if navControllers.length}
+                  <optgroup label="Controllers">
+                    {#each navControllers as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+                  </optgroup>
+                {/if}
+                {#if navPages.length}
+                  <optgroup label="Pages & views">
+                    {#each navPages as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+                  </optgroup>
+                {/if}
+              </select>
+              {#if !a.screen}
+                <button
+                  class="h-[38px] shrink-0 cursor-pointer rounded-[4px] border border-dashed border-line-strong bg-transparent px-2.5 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
+                  title={"Create control page “" + (a.name || id) + "” — Now Playing + cast"}
+                  onclick={createPage}>＋</button>
+              {:else}
+                <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                  title="Open this page" onclick={() => selectSlice(
+                    a.screen.startsWith("controller:")
+                      ? "controller." + a.screen.slice(11)
+                      : "screens." + a.screen)}>edit →</button>
+              {/if}
+            </div>
+          </Field></div>
+        </div>
+        {#if navCtrl}
+          <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
+            {#if navCtrl.isStock}
+              <div class="flex flex-wrap items-center gap-4">
+                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · stock</span>
+                <Switch checked={devicesOn()} label="Auto-populate devices (this activity's cast)"
+                  onCheckedChange={toggleDevices} />
+                <button
+                  class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1 text-xs text-dim hover:border-accent/60 hover:text-accent"
+                  title="Copy the stock surface as this activity's own editable controller"
+                  onclick={() => { const iid = instantiateController(navCtrl.cid, id); if (iid) selectSlice("controller." + iid); }}
+                >⧉ Create custom copy</button>
+              </div>
+              <p class="mt-1 mb-0 text-[11px] text-dim">
+                The switch controls the <b>Devices</b> section at the bottom of this
+                controller: on, the cast lists itself there (watch the preview);
+                off, the section disappears. Shared stock surface — editing the
+                controller itself changes every activity that uses it; a custom
+                copy is yours alone.
+              </p>
+            {:else}
+              <div class="flex flex-wrap items-center gap-4">
+                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · custom copy</span>
+                <span class="text-xs text-ink">{navCtrl.c.name}</span>
+                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                  onclick={() => selectSlice("controller." + navCtrl.cid)}>edit →</button>
+                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-danger hover:underline"
+                  title="Point this activity back at the stock controller (removes the copy if nothing else uses it)"
+                  onclick={() => revertToStock(id)}>↺ use stock</button>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <p class="m-0 text-xs text-dim">
+            {a.screen
+              ? "This activity lands on a page of its own (" + a.screen + ") — controllers are the shared stock surfaces."
+              : "No controller yet — pick a Navigate-to above, or ＋ mint a control page."}
+          </p>
+        {/if}
+      <!-- THE CAST (v0.47: Setup + Devices are ONE tab — Suresh:
+           "It defaults to devices and then I tab (back) to setup") -->
       <div class="rounded-[10px] border border-line bg-tile p-3">
         {#snippet uploadIcon()}
           <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
@@ -444,16 +998,16 @@
           </svg>
         {/snippet}
         <div class="mb-1 flex items-center gap-1.5">
-          <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">Setup — devices &amp; roles</span>
+          <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">The cast — what's involved</span>
           <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
-            title="Save this block to Snippets" onclick={exportSetup}>{@render uploadIcon()} Save as snippet</button>
+            title="Save this cast + wiring to Snippets as a reusable set" onclick={exportSetup}>{@render uploadIcon()} Save cast as set</button>
           <div class={"relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong px-2 text-[11px] font-medium " +
             (snippetsOf("setup").length ? "bg-surface text-ink-2 hover:bg-sunk" : "bg-raised text-faint")}>
-            {@render downloadIcon()} Use snippet…
+            {@render downloadIcon()} Use a set…
             <select value="" disabled={!snippetsOf("setup").length}
               title={snippetsOf("setup").length
-                ? "Insert from Snippets"
-                : "No setup snippets saved yet — Save as snippet captures this block"}
+                ? "Replay a saved cast + wiring into this activity"
+                : "No sets saved yet — Save cast as set captures this block"}
               onchange={(e) => { if (e.target.value) importSetup(e.target.value); e.target.value = ""; }}
               class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none disabled:cursor-default">
               <option value=""></option>
@@ -462,179 +1016,320 @@
           </div>
         </div>
         <p class="mt-0 mb-2 text-[11px] text-dim">
-          The cast: what this activity involves. <b>Primary</b> is the
-          device the activity is named after — it leads the cast and is
-          what rules mean by "the primary device". Role chips wire the
-          remote's buttons and volume. Sequences are free to touch
-          anything — this list just feeds suggestions.
+          Cast <b>devices</b> from the library — each brings its member
+          entities and claims. First in the cast is <b>primary</b> (the
+          activity's face). The <b>Jobs</b> tab decides who actually does
+          what; checkboxes curate the controller's Devices list.
         </p>
-        <div class="mb-1 flex items-center justify-end gap-4 pr-9 text-[9px] font-semibold tracking-[.1em] text-dim uppercase">
-          <span title="Leads the cast; 'the primary device' in rules">Primary</span>
-          <span title="Shown in the controller's Devices list (roles stay wired either way)">On controller</span>
-        </div>
         <div class="space-y-2">
-          {#each deviceList() as ent (ent)}
-            <div class={"flex flex-wrap items-center gap-2 rounded-[8px] px-2 py-1.5 " +
-              (deviceList()[0] === ent ? "border border-note-line bg-note-bg" : "bg-inset")}>
+          {#each cast as devId (devId)}
+            {@const d = devLib[devId]}
+            <div class={"rounded-[8px] px-2.5 py-2 " + (cast[0] === devId ? "border border-note-line bg-note-bg" : "bg-inset")}>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="min-w-0 truncate text-[13px] font-semibold text-ink">{d?.name || devId}</span>
+                <span class="truncate font-mono text-[10.5px] text-faint">{devId}</span>
+                {#each Object.entries(wiring).filter(([, t]) => t === devId) as [role] (role)}
+                  <span class="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
+                {/each}
+                {#if !d}<span class="text-[11px] text-danger">not in the library</span>{/if}
+                <span class="ml-auto flex shrink-0 items-center gap-2.5">
+                  {#if cast[0] !== devId}
+                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
+                      title="Make this the primary device" onclick={() => castPrimary(devId)}>☆ primary</button>
+                  {:else}<span class="text-[11px] font-medium text-accent-text" title="Leads the cast — the activity's face">★ primary</span>{/if}
+                  <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                    title="Remove from cast — jobs it held unwire" onclick={() => removeCast(devId)}>✕</button>
+                </span>
+              </div>
+              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                {#each [...new Set(Object.values(d?.roles || {}))] as ent (ent)}
+                  <label class="inline-flex cursor-pointer items-center gap-1.5"
+                    title={tileOn(ent) ? "Shown in the controller's Devices list — untick to hide (jobs stay wired)" : "Hidden from the controller's Devices list"}>
+                    <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
+                    <span class="font-mono text-[10.5px] text-dim">{ent}</span>
+                  </label>
+                {/each}
+              </div>
+            </div>
+          {:else}
+            {#if !(a.extra_devices || []).length && !legacyEnts.length}
+              <p class="m-0 text-xs text-dim">
+                No devices cast yet — search below. Devices you pick are
+                added to your library automatically.
+              </p>
+            {/if}
+          {/each}
+          <!-- LEGACY rows (v0.53): entities wired straight into roles
+               by yaml-era activities — visible again, promotable -->
+          {#each legacyEnts as ent (ent)}
+            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
               <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
               {#each rolesOf(ent) as role (role)}
-                <button
-                  class="cursor-pointer rounded-full border-0 bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink"
-                  title="Remove role" onclick={() => toggleRole(ent, role)}>{role} ✕</button>
+                <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
               {/each}
-              {#if ROLES.some((r) => a.context?.[r] !== ent)}
-                <select
-                  value=""
-                  onchange={(e) => { if (e.target.value) toggleRole(ent, e.target.value); e.target.value = ""; }}
-                  class="ui-role-select cursor-pointer truncate rounded-full border border-line bg-transparent px-1.5 py-0.5 text-[10px] text-dim outline-none"
-                  title="Assign a role to this device">
-                  <option value="">+ role</option>
-                  {#each ROLES.filter((r) => a.context?.[r] !== ent) as r (r)}
-                    <option value={r}>{r}{a.context?.[r] ? " (from " + a.context[r].split(".").pop() + ")" : ""}</option>
-                  {/each}
-                </select>
-              {/if}
-              <span class="ml-auto flex shrink-0 items-center gap-3">
-                <button role="switch" aria-checked={deviceList()[0] === ent}
-                  class={"relative h-[16px] w-[26px] shrink-0 cursor-pointer rounded-full border-0 transition-colors " +
-                    (deviceList()[0] === ent ? "bg-accent" : "bg-line-strong")}
-                  title={deviceList()[0] === ent
-                    ? "Primary — leads the cast; 'the primary device' in rules"
-                    : "Make this the primary device"}
-                  onclick={() => setPrimary(ent)}>
-                  <span class={"absolute top-[2px] h-[12px] w-[12px] rounded-full bg-surface transition-all " +
-                    (deviceList()[0] === ent ? "left-[12px]" : "left-[2px]")}></span>
-                </button>
-                <button role="switch" aria-checked={tileOn(ent)}
-                  class={"relative h-[16px] w-[26px] shrink-0 cursor-pointer rounded-full border-0 transition-colors " +
-                    (tileOn(ent) ? "bg-accent" : "bg-line-strong")}
-                  title={tileOn(ent)
-                    ? "Shown in the controller's Devices list — click to hide (roles stay wired)"
-                    : "Hidden from the controller's Devices list — click to show"}
-                  onclick={() => toggleTile(ent)}>
-                  <span class={"absolute top-[2px] h-[12px] w-[12px] rounded-full bg-surface transition-all " +
-                    (tileOn(ent) ? "left-[12px]" : "left-[2px]")}></span>
-                </button>
-              </span>
+              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
+                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
+                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
               <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                aria-label="Remove device" title="Remove device" onclick={() => removeDevice(ent)}>✕</button>
-            </div>
-          {:else}
-            <p class="m-0 text-xs text-dim">No devices yet — add the things this activity involves. The remote can't drive what isn't cast.</p>
-          {/each}
-          <!-- picking a device ADDS it — no second button to press
-               (Suresh v0.43.8); addDevice clears the box for the next -->
-          <EntityPicker bind:value={newDev} placeholder="add a device…"
-            onchange={() => { if (newDev?.trim()) addDevice(newDev); }} />
-          {#each Object.keys(a.context || {}).filter((k) => !ROLES.includes(k) && k !== "app_class" && !deviceList().includes(a.context[k])) as slot (slot)}
-            <div class="flex items-center gap-2 px-1">
-              <span class="w-28 shrink-0 truncate font-mono text-[11.5px] text-accent" title={slot}>{slot}</span>
-              <span class="flex-1 truncate font-mono text-[11.5px] text-dim">
-                {typeof a.context[slot] === "string" ? a.context[slot] : "(map — edit in Code tab)"}
-              </span>
-              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                onclick={() => delete a.context[slot]}>✕</button>
+                title="Unwire — clears every role pointing at this entity"
+                aria-label="Remove entity" onclick={() => removeLegacyEnt(ent)}>✕</button>
             </div>
           {/each}
-        </div>
-      </div>
-      {/if}
-
-      {#if tab === "startstop"}
-      <div class="grid grid-cols-2 gap-3">
-        <Field label="Start action" hint="an Action (sequence), or a plain HA script — ＋ drafts one">
-          <ActionPicker bind:value={a.start} oncreate={() => createSeq("start")}
-            createTitle={"Create sequence “" + (a.name || id) + " — Start”"} /></Field>
-        <Field label="Stop action" hint="blank = the page's hold-Power action ends it">
-          <ActionPicker bind:value={a.stop} oncreate={() => createSeq("stop")}
-            createTitle={"Create sequence “" + (a.name || id) + " — Stop”"} /></Field>
-        <Field label="Navigate to (after start)" hint={a.screen ? "" : "＋ mints its control page — keys wired, cast pre-populated"}>
-          <div class="flex items-center gap-1.5">
-            <select
-              value={a.screen ?? ""}
-              onchange={(e) => (a.screen = e.target.value || undefined)}
-              class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2.5 py-1.5 font-[inherit] text-sm text-ink outline-none focus:border-accent/60"
-            >
-              <option value="">—</option>
-              {#if navControllers.length}
-                <optgroup label="Controllers">
-                  {#each navControllers as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
-                </optgroup>
-              {/if}
-              {#if navPages.length}
-                <optgroup label="Pages & views">
-                  {#each navPages as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
-                </optgroup>
-              {/if}
-            </select>
-            {#if !a.screen}
-              <button
-                class="shrink-0 cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2 py-1 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
-                title={"Create control page “" + (a.name || id) + "” — Now Playing + cast"}
-                onclick={createPage}>＋</button>
-            {:else}
-              <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-                title="Open this page" onclick={() => selectSlice(
-                  a.screen.startsWith("controller:")
-                    ? "controller." + a.screen.slice(11)
-                    : "screens." + a.screen)}>edit →</button>
+          <!-- entities cast DIRECTLY (no pre-wiring, no "loose" — v0.48:
+               a pre-wired device is a convenience, not a requirement) -->
+          {#each a.extra_devices || [] as ent (ent)}
+            <!-- quiet rows (v0.48.1 — "too many things competing for
+                 eye"): bg punched down to the page, hairline border -->
+            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
+              <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
+              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
+                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
+                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
+              <label class="inline-flex shrink-0 cursor-pointer items-center gap-1.5">
+                <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
+                <span class="text-[10px] text-dim">on controller</span>
+              </label>
+              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                aria-label="Remove entity" onclick={() => removeExtraEnt(ent)}>✕</button>
+            </div>
+          {/each}
+          <!-- THE UNIFIED PICKER (v0.48: BELOW the whole cast — new
+               members append at the end, so the input sits where they
+               land): type anything — a defined device, an implied ⊞
+               bundle (minted on pick), or a raw entity -->
+          <div class="relative">
+            <input bind:value={castQ} bind:this={castEl} spellcheck="false"
+              placeholder="cast a device — or type any entity…"
+              onfocus={() => { placeCast(); castOpen = true; }}
+              oninput={() => { placeCast(); castOpen = true; }}
+              onblur={() => setTimeout(() => (castOpen = false), 200)}
+              class="h-[38px] w-full rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none placeholder:text-faint focus:border-accent" />
+            {#if castOpen && castRect && (pickLib.length || pickImplied.length || pickEnts.length)}
+              <div class="fixed z-50 max-h-[320px] overflow-y-auto rounded-[9px] border border-line-strong bg-surface p-[5px] [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.3))]"
+                style="left:{castRect.left}px; top:{castRect.bottom + 4}px; width:{castRect.width}px">
+                {#each pickLib as [k, d] (k)}
+                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
+                    onmousedown={(e) => { e.preventDefault(); castLibDevice(k); }}>
+                    <span class="font-semibold">⊞ {d.name || k}</span>
+                    <span class="pl-1.5 text-[10.5px] text-dim">{Object.values(d.roles || {}).filter(Boolean).length} claims · in your library</span>
+                  </button>
+                {/each}
+                {#each pickImplied as g (g.stem)}
+                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
+                    onmousedown={(e) => { e.preventDefault(); castImplied(g); }}>
+                    <span class="font-semibold">⊞ {g.stem.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                    <span class="pl-1.5 text-[10.5px] text-dim">{g.ents.map((e) => e.split(".")[0]).join(" + ")} · will join your library</span>
+                  </button>
+                {/each}
+                {#each pickEnts as e (e.entity_id)}
+                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
+                    onmousedown={(ev) => { ev.preventDefault(); castDirect(e.entity_id); }}>
+                    <span class="font-mono text-[11.5px]">{e.entity_id}</span>
+                    <span class="pl-1.5 text-[10.5px] text-dim">{e.name && e.name !== e.entity_id ? e.name + " · " : ""}cast this entity</span>
+                  </button>
+                {/each}
+              </div>
             {/if}
           </div>
-        </Field>
-
-      </div>
-      <Switch label="Confirm before ending (press twice)"
-        bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
-      {/if}
-
-      {#if tab === "controller"}
-      {#if navCtrl}
-        <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
-          {#if navCtrl.isStock}
-            <div class="flex flex-wrap items-center gap-4">
-              <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · stock</span>
-              <Switch checked={devicesOn()} label="Auto-populate devices (this activity's cast)"
-                onCheckedChange={toggleDevices} />
-              <button
-                class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1 text-xs text-dim hover:border-accent/60 hover:text-accent"
-                title="Copy the stock surface as this activity's own editable controller"
-                onclick={() => { const iid = instantiateController(navCtrl.cid, id); if (iid) selectSlice("controller." + iid); }}
-              >⧉ Create custom copy</button>
-            </div>
-            <p class="mt-1 mb-0 text-[11px] text-dim">
-              Shared stock surface — editing it changes every activity that uses it.
-              A custom copy is yours alone.
-            </p>
-          {:else}
-            <div class="flex flex-wrap items-center gap-4">
-              <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · custom copy</span>
-              <span class="text-xs text-ink">{navCtrl.c.name}</span>
-              <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-                onclick={() => selectSlice("controller." + navCtrl.cid)}>edit →</button>
-              <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-danger hover:underline"
-                title="Point this activity back at the stock controller (removes the copy if nothing else uses it)"
-                onclick={() => revertToStock(id)}>↺ use stock</button>
-            </div>
-          {/if}
+          <div class="flex items-center">
+            <span class="flex-1 text-[10.5px] text-dim italic">⊞ devices bundle their integration siblings — tune traits any time in</span>
+            <button class="cursor-pointer border-0 bg-transparent p-0 pl-1 text-[10.5px] text-accent hover:underline"
+              onclick={() => selectSlice("devices")}>the pre-wired device library →</button>
+          </div>
         </div>
+      </div>
+      </div>
       {/if}
 
-      {#if !navCtrl}
-        <p class="m-0 text-xs text-dim">
-          {a.screen
-            ? "This activity lands on a page of its own (" + a.screen + ") — controllers are the shared stock surfaces."
-            : "No controller yet — set “Navigate to” on the Start & stop tab, or ＋ mint a control page there."}
-        </p>
+      {#if tab === "jobs"}
+      <!-- ROLES — where each control on the remote routes (v0.45.1:
+           control name + mono role key + effect tooltip; singular by
+           nature — a button press has ONE destination. Plural lives
+           where it belongs: Inputs (per-device) and Actions. -->
+      <div class="rounded-[10px] border border-line bg-tile p-3">
+        <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Roles — which device fills each role in this activity</span>
+        <span class="pl-2 text-[10.5px] text-dim italic">one device per role</span>
+        {#if a.screen && consumedRoles.length}
+          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+            <span class="text-[10px] font-semibold tracking-[.08em] text-dim uppercase">This controller consumes</span>
+            {#each consumedRoles as r (r)}
+              <span class={"rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                  (a.context?.[r] ? "bg-ok/15 text-ok" : "border border-line-strong text-dim")}
+                title={a.context?.[r] ? r + " → " + a.context[r] : r + " is unwired — its tiles hide on the remote"}>
+                {a.context?.[r] ? "●" : "○"} {r}</span>
+            {/each}
+          </div>
+          <p class="mt-1 mb-1 text-[11px] text-dim italic">hollow = unwired — those tiles simply won't exist on the remote (sometimes that's the point)</p>
+        {/if}
+        <div class="mt-2 space-y-1.5">
+          {#each ROLES as role (role)}
+            {@const cands = jobCandidates(role)}
+            {@const cur = wiring[role]}
+            {@const isEnt = typeof cur === "string" && cur.includes(".")}
+            {@const offStage = a.screen && consumedRoles.length && !consumedRoles.includes(role)}
+            <div class={"flex flex-wrap items-center gap-2.5" + (offStage ? " opacity-55" : "")}
+              title={ROLE_EFFECTS[role] + (offStage ? " — not used by this controller (kept: it applies if you switch controllers)" : "")}>
+              <span class="flex w-[210px] shrink-0 items-baseline gap-1.5">
+                <span class="text-[12.5px] text-ink-2">{ROLE_CONTROLS[role]}</span>
+                <span class="font-mono text-[10px] text-faint">{role}</span>
+              </span>
+              <select value={customJob === role ? "__custom" : (cur ?? "")}
+                onchange={(e) => { const v = e.target.value;
+                  if (v === "__custom") customJob = role;
+                  else { customJob = null; setJob(role, v || null); } }}
+                class="h-[32px] w-[320px] cursor-pointer rounded-[6px] border border-line-strong bg-field px-2 text-[12px] text-ink outline-none focus:border-accent">
+                <option value="">— nobody (unwired) —</option>
+                {#each cands as c (c)}
+                  <option value={c}>{devLib[c]?.name || c} · {devLib[c].roles[role]}{role === "commands" &&
+                    app.draft?.dialects?.[devLib[c]?.dialect]?.channels?.commands &&
+                    platformOf(devLib[c].roles[role]) === app.draft.dialects[devLib[c].dialect].channels.commands.integration
+                      ? " — " + (app.draft.dialects[devLib[c].dialect].channels.commands.label || "channel") + " ✓" : ""}</option>
+                {/each}
+                {#if isEnt && !cands.includes(cur)}
+                  <option value={cur}>{cur}</option>
+                {/if}
+                <option value="__custom">an entity directly…</option>
+              </select>
+              {#if customJob === role}
+                <div class="min-w-[220px] flex-1">
+                  <EntityPicker value="" domains={SLOT_DOMAINS[role]}
+                    placeholder="entity for this job…"
+                    onchange={(e) => { const v = (e?.target?.value || "").trim();
+                      if (v) setJob(role, v); customJob = null; }} />
+                </div>
+              {:else if consumedRoles.includes(role) && !a.context?.[role]}
+                <span class="text-[10.5px] text-dim italic">consumed — unwired hides its tiles</span>
+              {/if}
+              {#each claimTargets(role, cur) as devId (devId)}
+                <button class="cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-2 py-0.5 text-[10.5px] text-dim hover:border-accent/60 hover:text-accent"
+                  title={"This entity is in " + (devLib[devId]?.name || devId) + "'s bundle — save the wiring as a claim so every future cast fills this role by itself"}
+                  onclick={() => promoteClaim(role, cur, devId)}>↥ save claim to {devLib[devId]?.name || devId}</button>
+              {/each}
+            </div>
+          {/each}
+          <div class="flex items-center gap-2.5 pt-1.5">
+            <span class="flex w-[210px] shrink-0 items-baseline gap-1.5"
+              title="the platform's vocabulary — keys, launches, channels; usually inherited from the media_player device's bundle">
+              <span class="text-[12.5px] text-ink-2">Dialect</span>
+              <span class="font-mono text-[10px] text-faint">dialect</span>
+            </span>
+            <Select value={a.overrides?.dialect ?? ""} allowEmpty class="max-w-64"
+              options={Object.entries(app.draft?.dialects || {})
+                .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+              onchange={(e) => {
+                if (e.target.value) a.overrides = { ...(a.overrides || {}), dialect: e.target.value };
+                else if (a.overrides) { delete a.overrides.dialect;
+                  if (!Object.keys(a.overrides).length) delete a.overrides; }
+                if (a.wiring || a.cast) recompile();
+                else { a.context = a.context || {};
+                  if (e.target.value) a.context.dialect = e.target.value;
+                  else delete a.context.dialect; } }} />
+            <span class="text-[11px] text-dim">
+              {a.overrides?.dialect ? "pinned"
+                : a.context?.dialect
+                  ? "from " + (devLib[wiring.media_player]?.name || "the device") + " — " + a.context.dialect
+                  : "blank = the surface default"}
+            </span>
+          </div>
+        </div>
+      </div>
       {/if}
-      <div class="flex items-center gap-2">
-        <span class="w-28 shrink-0 text-xs font-bold text-dim">App class</span>
-        <Select value={a.context?.app_class ?? ""} allowEmpty class="max-w-56"
-          options={Object.entries(app.draft?.app_classes || {})
-            .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
-          onchange={(e) => { a.context = a.context || {};
-            if (e.target.value) a.context.app_class = e.target.value;
-            else delete a.context.app_class; }} />
-        <span class="text-[11px] text-dim">which Apps dialect this activity speaks (blank = the surface default)</span>
+
+      {#if tab === "inputs"}
+      <!-- INPUTS — Harmony Q5/Q6: what should each device be set to? -->
+      <div class="rounded-[10px] border border-line bg-tile p-3">
+        <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Inputs — what should each device be set to?</span>
+        {#if !inputTargets.length}
+          <p class="mt-2 mb-0 text-xs text-dim">Nothing in the cast can switch inputs — nothing to answer here.</p>
+        {:else}
+          <p class="mt-1 mb-2 text-[11px] text-dim">
+            Feeds the generated Start Action (switched only when not already
+            there) and State detection. “Leave it alone” is always honored;
+            a powered-off device hides its live list — type the source then.
+          </p>
+          <div class="space-y-1.5">
+            {#each inputTargets as t (t.key)}
+              {@const opts = sourcesOf(t.ent)}
+              {@const cur = inputAnswer(t.key)}
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="w-[210px] shrink-0 truncate font-[inherit] text-[12.5px] text-ink-2" title={t.ent}>{t.name}</span>
+                <select value={typingSrc === t.key ? "__type" : cur}
+                  onchange={(e) => { const v = e.target.value;
+                    if (v === "__type") typingSrc = t.key;
+                    else { typingSrc = null; setInput(t.key, v); } }}
+                  class="h-[32px] w-[320px] cursor-pointer rounded-[6px] border border-line-strong bg-field px-2 text-[12px] text-ink outline-none focus:border-accent">
+                  <option value="__unset">— not answered —</option>
+                  <option value="__ignore">Leave it alone (none / ignore)</option>
+                  {#each opts as src (src)}<option value={src}>{src}</option>{/each}
+                  {#if cur !== "__unset" && cur !== "__ignore" && !opts.includes(cur)}
+                    <option value={cur}>{cur}</option>
+                  {/if}
+                  <option value="__type">type a source…{opts.length ? "" : " (device off — list hidden)"}</option>
+                </select>
+                {#if typingSrc === t.key}
+                  <input placeholder="exact source name…" spellcheck="false"
+                    onchange={(e) => { const v = e.target.value.trim();
+                      if (v) setInput(t.key, v); typingSrc = null; }}
+                    class="h-[32px] w-[220px] rounded-[6px] border border-line-strong bg-field px-2 font-mono text-[12px] text-ink outline-none focus:border-accent" />
+                {:else if cur === "__unset"}
+                  <span class="text-[10.5px] text-dim italic">unanswered — the dot stays hollow</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      {/if}
+
+      {#if tab === "actions"}
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Start action" hint="an Action (sequence), or a plain HA script — ＋ drafts one">
+            <ActionPicker bind:value={a.start} oncreate={() => createSeq("start")}
+              createTitle={"Create sequence “" + (a.name || id) + " — Start”"} /></Field>
+          <Field label="Stop action" hint="blank = the page's hold-Power action ends it">
+            <ActionPicker bind:value={a.stop} oncreate={() => createSeq("stop")}
+              createTitle={"Create sequence “" + (a.name || id) + " — Stop”"} /></Field>
+        </div>
+        <!-- GENERATION (docs/wizard.md): drafts you own — power never guessed -->
+        <div class="rounded-[10px] border border-line bg-tile p-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Generate from the answers</span>
+            <Button size="sm" onclick={() => writeGenerated("start", buildStartActions())}
+              title="Set state → best-effort wakes → cold-start blocks → input switches (from Devices + Inputs)">⚙ Start Action</Button>
+            <Button size="sm" onclick={() => writeGenerated("stop", buildStopActions())}
+              title="Clears the activity state; turns off ONLY what's checked below">⚙ Stop Action</Button>
+          </div>
+          <p class="mt-1 mb-2 text-[11px] text-dim">
+            The draft is an ordinary editable Action. Regenerating updates it
+            in place only while untouched — once you've edited it, a
+            <span class="font-mono">_v2</span> is minted beside it, never over it.
+          </p>
+          <p class="mt-0 mb-1 text-[10px] font-semibold tracking-[.08em] text-dim uppercase">When this activity ends, turn off…</p>
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            {#each cast as devId (devId)}
+              {@const d = devLib[devId]}
+              {#if d?.traits?.never_off}
+                <span class="inline-flex items-center gap-1.5 text-[12px] text-faint"
+                  title="Marked never-off in the device library — a generated Stop will never touch it">🔒 {d.name || devId}<span class="text-[10px] italic">never off</span></span>
+              {:else}
+                <label class="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-2">
+                  <input type="checkbox" checked={(a.stop_off || []).includes(devId)}
+                    onchange={() => toggleStopOff(devId)} class="h-3 w-3" />
+                  {d?.name || devId}
+                </label>
+              {/if}
+            {:else}
+              <span class="text-[11px] text-dim italic">cast devices appear here</span>
+            {/each}
+          </div>
+          <p class="mt-1.5 mb-0 text-[10.5px] text-dim italic">
+            nothing checked = the generated Stop only clears the activity
+            state — power is never guessed (the Harmony lesson)
+          </p>
+        </div>
+        <Switch label="Confirm before ending (press twice)"
+          bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
       </div>
       {/if}
 
@@ -657,11 +1352,21 @@
           <span class="shrink-0 text-[11px] font-bold tracking-[.07em] text-dim uppercase">State — when is this activity ON?</span>
           <div class="w-72 shrink-0"><Select value={mode(a)} onchange={(e) => setMode(a, e.target.value)}
             options={[
-              { value: "none", label: "From activity select (default)" },
+              { value: "none", label: impliedWitness
+                  ? "Implied — primary device's player (default)"
+                  : "From activity select (default)" },
               { value: "all", label: "Device rules — ALL must match" },
               { value: "any", label: "Device rules — ANY may match" },
               { value: "any_state", label: "Primary entity in any of…" },
             ]} /></div>
+          {#if stateDisplay}
+            <Button size="sm" onclick={generateState}
+              title={"From the answers: " + stateDisplay.ent + " on + source = " + stateDisplay.src}>⚙ From inputs</Button>
+          {/if}
+          {#if primaryMp}
+            <Button size="sm" onclick={generatePrimaryState}
+              title={"ON while " + primaryMp + " is on/playing/paused/idle — right for devices that genuinely power off (the projector); wrong for never-off streamers (the Fire TV)"}>⚙ From primary device</Button>
+          {/if}
           <span class="min-w-0 flex-1"></span>
           {#if a.state}
             <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
@@ -681,6 +1386,14 @@
             </select>
           </div>
         </div>
+        {#if !a.state && impliedWitness}
+          <p class="mt-1 mb-0 text-[11px] text-dim">
+            No rule authored — the remote implies ON while
+            <span class="font-mono text-[10.5px]">{impliedWitness}</span> is
+            on/playing/paused/idle (a manually powered-off device can't strand
+            an ON tile). Pick a mode above to override.
+          </p>
+        {/if}
         {#if a.state}
           <Field label="Watched entities" class="mb-3">
             <Chips bind:items={a.state.entities}

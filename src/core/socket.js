@@ -63,6 +63,16 @@ function send(msg, cb) {
   return msg.id;
 }
 
+/* call_service that WANTS the response (v0.51: queue adapters probe
+   platform services — sonos.get_queue, mass_queue.get_queue_items —
+   and need both the payload and the failure) */
+function callServiceResp(domain, service, data, entityId, cb) {
+  const msg = { type: "call_service", domain, service,
+    service_data: data || {}, return_response: true };
+  if (entityId) msg.target = { entity_id: entityId };
+  return send(msg, cb);
+}
+
 function callService(domain, service, data, entityId) {
   const msg = { type: "call_service", domain, service, service_data: data || {} };
   /* harmonium.* calls route to THIS remote's workspace — the ONE

@@ -85,7 +85,8 @@ await p.waitForTimeout(120);
 r.menuHold = await p.evaluate(() => S.screen);
 
 // ---- browser profile: VOL focus-follows + power scopes ----
-const p2 = await (await b.newContext({ viewport: { width: 420, height: 900 } })).newPage();
+const ctx2 = await b.newContext({ viewport: { width: 420, height: 900 } });
+const p2 = await ctx2.newPage();
 p2.on('pageerror', e => errs.push(e.message));
 await p2.goto('http://localhost:8482/index.html');
 await p2.waitForTimeout(700);
@@ -201,6 +202,86 @@ await p2.waitForTimeout(100);
 r.roomPwr = await p2.evaluate(() => window._sent.filter(m => m.type === 'call_service')
   .map(m => m.service + '@' + ((m.target || {}).entity_id || '')));
 r.roomPwrFirst = roomFirst;
+
+// ---- KEY CAPTURE (v0.55 — Suresh: "we need a v1 capture helper"):
+//      virtual keys: screen — every key logs a row (mapped shows its
+//      resolution, unmapped gets the accent ring) and is SWALLOWED
+//      (a captured Escape/back must not navigate); ‹ chevron exits
+//      v0.56 — CAPTURE-ASSIGN: the profile's soft_layout renders as
+//      THE REMOTE (slot tiles, blanks included); press a key, tap the
+//      slot, 💾 Save writes remotes.<device>.keymap through the
+//      Studio API and applies it to the LIVE keymap immediately.
+let postedCfg = null;
+const stubCfg = {
+  version: 2, remotes: { default: { capabilities: ['touch', 'pointer'] } },
+  keymap: { Escape: 'back' }, screens: {}, global: {},
+};
+await ctx2.route('**/api/harmonium/config*', route =>
+  route.request().method() === 'POST'
+    ? (postedCfg = route.request().postDataJSON(),
+       route.fulfill({ json: { ok: true, workspace: 'main', deployed: 'stub' } }))
+    : route.fulfill({ json: stubCfg }));
+
+// a described remote: two custom slots (Suresh's Red/Green) + a blank
+await p2.evaluate(() => {
+  CONFIG.remotes.default.soft_layout =
+    [['back', 'home', 'power'], ['Red', 'Green', null]];
+  navigate('keys:');
+});
+await p2.waitForTimeout(150);
+await p2.keyboard.press('Escape');       // maps to back — must NOT navigate
+await p2.keyboard.press('F7');           // unmapped — the pending capture
+await p2.waitForTimeout(200);
+r.capture = await p2.evaluate(() => ({
+  stayed: S.screen === 'keys:',                       // back was swallowed
+  rows: [...document.querySelectorAll('#grid [id^="tile_kc_"] .lbl')]
+    .map(e => e.textContent).filter(t => t.includes('·')).slice(0, 2),
+  mappedSub: [...document.querySelectorAll('#grid [id^="tile_kc_"] .sub')]
+    .some(e => e.textContent.includes('→ back')),
+  unmappedRing: !!document.querySelector('#tile_kc_0.tacc'),   // accent = unmapped
+}));
+
+// the remote is drawn from the layout: named slots, blank stays blank
+r.slots = await p2.evaluate(() => ({
+  labels: [...document.querySelectorAll('#grid [id^="tile_ks_"] .lbl')]
+    .map(e => e.textContent),
+  blankIsBlank: document.querySelector('#tile_ks_1_2 .lbl').textContent === '',
+  backKnown: document.querySelector('#tile_ks_0_0 .sub').textContent.includes('Escape'),
+  redUnassigned: document.querySelector('#tile_ks_1_0 .sub').textContent === 'unassigned',
+  pendingShown: document.querySelector('#tile_kc_hint .lbl').textContent.includes('F7'),
+}));
+
+// tap the Red slot: the pending F7 becomes Red's key, live and unsaved
+await p2.click('#tile_ks_1_0');
+await p2.waitForTimeout(200);
+r.assign = await p2.evaluate(() => ({
+  sub: document.querySelector('#tile_ks_1_0 .sub').textContent,   // F7
+  lit: document.querySelector('#tile_ks_1_0').classList.contains('on'),
+  pendingCleared: document.querySelector('#tile_kc_hint .lbl').textContent
+    .startsWith('Press a key'),
+  logHealed: [...document.querySelectorAll('#grid [id^="tile_kc_"] .sub')]
+    .some(e => e.textContent.includes('→ Red')),
+  saveArmed: document.querySelector('#tile_kc_save .lbl').textContent.startsWith('Save 1'),
+  // a custom slot carries no glyph — its NAME is the legend
+  customGlyphless: document.querySelector('#tile_ks_1_0').classList.contains('noglyph'),
+  blankFaded: document.querySelector('#tile_ks_1_2').classList.contains('kblank'),
+  stdGlyph: document.querySelector('#tile_ks_0_0 .ic').textContent, // '↩'
+}));
+
+// 💾 Save: GET the workspace config, merge, POST it back, apply live
+await p2.click('#tile_kc_save');
+await p2.waitForTimeout(500);
+r.save = {
+  posted: !!postedCfg,
+  keymapEntry: postedCfg && postedCfg.remotes.default.keymap.F7,   // 'Red'
+  inheritedGlobal: postedCfg && postedCfg.remotes.default.keymap.Escape, // 'back'
+  liveKeymap: await p2.evaluate(() => KEYMAP.F7),                  // 'Red'
+  drained: await p2.evaluate(() => Object.keys(S.keyAssign).length), // 0
+};
+
+await p2.click('#backBtn');
+await p2.waitForTimeout(150);
+r.captureExit = await p2.evaluate(() => S.screen);
 
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));

@@ -84,7 +84,7 @@ await p.waitForTimeout(1500);
 
 const cardTab = name => p.evaluate(n => {
   [...document.querySelectorAll('button')]
-    .filter(b => b.textContent.trim().startsWith(n))
+    .filter(b => b.textContent.trim().startsWith(n) && !b.closest('#nav'))
     .forEach(b => b.click());
 }, name);
 
@@ -202,8 +202,11 @@ await p.evaluate(() => {
 });
 await p.waitForTimeout(900);
 r.liveEdit = await fr.evaluate(() => {
+  /* v0.46.1: the player is PURE $context — an activity must be live
+     for its tiles to exist (the house defaults are gone by doctrine) */
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} });
   navigate('controller:tv');
-  return document.querySelector('#tile_t_np .lbl').textContent;
+  return document.querySelector('#tile_t_np .lbl')?.textContent || null;
 });
 
 // 5. soft remote key reaches the engine
@@ -211,6 +214,62 @@ await fr.evaluate(() => { navigate('porch', true); });
 await p.click('#soft button[data-k="ArrowDown"]');
 await p.waitForTimeout(250);
 r.softKey = await fr.evaluate(() => S.focusId);
+
+// 5b. SOFT-REMOTE LAYOUT is per-profile DATA, edited in place
+//     (v0.54 — Suresh: "mirror the remote… mute blank menu";
+//      v0.56 — the REMOTE-CREATION screen: cells are free text over a
+//      datalist, so a CUSTOM slot name ("Red") types straight in and
+//      renders by fallback; empty stays a blank spacer)
+await p.click('#softEdit');
+await p.waitForTimeout(200);
+await p.evaluate(() => {
+  const cells = [...document.querySelectorAll('#soft input')];
+  const last = cells.slice(-3);                    // bottom row cells
+  const set = (el, v) => { el.value = v;
+    el.dispatchEvent(new Event('change', { bubbles: true })); };
+  set(last[0], 'mute'); set(last[1], ''); set(last[2], 'Red');
+});
+await p.click('#softDone');
+await p.waitForTimeout(200);
+r.softLayout = await p.evaluate(() => {
+  const rows = [...document.querySelectorAll('#soft > div')];
+  const lastRow = rows[rows.length - 1];
+  const red = document.querySelector('#soft button[data-btn="Red"]');
+  return {
+    bottom: [...lastRow.children].map(el =>
+      el.dataset?.btn || (el.tagName === 'SPAN' ? '·' : el.tagName)),
+    editorClosed: !document.querySelector('#soft input'),
+    holdStill: !!document.getElementById('softHold'),
+    datalist: document.querySelectorAll('#softbtns option').length >= 15,
+    // custom slot: fallback glyph is the name, label is it uppercased,
+    // and it renders DISABLED until a key is captured for it
+    customGlyph: red && red.textContent.replace(/\s+/g, '') === 'RedRED',
+    customUnmapped: red ? red.disabled : null,
+  };
+});
+
+// 5c. ＋ NEW REMOTE PROFILE — naming a remote is where describing one
+//     starts; the blank profile is capabilities + an empty keymap
+//     (the keys arrive from the engine's capture-assign screen)
+const devBefore = await p.evaluate(() => document.getElementById('devSel').value);
+await p.click('#devNew');
+await p.waitForTimeout(150);
+await p.evaluate(() => {
+  const i = document.getElementById('devNewId');
+  i.value = 'RS 90'; i.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await p.click('#devNewAdd');
+await p.waitForTimeout(300);
+r.newProfile = await p.evaluate(() => ({
+  selected: document.getElementById('devSel').value,
+  inList: [...document.querySelectorAll('#devSel option')].map(o => o.value).includes('rs_90'),
+}));
+// back to the profile the rest of the suite expects
+await p.evaluate((d) => {
+  const s = document.getElementById('devSel');
+  s.value = d; s.dispatchEvent(new Event('change', { bubbles: true }));
+}, devBefore);
+await p.waitForTimeout(300);
 
 // 6. invalid JSON flags, does not clobber the draft
 await p.evaluate(() => {
@@ -235,33 +294,19 @@ r.save = {
   status: await p.evaluate(() => document.getElementById('status').textContent)
 };
 
-// 8. SCRATCH: adding an activity generates its tile in the preview
-//    (no device/entity required)
-await p.click('#wsScratch');
-await p.waitForTimeout(700);
-/* workspaces land on the MAP now — enter the starter room first */
-await navClick('New Room');
-await p.waitForTimeout(400);
-await p.evaluate(() => {
-  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add activity'))?.click();
-});
-await p.waitForTimeout(900);
-r.scratchAdd = await fr.evaluate(() => ({
-  screen: S.screen,
-  genTile: !!document.querySelector('[id^="tile_acts"]'),
-  label: document.querySelector('[id^="tile_acts"] .lbl')?.textContent || null
-}));
-await p.click('#wsLive');
-await p.waitForTimeout(500);
-
 // 9. NEW-ACTIVITY fast path: the id AUTO-FILLS from the display name
-//    on blur (room-prefixed slug), refs stay honest
+//    on blur (room-prefixed slug), refs stay honest. (v0.53: the old
+//    section 8 SCRATCH test went with the scratch workspace — its
+//    generated-tile assert lives here now, on the live draft.)
 await navClick('Veranda'); /* section 3 renamed the room */
 await p.waitForTimeout(400);
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add activity'))?.click();
 });
-await p.waitForTimeout(500);
+await p.waitForTimeout(900);
+r.addGen = await fr.evaluate(() => ({
+  genTile: !!document.querySelector('[id^="tile_acts"]'),
+}));
 await p.evaluate(() => {
   const inp = [...document.querySelectorAll('input')].find(i => i.value === 'New Activity');
   inp.focus();
@@ -278,7 +323,7 @@ r.autoId = await p.evaluate(() => ({
 // 10. ＋ on an empty Start action opens a DRAFT in the Actions editor:
 //     seeded, NOT linked until Confirm; Confirm links + returns to the
 //     origin view with the activity card re-opened
-await cardTab('Start & stop');
+await cardTab('Actions');
 await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Watch Bluray — Start"]')?.click();
@@ -296,7 +341,7 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Confirm & link'))?.click();
 });
 await p.waitForTimeout(700);
-await cardTab('Start & stop');
+await cardTab('Actions');
 await p.waitForTimeout(200);
 r.createSeq.linked = await p.evaluate(() =>
   [...document.querySelectorAll('select')].some(
@@ -306,7 +351,7 @@ r.createSeq.cardReopened = await p.evaluate(() =>
 
 // 10b. the other half: ＋ on Stop, then DISCARD — nothing linked,
 //      the draft is deleted, and we land back on the card
-await cardTab('Start & stop');
+await cardTab('Actions');
 await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Watch Bluray — Stop"]')?.click();
@@ -316,7 +361,7 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Discard'))?.click();
 });
 await p.waitForTimeout(600);
-await cardTab('Start & stop');
+await cardTab('Actions');
 await p.waitForTimeout(200);
 r.discard = await p.evaluate(() => ({
   noLink: ![...document.querySelectorAll('select')].some(
@@ -331,15 +376,16 @@ await p.evaluate(() => {
   /* open the card only if it's CLOSED (a tab bar means open — the
      draft-confirm return leaves it open on some tab) */
   if (![...document.querySelectorAll('button')]
-      .some(b => b.textContent.trim().startsWith('Devices & roles')))
+      .some(b => b.textContent.trim().startsWith('Roles') && !b.closest('#nav')))
     [...document.querySelectorAll('.font-semibold')]
       .find(el => el.textContent === 'Watch Bluray')?.closest('button')?.click();
 });
 await p.waitForTimeout(300);
-await cardTab('Devices & roles');
+await cardTab('Setup');
 await p.waitForTimeout(200);
 await p.evaluate(() => {
-  const inp = [...document.querySelectorAll('input')].find(i => i.placeholder === 'add a device…');
+  const inp = [...document.querySelectorAll('input')]
+    .find(i => i.placeholder === 'cast a device — or type any entity…');
   inp.focus();
   inp.value = 'demo';
   inp.dispatchEvent(new Event('input', { bubbles: true }));
@@ -376,7 +422,7 @@ r.allCardsOpen.crashes = errs.length;
 // 11a. ＋ Create control page: mints the controller view AND jumps
 //      into it as a PAGE DRAFT (the generalized ＋ contract); Keep
 //      returns to the card with the link in place
-await cardTab('Start & stop');
+await cardTab('Setup');
 await p.waitForTimeout(200);
 await p.evaluate(() => {
   document.querySelector('button[title*="Create control page"]')?.click();
@@ -390,7 +436,7 @@ await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.includes('Keep this page'))?.click();
 });
 await p.waitForTimeout(600);
-await cardTab('Start & stop');
+await cardTab('Setup');
 await p.waitForTimeout(200);
 r.createPage.linked = await p.evaluate(() =>
   [...document.querySelectorAll('select')].some(s => s.value === 'veranda_watch_bluray'));
@@ -701,7 +747,8 @@ r.secSwitch.backOn = await presetCount();
 r.ws = { pills: await p.evaluate(() => ({
   main: document.getElementById('wsLive')?.textContent,
   den: document.getElementById('ws_den')?.textContent,
-  scratch: !!document.getElementById('wsScratch'),
+  /* v0.53: scratch is GONE — no pill, no manager row */
+  scratchGone: !document.getElementById('wsScratch'),
 })) };
 await p.click('#ws_den');
 await p.waitForTimeout(900);
@@ -716,7 +763,7 @@ await p.waitForTimeout(400);
 r.ws.manager = await p.evaluate(() => ({
   mainRow: document.body.textContent.includes('repo-built'),
   denEditing: document.body.textContent.includes('editing now'),
-  scratchRow: document.body.textContent.includes('this browser only'),
+  scratchRowGone: !document.body.textContent.includes('this browser only'),
   createBtn: [...document.querySelectorAll('button')]
     .some(b => b.textContent.includes('Create & deploy')),
 }));

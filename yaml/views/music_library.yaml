@@ -1,79 +1,35 @@
 id: music_library
 name: Music Library
 type: library
+# LIBRARY CONTROLLER (v0.47.5, same move as the apps drawer): ships in
+# config.controllers so the music player's library button works in
+# EVERY workspace. PURE $context — the calling activity wires
+# media_player.
+library: true
 parent: music
+# v0.52.1: rides the music-player faces (--font-m1/--font-m2)
+font_scope: music
 
-context:
-  media_player: media_player.ma_sonos_basement
-  volume: media_player.ma_sonos_basement
-
-# CATEGORIES (v0.31): favorites only, published by the integration as
-# sensor.harmonium_music_<category> (hourly from Music Assistant).
-# Navigation: the header strip chips jump (touch) · CH▲▼ steps
-# categories · MENU tours them (wraps). Playlists/Artists/Albums are
-# the default sections; Tracks/Radio are one more section when wanted.
-header:
-  height: 118px
-  min_height: 96px
-  show_time: false
-
+# THE STANDARD LIBRARY (v0.49 — Suresh: "We mustn't be hardcoded to
+# ma"): one browse tile speaks HA's universal contract —
+# media_player/browse_media — so the tree is whatever the CAST PLAYER
+# serves (Sonos favorites, Music Assistant, Plex, …), played back via
+# media_player.play_media. Categories (Playlists / Albums / Artists…)
+# are the tree's top level: tap in, ‹ backs out. The MA category
+# sensors (sensor.harmonium_music_*) still publish for anyone who
+# wants curated presets_from sections — the stock view no longer
+# depends on them.
 layout:
   columns: 3
   sections:
-    - label: Playlists
-      heading: Playlists
+    - label: Library
       tiles:
-        - id: mq_pull
-          type: preset
-          activity: music
-          icon: material:swap_horiz
-          label: Pull Music Here
-          action:
-            service: music_assistant.transfer_queue
-            target: $context.media_player
-            data: { auto_play: true }
-        - id: m_pl
-          type: presets_from
-          entity: sensor.harmonium_music_playlists
-          attribute: items
-          item:
-            label: $item.name
-            icon_image: $item.image
-            icon: material:queue_music
-            activity: music
-          action:
-            service: music_assistant.play_media
-            target: $context.media_player
-            data: { media_id: $item.uri, media_type: $item.media_type }
-    - label: Artists
-      heading: Artists
-      tiles:
-        - id: m_ar
-          type: presets_from
-          entity: sensor.harmonium_music_artists
-          attribute: items
-          item:
-            label: $item.name
-            icon_image: $item.image
-            icon: material:person
-            activity: music
-          action:
-            service: music_assistant.play_media
-            target: $context.media_player
-            data: { media_id: $item.uri, media_type: $item.media_type }
-    - label: Albums
-      heading: Albums
-      tiles:
-        - id: m_al
-          type: presets_from
-          entity: sensor.harmonium_music_albums
-          attribute: items
-          item:
-            label: $item.name
-            icon_image: $item.image
-            icon: material:album
-            activity: music
-          action:
-            service: music_assistant.play_media
-            target: $context.media_player
-            data: { media_id: $item.uri, media_type: $item.media_type }
+        # SETTINGS (v0.49.1, all optional — nothing hardcoded):
+        #   media_sources: true   — also show HA's media-source://
+        #                           entries at the root (camera, TTS,
+        #                           radio browser…); hidden by default
+        #   include: [Favorites, Music Library]
+        #                         — narrow the root to these titles;
+        #                           advisory (no match → full list)
+        - id: lib
+          type: browse

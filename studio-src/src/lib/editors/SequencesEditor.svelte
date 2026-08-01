@@ -9,6 +9,7 @@
   import Select from "../components/Select.svelte";
   import CardRow from "../components/CardRow.svelte";
   import EntityPicker from "../components/EntityPicker.svelte";
+  import ServicePicker from "../components/ServicePicker.svelte";
   import JsonArea from "../components/JsonArea.svelte";
   import Button from "../components/Button.svelte";
 
@@ -58,12 +59,15 @@
     a == null || typeof a !== "object" ? "json"
     : "delay" in a ? "delay"
     : "wait_for_trigger" in a ? "wait"
+    : a.action === "harmonium.set_activity" ? "setact"
     : a.action === "script.turn_on" ? "script"
     : typeof a.action === "string" ? "service"
     : "json";
-  const TYPE_LABEL = { service: "Call service", script: "Run script", delay: "Delay", wait: "Wait for", json: "HA action (JSON)" };
+  const TYPE_LABEL = { service: "Call service", setact: "Set activity", script: "Run script", delay: "Delay", wait: "Wait for", json: "HA action (JSON)" };
   const TEMPLATES = {
     service: () => ({ action: "", target: { entity_id: "" } }),
+    setact: () => ({ alias: "Set activity state",
+      action: "harmonium.set_activity", data: { activity: "off" } }),
     script: () => ({ action: "script.turn_on", target: { entity_id: "" } }),
     delay: () => ({ delay: { seconds: 1 } }),
     wait: () => ({
@@ -78,6 +82,8 @@
     if (t === "wait") return (a.wait_for_trigger?.[0]?.entity_id || "?") + " → " + (a.wait_for_trigger?.[0]?.to ?? "?");
     if (t === "script") return a.target?.entity_id || "?";
     if (t === "service") return a.action + " → " + (a.target?.entity_id || "—");
+    if (t === "setact") return a.data?.activity === "off"
+      ? "off — ends the room" : (app.draft?.activities?.[a.data?.activity]?.name || a.data?.activity || "?");
     return "custom";
   };
   function renameSeq(oldId, newId) {
@@ -202,12 +208,23 @@
                   <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger" title="Delete step"
                     onclick={() => seq.actions.splice(i, 1)}>✕</button>
                 </div>
-                {#if t === "service"}
+                {#if t === "setact"}
+                  <Field label="Activity"
+                    hint="flips the room's routing select — display state + context; renaming an activity updates these steps automatically">
+                    <Select value={a.data?.activity ?? "off"} class="max-w-72"
+                      options={[
+                        ...Object.entries(app.draft?.activities || {})
+                          .map(([aid2, act2]) => ({ value: aid2, label: act2.name || aid2 })),
+                        { value: "off", label: "off — end the room" },
+                      ]}
+                      onchange={(e) => { a.data = a.data || {}; a.data.activity = e.target.value; }} />
+                  </Field>
+                {:else if t === "service"}
                   <div class="grid grid-cols-2 gap-2">
                     <Field label="Action (domain.service)">
-                      <Input bind:value={a.action} placeholder="media_player.turn_off" class="font-mono text-[12.5px]" />
+                      <ServicePicker bind:value={a.action} />
                     </Field>
-                    <Field label="Target entity">
+                    <Field label="Target entity" hint="optional — some services take data only">
                       <EntityPicker
                         value={a.target?.entity_id || ""}
                         oninput={(e) => { a.target = a.target || {}; a.target.entity_id = e.target.value; }}

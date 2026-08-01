@@ -26,9 +26,12 @@
     flex: 0 0 auto; background: #2c333d;
   }
   .npmeta { min-width: 0; flex: 1; }
-  .npt { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .npa { font-size: 14px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-  .npb { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  /* v0.52.1: the hero RIDES the theme (was 17px/600 + 14px + 12px
+     hardcoded — Suresh: "doesn't honor it"); defaults unchanged
+     (fs-1 15+2 = 17, fw-1 600 · fs-2 13+1 = 14 / 13-1 = 12, fw-2 400) */
+  .npt { font-size: calc(var(--fs-1) + 2px); font-weight: var(--fw-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .npa { font-family: var(--font-2); font-size: calc(var(--fs-2) + 1px); font-weight: var(--fw-2); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .npb { font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px); font-weight: var(--fw-2); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
@@ -103,3 +106,26 @@
   .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+
+  /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of
+     a described remote. Same icon-first stack as a preset tile —
+     glyph on top, the slot's NAME under it, and the raw keys it has
+     learned under that. The sub stays VISIBLE here (a preset hides
+     it): on this screen the legend is the whole point. A blank slot
+     carries no label and .lbl:empty collapses it to a spacer. */
+  .tile.wgt-kslot { min-height: 78px; padding: 10px 6px; text-align: center; }
+  .tile.wgt-kslot .top { display: block; }
+  .tile.wgt-kslot .top .ic {
+    width: auto; font-size: 22px; line-height: 1.15;
+    display: block; margin: 0 auto 3px;
+  }
+  .tile.wgt-kslot .lbl { font-size: 12px; display: block; overflow-wrap: anywhere; }
+  /* a custom slot has no glyph — its NAME is the key legend, so it
+     gets the glyph's size instead of whispering at label size */
+  .tile.wgt-kslot.noglyph .top .ic { display: none; }
+  .tile.wgt-kslot.noglyph .lbl { font-size: 17px; padding-top: 2px; }
+  .tile.wgt-kslot.kblank { opacity: .3; }
+  .tile.wgt-kslot .sub {
+    font-size: 10.5px; margin-top: 3px; opacity: .85; overflow-wrap: anywhere;
+  }
+  .tile.wgt-kslot .hint { display: none; }

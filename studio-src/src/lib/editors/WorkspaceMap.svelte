@@ -135,7 +135,7 @@
       ? "No activities on this page today — it's the hub. Any page can own them; ＋ Add activity in its editor starts one."
       : "No activities here — this page can still own them.";
     if (t === "p") return "No presets — a preset is a one-touch shortcut.";
-    return "No devices — a device card controls one thing; a doorway opens a page with more.";
+    return "No devices — a device card controls one thing; a nav card opens another page.";
   };
 
   /* ---- controllers column (mock 3a): only the ones with a story —
@@ -169,8 +169,9 @@
       Object.keys(d.activities || {}).length + " activities · " +
       (custom || controllers.length) + (custom ? " custom" : "") + " controllers";
   });
-  const address = $derived("/local/harmonium/" +
-    (app.workspace === "main" || app.workspace === "scratch" ? "" : app.workspace + "/"));
+  /* canonical address (v0.48.3): <ws>/index.html everywhere, main
+     included */
+  const address = $derived("/local/harmonium/" + app.workspace + "/index.html");
 </script>
 
 {#if d}
@@ -178,7 +179,7 @@
     <!-- title block (mock 3a): name, the numbers, the address -->
     <div>
       <h2 class="m-0 text-[20px] font-semibold tracking-[-0.01em] text-ink">
-        {app.workspaces[app.workspace]?.name || (app.workspace === "scratch" ? "Scratch" : app.workspace)} workspace
+        {app.workspaces[app.workspace]?.name || app.workspace} workspace
       </h2>
       <p class="m-0 pt-1 text-[13px] text-dim">
         {summary} · live at <span class="font-mono text-[12px]">{address}</span>
@@ -236,7 +237,7 @@
                 { k: "a", label: "Activities", n: acts(sid).length },
                 { k: "p", label: "Presets", n: presets(scr).length },
                 { k: "d", label: "Devices", n: devices(scr).length,
-                  extra: doorways(scr) ? doorways(scr) + " doorway" + (doorways(scr) > 1 ? "s" : "") : "" },
+                  extra: doorways(scr) ? doorways(scr) + " nav card" + (doorways(scr) > 1 ? "s" : "") : "" },
               ] as t (t.k)}
                 <button class={"cursor-pointer border-0 bg-transparent px-2 py-[9px] text-[12.5px] whitespace-nowrap transition-colors " +
                     (tabOf(sid, scr) === t.k
@@ -275,7 +276,7 @@
                   {/if}
                   <span class="flex-1"></span>
                   {#if tabOf(sid, scr) === "d" && doorways(scr)}
-                    <span class="text-[11px] text-faint">{doorways(scr)} doorway{doorways(scr) > 1 ? "s" : ""} among them</span>
+                    <span class="text-[11px] text-faint">{doorways(scr)} nav card{doorways(scr) > 1 ? "s" : ""} among them</span>
                   {/if}
                 </div>
               {/if}

@@ -26,9 +26,27 @@ function evalCond(c) {
   if (c.not_in) return Array.isArray(c.not_in) && !c.not_in.includes(v);
   return ACTIVE(v);
 }
+/* IMPLIED STATE (v0.48.1 — Suresh: "State is flaky... activity select
+   is on, but a device is manually switched off"): an activity with NO
+   authored state rule derives truth LIVE from its primary cast
+   device's media_player — so a manually-powered-off device can never
+   strand an ON tile behind a stale select. never_off devices (Fire
+   TV) are exempt by their own trait: their state can't witness the
+   activity, so the select stays truth there. An authored rule always
+   wins. */
+function impliedStateEnt(a) {
+  const dev = a && (CONFIG.devices || {})[(a.cast || [])[0]];
+  if (!dev || (dev.traits || {}).never_off) return null;
+  return (dev.roles || {}).media_player || null;
+}
+function impliedStateOn(a) {
+  const mp = impliedStateEnt(a);
+  if (!mp) return null;                       // no witness → select is truth
+  return ["on", "playing", "paused", "buffering", "idle"].includes(st(mp).s);
+}
 function activityStateOn(a) {
   const d = a && a.state;
-  if (!d || !d.on) return null;               // no declaration → v1 truth
+  if (!d || !d.on) return impliedStateOn(a);  // no declaration → implied, else v1
   const on = d.on;
   if (Array.isArray(on)) return on.every(evalCond);
   if (on.all) return on.all.every(evalCond);
@@ -51,8 +69,15 @@ function isActivityActive(id) {
    every screen so activity tiles stay truthful everywhere) */
 function activityStateEntities() {
   const set = new Set();
-  Object.values(CONFIG.activities || {}).forEach(a =>
-    ((a.state || {}).entities || []).forEach(e => set.add(e)));
+  Object.values(CONFIG.activities || {}).forEach(a => {
+    const ents = (a.state || {}).entities || [];
+    if (ents.length) ents.forEach(e => set.add(e));
+    else {
+      /* implied-state witnesses subscribe too — tiles stay truthful */
+      const mp = impliedStateEnt(a);
+      if (mp) set.add(mp);
+    }
+  });
   return set;
 }
 function isActActive(t) { return isActivityActive(t.activity); }
@@ -62,8 +87,27 @@ function isActActive(t) { return isActivityActive(t.activity); }
    by presets, trailing slots, and key bindings (v0.28). */
 function runAction(a) {
   if (!a) return;
+  if (a.browse !== undefined) { browseGo(a.browse); return; }
   if (a.navigate) { navigate(a.navigate); return; }
   if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
+  if (a.seek !== undefined) {
+    /* RELATIVE SEEK (v0.54): HA's media_seek is absolute-only and
+       music players have no rewind service — but the engine already
+       tracks live position (same interpolation the progress bar
+       uses), so {seek: ±N} scrubs any seekable player. */
+    const e = resolveEntity(a.target || a.entity || "$context.media_player");
+    if (!e) { flashBar("No player wired"); return; }
+    const s = st(e);
+    let p = s.a.media_position || 0;
+    if (s.s === "playing" && s.a.media_position_updated_at)
+      p += (Date.now() - Date.parse(s.a.media_position_updated_at)) / 1000;
+    let tp = p + (+a.seek || 0);
+    if (s.a.media_duration) tp = Math.min(s.a.media_duration - 1, tp);
+    tp = Math.max(0, tp);
+    callService("media_player", "media_seek", { seek_position: Math.round(tp) }, e);
+    flashBar((+a.seek >= 0 ? "⏩ +" : "⏪ −") + Math.abs(+a.seek) + "s");
+    return;
+  }
   const parts = (a.service || "").split(".");
   if (parts.length !== 2) return;
   const ref = a.target || a.entity;
@@ -75,12 +119,25 @@ function runAction(a) {
 /* Presets: one-tap content shortcuts. If the preset names an activity,
    ensure it's running first (Harmony-favorite behavior), then fire. */
 function firePreset(t) {
+  /* BROWSE taps (v0.49) navigate the library tree, no service call */
+  if (t.action && t.action.browse !== undefined) {
+    browseGo(t.action.browse);
+    return true;
+  }
   /* resolve the target NOW — a drawer screen may navigate away before
      a deferred run() fires, and $context must be the drawer's own */
   const a = t.action || {}, parts = (a.service || "").split(".");
-  const target = resolveEntity(a.target || a.entity);
+  const ref = a.target || a.entity;
+  const target = resolveEntity(ref);
   const run = () => {
     if (parts.length !== 2) return;
+    /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
+       playlist: no music activity on the deck meant no player wired,
+       and the tap just shrugged) */
+    if (ref && !target) {
+      flashBar("No player wired — start an activity that casts one");
+      return;
+    }
     callService(parts[0], parts[1], a.data, target);
   };
   if (t.activity && !isActivityActive(t.activity)) {
@@ -118,7 +175,16 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
-  runActionRef(a.start);
+  /* NO START ACTION is legal (v0.47 — Suresh's blank-player report):
+     the activity still becomes ACTIVE (display state + context) so
+     the player renders; orchestration is opt-in, not a prerequisite */
+  if (a.start) runActionRef(a.start);
+  else callService("harmonium", "set_activity", { activity: id });
+  /* the tap IS the intent: the player renders as this activity from
+     this moment (see currentActivityId's pending impersonation) —
+     never the "No activity is active" page — even while the select
+     lags or the start action fails. */
+  S.pendingActivity = id;
   if (a.screen) navigate(a.screen);
   return true;
 }

@@ -11,13 +11,12 @@ library: true
 parent: porch
 activities: [watch_firetv, watch_smart]
 
-context:
-  media_player: media_player.fire_tv_family_192_168_1_65
-  dpad: remote.fire_tv_family_192_168_1_65
-  app_class: firetv
-  power: media_player.sts_samsung_q90_porch
-  volume: media_player.sts_samsung_q90_porch
-  volume_level: media_player.ma_soundbar_porch
+# PURE $context (v0.46.1 — the collapse made this THE player, so the
+# platform doctrine applies: "hard coding to my devices means we can
+# never ship this"). Every slot is wired by the CALLING activity's
+# cast; with no activity active the surface renders almost nothing —
+# that's honesty, not breakage (the preview impersonates the activity
+# being edited).
 
 control_target:
   label: $activity.name
@@ -25,6 +24,15 @@ control_target:
   power: $context.power
   volume: $context.volume
   pass_through: [up, down, left, right, select, back, home, power]
+
+# v0.54 (Suresh: dpad holds → RWD/FFWD): the TV path speaks remote
+# commands (androidtv: REWIND / FAST_FORWARD keyevents) at the
+# activity's dpad target
+buttons:
+  left_hold: { service: remote.send_command, entity: $context.dpad,
+               data: { command: REWIND } }
+  right_hold: { service: remote.send_command, entity: $context.dpad,
+                data: { command: FAST_FORWARD } }
 
 layout:
   sections:
@@ -54,6 +62,16 @@ layout:
         - { id: t_src, type: sources, entity: $context.source_select,
             icon: material:input, label: Source, span: 2 }
 
+    # DEVICE KEYS (v0.46): GENERATED from the active dialect's key
+    # catalog — Google TV activities get Settings/Search/All apps/
+    # Quick settings/Live TV over the commands channel; dialects with
+    # no catalog (firetv today) render nothing and the whole section
+    # disappears (empty sections are skipped, heading included).
+    - heading: Device keys
+      columns: 2
+      tiles:
+        - { id: keys, type: keys }
+
     - heading: Devices
       columns: 1
       tiles:
@@ -61,4 +79,6 @@ layout:
         # entities — Watch Smart TV sees its cast, Watch Fire TV sees
         # its own. (Instances stamp the activity at attach time.)
         - { id: cast, type: devices }
-        - { id: t_pwr, type: script, entity: script.samsung_q90_porch_toggle, icon: material:power_settings_new, label: TV Power }
+        # (the old TV Power script tile was HOUSE content on the shared
+        #  player — moved out in the purification; re-add it on a room
+        #  page if wanted)

@@ -686,6 +686,1021 @@ connection flash); title size themable (--bar-fs). Answered: apps
 drawer pops because drawer:true (Key Mappings switch turns it
 off). All 10 suites green.
 
+v0.56 — **THE REMOTE-CREATION SCREEN** (Suresh, verbatim: "I want a
+'remote' creation screen where I specify the physical buttons of a
+remote, in order… I should be able to add Custom Slots (Like Red,
+Green, or '.', '..', '...') and Blanks. Then in next iteration of
+capture, I can hit the remote key, and on the tile, press to assign
+the physical key!"). Two halves, one data model — the profile's
+`soft_layout` IS the remote's description, and the Studio and the
+engine are just two ends of it.
+(1) LAYOUT BUILDER — the ✎ soft-remote editor's cells stopped being
+a closed dropdown: each slot is now an `<input list="softbtns">`,
+free text over a datalist of the standard names. Custom slot names
+type straight in and are ordinary strings in `soft_layout`; v0.54's
+OPEN BUTTON VOCABULARY makes them first-class logical buttons the
+moment a key emits one (bindable in any screen's `buttons:` map,
+zero engine edits). Empty = a real blank spacer. One renderer for
+both worlds (`defFor`): known name → its glyph + label, custom →
+the name when it fits a key, else "•". Plus ＋ next to "Preview as":
+mints a blank profile (`remotes.<id>` = touch/pointer + an EMPTY
+keymap) — naming the remote is where describing one starts; the
+keys arrive from the other half.
+(2) CAPTURE-ASSIGN — the `keys:` virtual screen (v0.55's diagnostic
+log) grew THE REMOTE: the profile's soft_layout rendered in order as
+slot tiles (new `kslot` widget — in widgets/ because WIDGETS isn't
+defined when core/ loads, the v0.51.1 lesson), blanks included and
+faded. The flow is two gestures and no typing: press a key on the
+physical remote (it becomes PENDING, named in the hint tile), tap
+the slot it belongs to. A slot's sub line is its LEGEND — every raw
+key currently routed to it, profile keymap plus this session's
+unsaved assignments — and it lights the moment it has one, so the
+unlearned buttons are the dark ones. 💾 Save GETs the workspace
+config over the same authenticated Studio API the Studio uses,
+merges into `remotes.<this device>.keymap` (inheriting the global
+keymap once, so saving never silently narrows a profile that had
+been riding it), POSTs it back for validate + deploy, and applies
+the keys to the LIVE KEYMAP immediately — the next press already
+routes. The v0.55 log survives underneath as "Recent keys", its
+resolutions re-derived on every assignment.
+LOOK: the slot grid had to read as a remote's face, not a noun
+list. Slots wear the soft remote's plain-text glyph vocabulary (no
+icon font between you and a diagnostic surface); a CUSTOM slot has
+no glyph and promotes its own name to key size instead (`noglyph`
+class via the widget's wire hook — the chassis always renders some
+icon, "•" is its fallback, so the class hides it). Verified by
+screenshot, not by assertion alone.
+TESTS: smoke-studio §5b's selectors moved from `#soft select` to
+the inputs and now set a CUSTOM name (Red → renders "Red/RED",
+disabled until a key is captured for it) + §5c (＋ mints rs_90,
+appears in the roster, selection restored); smoke-keys grew the
+whole assign flow against a route-stubbed config API — described
+remote (Red/Green/blank) renders, F7 pending, tap Red → sub F7 +
+lit + log healed to "→ Red", Save posts `remotes.default.keymap.F7
+= "Red"` with the inherited Escape→back intact, live KEYMAP.F7 is
+Red, assignments drained. 14/14 green.
+Ceremony: engine + Studio (no yaml) → bat + 🚀 (reseed OFF) +
+Studio hard refresh. PARKED, unchanged (his "One day… V2 UX"):
+photograph the physical remote and map hotspot areas onto the image.
+
+v0.55.1 — **ROLLBACK #14** (cloud workspace only; G:\ and the live
+remotes untouched). Deepest flavor again (~pre-v0.45: queue.js /
+keycap.js gone, integration pre-_bind_ws, dist from Jul 24), struck
+MID-SESSION between a passing battery and the next command.
+Standard recovery: device tar (fresh name restore14.tgz) → stage →
+md5 match (37e50854…) → fresh-dir extract → keep node_modules →
+swap → 14-marker sweep all green → rebuild (engine byte-identical
+to the shipped v0.55: 181,854) → 14/14. Nothing lost, nothing to
+redeploy. Count now 14; the mirror ceremony continues to be the
+whole disaster plan.
+
+v0.55 — **THE KEY-CAPTURE HELPER** (Suresh: "we need a v1 capture
+helper"). A VIRTUAL SCREEN — the queue: pattern — at `keys:`
+(core/keycap.js): open it, press keys on whatever remote is paired
+to the device, and every arriving event renders as a newest-first
+row — raw key · code · keyCode, plus what the CURRENT profile's
+keymap resolves it to; UNMAPPED rows wear the accent ring (those
+are the codes you're hunting on a new remote). While the screen is
+up the engine SWALLOWS all keys (a captured back must not
+navigate) — exit is the title-bar ‹ chevron (DOM click, separate
+path). Two doors: HOLD the ⓘ info icon 550ms (tap keeps the perf
+flash — diagnostic lives where the family never trips on it), or
+a nav tile via the Studio's Opens picker ("⌨ Key capture"), for
+while a new remote is being learned. Rows cap at 60. smoke-keys
+grew the section: swallow-proof (Escape stays), mapped shows
+"→ back", F7 rings unmapped, chevron exits. 14/14 green. Flow for
+the RS90: pair it → hold ⓘ → press its buttons → read codes →
+type them into Remotes & keymaps. Ceremony: bat + 🚀 (no reseed —
+engine+studio) + Studio hard refresh.
+
+v0.54 — **OPEN BUTTON VOCABULARY + RELATIVE SEEK + THE SOFT REMOTE
+IS YOURS** (Suresh: "dpad left hold and right hold to do RWD and
+FFWD" + "we need to be able to edit how the buttons look in the
+preview screen"). (1) The logical-button vocabulary is OPEN: act()'s
+default case routes ANY bound button through the screen/global
+buttons map (shared action grammar); unbound = deliberate no-op.
+New remotes mint new names (left_hold/right_hold) with zero engine
+edits. (2) {seek: ±N} action: HA's media_seek is absolute-only and
+music players have no rewind service — the engine computes live
+position (the progress bar's interpolation) and calls media_seek;
+clamps [0, duration-1]. music.yaml binds left/right_hold to ∓15s;
+tv.yaml to remote REWIND/FAST_FORWARD (androidtv keyevents —
+platform probed live). Keymaps grew ","/"." → left/right_hold
+(astrion inherits); the Astrion-side KeyMapper long-press mappings
+are Suresh's half. (3) SOFT-REMOTE LAYOUT IS PROFILE DATA:
+remotes.<id>.soft_layout (rows of logical buttons, null = blank),
+edited IN PLACE via ✎ on the preview pane — cells become dropdowns,
+＋ row/✕ row/reset, Done (beats the universal-remote integration's
+"quirky" dashboard editor by being WYSIWYG where you already are).
+Keys resolve by REVERSE keymap lookup from the PREVIEWED profile —
+every soft button sends what THAT remote would send; a button the
+profile can't emit renders disabled (the soft remote never lies).
+HOLD latch shows only when something is holdable. PARKED (his V2
+UX): photograph the physical remote and map hotspot areas — a
+first-class "mirror the remote" experience; revisit when the RS90
+lands. smoke-music §11 (scrub math, clamp, unbound-noop),
+smoke-studio §5b (bottom row → mute · blank · menu). 14/14 green.
+Ceremony: bat + 🚀 **reseed:true** (system.yaml + views changed) +
+Studio hard refresh.
+
+v0.53 — **SIX-POINT ROUND: OPEN FIELDS, SCRATCH RETIRED, SCROLL
+PADDING, HOLD LATCH, TRI-STATE DOTS, THE VANISHED CAST** (Suresh's
+batch). (1) "Why would we opine on +100? Open the fields up" — the
+Music 1º/2º theme rows grew SIZE + WEIGHT (fs-m1/fw-m1, fs-m2/
+fw-m2, each following its global unless set); the queue title's
+derived +100 is GONE — it rides fw-m1 exactly. (2) SCRATCH
+WORKSPACE RETIRED ("no point to it"): pill, manager row, publish
+paths, localStorage autosave, normalizeScratch — all excised;
+drafts + workspace duplication are the sandbox. Old hakr_scratch
+entries are ignored. (3) SCROLL PADDING: navigate() now resets
+grid.scrollTop (the grid KEEPS its scroll across innerHTML swaps,
+so the previous page's position leaked in — that's the eaten
+padding); scroll-padding-top/bottom on #grid makes hero jumps and
+focus scrolls honor the gaps. (4) SOFT-REMOTE HOLD LATCH (his
+mock): the separate BACK/HOME/PWR/MENU HOLD buttons are gone —
+one ✚ HOLD latch below the keypad; latched = accent, holdable
+keys wash pale (accent/25), next holdable press sends the hold
+variant and releases. Mute stays in the ancillary row. (5) TAB
+DOTS TRI-STATE: Inputs partially answered = LIGHTER green
+(bg-ok/45, "a valid setting"), all = full green, none = hollow;
+State finally gets a dot (lit when rules exist) beside its count.
+(6) THE VANISHED CAST: yaml-era activities (his Listen to Music)
+wire entities straight into $context — the dot derived from
+context but the cast block only rendered cast/extra_devices, so
+the entity was INVISIBLE. Legacy direct rows now render (role
+chips + ⊞ pre-wire + ✕ unwires the roles). Battery reworked
+(scratch section folded into the fast-path test; theme section
+rides the exact fields), 14/14 green. Ceremony: bat + 🚀 (no
+reseed — engine+studio only) + Studio hard refresh.
+
+v0.52.1 — **TYPE HONORS THE THEME + MUSIC FACES** (Suresh: "I set
+the Theme Primary and Secondary font, but the Play Queue doesn't
+honor it… the main title needs ellipsis — not wrapping… at some
+point we will want Primary and Secondary font for the music player
+separately"). Diagnosed in-harness first: font FACE was already
+inheriting — what didn't ride the theme was hardcoded WEIGHT/SIZE.
+(1) Queue title: font-weight 700 → calc(var(--fw-1) + 100) (bolder
+than the house, never a fixed number); (2) Now-Playing hero: .npt
+17px/600 → fs-1+2px / fw-1; .npa/.npb → --font-2/--fs-2±1/--fw-2
+(all defaults pixel-identical). (3) ELLIPSIS: qrow title AND
+artist·album line get nowrap/hidden/ellipsis (.tile.row .txt
+already min-width:0). (4) "At some point" = NOW (settings-not-
+hardcoding): theme keys font-m1/font-m2 (--font-m1/--font-m2,
+default = the global pair) restyle just the MUSIC PLAYER — screens
+declare font_scope: music (music.yaml, music_library.yaml, the
+queue's virtual screen) and navigate() toggles #app.scr-music;
+compiler passes font_scope through (build_config.py); Studio stock
++ a v0.52.1 healer stamp it onto deployed stock copies; ThemeEditor
+grew Music 1º/2º face inputs. smoke-music section 10 proves:
+queue rides Courier@fw400 (300+100 — calc-in-font-weight works),
+hero rides fw300, hub stays Georgia, ellipsis computed. 14/14
+green. Ceremony: bat + 🚀 **reseed:true** (yaml views changed) +
+Studio hard refresh.
+
+v0.52 — **THE ICON PICKER** (Suresh: "everywhere we ask for an
+icon we could have a search pane that showed the icon and its
+name?"). Yes — and now it does. New IconPicker.svelte combobox
+replaces the bare icon Input EVERYWHERE the Studio asks for an
+icon: ActivityCard identity, TileRow, DevicesEditor, AppsEditor.
+Type to search the FULL Material Symbols catalog (3,896 names,
+bundled offline from the material-symbols npm package →
+iconNames.js, +62KB in the built studio); every hit renders its
+GLYPH beside its name in a 2-col dropdown; picking writes
+`material:<name>`; free text (emoji, custom strings) stays legal
+verbatim; a live preview chip shows the current icon. Material
+Symbols font link added to studio-src/index.html (the engine
+already ships it). The web gallery, for browsing outside the
+Studio: fonts.google.com/icons (set to Material Symbols
+Outlined — the ligature set the engine's `material:` grammar
+uses). BUG EN ROUTE: ActivityCard used <IconPicker> without
+importing it → "IconPicker is not defined" blanked the whole
+card (smoke-studio's New-Activity input and smoke-devices'
+cast picker both vanished — one missing import, two suite
+failures). 14/14 green. Studio-only: ceremony = bat + Studio
+hard refresh (no 🚀, no reseed).
+
+v0.51.1 — **QUEUE ROWS, HIS MOCK** (Suresh: "we have more room
+to play with"). Rows rebuilt as a dedicated qrow WIDGET: 56px
+art left · bold title · "artist · album" joined on line two ·
+▶ HARD RIGHT. And his "highlight stays with the old top row"
+had a real cause: the ▶ was BAKED into the label at build time
+and the rows carried no entity, so the player's track changes
+never reached the screen — qrow rows now carry the player
+entity (subscribes it) and isOn is the LIVE playing test
+(title+artist, beating duplicate titles), so the mark and the
+accent highlight ride renderStates with no rebuild; the screen
+also opens FOCUSED on the playing row. Album added to both
+adapter maps. GOTCHA: WIDGETS isn't defined when core/ files
+load — qrow lives in widgets/qrow.js after registry.js.
+smoke-music: qRows asserts live mark/sub/focus; new qLive
+proves the ▶ MOVES on a track change without rebuild. 14/14
+green. Ceremony: bat (dist only — engine) + 🚀.
+
+v0.51 — **THE QUEUE + PULL RETIRED + THE FOLDER FLASH** (Suresh's
+three). (1) Pull Music Here DITCHED ("too confusing") — tile
+removed from music_library.yaml + STOCK, and a healer strips it
+from deployed stock copies; the bar's band 1 now disappears
+entirely in flat mode. (2) FOLDER FLASH fixed: on a root switch
+whose L1 wasn't cached yet, the generator stamped the raw tree
+roots into band 1 for the fetch's duration ("a row of folders
+pops onto the top row… only on first click") — the L1-missing
+branch now keeps the PREVIOUS bar; the real shape decides once
+L1 lands. (3) THE QUEUE — his spec verbatim: queue icon beside
+shuffle/repeat, full-row tiles, tap jumps to that song. The
+queue is NOT in HA's standard media_player contract, so
+core/queue.js speaks per-platform services via ADAPTER PROBING
+(no name-guessing: first adapter whose call ANSWERS owns the
+entity, cached; none answer → "Queue not available"). Probed
+LIVE on his HA: Music Assistant = mass_queue.get_queue_items
+{entity, limit_before/after} → items, jump = mass_queue.
+play_queue_item {entity, queue_item_id} (the `entity`-not-
+target 400 found empirically); Sonos = sonos.get_queue @entity
+→ [{media_title/artist/album}], jump = sonos.play_queue
+{queue_position} by list order (his deck amp's real 30-track
+queue was the probe). New callServiceResp (return_response over
+the socket), virtual queue:<mp> screen (1-col rows, ▶ marks the
+playing title, artist on the sub line via new preset
+sub_label), refetched fresh on every open. smoke-music: qOpen/
+qRows/qJump (probe fall-through MA→Sonos, ▶ mark, positional
+jump) + pull assertions retired. 14/14 green. Ceremony: bat
+(dist + studio) + 🚀.
+
+v0.50.3 — **FAVORITES PROMOTED + "DOORWAY" RETIRED** (Suresh's
+three). (1) Pull Music Here re-explained (answer): music_
+assistant.transfer_queue auto_play — yanks the playing MA queue
+from wherever it is onto THIS room's player mid-song. (2)
+FAVORITES PROMOTION: probed his live MA browse tree — NO
+favorites filter exists in the HA contract (MA's "Show
+Favorites" is an app-side toggle). But the integration's
+sensors (sensor.harmonium_music_<cat>, hourly favorite=True)
+carry exactly that — so a FLAT tree with populated sensors now
+synthesizes the Sonos silhouette: ⭐ Favorites (sensor-fed
+grid, THE DEFAULT root) + Music Library (the real tree as
+chips). Sensor items play via standard media_player.play_media
+(uri/media_type); sensors auto-subscribe on browse screens;
+sensors empty → plain flat chips, non-MA players untouched.
+BUG found mid-build: the tree-root defaulting stomped a sticky
+__synth selection before the flat branch ran (Music Library
+root un-clickable) — generator restructured: synthetic mode
+re-enters FIRST, shared synth() renderer, common grid tail.
+(3) "＋ Add doorway" → "＋ Add nav" (his call: no invented
+vocabulary) — HubEditor buttons, empty-state copy ("a nav card
+opens another page (or another workspace)"), WorkspaceMap
+counts, TileRow hints; "New doorway" seed label → "New nav".
+smoke-music grew favPromo/favPlay/favLib (default Favorites,
+sensor grid count, standard play @cast player, root flip to the
+real tree with cached chips). 14/14 green. Ceremony: bat (dist
++ studio) + 🚀.
+
+v0.50.2 — **ONE LOOK FOR EVERY TREE + DOORWAYS BETWEEN WORLDS**
+(Suresh's two). (1) WHY SONOS AND MA LOOKED DIFFERENT: the band
+algorithm was honest about tree SHAPES — Sonos nests two levels
+(Favorites/Music Library → categories), MA's top level IS the
+categories, so MA got big folder tiles where chips belong. His
+verdict ("Sonos is better") is now the rule: a FLAT tree (top
+level all pure directories whose children are items) renders its
+top level AS THE CHIPS — no roots row (the bar keeps just the
+section's own tiles, e.g. Pull); chip select/CH/swipe route to
+root selection in flat mode. Sonos unchanged. SCROLLBARS: the
+fat native bar was a Chrome rule — ::-webkit-scrollbar styling
+is IGNORED once scrollbar-width is set; both strips now use the
+standard scrollbar-width:thin + scrollbar-color pair + 6px
+breathing room below the tiles. DECK'S REDUNDANT TITLE: v0.50.2
+healer drops the 118px banner from stock browse-era
+music_library copies (Save & Deploy deck applies). (2) "WHERE
+DID THE NAV TILES GO?" — nowhere: they're the Devices section's
+"＋ Add doorway" button. What was truly missing: doorways BETWEEN
+WORKSPACES. New `ws:<id>` nav target — engine navigate() leaves
+for /local/harmonium/<id>/index.html (canonical peek, nothing
+pinned; Studio preview flashes instead of desyncing), and the
+doorway's "Opens" picker now lists other workspaces ("⇱ Deck
+(workspace)"). Porch⇄Deck: add a doorway each way, pick the
+workspace, Save & Deploy both. smoke-music grew flatTree/
+flatChip (MA shape: roots row gone, Pull stays, chips drive the
+grid). 14/14 green. Ceremony: bat (dist + studio) + 🚀.
+
+v0.50.1 — **THE STALE SEED + ROLLBACK #13** (Suresh: "my music
+assistant instance (in the porch) shows the old playlist
+version"). ROOT CAUSE CHAIN: the porch is MAIN, whose runtime
+comes from the integration STORE via harmonium.reseed — and
+(a) every 🚀 this window ran reseed:false, (b) worse, dist/
+config.json was NEVER part of the mirror ceremony, so G:\ held
+an ANCIENT repo build and the bat (which robocopies dist
+index.html + config.json) had been pushing it all along — the
+one reseed that ran integrated STALE as fresh and adopted it as
+base_main. FIX: pushed the true v0.50 build straight to
+www/harmonium/config.json (ha_write_file) + harmonium.reseed —
+merge3 gave music_library to the repo (store's old block vs a
+base that lacked the key → conflict → repo wins); deployed main
+shrank by exactly the sensor-block delta. CEREMONY AMENDED:
+dist/config.json now mirrors to G:\ with every release — a yaml
+round is bat + 🚀(reseed:true). ROLLBACK #13 mid-diagnosis
+(deepest yet — tree fell to pre-v0.46; the "missing
+workspaces.py" was its first symptom): standard G:\ restore
+(restore13.tgz, hash 9c861a7d…, 9-marker sweep) then engine
+rebuilt; bands re-verified green. Rollbacks are accelerating —
+fresh-session offer stands; PROJECT.md + G:\ carry everything.
+
+v0.50 — **THREE-BAND LIBRARY** (Suresh's mock: "90% of the time,
+the user will want Favorites >> Something… top section fixed and
+as vertically tight as possible"). The page-per-level crawl
+becomes BANDS: band 1 (fixed, tight) = the curated tree top
+(Favorites, Music Library…) PLUS the section's other tiles (Pull
+Music Here moves into the bar — render.js diverts a browse
+section's siblings to S.browse.barTiles); band 2 = the selected
+root's children AS A CHIP STRIP — only when they are ALL pure
+directories (can_expand && !can_play), which is what makes it
+service-agnostic: Sonos gets Playlists/Albums/Tracks chips, a
+Music-Assistant-shaped tree (root children ARE categories,
+their children are items) skips the strip naturally; grid =
+items only, AUTO-DESCENDED on open (root → first/default root →
+first category — `default_root: <title>` tile setting for
+taste), expandables drill IN PLACE (‹ up tile), playables play,
+playable-only roots play straight from the band. NAVIGATION per
+his three: chips strip horizontal-scrolls with a thin bar ·
+CH▲▼ steps categories with wrap (before heroCycle in input.js)
+· horizontal SWIPE on the grid steps too (pointer delta, 70px).
+NEW #brbar between banner and grid (browseBar() builds bands,
+selections sticky per session, player change resets);
+music_library.yaml + STOCK drop the 118px banner (bands want
+the pixels); browse item tiles go art-forward (58px, centered
+column); FOUND IN TESTING: the full-height trailing ▶ zone ate
+60% of a narrow 3-col tile — center taps PLAYED instead of
+drilling; .brw tiles shrink it to a 28px corner badge.
+smoke-music rewritten as the band flow (auto-descent 1-request
+chain, curated roots, Pull in bar not grid, chip tap, CH step,
+swipe wrap, play+pop, cached resume with ZERO requests, mixed
+root hides chips, deep drill). 14/14 green. Ceremony: bat (dist
++ studio) + 🚀 — no restart.
+
+v0.49.1 — **BROWSE FIELD FIXES + ROLLBACK #12** (Suresh's
+screenshots: root full of Camera/TTS junk, tapping Favorites or
+Music Library went nowhere, tiles showing "N"). INCIDENT FIRST:
+container rolled back mid-round (tests/, studio-src/, yaml/,
+browse.js gone — partial old snapshot); standard recovery from
+G:\ (restore12.tgz, fresh-named, hash-verified c69e67f3…,
+node_modules preserved, markers checked) — the mirror ceremony
+pays for itself again. THE BUGS: (1) EMPTY ID ≠ ROOT — Sonos's
+Favorites/Music Library root children carry media_content_id ""
+which browseFetch treated as "no node → root", so the tap
+re-served the cached root behind an ‹ up tile. Key is now
+(type:id), null-node-only means root, and the request always
+sends id ("" included) + type when a node is named. (2) ROOT
+CURATION AS DATA (his ruling: "We only care about Favorites and
+Music Library (but this should be a setting not hard coded)"):
+HA's media-source:// plumbing (camera, TTS, image uploads,
+radio browser) is the SERVER's junk drawer, not the player's
+library — hidden at the root BY DEFAULT, identified by id
+prefix (a fact, not a name); tile settings `media_sources:
+true` keeps it, `include: [titles]` narrows further (advisory —
+no match on another player's vocabulary → full list, never an
+empty page). Both documented in music_library.yaml. (3) THE "N"
+— brand wordmark thumbnails ("SONOS") were center-cropped by
+object-fit:cover to their middle letter; browse thumbs now
+carry icontain → object-fit:contain on a light chip.
+smoke-music grew emptyIdReq/emptyIdDrill (Favorites with id ""
+drills to its OWN children) + media-source curation assert
+(Camera/TTS absent). 14/14 green. Ceremony: bat + 🚀 (engine
+only — no restart).
+
+v0.49 — **THE STANDARD LIBRARY** (Suresh's course correction:
+"We mustn't be hardcoded to ma. There are many music services out
+there — but all should cough up those lists"). The music library
+now speaks HA's UNIVERSAL contract: `media_player/browse_media`
+serves whatever tree the CAST PLAYER has (Sonos favorites, Music
+Assistant, Plex, Squeezebox…), playback is the equally standard
+`media_player.play_media`. ENGINE: new core/browse.js —
+browseFetch over the live socket (send/pending callback), nodes
+cached per (player, node), thumbnails signed via auth/sign_path
+exactly like the HA frontend (absolute URLs pass through, 200-
+child cap); `type: browse` generator in expandTile — categories
+(Playlists/Albums/Artists…) ARE the tree's top level (his "how
+do I switch" answered by design), ‹ up tile when deep, expand
+drills, playables play, both-capable nodes get a ▶ trailing
+zone; player change resets the trail; preset widget browse taps
+navigate WITHIN the drawer (no pop), play still pops (one-shot).
+music_library.yaml: sections collapse to Pull-Music-Here (MA
+nicety, kept) + one browse tile; the MA category sensors still
+publish but nothing stock depends on them. STUDIO: STOCK_MUSIC_
+LIBRARY reshaped to match + v0.49 MIGRATION healer (stock
+music_library still on sensor.harmonium_music_* upgrades;
+custom copies untouched); v0.48.3's MA-twin seeder rule
+REVERTED before it ever deployed — wrong layer, the native
+player is the RIGHT claim under the standard contract (deck
+needs NO dropdown fix now — his existing sonos_deck_amp device
+just works). smoke-music rewritten around the browse contract
+(mocked browse_media responses: root categories render, drill-
+in doesn't pop, play_media@cast-player, resume + up, pull
+intact, controller CH still track-skip). INCIDENT (#12-adjacent,
+no rollback): a brace-blind python splice ate ~10k of
+state.svelte.js (ensureStockControllers, starterConfig);
+restored from G:\ via FRESH-NAMED tarball (the staging cache
+served a stale Jul-21 relic — hazard confirmed again), edits
+re-applied brace-matched. 14/14 green. Ceremony: bat + 🚀 (+ the
+pending v0.48.3 restart — .py unchanged in v0.49 itself).
+
+v0.48.3 — **ONE ADDRESS GRAMMAR + THE MA TWIN** (Suresh's three;
+"I hate this" round). (1) CANONICAL URLS EVERYWHERE (his ruling:
+"it should be workspacename/index.html everywhere"): main now
+gets its own entry stub (/local/harmonium/main/index.html —
+deploy() writes stubs for ALL workspaces incl. main; setup
+ensures it immediately), the workspaces API path field says
+main/ too, Studio address displays drop the main special-case,
+and the engine's canonical rewrite is now UNIVERSAL: whatever
+door you enter (bare path, stub, hidden pin), the bar ends at
+<ws>/index.html — main included, never on fallback. His "bare
+pulls up deck" was the hidden PIN from earlier provisioning —
+now the bar says deck/index.html so the pin is visible; bare
+stays only as the kiosk entry. (2) THE SILENT PLAYLIST, ACT II:
+his Listen-to-Music activity existed and the healer had run —
+but the seeder claimed media_player.sonos_deck_amp (NATIVE
+Sonos) as the player, and music_assistant.* only accepts MA's
+OWN players (media_player.ma_sonos_deck_amp sat right there).
+SEEDER RULE: when the claimed player has an MA twin
+(media_player.ma_<obj>; platform music_assistant when the
+registry confirms), the twin takes the PLAYBACK claim, the
+native keeps power/volume/source. Existing device fix is one
+dropdown in the library. (3) ACCENT, TAKE TWO ("looks blah…
+simply color the icon circle background"): v0.48.2's icon/sub
+tint reverted; the accent now paints the ICON CIRCLE (identity,
+not state), icon flips to bg ink for contrast; .tacc.row beats
+the controls.css default circle (verified headless: porch
+orange circle, dark ink). 14/14 green; workspace pin/peek
+semantics proven intact. Ceremony: bat + RESTART (.py) + 🚀.
+
+v0.48.2 — **ACCENT EARNS ITS KEEP + PROMOTE EVERYWHERE** (Suresh's
+five). (1) POWER ROLE NOT INVALIDATED — layering clarified in its
+effect copy: the role is the DEVICE-power channel (physical
+short-press power via control-target policy + $context.power
+tiles); the on-screen ⏻ ends/starts the ACTIVITY and needs no
+wiring; hold-power stays the sledgehammer. No "Activity Off"
+dropdown option — the activity path is the tap's job, not a
+wiring choice. (2) TWO TABS TWO WORKSPACES (answer, no code):
+bare /local/harmonium/ = the pinned/main world;
+/local/harmonium/<ws>/index.html = that workspace as a PEEK
+(pin=0 — no localStorage), so tabs coexist; #ws=X&pin=1 re-pins
+a browser deliberately. (3) ACCENT NOW DOES SOMETHING: the
+activity's accent color tints its tile's ON state (icon + status
+line) — generator passes a.color, makeTile sets --tacc, grid.css
+falls back to theme --on/--accent when unset (verified: porch
+orange #d97b3a renders on the lit tile). (4) ⊞ PRE-WIRE on
+directly-cast rows: mints a pre-wired device FROM the entity
+(same seeder as the picker — siblings + claims), swaps it into
+the cast in place of the bare entity, no library round-trip.
+(5) THE SILENT PLAYLIST: deck's music page was a PRE-PURIFICATION
+copy still hard-bound to the BASEMENT Sonos (baked context) —
+new PURITY HEALER strips baked context from stock media surfaces
+(tv/music/apps/music_library/media; custom copies keep theirs),
+and firePreset now SAYS "No player wired — start an activity
+that casts one" instead of shrugging when $context doesn't
+resolve. Real fix on deck: a Listen-to-Music activity casting
+the deck Sonos — activity context is what feeds the page.
+14/14 green. Ceremony: bat (dist + studio) + 🚀 — no restart.
+
+v0.48.1 — **TWO TRUTHS RECONCILED + BROWSER CHROME** (Suresh's
+six, after the live-verified v0.48 deploy — his screenshots:
+projector entities all off, tile "On"). (1+2) POWER MEANS THE
+ACTIVITY: the on-screen button bar's power (widgets/buttons.js)
+now toggles the ACTIVITY — end with the standard confirm when
+running, full start sequence when not — so select and devices
+move TOGETHER; physical short-press power keeps the v2
+control-target policy (device power stays a deliberate physical
+gesture). BROWSER CHROME: app-level ⌂ Home and ⏻ End join the
+TITLE BAR (touch clients only — physical-key remotes keep a
+clean bar; never crowds the grid), End rides endCurrentActivity's
+confirm. (6) IMPLIED STATE — the flakiness killer: an activity
+with NO authored state rule now derives truth LIVE from its
+primary cast device's media_player (on/playing/paused/buffering/
+idle), so manually powering a device off can never strand an ON
+tile behind a stale select; never_off devices (Fire TV) are
+exempt by their own trait — select stays truth there — and an
+authored rule always wins. Witness entities auto-subscribe;
+tap-to-open's select self-heal now works on implied truth too.
+Studio State tab says it: mode "none" label becomes "Implied —
+primary device's player (default)" + explanatory hint. (3) EYE
+CALM: active builder tab gets the size bump + bg-tile lift;
+directly-cast entity rows punched down to bg + 1px line border.
+(4) The CONTROLLER·STOCK switch wasn't dead — it never pushed
+the preview (toggleDevices/toggleTile now schedulePreview) and
+its copy now says what it does (the cast's Devices section on
+the controller). (5) PROMOTE A CLAIM: a role wired to a raw
+entity that lives in a cast device's bundle grows "↥ save claim
+to <device>" — the library learns the wiring (his adb-as-
+volume_level case), every future cast fills the role itself.
+smoke-v2 grew impliedState (stale select ignored, never_off
+exempt, witness subscribed) + powerActivity (confirm-then-end
+via room all_off; bar chrome visible). 14/14 green. Ceremony:
+bat (dist + studio) + 🚀 — no restart (no .py).
+
+v0.48 — **THE WORKSPACE BUG + THE TAP IS THE INTENT** (Suresh's
+seven-point report). ROOT CAUSE of BOTH the ▶ Test 500 AND the
+"tapped Watch Projector, nothing happened" flakiness — one bug:
+the generated Start's `harmonium.set_activity` step carried no
+`workspace`, the schema defaulted it to main, the deck activity
+wasn't there, the script died at pos 1 (so no wake, no select
+flip, no player). TWO-LAYER FIX (integration, .py — needs bat +
+restart): (1) `_bind_ws` — handle_run deep-copies the sequence
+and stamps its OWN workspace onto any nested harmonium.set_
+activity/run step that doesn't name one (the remote injects ws
+at its socket; HA-side script steps never pass through that
+socket — recursion covers if/then/choose/repeat); explicit
+workspace keys are respected, the STORED config is never
+mutated (duplication stays clean). (2) set_activity's workspace
+is now optional with NO default: unnamed → FIND THE OWNER
+across all workspaces (unique → use it; ambiguous → error
+naming them; user automations needn't know workspaces exist).
+ENGINE — THE TAP IS THE INTENT (his ruling: "I should never see
+that page. It should always fill in. The controller will show
+that its off"): startActivity sets S.pendingActivity; current
+ActivityId falls back to it whenever the select doesn't confirm
+an activity — the player renders AS the tapped activity from
+the tap onward (tiles show the devices' true off state), even
+while the select lags or the start FAILS. Tile truth
+(isActivityActive) untouched — select/device rules only; the
+select confirming any activity outranks pending; next tap
+overwrites. The empty-page hint now only greets sidebar
+wanderers. STUDIO ROUND: (1) "loose" RETIRED (pre-wired is a
+convenience, not a requirement — a bare entity is simply "cast
+this entity"; castLoose→castDirect). (2) PREVIEW TOGGLE in the
+tab bar (Controller · Room page) — flip the impersonated
+preview to the room page without closing the card; controller
+stays the default each open. (3) Cast picker moved BELOW the
+directly-cast entity rows (input sits where new members land).
+(4) Tabs FIRST-CLASS: 13.5px semibold ink-2 idle, bold + 3px
+accent bar active, hover underline. (5) Alignment: Navigate-to
+select + ＋ button restyled to the Select norm (h-38/rounded-4/
+bg-field), row items-end→items-start (one-sided hint no longer
+shoves its neighbour). smoke-v2 grew pendingFill (start fails →
+player filled, no hint, select still wins); 14/14 green.
+
+v0.47.8 — **"PRE-WIRED DEVICES" + SPOTLIGHT-PER-WORKSPACE**
+(Suresh's two). (1) The library's devices are **Pre-wired
+Devices** ("Physical" said what they correspond to, not what they
+ARE; of his five candidates Pre-Wired wins: Compound is false for
+the soundbar, Templated wrong — instances not templates,
+Configured/Extended say nothing; Pre-Wired names the value — the
+wiring knowledge arrives attached, claims ARE pre-answered wiring
+questions, cast one and the roles fill themselves). Nav +
+CenterPane header + builder footer + library intro copy reworded
+around the definition. (2) SPOTLIGHT clarified: one per room PER
+WORKSPACE — the select is a shared HA entity; remotes are windows
+onto a workspace, two remotes pinning the same workspace SHARE the
+spotlight (deliberate — one reality per room, the Harmony-hub
+coherence); independent spotlights in one physical room = two
+workspaces (works today, duplicated definitions the cost).
+Studio-only ceremony: bat + hard refresh.
+
+v0.47.7 — **PRIMARY-DEVICE STATE + THE TWO-TRUTHS ANSWER**
+(Suresh's three). (1) NOT A BUG: the deck tile said ON because the
+activity WAS on (his test taps started it, nothing ended it); the
+controller's "Off" was the projector DEVICE's power state on Now
+Playing. Activity state ≠ device state, both honest. Deck select
+flipped off live via the fixed service (workspace routing ✓).
+(2) "⚙ From primary device" button on the State tab: one click
+writes state = primary's media_player claim in any_state
+[on, playing, paused, buffering, idle] — right for devices that
+genuinely power off (projector), and the tooltip says why it's
+NOT the default (the Fire TV never powers off — watch_firetv
+derives from display + input instead; select stays default).
+(3) MULTI-ON answered: the SELECT is single-spotlight PER ROOM —
+it's what this remote's keys/volume/context drive, not a claim
+that only one thing is happening. Device-rule states are
+independent of the select: music's any_state rules and
+watch_firetv's display rules can BOTH be true and both tiles show
+ON; the select just decides who owns the buttons. Rooms are
+concurrent (one select each). Music-with-TV works today: both lit
+when both derive state from devices; tap between them to move the
+spotlight; confirm_switch guards the flip. Studio-only ceremony:
+bat + hard refresh.
+
+v0.47.6 — **NIGGLES ROUND: OFF, SET-ACTIVITY ROW, SERVICE PICKER**
+(Suresh's three). (1) THE 500: ▶ Test failed with "workspace 'main'
+has no activity 'off'" (traceback pulled live) — harmonium.
+set_activity's docstring always promised "off ends the room" but
+the activity lookup rejected it (off stopped being an activity in
+v0.28). INTEGRATION FIX (.py — needs HA restart!): aid=="off" flips
+the workspace's routing select(s) to off — optional `room` field
+targets one hub, omitted = every select in the workspace (All-Off
+semantics); schema gains vol.Optional("room"). Fixes ▶ Test on
+all_off AND every generated Stop. (2) SET ACTIVITY is a first-class
+sequence row: dropdown of the workspace's activities + "off — end
+the room" — nobody hand-types harmonium.set_activity or ids again;
+renames were ALWAYS safe (renameActivity's walkSetActivity updates
+the steps) and the row's hint now says so; Target-entity mystery
+answered: set_activity takes data only, no target — and the
+Call-service row's Target label now reads "optional — some services
+take data only". (3) SERVICE PICKER: /api/services loaded once
+(app.services; free-text fallback), new ServicePicker combobox
+(fixed-position dropdown, searches id + friendly name — "open
+cover" finds cover.open_cover) replaces the raw service Input.
+14/14 green. Ceremony: .py + studio (+ dist rebuilt) — bat, HA
+RESTART (integration changed!), 🚀 script reseed ON, hard refresh.
+
+v0.47.5 — **MUSIC GETS THE SAME TREATMENT** (Suresh: "we need it
+fixed for music and anything else too"). Sweep result: library-
+controller → content-screen refs were tv→apps (v0.47.4) and
+music→music_library — nothing else. (1) music_library joins the
+LIBRARY (library:true → config.controllers, drawer flag intact) —
+the music player's library button now works in every workspace;
+main is down to 3 content views (porch/comfort/overview).
+(2) PURIFIED: music.yaml + music_library.yaml house context blocks
+removed (the calling activity wires media_player — the music
+activity's own context already does); the hardcoded
+`activity: music` stamps in the drawer's preset tiles dropped
+(house refs in a library view — reached from the player the
+activity is active and $context resolves; a cold press no-ops
+honestly). Category sensors (sensor.harmonium_music_*) stay:
+integration-published, product-level. (3) STOCK_MUSIC_LIBRARY
+mirror planted by ensureStockControllers when missing — existing
+workspaces heal on load + Save & Deploy, same as the apps drawer.
+Engine untouched (v0.47.4's canonicalization already resolves
+stale navigate: music_library). smoke-music's entitiesFor address
+updated. 14/14 green. NOTE: stale STOCK COPIES in existing
+workspaces (deck's music controller still carries sonos context
+defaults from its creation-time copy) are left alone — they work,
+they're just house-flavored; delete the controller copy or
+recreate the workspace for the pure one. Ceremony: config +
+studio — bat, 🚀 script reseed ON, hard refresh, open each
+workspace + Save & Deploy to plant the drawers.
+
+v0.47.4 — **THE DRAWER JOINS THE LIBRARY** (Suresh: "The apps
+drawer doesn't work - other buttons do!" — on deck). ROOT CAUSE:
+the apps drawer was a CONTENT SCREEN (screens.apps, main only);
+the player — a library controller shipped into every workspace —
+referenced it, so its apps button dead-ended everywhere but main.
+The keys worked because they're generated INTO the player. FIXES:
+(1) views/apps.yaml gains library:true → compiles into
+config.controllers (drawer flag + parent controller:tv intact),
+travels with the player; main now 4 views. (2) ENGINE navigate()
+canonicalizes a bare ref to "controller:<id>" when the screen is
+missing but the library holds it — heals every stale
+{navigate: apps} in deployed configs and menu_hold bindings
+without touching them. (3) STOCK_APPS_DRAWER in the studio
+(exact mirror of the compiled pure drawer) planted by
+ensureStockControllers when absent — now also run in the load/
+normalize chains, so EXISTING workspaces (deck) heal on next
+Studio load + Save & Deploy. Battery shows tap→controller:apps,
+back→controller:tv; 14/14 green. KNOWN SIBLING (parked): the
+music controller's music_library drawer has the same
+content-screen problem in non-main workspaces — same treatment
+when music matters there. Ceremony: engine + config + studio —
+bat, 🚀 script WITH reseed ON, hard refresh, then open deck in
+Studio + Save & Deploy (plants the drawer there).
+
+v0.47.3 — **SLIM THEMED SCROLLBAR** (Suresh: "Dont remember seeing
+those scrollbars before" — they were ALWAYS there in desktop
+browsers: #grid overflow-y:auto + zero scrollbar styling = stock
+Windows bar; the kiosk's Android overlay bar auto-hides so it was
+never seen on-device). 6px thumb on --tile-hi, transparent track,
+Firefox scrollbar-width:thin. Engine-only; rides the next deploy.
+
+v0.47.2 — **THE SELECT FOLLOWS THE ROOM** (Suresh's deck
+split-brain, diagnosed live off his HA: rename New Room→Deck; the
+page id followed (home→deck), the integration minted
+select.…_deck_deck_activity and his tap ACTIVATED it (proving the
+v0.47 startless fix works) — but global.activity_select still
+named the OLD minted select (…_deck_home_activity, off, stale
+options): the integration wrote truth to one select while the
+remote read the other. ROOT CAUSE: the select's entity id EMBEDS
+the room id inside a string — renameScreen's KEYS walk can't see
+it. FIXES: (1) renameScreen rewrites the "_<oldId>_activity"
+suffix on global.activity_select + screens' activity_state;
+(2) normalizeSelect healer re-mints an activity_select naming a
+nonexistent room when the repair is unambiguous (exactly one room
+hub; mint pattern select.harmonium_[<ws>_]<room>_activity).
+Immediate user fix for the already-split deck workspace: Code tab
+activity_select → …deck_deck_activity, Save & Deploy (or just
+reload after this ships — the healer repairs on load + next
+save). Conceptual answer logged: controllers are PAGES — reachable
+any time, filled in by the active activity; the activity tile does
+activate+navigate. 14/14 green. Ceremony: studio-only — bat +
+hard refresh (or script.harmonium_deploy_remotes, reseed off).
+
+v0.47.1 — **ONE ADDRESS + THE EMPTY PAGE SPEAKS** (Suresh: "mixing
+all types of different url syntaxes, blank controller" — reproduced
+headless via the real stub before fixing). (1) CANONICAL ADDRESS:
+a peeked workspace rewrites the bar to its dedicated URL
+(<ws>/index.html) after config load — enter, refresh, share: always
+the same address (refresh re-enters through the v0.38 stub; guard:
+only when that ws actually loaded, never on fallback-to-main). The
+Studio header chip (App.svelte — the missed third link) + remaining
+copy now all say <ws>/index.html. Bare /local/harmonium/<ws> stays
+a 403 FOREVER: HA core's static handler owns /local and serves no
+directory index — not fixable from our side; the canonical URL is
+the answer. (2) EMPTY-PAGE HINT (engine): a page with nothing to
+render says why — controller: "No activity is active — start one
+from its room page"; hub: "Nothing here yet — add activities or
+tiles in the Studio, then Save & Deploy". FIELD NOTE: the deployed
+deck workspace really has 0 activities (verified config.deck.json)
+— his Watch Projector is an unsaved draft or another workspace;
+the blank was honest, now it's articulate. 14/14 green. Ceremony:
+engine + studio — bat, cache-clear, load_start_url, hard refresh.
+
+v0.47 — **FIELD-TEST ROUND** (Suresh's five-point report from the
+deck build-out). (1) STARTLESS ACTIVITIES ACTIVATE: startActivity
+without a start action now calls harmonium.set_activity directly —
+the activity becomes ACTIVE (display state + context) and the pure
+player renders; orchestration is opt-in, not a prerequisite (was:
+tap → nothing → select stayed off → "Watch Projector says off" +
+blank controller body). (2) DEDICATED URLS were already real
+(v0.38 stubs: www/harmonium/<ws>/index.html redirects into PEEK —
+hash survives refresh, the address IS the workspace) — but the
+Studio's links omitted index.html and HA 403s bare directories:
+WorkspacesEditor + WorkspaceMap links/copy now say
+/local/harmonium/<id>/index.html. (3) SETUP + DEVICES ARE ONE TAB
+(Suresh: "It defaults to devices and then I tab (back) to setup"):
+kind + Navigate-to + controller block + the cast in one Setup tab,
+merged completion dot (screen set AND cast non-empty), builder
+opens there. (4) INPUTS UN-GATED: input targets = every cast
+device with a source_select/media_player claim PLUS loose
+media_player entities — the LIVE source_list no longer gates the
+question (a powered-off device hides its list; his projector +
+Sonos were invisible); options harvested when present, "type a
+source…" always offered; generator resolves loose entity keys.
+14/14 suites green. Ceremony: engine + studio — bat, cache-clear,
+load_start_url, Studio hard refresh (config unchanged, no reseed).
+
+v0.46.3 — **THE COMMANDS CHANNEL IS PLUMBING** (Suresh's preview
+screenshot: "Hisense Projector ADB · Off" rendered as a device
+tile). The cast generator now SKIPS the entity wired to the
+commands channel (same spirit as the remote.* skip) unless it also
+plays media (Fire TV: one entity does both — stays) or
+device_options[ent].tile === true forces it visible. Engine-only;
+14/14 green. FIELD ANSWERS logged: workspace remote URL is
+index.html#ws=<id> (one-time sticky pin; &pin=0 peeks) — /local/
+harmonium/<id> 403s, it's not a path; blank workspaces inherit the
+PHYSICAL-DEVICE LIBRARY by design (house-wide facts, workspaces
+are remotes into the same house) — deployed config.deck.json
+verified clean (activities {}, pure player, no TV Power) so the
+projector-cast + TV Power preview was a STALE PRE-RECREATION
+DRAFT (hard refresh clears); a simple single-entity device does
+NOT need a library entry — loose is legitimate; the library earns
+its place via reuse across activities + traits + multi-entity
+claims. Ceremony: engine only — bat + Astrion cache-clear +
+load_start_url.
+
+v0.46.2 — **"PHYSICAL DEVICES" + ROLLBACK #11**. The library's UI
+name is "Physical Devices" (Suresh's ask; "Compound" rejected — the
+soundbar isn't compound, "physical" is true for every entry and
+names the exact distinction from HA's per-integration fragments).
+Nav slice + CenterPane header + builder footer link; config key
+stays `devices`. ROLLBACK #11 mid-edit (tree to Jul 23/24 —
+dialects.yaml vanished, state.svelte.js reverted; caught by a
+failed patch assertion, NOT by markers — grep before trusting):
+restored from G:\ (restore11.tgz), markers verified, patch
+re-applied to the restored tree, smoke-devices navClick updated
+for the new label. 14/14 suites green. Studio-only ceremony: bat +
+Studio hard refresh.
+
+v0.46.1 — **THE PLAYER PURIFIED + PREVIEW IMPERSONATION** (Suresh's
+screenshots: preview showed Porch devices + TV Power under a
+projector activity; Commands greyed as "not used"). Three fixes,
+one root cause — the collapse made tv.yaml THE player but it still
+carried Porch furniture: (1) tv.yaml + the apps drawer are PURE
+$context now (house default context blocks REMOVED; the hardcoded
+TV Power script tile moved out — re-add on a room page if wanted).
+With no activity active the player honestly renders almost nothing.
+(2) Which is why PREVIEW IMPERSONATION ships with it: while an
+activity card is open, the Studio tells the preview to render AS
+that activity (engine: harmonium_preview_activity message →
+S.pvActivity, preview-only, wins over the live select;
+currentActivityId guard) and parks it on the activity's landing
+surface — what you edit is what you see: YOUR cast, YOUR dialect's
+keys, YOUR apps. (3) CONSUMES-SCAN taught about generators: a
+`type: keys` tile consumes `commands` implicitly (no literal
+$context string to find) — the Roles strip and dim-state now tell
+the truth. smoke-studio's liveEdit section updated (pure player
+needs a live activity for tiles to exist). 14/14 suites green.
+NOTE for pre-existing TEST WORKSPACES: they copied the old
+house-flavored tv controller at creation — delete and recreate
+them after deploying. Ceremony: engine + config + studio — bat,
+reseed, cache-clear, load_start_url, Studio hard refresh + one
+Save & Deploy.
+
+v0.46 — **THE DIALECT ROUND: ONE PLAYER** (Suresh: "why is google
+tv player another media player…" + naming ruling "sold" on
+dialect). THE COLLAPSE: views/googletv.yaml RETIRED (_retired/) —
+it was dialect knowledge frozen into a view. The TV Media Player
+(controller:tv) is THE player: new "Device keys" section holds one
+`{type: keys}` GENERATOR tile — the engine expands the ACTIVE
+dialect's key catalog (classLaunch grammar, same as apps) over the
+commands channel. Google TV activities get Settings/Search/All
+apps/Quick settings/Live TV; firetv declares no catalog → the
+section renders NOTHING and skips itself (empty sections drop,
+heading included — hide-when-dialect-silent). Adding platform #4 =
+pure data: one dialect entry (channels + keys + apps + forbidden),
+zero new views. THE RENAME: app_classes → dialects / app_class →
+dialect EVERYWHERE ("a dialect is a platform's whole vocabulary —
+keys, launches, channels — not just its launcher grammar"; "class"
+was overloaded ×3 internally, "device class" collides with HA's
+device_class): yaml file app_classes.yaml → dialects.yaml (googletv
+entry gains the VERIFIED key catalog + the full forbidden guardrail
+list as data), compiler emits `dialects` + accepts legacy source
+keys + renames context.app_class on collect, engine resolves
+t.dialect||t.class → ctx.dialect||ctx.app_class over
+CONFIG.dialects||CONFIG.app_classes (legacy configs keep working),
+studio renamed across state/ActivityCard/DevicesEditor/AppsEditor/
+TileRow (labels: "Dialect"), healer migrates stores (app_classes
+merge → dialects, per-item key renames incl. view contexts + apps
+tiles' class attr, controller:googletv screens → controller:tv,
+stray googletv controller deleted; ordering bug found live:
+normalizeApps minted an empty dialects {} first — migration now
+MERGES). Stock GENERIC_MEDIA_CONTROLLER gains Device keys + Apps
+generator sections (scratch workspaces get the one-player anatomy
+too). smoke-googletv REWRITTEN for the one-player world: catalog
+renders on controller:tv, Settings fires keyevent 176 at the ADB
+entity, apps ride the drawer with the ACTIVITY's dialect overriding
+the drawer's house default, unwired commands → tiles AND heading
+gone + the player's own context declares no commands default.
+14/14 suites green. Ceremony: engine + config + studio ALL changed
+— bat, harmonium.reseed, Astrion cache-clear + load_start_url,
+Studio hard refresh.
+
+v0.45.2 — **THE LIBRARY IS A BYPRODUCT + THE PLATFORM FACT**
+(Suresh's workflow critique: creating an activity forced a detour
+to an "alien" Devices page; per-activity pseudo-devices piled up;
+the ADB channel was "too much guesswork"). (1) UNIFIED CAST PICKER
+in the builder's Devices tab — ONE box takes anything: library
+devices (⊞ name · n claims), IMPLIED devices (⊞ stem-grouped
+entity clusters ≥2 members, "will join your library"), raw
+entities ("cast loose"). Picking an implied device MINTS the
+bundle silently (Suresh: yes) + casts it + prefills roles — one
+gesture, no page hop. Empty-state scold + forced "define devices →"
+gone; the library link is a footnote. (2) LIBRARY DEMOTED to what
+it's for — traits + claim corrections; intro copy says devices
+"arrive here by themselves"; ← back doorway (prevKey). (3) CHANNEL
+DECLARATIONS: app_classes googletv + firetv carry
+`channels: {commands: {integration: androidtv, domain:
+media_player, label: ADB channel}}` — dialect knowledge as data,
+machine-read (first slice of the bundles-round promise).
+(4) THE PLATFORM FACT: studio fetches the HA entity registry once
+over the websocket (auth handshake, config/entity_registry/list →
+app.registry entity→platform; 6s bail; failure degrades to the
+old name-regex). seedDeviceFromEntity (shared by library seeding
+AND picker minting) now claims by INTEGRATION: preferred pass =
+push-state twins, androidtv media_player = hard commands
+assignment, gap-fill pass covers androidtv-only devices (Fire TV).
+Debate settled: commands stays ONE role (letters carry no
+semantics; no device has two channels — a future second channel
+gets a semantic name in the dialect); the activity author's
+required clue-count is ZERO. (5) VALIDATION: device claims check
+against the dialect declaration — "ADB channel ✓" / "⚠ wrong
+channel" chips in the library; Roles-tab commands candidates
+annotated "— ADB channel ✓". (6) Header per Suresh's ruling:
+"Roles — which device fills each role in this activity · one
+device per role". Snippet buttons → "Save cast as set / Use a
+set". Vocabulary settled in debate: HA gives FRAGMENTS → a DEVICE
+is the physical object reassembled → a CAST is devices grouped for
+an experience → ROLES say who does what within it; "these devices
+make up the cast for this activity" (never "the device").
+smoke-devices proves the registry beats the name (deck_proj_2, no
+_adb marker, platform androidtv → commands claim) via a faked HA
+websocket. 14/14 suites green. Ceremony: studio + config — bat,
+reseed, load_start_url, Studio hard refresh.
+
+v0.45.1 — **ROLES TAB POLISH + system→commands** (Suresh's UX
+debate: "Jobs is confusing… don't like the baby english"; ruling:
+tab = "Roles", role = "Commands"). (1) The interview questions
+REPLACED — control name leads, mono role key beside it, effect
+line as tooltip (Now Playing `media_player` "the media tile,
+transport, play/pause state" · Navigation `dpad` "arrows · select ·
+back · home — physical remote keys pass through here" · Power
+button · Volume keys · Volume readout · Source picker "whose input
+list the Source tile offers" · Commands "app launches + system
+keycodes"). Header states the doctrine settled in debate: "where
+each control on the remote routes — ONE destination per control".
+Plural lives where it belongs: Inputs (per-device input answers)
+and Actions (per-device power) — the Source-picker tooltip says so
+explicitly. Roles unconsumed by the target controller DIM (opacity
+.55 + tooltip note), never hide — they matter again on a controller
+switch. Same vocabulary applied to the Device library's claims
+table. (2) ROLE KEY RENAMED system→commands THROUGHOUT (aggressive
+— nothing in production): yaml (googletv controller ×many,
+app_classes ×13, devices.yaml claims, dialect routing), studio
+(ROLE_KEYS/ROLES/SLOT_DOMAINS), tests. Healer extended: store-side
+configs migrate device claims + activity context/wiring/overrides
+key-for-key AND swap baked "$context.system" strings in
+screens/controllers (exact-value match, never substring). Engine
+untouched ($context.* is generic). 14/14 suites green; built
+config carries 23 $context.commands refs, zero stale system refs.
+Ceremony: studio + config (engine bytes rebuilt but logic
+unchanged) — bat, reseed, load_start_url, Studio hard refresh.
+
+v0.45 — **THE DEVICE ROUND** (Suresh: "Nothing we have is in
+production so we can be aggressive in getting this right" + "tabs
+with a lit up dot when done" — the full UX-backwards overhaul from
+docs/wizard.md, phase 2 shipped in one push). THE PIECES:
+(1) FIRST-CLASS DEVICES — yaml/devices.yaml, a house-wide library:
+one entry per PHYSICAL device (even when HA sees several
+integrations — the projector bundle spans androidtv_remote + ADB),
+role CLAIMS (role → member entity: what it CAN do) + traits
+(never_off, wake, cold_start steps, wait_on/wait_timeout_s,
+settle_s, dpad_commands, app_class). Seeded: fire_tv (never_off),
+samsung_q90 (WOL cold-start + KEY_* dpad_commands as a TRAIT),
+porch_soundbar, pergola_projector. (2) RENAME: hardware profiles
+`devices`→`remotes` (engine boot.js reads remotes w/ legacy
+fallback; studio slice key remotes; healer moves old configs).
+(3) COMPILE LAYER, twice and kept in sync: activities declare
+cast:[device ids] + wiring:{role: device_id|raw entity} →
+compiled into the SAME context: map the engine has always read
+(engine unchanged). Python compile_activity_devices (yaml authors)
+= JS compileContext (studio, live on every edit). Explicit
+exceptions live in `overrides` (role pins, app_class picks) and
+always win. porch.yaml's watch_firetv/watch_smart REWRITTEN to the
+new grammar — compiled contexts byte-identical to pre-v0.45
+(verified by diff). (4) HEALER normalizeDevices: pre-v0.45 store
+configs lift automatically — profiles move to remotes, every
+activity's context becomes cast/wiring by matching the library's
+claims (unmatched → raw-entity wiring; unreproducible → overrides);
+runs before rebaseline, never dirties. (5) TABBED ACTIVITY BUILDER
+replaces the ActivityCard middle: Setup · Devices · Jobs · Inputs ·
+Actions · State, each with a COMPLETION DOT (green = answered) —
+no step-wizard, every tab addressable (the audience is
+HA-comfortable). Jobs asks the living-room questions ("Who plays
+it?" "Who switches inputs?" "Who runs system commands?") over
+cast-device candidates; raw entity stays one option deep. Inputs =
+Harmony Q5/Q6 with "Leave it alone" always offered. (6) DEVICE
+LIBRARY EDITOR (Model → Devices): claims table in the human
+grammar, traits, seed-from-an-entity (siblings stem-matched,
+jobs prefilled by domain, ADB twins → system, source_list →
+source_select). (7) GENERATION per docs/wizard.md — the prime
+directive holds: generated Start = set_activity → best-effort
+wakes (continue_on_error) → cold-start-only blocks (WOL, wait,
+settle) → conditional select_source from the Inputs answers;
+generated Stop turns off ONLY what's checked (never_off devices
+render 🔒 untouchable; nothing checked = state-clear only). Drafts
+are ordinary editable Actions; once EDITED, regeneration mints a
+_v2 beside it, never over it (generated_sig). State "⚙ From
+inputs" derives the watch_firetv-shaped detection block (display
+on + source in [answer]). (8) CONSUMES STRIP on Jobs: the
+Navigate-to surface is scanned for $context.* refs — wired ● /
+hollow ○ chips render the controller's contract at wiring time
+("system unwired → its tiles hide"). (9) Suite #14 smoke-devices
+(healer, library seeding, tabs+dots, compile parity through the
+UI, consumes, generation incl. noPowerGuess) + smoke-studio
+retargeted to the new tab grammar. 14/14 suites green. Ceremony:
+studio + engine + config all changed — bat, harmonium.reseed,
+Astrion cache-clear + load_start_url, Studio hard refresh.
+
+v0.44.1 — **PLATFORM CONTROLLER PURIFIED** (Suresh: "Hard coding
+to my devices means we can never ship this!"). The googletv
+controller's context block (projector defaults) REMOVED —
+views/googletv.yaml is now PURE $context: every slot is wired by
+the calling activity's cast, nothing house-specific ships in the
+platform layer. Doctrine settled: PLATFORM controllers/dialects
+carry zero entity ids (they're the product); HOUSE yaml (tv.yaml
+etc., his activities) is where entity ids legitimately live.
+Consequence: the controller no longer works standalone — an
+activity must cast + wire media_player/dpad/system (v0.32
+hide-unwired governs, unassisted). smoke-googletv rewritten: the
+defaults section is gone; unwired asserts every key tile hidden
+AND pureNoDefaults (config carries no deck_hisense anywhere in
+the controller). 13/13 suites green. Ceremony: config.json only —
+bat, harmonium.reseed, Astrion load_start_url, Studio hard-refresh.
+SAME SESSION, design captured in docs/wizard.md: the ACTIVITY
+WIZARD (Harmony-style, UX-backwards) — living-room questions →
+cast/roles/state-block/Start-Action draft. Prime directive: NEVER
+guess power (Harmony's fatal flaw; the Fire TV is never turned
+off) — no diff engine, generated Start Action is an editable
+draft, power-off strictly opt-in. Depends on phase-2 bundles.
+
+v0.44 — **GOOGLE TV: THE FIRST DIALECT + THE SYSTEM ROLE**
+(Suresh's composite-device design, phase 1 of 3 — additive, no
+migrations; source of truth = docs/google tv/* — every command
+VERIFIED on the deck Hisense SmartLaser). ROLLBACK #10 mid-build
+(src to Jul 23) — restored from G:\ (restore10.tgz), new yaml
+preserved and re-based onto the CURRENT class grammar (the first
+draft targeted the rolled-back engine's per-entity launch overrides;
+v0.30's app_classes is the real mechanism and is exactly the
+dialect concept). THE PIECES: (1) SYSTEM ROLE — the seventh role:
+the COMMAND channel (the ADB entity). Studio offers the chip
+(SLOT_DOMAINS media_player/remote); the engine needed NOTHING —
+$context.system resolves generically and hide-unwired already
+governs. (2) GOOGLETV APP CLASS (app_classes.yaml): 13 verified
+apps, every launch `androidtv.adb_command` + `am start -n` via
+$context.system — the remote transport routes bare packages through
+market://launch (Play-Store roulette); ADB never bounces. BritBox
+is ADB-only (britbox:// broke pairing during verification). fubo /
+espn / britbox joined the identity registry. (3) GOOGLE TV PLAYER
+controller (views/googletv.yaml): Media-Player anatomy + DEVICE
+KEYS section — Settings 176 · Search 117 (the Google-TV keyboard
+remap; 84 is voice search, lights the mic, deliberately absent) ·
+All apps 284 · Quick settings 83 · Live TV 170 — preset tiles bound
+to $context.system (unwired → hidden) + the googletv apps drawer +
+cast; context defaults = the projector, so the page works
+standalone. (4) DIALECT FILE (yaml/dialects/googletv.yaml): keys
+catalog, forbidden list (mic-mute, power, HDMI-killers, PAIRING,
+CEC), typed-search composite (117 → 6s → input text %s), quirks
+(stale app_id heal, shared ADB key) — design record now,
+machine-read in the bundles round. (5) smoke-googletv (suite #13):
+wired keys render + voice absent, Settings fires keyevent 176 at
+the ADB entity, Netflix launches am start (no market://), defaults
+keep the page usable, truly-unwired hides every key tile. 13/13
+suites green. NEXT PHASES: device bundles (first-class devices +
+devices→remotes rename) then dialect-generated device pages.
+Ceremony: config.json changed — bat, harmonium.reseed, Astrion
+load_start_url, Studio hard-refresh (engine bytes unchanged).
+
 v0.43.9b — id-follows-name made RETROACTIVE: any page whose id is
 still the starter's "home" auto-follows the name (workspaces born
 before v0.43.9 had already renamed the name, so the New-Room gate

@@ -26,7 +26,8 @@
     if (s.key === "activities") t = t.replace(" across rooms", "");
     if (s.key === "snippets") t = t === "0 saved blocks" ? "none yet" : t.replace(" saved blocks", " saved");
     if (s.key === "input") t = "tap/hold";
-    if (s.key === "theme" || s.key === "devices") t = "";
+    if (s.key === "theme" || s.key === "remotes") t = "";
+    if (s.key === "devices") t = t === "0 defined" ? "none yet" : t.replace(" defined", "");
     return t;
   };
   const isEdited = (s) => (s.sub || "").startsWith("copy of ");

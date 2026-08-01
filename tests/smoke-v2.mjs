@@ -183,6 +183,68 @@ r.actionRefs = await p.evaluate(() => {
       (m.service_data.sequence || (m.target || {}).entity_id || ''));
 });
 
+// ---- 5. PENDING IMPERSONATION (v0.48 — "I should never see that
+// page"): tap an activity whose start fails/lags (select never flips
+// here — no HA behind the mock) -> the player STILL renders as that
+// activity; the select confirming a real activity wins over pending ----
+r.pendingFill = await p.evaluate(() => {
+  S.states.set('select.harmonium_porch_activity', { s: 'off', a: {} });
+  S.pvActivity = null; S.pendingActivity = null;
+  navigate('porch', true);
+  startActivity('watch_firetv');
+  const filled = currentActivityId() === 'watch_firetv';
+  const noHint = !document.getElementById('grid').textContent
+    .includes('No activity is active');
+  S.states.set('select.harmonium_porch_activity', { s: 'music', a: {} });
+  const selectWins = currentActivityId() === 'music';
+  S.states.set('select.harmonium_porch_activity', { s: 'off', a: {} });
+  S.pendingActivity = null;
+  return { filled, noHint, selectWins };
+});
+
+// ---- 6. IMPLIED STATE (v0.48.1 — "State is flaky"): no authored rule
+// -> truth derives from the primary cast device's media_player; a stale
+// select can't strand an ON tile; never_off primaries stay select-truth ----
+r.impliedState = await p.evaluate(() => {
+  const a = CONFIG.activities.watch_smart;             // primary samsung (powers off)
+  const saved = a.state; delete a.state;
+  S.states.set('media_player.sts_samsung_q90_porch', { s: 'off', a: {} });
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_smart', a: {} });
+  const staleSelectIgnored = !isActivityActive('watch_smart');
+  S.states.set('media_player.sts_samsung_q90_porch', { s: 'on', a: {} });
+  const onWhenDeviceOn = isActivityActive('watch_smart');
+  const witnessSubscribed = activityStateEntities().has('media_player.sts_samsung_q90_porch');
+  const f = CONFIG.activities.watch_firetv;            // primary fire_tv (never_off)
+  const s2 = f.state; delete f.state;
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} });
+  const neverOffExempt = isActivityActive('watch_firetv');   // select stays truth
+  if (s2) f.state = s2;
+  if (saved) a.state = saved;
+  S.states.set('select.harmonium_porch_activity', { s: 'off', a: {} });
+  S.states.set('media_player.sts_samsung_q90_porch', { s: 'on', a: { source: 'TV/HDMI' } });
+  return { staleSelectIgnored, onWhenDeviceOn, neverOffExempt, witnessSubscribed };
+});
+
+// ---- 7. ON-SCREEN POWER = ACTIVITY TOGGLE + BAR CHROME (v0.48.1 —
+// "Power is turning off the device, not the activity" / "how do I turn
+// off the activity in a browser?") ----
+r.powerActivity = await p.evaluate(() => {
+  CAPS.delete('physical_dpad');
+  S.pendingActivity = null;
+  S.states.set('select.harmonium_porch_activity', { s: 'watch_firetv', a: {} });
+  navigate('controller:tv', true); S.stack = ['porch'];
+  window._sent.length = 0;
+  const endShown = !document.getElementById('endBtn').classList.contains('hidden');
+  const homeShown = !document.getElementById('homeBtn').classList.contains('hidden');
+  const btn = document.querySelector('#tile_t_btns2 [data-cmd="power"]');
+  btn.click();                                   // active + confirm_end -> prompt only
+  const afterFirst = window._sent.filter(m => m.type === 'call_service').length;
+  btn.click();                                   // second press -> END (room all_off)
+  const calls = window._sent.filter(m => m.type === 'call_service')
+    .map(m => m.domain + '.' + m.service);
+  return { endShown, homeShown, afterFirst, calls };
+});
+
 r.errs = errs;
 console.log(JSON.stringify(r, null, 1));
 await b.close();

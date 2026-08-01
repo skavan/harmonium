@@ -13,6 +13,7 @@
   import ActivitiesIndex from "./editors/ActivitiesIndex.svelte";
   import SequencesEditor from "./editors/SequencesEditor.svelte";
   import AppsEditor from "./editors/AppsEditor.svelte";
+  import DevicesEditor from "./editors/DevicesEditor.svelte";
   import LibraryEditor from "./editors/LibraryEditor.svelte";
   import BuiltinEditor from "./editors/BuiltinEditor.svelte";
   import ThemeEditor from "./editors/ThemeEditor.svelte";
@@ -27,7 +28,8 @@
       <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
         onclick={() => selectSlice(upTarget.key)}>↑ {upTarget.label}</button>
     {/if}
-    <span class="font-semibold">{app.selKey || "—"}</span>
+    <span class="font-semibold">{({ devices: "Pre-wired Devices", remotes: "Remotes & keymaps",
+      sequences: "Actions" })[app.selKey] || app.selKey || "—"}</span>
     <div class="flex overflow-hidden rounded-[9px] border border-line" role="tablist">
       <button id="tabVisual" role="tab" aria-selected={app.tab === "visual"}
         class={"cursor-pointer border-0 px-3 py-1 text-xs font-semibold " +
@@ -58,6 +60,8 @@
       <SequencesEditor />
     {:else if app.selKey === "apps"}
       <AppsEditor />
+    {:else if app.selKey === "devices"}
+      <DevicesEditor />
     {:else if app.selKey === "theme"}
       <ThemeEditor />
     {:else if app.selKey === "snippets"}

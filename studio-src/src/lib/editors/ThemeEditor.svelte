@@ -109,12 +109,40 @@
           class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2 py-1.5 font-[inherit] text-xs text-ink outline-none focus:border-accent/60">
           {#each WEIGHTS as w (w)}<option value={w}>{w ? w : "400 · default"}</option>{/each}
         </select>
+        <!-- v0.52.1/v0.53: the MUSIC PLAYER (controller · library ·
+             queue) carries its own full face·size·weight rows
+             (Suresh: "you have the fields right there — why not open
+             them up"); blank = follows the pair above -->
+        <span class="text-xs font-bold text-dim">Music 1º</span>
+        <input value={th["font-m1"] ?? ""} placeholder="(follows primary)" spellcheck="false"
+          onchange={(e) => set("font-m1", e.target.value)}
+          class="w-full min-w-0 rounded-[8px] border border-line bg-field px-2 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-accent/60" />
+        <input value={th["fs-m1"] ?? ""} placeholder="(primary)" spellcheck="false"
+          onchange={(e) => set("fs-m1", e.target.value)}
+          class="w-full rounded-[8px] border border-line bg-field px-2 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-accent/60" />
+        <select value={th["fw-m1"] ?? ""} onchange={(e) => set("fw-m1", e.target.value)}
+          class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2 py-1.5 font-[inherit] text-xs text-ink outline-none focus:border-accent/60">
+          {#each WEIGHTS as w (w)}<option value={w}>{w ? w : "follows primary"}</option>{/each}
+        </select>
+        <span class="text-xs font-bold text-dim">Music 2º</span>
+        <input value={th["font-m2"] ?? ""} placeholder="(follows secondary)" spellcheck="false"
+          onchange={(e) => set("font-m2", e.target.value)}
+          class="w-full min-w-0 rounded-[8px] border border-line bg-field px-2 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-accent/60" />
+        <input value={th["fs-m2"] ?? ""} placeholder="(secondary)" spellcheck="false"
+          onchange={(e) => set("fs-m2", e.target.value)}
+          class="w-full rounded-[8px] border border-line bg-field px-2 py-1.5 font-mono text-[11.5px] text-ink outline-none focus:border-accent/60" />
+        <select value={th["fw-m2"] ?? ""} onchange={(e) => set("fw-m2", e.target.value)}
+          class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2 py-1.5 font-[inherit] text-xs text-ink outline-none focus:border-accent/60">
+          {#each WEIGHTS as w (w)}<option value={w}>{w ? w : "follows secondary"}</option>{/each}
+        </select>
       </div>
       <p class="mt-3 mb-0 text-[11px] text-dim">
         Primary = labels &amp; titles · Secondary = subs &amp; hints (face
-        blank = follows primary). Faces must be available on the remote
-        (system fonts, or a family the kiosk browser ships); anything
-        exotic lives in the Code tab as raw theme keys.
+        blank = follows primary). Music 1º/2º restyle just the music
+        player — its controller, library and queue. Faces must be
+        available on the remote (system fonts, or a family the kiosk
+        browser ships); anything exotic lives in the Code tab as raw
+        theme keys.
       </p>
     </div>
   </div>

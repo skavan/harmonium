@@ -8,6 +8,7 @@
      path). Styling = column span + how a doorway renders. */
   import { app, selectSlice, beginPageDraft, showUndo, tileDirty } from "../state.svelte.js";
   import Field from "./Field.svelte";
+  import IconPicker from "./IconPicker.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
   import Segmented from "./Segmented.svelte";
@@ -44,8 +45,20 @@
     { value: "image", label: "Image — full-bleed photo tile" },
     { value: "summary", label: "Summary — live “n entities · k active” from its page" },
   ];
-  const navScreenOptions = $derived(Object.entries(app.draft?.screens || {})
-    .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
+  const navScreenOptions = $derived([
+    ...Object.entries(app.draft?.screens || {})
+      .map(([sid, s]) => ({ value: sid, label: s.name || sid })),
+    /* CROSS-WORKSPACE DOORWAYS (v0.50.2 — Suresh: "a nav tile on main
+       porch page that takes me to deck and vice versa"): ws:<id>
+       targets leave for that workspace's canonical address */
+    ...Object.entries(app.workspaces || {})
+      .filter(([wid]) => wid !== app.workspace)
+      .map(([wid, w]) => ({ value: "ws:" + wid,
+        label: "\u21f1 " + (w.name || wid) + " (workspace)" })),
+    /* v0.55: the KEY CAPTURE virtual screen \u2014 a nav tile can point at
+       it while learning a new remote (also: hold \u24d8 on the title bar) */
+    { value: "keys:", label: "\u2328 Key capture (diagnostic)" },
+  ]);
 
   /* the Type list, grouped so it reads: device + doorway (the two
      archetypes), content generators, then raw widgets for the
@@ -281,10 +294,10 @@
           <Input bind:value={tile.label} />
         {/if}
       </Field></div>
-      <div class="w-[190px] min-w-[140px] flex-1"><Field label="Icon" hint="">
-        <Input value={tile.icon_image || tile.icon || ""} placeholder="material:devices"
-          title="material:<glyph> · or an image path (/local/…) to fill the icon zone"
-          class="font-mono text-[12.5px]" onchange={(e) => setIcon(e.target.value)} />
+      <div class="w-[230px] min-w-[180px] flex-1"><Field label="Icon" hint="">
+        <IconPicker value={tile.icon_image || tile.icon || ""}
+          placeholder="search icons — or an image path (/local/…)"
+          onchange={(e) => setIcon(e.target.value)} />
       </Field></div>
       <div class="w-[150px] min-w-[120px] flex-1"><Field label="Id" hint="">
         <div class="flex h-[38px] items-center truncate rounded-[4px] bg-sunk px-[11px] font-mono text-[12px] text-dim"
@@ -329,7 +342,7 @@
                 { value: "none", label: "Nothing (readout only)" },
               ]} />
           </Field>
-          <Field label="Hold action — opens" hint="hold is the doorway verb: a page of everything this device can do">
+          <Field label="Hold action — opens" hint="hold opens a page of everything this device can do">
             <Select value={tile.target ?? ""}
               onchange={(e) => { if (e.target.value) tile.target = e.target.value; else delete tile.target; }}
               options={holdOptions} />
@@ -353,9 +366,11 @@
                 <Select bind:value={tile.target} options={navScreenOptions} allowEmpty />
               </Field>
             </div>
-            {#if tile.target}
+            {#if tile.target && !tile.target.startsWith("ws:")}
               <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
                 onclick={() => selectSlice("screens." + tile.target)}>edit page →</button>
+            {:else if tile.target}
+              <span class="mb-6 shrink-0 text-xs text-dim italic">opens that workspace's remote</span>
             {:else}
               <button class="mb-6 shrink-0 cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2 py-1 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
                 title={"Create the page “" + (tile.label || "page") + "” — a full view with activities/presets switched off"}
@@ -423,14 +438,15 @@
         <!-- WHAT IT SHOWS: generators and raw widgets keep their voice -->
         <div class="grid grid-cols-2 gap-3">
           {#if tile.type === "apps"}
-            <Field label="Device class" hint="blank = the activity's dialect ($context.app_class)">
-              <Select value={tile.class ?? ""} allowEmpty
-                options={Object.entries(app.draft?.app_classes || {})
+            <Field label="Dialect" hint="blank = the activity's dialect ($context.dialect)">
+              <Select value={tile.dialect ?? tile.class ?? ""} allowEmpty
+                options={Object.entries(app.draft?.dialects || {})
                   .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
-                onchange={(e) => { if (e.target.value) tile.class = e.target.value; else delete tile.class; }} />
+                onchange={(e) => { delete tile.class;
+                  if (e.target.value) tile.dialect = e.target.value; else delete tile.dialect; }} />
             </Field>
             <div class="col-span-2">
-              <Field label="Apps offered (in order)" hint="filters the class's list — blank = everything the class offers">
+              <Field label="Apps offered (in order)" hint="filters the dialect's list — blank = everything it offers">
                 <Chips bind:items={() => tile.include ?? [], (v) => (tile.include = v)}
                   suggestions={Object.keys(app.draft?.apps || {})} placeholder="add app…" />
               </Field>
@@ -466,7 +482,7 @@
             onchange={(v) => (tile.span = v)} />
         </Field>
         {#if tile.type === "nav"}
-          <Field label="Style" hint="how the doorway renders — the page behind it is the same either way">
+          <Field label="Style" hint="how the nav card renders — the page behind it is the same either way">
             <Select value={tile.style ?? "auto"}
               onchange={(e) => { if (e.target.value === "auto") delete tile.style; else tile.style = e.target.value; }}
               options={NAV_STYLES} />

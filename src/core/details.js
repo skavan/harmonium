@@ -192,6 +192,10 @@ function screenOf(id) {
     return detailScreen(id.slice(7));
   if (typeof id === "string" && id.startsWith("sources:"))
     return sourcesScreen(id.slice(8));
+  if (typeof id === "string" && id.startsWith("queue:"))
+    return queueScreen(id.slice(6));
+  if (id === "keys:")           /* key capture (v0.55) */
+    return keysScreen();
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;

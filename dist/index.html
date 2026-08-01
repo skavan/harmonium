@@ -25,6 +25,17 @@
     --font-2: var(--font-1);                   /* secondary: subs/hints */
     --fs-2: 13px;
     --fw-2: 400;
+    /* MUSIC-PLAYER TYPE (v0.52.1; v0.53 — Suresh: "you have the
+       fields right there — why not open them up"): full face·size·
+       weight pairs for screens declaring font_scope: music (music
+       controller, library, queue). Every knob FOLLOWS the global
+       pair unless the theme sets it — no derived opinions. */
+    --font-m1: var(--font-1);
+    --fs-m1: var(--fs-1);
+    --fw-m1: var(--fw-1);
+    --font-m2: var(--font-2);
+    --fs-m2: var(--fs-2);
+    --fw-m2: var(--fw-2);
     --icon-zone: 52px;      /* row-tile icon disc */
     --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
     --tile-gap: 14px;       /* icon ↔ text */
@@ -38,6 +49,21 @@
     overflow: hidden; user-select: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+  /* the music scope (navigate() toggles it from sc.font_scope);
+     icon glyphs keep their own family via .material-symbols-outlined */
+  #app.scr-music #grid, #app.scr-music #brbar, #app.scr-music #banner {
+    font-family: var(--font-m1); font-size: var(--fs-m1);
+  }
+  #app.scr-music .tile .lbl { font-weight: var(--fw-m1); }
+  #app.scr-music .tile.row .lbl,
+  #app.scr-music .tile.wgt-qrow .lbl,
+  #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
+  #app.scr-music .npt { font-weight: var(--fw-m1); }
+  #app.scr-music .tile .sub {
+    font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);
+  }
+  #app.scr-music .npa { font-family: var(--font-m2); font-size: calc(var(--fs-m2) + 1px); font-weight: var(--fw-m2); }
+  #app.scr-music .npb { font-family: var(--font-m2); font-size: calc(var(--fs-m2) - 1px); font-weight: var(--fw-m2); }
 
 /* status bar — ONE line, always: back chevron (when history) +
      ellipsized title + compact perf readout */
@@ -53,6 +79,20 @@
   }
   #backBtn > * { pointer-events: none; }
   #backBtn .material-symbols-outlined { font-size: 20px; }
+  /* BROWSER CHROME (v0.48.1 — Suresh: "how do I turn off the activity?
+     Or Go Back a page? Or go home?"): app-level Home + End-activity
+     live in the TITLE BAR — always reachable, never crowding the
+     grid. Hidden on physical-key remotes (they have real keys). */
+  #homeBtn, #endBtn {
+    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    border: 0; background: var(--tile-hi); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  #homeBtn > *, #endBtn > * { pointer-events: none; }
+  #homeBtn .material-symbols-outlined,
+  #endBtn .material-symbols-outlined { font-size: 20px; }
+  #endBtn { color: var(--danger, #ff5a5f); }
   #bar .name {
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
@@ -145,9 +185,12 @@
     flex: 0 0 auto; background: #2c333d;
   }
   .npmeta { min-width: 0; flex: 1; }
-  .npt { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .npa { font-size: 14px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-  .npb { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  /* v0.52.1: the hero RIDES the theme (was 17px/600 + 14px + 12px
+     hardcoded — Suresh: "doesn't honor it"); defaults unchanged
+     (fs-1 15+2 = 17, fw-1 600 · fs-2 13+1 = 14 / 13-1 = 12, fw-2 400) */
+  .npt { font-size: calc(var(--fs-1) + 2px); font-weight: var(--fw-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .npa { font-family: var(--font-2); font-size: calc(var(--fs-2) + 1px); font-weight: var(--fw-2); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .npb { font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px); font-weight: var(--fw-2); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
@@ -223,12 +266,44 @@
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
 
+  /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of
+     a described remote. Same icon-first stack as a preset tile —
+     glyph on top, the slot's NAME under it, and the raw keys it has
+     learned under that. The sub stays VISIBLE here (a preset hides
+     it): on this screen the legend is the whole point. A blank slot
+     carries no label and .lbl:empty collapses it to a spacer. */
+  .tile.wgt-kslot { min-height: 78px; padding: 10px 6px; text-align: center; }
+  .tile.wgt-kslot .top { display: block; }
+  .tile.wgt-kslot .top .ic {
+    width: auto; font-size: 22px; line-height: 1.15;
+    display: block; margin: 0 auto 3px;
+  }
+  .tile.wgt-kslot .lbl { font-size: 12px; display: block; overflow-wrap: anywhere; }
+  /* a custom slot has no glyph — its NAME is the key legend, so it
+     gets the glyph's size instead of whispering at label size */
+  .tile.wgt-kslot.noglyph .top .ic { display: none; }
+  .tile.wgt-kslot.noglyph .lbl { font-size: 17px; padding-top: 2px; }
+  .tile.wgt-kslot.kblank { opacity: .3; }
+  .tile.wgt-kslot .sub {
+    font-size: 10.5px; margin-top: 3px; opacity: .85; overflow-wrap: anywhere;
+  }
+  .tile.wgt-kslot .hint { display: none; }
+
 /* screen grid */
   #grid {
     flex: 1; display: grid; grid-template-columns: 1fr 1fr;
     grid-auto-rows: max-content;
     gap: var(--grid-gap, 10px); padding: 10px 12px 14px; align-content: start;
     overflow-y: auto;
+    /* v0.53 (Suresh: "scrolled right to top, eating the small
+       padding"): a fresh page always opens AT the top (navigate
+       resets scrollTop — the grid keeps its scroll position across
+       innerHTML swaps, so the previous page's scroll used to leak
+       in); scroll-margin makes hero jumps and focus scrolls honor
+       the padding instead of pinning anchors flush */
+    scroll-padding-top: 10px; scroll-padding-bottom: 14px;
+    scrollbar-width: thin;                      /* Firefox */
+    scrollbar-color: var(--tile-hi, #2c333d) transparent;
   }
   .shead {
     grid-column: 1 / -1; color: var(--dim);
@@ -268,6 +343,11 @@
     animation: cfmpulse .9s ease-in-out infinite;
   }
   .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  /* browse thumbnails that are brand WORDMARKS (v0.49.1: "SONOS"
+     was center-cropping to "N") — contain on a light chip */
+  .tile .top > img.contain, .tile.row .icwrap img.contain {
+    object-fit: contain; background: #e8eaed; padding: 2px;
+  }
   .tile .top > img {
     width: 28px; height: 28px; object-fit: cover;
     border-radius: 7px; flex: 0 0 auto;
@@ -287,8 +367,112 @@
   }
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
+  /* per-tile accent (v0.48.3 — Suresh: "simply color the icon circle
+     background and leave it at that"): an activity's ACCENT paints
+     its icon circle — identity, not state; icon flips to bg ink for
+     contrast on any accent shade */
+  .tile.tacc.row .icwrap { background: var(--tacc); }   /* beats controls.css default */
+  .tile.tacc .icwrap .ic,
+  .tile.tacc .icwrap .material-symbols-outlined { color: var(--bg); }
   .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
   .tile.captured .hint { display: block; color: var(--accent); }
+
+  /* SLIM THEMED SCROLLBAR (v0.47.3 — desktop browsers drew the stock
+     Windows bar; the kiosk's overlay bar auto-hides so it was never
+     seen on-device). Touch + wheel unaffected. */
+  #grid::-webkit-scrollbar { width: 6px; }
+  #grid::-webkit-scrollbar-track { background: transparent; }
+  #grid::-webkit-scrollbar-thumb {
+    background: var(--tile-hi, #2c333d); border-radius: 3px; }
+  #grid::-webkit-scrollbar-thumb:hover { background: var(--wash, #3a4250); }
+
+  /* ---- BROWSE BANDS (v0.50 — Suresh's mock): fixed, vertically
+     tight; the grid below keeps every remaining pixel ---- */
+  #brbar { display: none; flex-direction: column; gap: 4px; padding: 2px 14px 6px; }
+  #brbar.onbar { display: flex; }
+  /* SLIM scrollbars (v0.50.2 — Suresh: "much more minimalist…
+     a little padding between the options and the scrollbar"):
+     standard properties only — Chrome IGNORES ::-webkit-scrollbar
+     styling once scrollbar-width is set, which is why the fat
+     native bar appeared */
+  .brrow {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+    scrollbar-width: thin; scrollbar-color: var(--tile-hi) transparent;
+  }
+  .brroot {
+    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+    gap: 2px; min-width: 84px; padding: 6px 10px 5px; cursor: pointer;
+    background: var(--tile); color: var(--text);
+    border: 1px solid transparent; border-radius: 10px; font: inherit;
+  }
+  .brroot.on {
+    border-color: var(--accent);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  .brroot img {
+    width: 34px; height: 34px; border-radius: 7px;
+    object-fit: contain; background: #e8eaed; padding: 2px;
+  }
+  .brroot .material-symbols-outlined {
+    font-size: 26px; height: 34px; display: flex; align-items: center;
+  }
+  .brl {
+    font-size: 11.5px; max-width: 110px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brchips {
+    display: flex; gap: 16px; overflow-x: auto; padding: 2px 2px 6px;
+    scrollbar-width: thin; scrollbar-color: var(--tile-hi) transparent;
+  }
+  .brchip {
+    flex: 0 0 auto; background: none; border: 0; cursor: pointer; font: inherit;
+    color: var(--dim); font-weight: 750; letter-spacing: .07em;
+    text-transform: uppercase; font-size: 12.5px; padding: 3px 1px 5px;
+    border-bottom: 2px solid transparent;
+  }
+  .brchip.on { color: var(--accent); border-bottom-color: var(--accent); }
+  /* browse ITEM tiles: art-forward, centered column */
+  .tile.brw:not(.row) { text-align: center; }
+  .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
+  .tile.brw:not(.row) .top > img { width: 58px; height: 58px; border-radius: 10px; }
+  .tile.brw:not(.row) .top .lbl { width: 100%; }
+  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: 34px; width: auto; height: 58px; display: inline-flex; align-items: center; }
+  .tile.brw .sub { display: none; }
+  /* browse tiles' trailing ▶ shrinks to a CORNER BADGE (v0.50) — the
+     full-height right zone ate 60% of a narrow 3-col tile, so center
+     taps played instead of drilling */
+  .tile.brw.has-trail { padding-right: 0; }
+  .tile.brw .trail {
+    top: 4px; right: 4px; bottom: auto; left: auto;
+    width: 28px; height: 28px; border-radius: 8px;
+  }
+  .tile.brw .trail .ic.material-symbols-outlined { font-size: 18px; }
+
+  /* QUEUE rows (v0.51.1 — Suresh's mock): bigger art, bold title,
+     artist · album on line two, live ▶ hard right.
+     v0.52.1 (Suresh: "doesn't honor the theme… needs ellipsis"):
+     the title RIDES Primary — weight is theme+100 (bolder than the
+     house, never a hardcoded 700) — and both lines ellipsize instead
+     of wrapping. */
+  .tile.wgt-qrow { position: relative; }
+  .tile.wgt-qrow .icwrap { width: 56px; height: 56px; border-radius: 10px; }
+  /* weight/size come from the MUSIC theme fields (the queue is always
+     font_scope: music — v0.53: no derived +100 opinion, the knob is
+     the theme's) */
+  .tile.wgt-qrow .lbl {
+    font-size: calc(var(--fs-1) + 2px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tile.wgt-qrow .txt { padding-right: 44px; }
+  .tile.wgt-qrow .sub {
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .qnowic {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 28px; display: none;
+  }
+  .tile.wgt-qrow.on .qnowic { display: block; }
 
 /* trailing action: full-height touch zone on the tile's right edge */
   .tile.has-trail { position: relative; padding-right: 76px; }
@@ -398,14 +582,17 @@
 <div id="app">
   <div id="bar">
     <button id="backBtn" class="hidden"><span class="material-symbols-outlined">arrow_back</span></button>
+    <button id="homeBtn" class="hidden"><span class="material-symbols-outlined">home</span></button>
     <span id="ptIc" class="material-symbols-outlined hidden">sports_esports</span>
     <span class="name" id="screenName">—</span>
     <span id="perf" class="hidden"></span>
-    <span id="info" class="material-symbols-outlined" onclick="perfInfo()">info</span>
+    <button id="endBtn" class="hidden" title="End the running activity"><span class="material-symbols-outlined">power_settings_new</span></button>
+    <span id="info" class="material-symbols-outlined" title="tap: status · hold: key capture">info</span>
     <span id="dot"></span>
   </div>
   <div id="dbg" class="hidden"></div>
   <div id="banner" class="hidden"></div>
+  <div id="brbar"></div>
   <div id="grid"></div>
 </div>
 
@@ -580,6 +767,16 @@ function send(msg, cb) {
   return msg.id;
 }
 
+/* call_service that WANTS the response (v0.51: queue adapters probe
+   platform services — sonos.get_queue, mass_queue.get_queue_items —
+   and need both the payload and the failure) */
+function callServiceResp(domain, service, data, entityId, cb) {
+  const msg = { type: "call_service", domain, service,
+    service_data: data || {}, return_response: true };
+  if (entityId) msg.target = { entity_id: entityId };
+  return send(msg, cb);
+}
+
 function callService(domain, service, data, entityId) {
   const msg = { type: "call_service", domain, service, service_data: data || {} };
   /* harmonium.* calls route to THIS remote's workspace — the ONE
@@ -596,11 +793,26 @@ function callService(domain, service, data, entityId) {
    (activity read live from the state of global.activity_select).
    ================================================================ */
 function currentActivityId() {
+  /* PREVIEW IMPERSONATION (v0.46.1): the Studio names the activity
+     being EDITED — the preview then renders the player exactly as
+     that activity will see it (cast, dialect keys, apps), instead of
+     whatever the live select happens to hold. Preview-only. */
+  if (S.pvActivity && (CONFIG.activities || {})[S.pvActivity]) return S.pvActivity;
   const sel = CONFIG.global.activity_select;
-  if (!sel) return null;
-  const v = st(sel).s;
-  for (const [id, a] of Object.entries(CONFIG.activities || {}))
-    if ((a.state_value || id) === v) return id === "off" ? null : id;
+  if (sel) {
+    const v = st(sel).s;
+    for (const [id, a] of Object.entries(CONFIG.activities || {}))
+      if ((a.state_value || id) === v) return id === "off" ? null : id;
+  }
+  /* PENDING IMPERSONATION (v0.48 — Suresh: "I should never see that
+     page. It should always fill in"): the select doesn't (yet, or at
+     all) confirm an activity, but the user TAPPED one — render the
+     player AS that activity anyway. Its tiles show the devices' true
+     (off) state; only tile TRUTH (isActivityActive) stays with the
+     select/device rules. Cleared naturally: the select confirming any
+     activity wins above, and the next tap overwrites. */
+  if (S.pendingActivity && (CONFIG.activities || {})[S.pendingActivity])
+    return S.pendingActivity;
   return null;
 }
 function ctxFor(screenId) {
@@ -725,18 +937,20 @@ function expandTile(t) {
       .map(([id, a]) => ({
         type: "activity", activity: id, id: t.id + "_" + id,
         label: a.name || id, icon: a.icon || "material:play_circle",
+        color: a.color,          /* ACCENT tints the tile's ON state */
       }));
   }
   if (t.type === "apps") {
-    /* one preset tile per app the resolved DEVICE CLASS offers.
-       Class resolution: tile `class` (literal or $context ref) →
-       $context.app_class (the running activity's dialect) → the only
-       class, when exactly one exists. No class → empty drawer. */
+    /* one preset tile per app the resolved DIALECT offers (v0.46:
+       app_class → dialect — a platform's whole vocabulary).
+       Resolution: tile `dialect` (legacy `class`; literal or $context
+       ref) → $context.dialect (legacy app_class) → the only dialect,
+       when exactly one exists. Nothing resolves → empty drawer. */
     const ctx = ctxFor(S.screen);
-    let clsId = t.class || ctx.app_class;
+    let clsId = t.dialect || t.class || ctx.dialect || ctx.app_class;
     if (typeof clsId === "string" && clsId.startsWith("$context."))
       clsId = ctx[clsId.slice(9)];
-    const classes = CONFIG.app_classes || {};
+    const classes = CONFIG.dialects || CONFIG.app_classes || {};
     if (!clsId && Object.keys(classes).length === 1) clsId = Object.keys(classes)[0];
     const cls = classes[clsId];
     if (!cls) return [];
@@ -757,6 +971,221 @@ function expandTile(t) {
         action,
       };
     }).filter(Boolean);
+  }
+  if (t.type === "keys") {
+    /* DEVICE KEYS (v0.46): one preset tile per key the active
+       DIALECT's catalog declares — platform vocabulary as data
+       (Suresh: one player, dialects supply the differences). Entries
+       ride the classLaunch grammar exactly like apps. No dialect, no
+       catalog, or commands unwired → nothing renders and the section
+       skips itself (empty sections are dropped, heading included). */
+    const ctx = ctxFor(S.screen);
+    let dId = t.dialect || ctx.dialect || ctx.app_class;
+    if (typeof dId === "string" && dId.startsWith("$context."))
+      dId = ctx[dId.slice(9)];
+    const dial = (CONFIG.dialects || CONFIG.app_classes || {})[dId];
+    const entries = (dial && dial.keys) || {};
+    return Object.keys(entries).map(kid => {
+      const e = entries[kid] || {};
+      const action = classLaunch(e);
+      return action && {
+        type: "preset", id: t.id + "_" + kid,
+        entity: e.entity || "$context.commands",
+        icon: e.icon || "material:radio_button_checked",
+        label: e.name || kid,
+        action,
+      };
+    }).filter(Boolean);
+  }
+  if (t.type === "browse") {
+    /* THE STANDARD LIBRARY, THREE BANDS (v0.50 — see core/browse.js).
+       Returns only the GRID (items); bands render in #brbar via
+       browseBar(). Unwired player → nothing (the empty-page hint
+       explains). Player changes reset everything. */
+    const mp = resolveEntity(t.entity || "$context.media_player");
+    if (!mp) { S.browse.ui = null; return []; }
+    if (S.browse.mp !== mp) {
+      S.browse.mp = mp;
+      S.browse.root = S.browse.cat = null; S.browse.sub = [];
+    }
+    const B = S.browse;
+    B._active = true;
+    const loading = [{ type: "preset", id: t.id + "_ld", span: 2, brw: true,
+      icon: "material:hourglass_empty", label: "Loading library…", action: {} }];
+    const L0 = B.nodes[browseKey(mp, null)];
+    if (!L0) { B.ui = null; browseFetch(mp, null); return loading; }
+    /* ROOT CURATION (v0.49.1, a setting not a hardcode): HA's
+       media-source:// plumbing hides by default (`media_sources:
+       true` keeps it); `include: [titles]` narrows — advisory. */
+    let roots = L0.children;
+    if (!t.media_sources)
+      roots = roots.filter(c =>
+        !String(c.media_content_id || "").startsWith("media-source://"));
+    if (Array.isArray(t.include) && t.include.length) {
+      const want = t.include.map(x => String(x).toLowerCase());
+      const m = roots.filter(c =>
+        want.includes(String(c.title || "").toLowerCase()));
+      if (m.length) roots = m;
+    }
+    if (!roots.length) {
+      B.ui = null;
+      return [{ type: "preset", id: t.id + "_err", span: 2, brw: true,
+        icon: "material:error_outline",
+        label: L0.error || "Nothing to browse on this player", action: {} }];
+    }
+    const mkItems = (node, out) => {
+      if (node.error)
+        out.push({ type: "preset", id: t.id + "_err", span: 2, brw: true,
+          icon: "material:error_outline", label: node.error, action: {} });
+      node.children.forEach((c, i) => {
+        const play = {
+          service: "media_player.play_media", target: mp,
+          data: { media_content_id: c.media_content_id,
+                  media_content_type: c.media_content_type },
+        };
+        out.push({
+          type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
+          icon: BROWSE_ICON[c.media_class] || "material:library_music",
+          ...(c._thumb ? { icon_image: c._thumb, icontain: true } : {}),
+          action: c.can_expand
+            ? { browse: { id: c.media_content_id, type: c.media_content_type,
+                          title: c.title } }
+            : play,
+          ...(c.can_expand && c.can_play
+            ? { trailing: { icon: "material:play_arrow", action: play } } : {}),
+        });
+      });
+      if (!node.children.length && !node.error)
+        out.push({ type: "preset", id: t.id + "_mt", span: 2, brw: true,
+          icon: "material:music_off", label: "Nothing here", action: {} });
+      return out;
+    };
+    /* FAVORITES PROMOTION (v0.50.3 — Suresh: "promote the Show
+       Favorites so MA exactly mirrors the Sonos style"): MA's browse
+       tree has NO favorites filter, but the integration's sensors
+       (sensor.harmonium_music_<cat>, hourly favorite=True lists) DO —
+       a FLAT tree with populated sensors synthesizes the Sonos shape:
+       ⭐ Favorites (sensor-fed, the DEFAULT root) + Music Library
+       (the real tree as chips). Returns an ARRAY of final tiles, or
+       a NODE for the common grid tail, or null when ineligible. */
+    const favList = () => [["Playlists", "playlists"], ["Artists", "artists"],
+      ["Albums", "albums"], ["Tracks", "tracks"], ["Radio", "radio"]]
+      .map(([lbl, k]) => ({ lbl, k,
+        items: (st("sensor.harmonium_music_" + k).a || {}).items || [] }))
+      .filter(x => x.items.length);
+    const synth = (fc) => {
+      const SROOTS = [
+        { title: "Favorites", media_content_id: "__fav",
+          media_content_type: "__synth", media_class: "fav_root",
+          can_expand: true, can_play: false },
+        { title: "Music Library", media_content_id: "__lib",
+          media_content_type: "__synth", media_class: "lib_root",
+          can_expand: true, can_play: false },
+      ];
+      const selS = SROOTS.find(c => brSame(c, B.root)) || SROOTS[0];
+      B.root = brRef(selS);
+      if (B.root.id === "__fav") {
+        const cats = fc.map(x => ({ title: x.lbl,
+          media_content_id: "__fav:" + x.k, media_content_type: "__synth",
+          media_class: "directory", can_expand: true, can_play: false }));
+        const selCat = cats.find(c => brSame(c, B.cat)) || cats[0];
+        B.cat = brRef(selCat);
+        B.ui = { roots: SROOTS, cats };
+        const fav = fc.find(x => "__fav:" + x.k === B.cat.id) || fc[0];
+        const FICON = { playlists: "material:queue_music",
+          artists: "material:person", albums: "material:album",
+          tracks: "material:music_note", radio: "material:radio" };
+        return fav.items.map((it, i) => ({
+          type: "preset", id: t.id + "_" + i, label: it.name, brw: true,
+          icon: FICON[fav.k] || "material:library_music",
+          ...(it.image ? { icon_image: it.image } : {}),
+          action: { service: "media_player.play_media", target: mp,
+            data: { media_content_id: it.uri,
+                    media_content_type: it.media_type } },
+        }));
+      }
+      /* __lib: the real tree's top level becomes the chips */
+      const selCat = roots.find(c => brSame(c, B.cat)) || roots[0];
+      B.cat = brRef(selCat);
+      B.ui = { roots: SROOTS, cats: roots };
+      const L2 = B.nodes[browseKey(mp, B.cat)];
+      if (!L2) { browseFetch(mp, B.cat); return loading; }
+      return L2;
+    };
+    let gridNode = null;
+    /* a sticky __synth selection must not be stomped by the tree
+       defaulting below — re-enter synthetic mode directly */
+    if (B.root && B.root.type === "__synth") {
+      const fc = favList();
+      if (fc.length) {
+        const r = synth(fc);
+        if (Array.isArray(r)) return r;
+        gridNode = r;
+      } else { B.root = B.cat = null; }   /* sensors emptied → tree */
+    }
+    if (!gridNode) {
+      /* selected ROOT: sticky → tile default_root (title, advisory) →
+         first expandable → first. */
+      let selRoot = roots.find(c => brSame(c, B.root)) || null;
+      if (!selRoot && t.default_root)
+        selRoot = roots.find(c => String(c.title || "").toLowerCase() ===
+          String(t.default_root).toLowerCase()) || null;
+      selRoot = selRoot || roots.find(c => c.can_expand) || roots[0];
+      B.root = brRef(selRoot);
+      if (!selRoot.can_expand) {         /* playable-only root: no grid */
+        B.ui = { roots, cats: null };
+        return [];
+      }
+      const L1 = B.nodes[browseKey(mp, B.root)];
+      /* while L1 loads, DON'T flash the raw tree roots into band 1
+         (v0.51 — Suresh: "a row of folders pops onto the top row for
+         a second"): keep the previous bar (or none on first load) —
+         the real shape decides once L1 lands */
+      if (!L1) { browseFetch(mp, B.root); return loading; }
+      /* CATEGORY STRIP (v0.50.2): two tree shapes, one look.
+         DEEP (Sonos): roots hold a layer of pure directories → roots
+         row + those directories as chips. FLAT (Music Assistant): the
+         top level IS the categories → chips (favorites-promoted when
+         the sensors are live, plain otherwise). */
+      if (L1.children.length && L1.children.every(brDir)) {
+        const cats = L1.children;
+        const selCat = cats.find(c => brSame(c, B.cat)) || cats[0];
+        B.cat = brRef(selCat);
+        B.ui = { roots, cats };
+        const L2 = B.nodes[browseKey(mp, B.cat)];
+        if (!L2) { browseFetch(mp, B.cat); return loading; }
+        gridNode = L2;
+      } else if (roots.length > 1 && roots.every(brDir)) {
+        const fc = favList();
+        if (fc.length) {
+          B.root = { id: "__fav", type: "__synth", title: "Favorites" };
+          B.cat = null;
+          const r = synth(fc);
+          if (Array.isArray(r)) return r;
+          gridNode = r;
+        } else {
+          B.ui = { roots: [], cats: roots, flat: true };
+          gridNode = L1;
+        }
+      } else {
+        B.ui = { roots, cats: null };
+        gridNode = L1;
+      }
+    }
+    if (gridNode === loading) return loading;
+    /* deep drill below the bands (artist → albums → tracks …) */
+    const out = [];
+    if (B.sub.length) {
+      const top = B.sub[B.sub.length - 1];
+      const Ln = B.nodes[browseKey(mp, top)];
+      if (!Ln) { browseFetch(mp, top); return loading; }
+      out.push({ type: "preset", id: t.id + "_up", span: 2, brw: true,
+        icon: "material:arrow_back",
+        label: Ln.title ? "\u2039 " + Ln.title : "\u2039 Back",
+        action: { browse: "__up" } });
+      gridNode = Ln;
+    }
+    return mkItems(gridNode, out);
   }
   /* NOTE: `sources` stopped being a generator in v0.35 — it's a plain
      tile now (widgets/sources.js) that opens the sources:<mp> detail.
@@ -788,7 +1217,15 @@ function expandTile(t) {
     const dopts = (castAid && ((CONFIG.activities || {})[castAid] || {}).device_options) || {};
     const ents = castAid ? castOf(castAid)
       : castFromCtx((screenOf(S.screen) || {}).context || {});
+    /* the COMMANDS CHANNEL is plumbing, not a device (v0.46.3 —
+       Suresh's screenshot: "Hisense Projector ADB · Off" as a tile is
+       noise): skip the entity wired to commands unless it also plays
+       media, or device_options forces it visible */
+    const ctx2 = ctxFor(S.screen);
+    const cmdEnt = typeof ctx2.commands === "string" ? ctx2.commands : null;
     return ents.filter(e => e.split(".")[0] !== "remote")
+      .filter(e => !(cmdEnt && e === cmdEnt && e !== ctx2.media_player &&
+        !(dopts[e] && dopts[e].tile === true)))
       .filter(e => !(dopts[e] && dopts[e].tile === false)).map(e => {
       const s = st(e), dom = e.split(".")[0];
       return {
@@ -878,6 +1315,11 @@ function entitiesFor(screenId) {
   Object.values(ctxFor(screenId)).forEach(v => {
     if (typeof v === "string" && v.includes(".")) set.add(v);
   });
+  /* a browse tile's Favorites promotion feeds off the integration's
+     MA-favorite sensors — subscribe them so the lists stay live */
+  if (rawTilesOf(sc).some(t => t.type === "browse"))
+    ["playlists", "artists", "albums", "tracks", "radio"]
+      .forEach(k => set.add("sensor.harmonium_music_" + k));
   if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
   activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
@@ -945,9 +1387,27 @@ function evalCond(c) {
   if (c.not_in) return Array.isArray(c.not_in) && !c.not_in.includes(v);
   return ACTIVE(v);
 }
+/* IMPLIED STATE (v0.48.1 — Suresh: "State is flaky... activity select
+   is on, but a device is manually switched off"): an activity with NO
+   authored state rule derives truth LIVE from its primary cast
+   device's media_player — so a manually-powered-off device can never
+   strand an ON tile behind a stale select. never_off devices (Fire
+   TV) are exempt by their own trait: their state can't witness the
+   activity, so the select stays truth there. An authored rule always
+   wins. */
+function impliedStateEnt(a) {
+  const dev = a && (CONFIG.devices || {})[(a.cast || [])[0]];
+  if (!dev || (dev.traits || {}).never_off) return null;
+  return (dev.roles || {}).media_player || null;
+}
+function impliedStateOn(a) {
+  const mp = impliedStateEnt(a);
+  if (!mp) return null;                       // no witness → select is truth
+  return ["on", "playing", "paused", "buffering", "idle"].includes(st(mp).s);
+}
 function activityStateOn(a) {
   const d = a && a.state;
-  if (!d || !d.on) return null;               // no declaration → v1 truth
+  if (!d || !d.on) return impliedStateOn(a);  // no declaration → implied, else v1
   const on = d.on;
   if (Array.isArray(on)) return on.every(evalCond);
   if (on.all) return on.all.every(evalCond);
@@ -970,8 +1430,15 @@ function isActivityActive(id) {
    every screen so activity tiles stay truthful everywhere) */
 function activityStateEntities() {
   const set = new Set();
-  Object.values(CONFIG.activities || {}).forEach(a =>
-    ((a.state || {}).entities || []).forEach(e => set.add(e)));
+  Object.values(CONFIG.activities || {}).forEach(a => {
+    const ents = (a.state || {}).entities || [];
+    if (ents.length) ents.forEach(e => set.add(e));
+    else {
+      /* implied-state witnesses subscribe too — tiles stay truthful */
+      const mp = impliedStateEnt(a);
+      if (mp) set.add(mp);
+    }
+  });
   return set;
 }
 function isActActive(t) { return isActivityActive(t.activity); }
@@ -981,8 +1448,27 @@ function isActActive(t) { return isActivityActive(t.activity); }
    by presets, trailing slots, and key bindings (v0.28). */
 function runAction(a) {
   if (!a) return;
+  if (a.browse !== undefined) { browseGo(a.browse); return; }
   if (a.navigate) { navigate(a.navigate); return; }
   if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
+  if (a.seek !== undefined) {
+    /* RELATIVE SEEK (v0.54): HA's media_seek is absolute-only and
+       music players have no rewind service — but the engine already
+       tracks live position (same interpolation the progress bar
+       uses), so {seek: ±N} scrubs any seekable player. */
+    const e = resolveEntity(a.target || a.entity || "$context.media_player");
+    if (!e) { flashBar("No player wired"); return; }
+    const s = st(e);
+    let p = s.a.media_position || 0;
+    if (s.s === "playing" && s.a.media_position_updated_at)
+      p += (Date.now() - Date.parse(s.a.media_position_updated_at)) / 1000;
+    let tp = p + (+a.seek || 0);
+    if (s.a.media_duration) tp = Math.min(s.a.media_duration - 1, tp);
+    tp = Math.max(0, tp);
+    callService("media_player", "media_seek", { seek_position: Math.round(tp) }, e);
+    flashBar((+a.seek >= 0 ? "⏩ +" : "⏪ −") + Math.abs(+a.seek) + "s");
+    return;
+  }
   const parts = (a.service || "").split(".");
   if (parts.length !== 2) return;
   const ref = a.target || a.entity;
@@ -994,12 +1480,25 @@ function runAction(a) {
 /* Presets: one-tap content shortcuts. If the preset names an activity,
    ensure it's running first (Harmony-favorite behavior), then fire. */
 function firePreset(t) {
+  /* BROWSE taps (v0.49) navigate the library tree, no service call */
+  if (t.action && t.action.browse !== undefined) {
+    browseGo(t.action.browse);
+    return true;
+  }
   /* resolve the target NOW — a drawer screen may navigate away before
      a deferred run() fires, and $context must be the drawer's own */
   const a = t.action || {}, parts = (a.service || "").split(".");
-  const target = resolveEntity(a.target || a.entity);
+  const ref = a.target || a.entity;
+  const target = resolveEntity(ref);
   const run = () => {
     if (parts.length !== 2) return;
+    /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
+       playlist: no music activity on the deck meant no player wired,
+       and the tap just shrugged) */
+    if (ref && !target) {
+      flashBar("No player wired — start an activity that casts one");
+      return;
+    }
     callService(parts[0], parts[1], a.data, target);
   };
   if (t.activity && !isActivityActive(t.activity)) {
@@ -1037,7 +1536,16 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
-  runActionRef(a.start);
+  /* NO START ACTION is legal (v0.47 — Suresh's blank-player report):
+     the activity still becomes ACTIVE (display state + context) so
+     the player renders; orchestration is opt-in, not a prerequisite */
+  if (a.start) runActionRef(a.start);
+  else callService("harmonium", "set_activity", { activity: id });
+  /* the tap IS the intent: the player renders as this activity from
+     this moment (see currentActivityId's pending impersonation) —
+     never the "No activity is active" page — even while the select
+     lags or the start action fails. */
+  S.pendingActivity = id;
   if (a.screen) navigate(a.screen);
   return true;
 }
@@ -1085,6 +1593,546 @@ function barConfirm(key, msg, tone) {
   t[key] = 0;
   cfmClear();          // confirmed: stop the pulse — the action is happening
   return true;
+}
+
+/* ================================================================
+   MEDIA BROWSE (v0.50 — Suresh's mock: "90% of the time the user
+   wants Favorites >> Something"): the STANDARD HA contract
+   (media_player/browse_media + media_player.play_media — no service
+   hardcoding), presented as THREE BANDS instead of a page-per-level
+   crawl:
+
+     band 1 — ROOTS: the tree's curated top level (Favorites, Music
+              Library…) + the section's other tiles (Pull Music Here),
+              one tight fixed row
+     band 2 — CATEGORIES: the selected root's children WHEN they are
+              all pure directories (Sonos: Playlists/Albums/Tracks) —
+              a thin horizontally-scrollable chip strip. When they
+              aren't (Music Assistant's root children ARE categories,
+              their children are items), the strip simply doesn't
+              appear — the rule generalizes across services.
+     grid   — ITEMS: auto-descended on open, scrolls; expandables
+              drill in place (‹ up tile), playables play.
+
+   Navigation: tap roots/chips · CH▲▼ steps categories (wraps) ·
+   horizontal SWIPE on the grid steps categories too.
+   ================================================================ */
+S.browse = { mp: null, root: null, cat: null, sub: [], nodes: {}, signed: {},
+  busy: {}, ui: null, barTiles: [], _active: false };
+
+const BROWSE_ICON = {
+  playlist: "material:queue_music", album: "material:album",
+  artist: "material:person", track: "material:music_note",
+  directory: "material:folder", genre: "material:category",
+  podcast: "material:podcasts", channel: "material:radio",
+  tv_show: "material:tv", movie: "material:movie",
+  app: "material:apps", url: "material:link",
+  fav_root: "material:star", lib_root: "material:library_music",
+};
+
+/* a PURE DIRECTORY — expandable, not playable. Bands are built from
+   these; anything else is an item. */
+const brDir = c => !!c.can_expand && !c.can_play;
+const brRef = c => ({ id: c.media_content_id, type: c.media_content_type,
+  title: c.title });
+const brSame = (c, sel) => !!sel && c.media_content_id === sel.id &&
+  c.media_content_type === sel.type;
+
+/* the key carries TYPE and id — Sonos's Favorites / Music Library
+   root children have an EMPTY media_content_id (v0.49.1): an empty
+   id is NOT the root; only a null node is. */
+function browseKey(mp, node) {
+  return mp + "|" + (node ? (node.type || "") + ":" + (node.id ?? "") : "");
+}
+
+function browseFetch(mp, node) {
+  const key = browseKey(mp, node);
+  if (S.browse.nodes[key] || S.browse.busy[key]) return;
+  S.browse.busy[key] = true;
+  const msg = { type: "media_player/browse_media", entity_id: mp };
+  if (node) {
+    msg.media_content_id = node.id ?? "";
+    msg.media_content_type = node.type;
+  }
+  send(msg, m => {
+    delete S.browse.busy[key];
+    if (!m.success) {
+      S.browse.nodes[key] = {
+        title: "Library", children: [],
+        error: (m.error && m.error.message) || "This player can't browse media",
+      };
+      if (S.screen) navigate(S.screen, true);
+      return;
+    }
+    const r = m.result || {};
+    const kids = (r.children || []).slice(0, 200);
+    /* thumbnails: HA-relative paths need auth/sign_path (exactly what
+       the HA frontend does); absolute URLs pass straight through */
+    let waiting = 0;
+    const done = () => {
+      S.browse.nodes[key] = { title: r.title, children: kids };
+      if (S.screen) navigate(S.screen, true);
+    };
+    kids.forEach(c => {
+      const t = c.thumbnail;
+      if (!t) return;
+      if (!t.startsWith("/")) { c._thumb = t; return; }
+      if (S.browse.signed[t]) { c._thumb = S.browse.signed[t]; return; }
+      waiting++;
+      send({ type: "auth/sign_path", path: t }, sm => {
+        if (sm.success && sm.result && sm.result.path)
+          c._thumb = S.browse.signed[t] = sm.result.path;
+        if (--waiting === 0) done();
+      });
+    });
+    if (!waiting) done();
+  });
+}
+
+/* ---- selection (each re-renders the screen) ---- */
+function brSelRoot(c) {
+  S.browse.root = brRef(c);
+  S.browse.cat = null; S.browse.sub = [];
+  navigate(S.screen, true);
+}
+function brSelCat(c) {
+  S.browse.cat = brRef(c);
+  S.browse.sub = [];
+  navigate(S.screen, true);
+}
+function brStepCat(dir) {
+  const ui = S.browse.ui;
+  if (!ui || !ui.cats || ui.cats.length < 2) return false;
+  const cur = ui.flat ? S.browse.root : S.browse.cat;
+  const i = ui.cats.findIndex(c => brSame(c, cur));
+  const n = ui.cats[((i < 0 ? 0 : i) + dir + ui.cats.length) % ui.cats.length];
+  if (ui.flat) brSelRoot(n); else brSelCat(n);
+  flashBar(n.title);
+  return true;
+}
+/* in-grid drill below the bands (deep trees: artist → albums → …) */
+function browseGo(ref) {
+  if (ref === "__up") S.browse.sub.pop();
+  else S.browse.sub.push(ref);
+  navigate(S.screen, true);
+}
+
+/* ---- THE BAR (#brbar): bands 1+2, fixed above the grid ---- */
+function browseBar() {
+  const bar = document.getElementById("brbar");
+  if (!bar) return;
+  const B = S.browse;
+  if (!B._active || !B.ui) {
+    bar.classList.remove("onbar"); bar.innerHTML = ""; return;
+  }
+  bar.classList.add("onbar");
+  const ic = c => c._thumb
+    ? `<img src="${c._thumb}" alt="">`
+    : `<span class="material-symbols-outlined">${
+        (BROWSE_ICON[c.media_class] || "material:library_music").slice(9)}</span>`;
+  /* FLAT TREES (v0.50.2 — Suresh: "Sonos is better"): when the top
+     level IS the categories (Music Assistant), the chips carry the
+     selection and the roots row shrinks to the section's own tiles
+     (Pull Music Here) — or disappears entirely. */
+  let html = "";
+  if (B.barTiles.length || B.ui.roots.length) {
+    html += `<div class="brrow">`;
+    B.barTiles.forEach((t, i) => {
+      html += `<button class="brroot" data-brt="${i}">` +
+        (t.icon && t.icon.startsWith("material:")
+          ? `<span class="material-symbols-outlined">${t.icon.slice(9)}</span>` : "") +
+        `<span class="brl">${t.label || ""}</span></button>`;
+    });
+    B.ui.roots.forEach((c, i) => {
+      html += `<button class="brroot${brSame(c, B.root) ? " on" : ""}" data-brr="${i}">` +
+        ic(c) + `<span class="brl">${c.title}</span></button>`;
+    });
+    html += `</div>`;
+  }
+  if (B.ui.cats) {
+    const sel = B.ui.flat ? B.root : B.cat;
+    html += `<div class="brchips">` + B.ui.cats.map((c, i) =>
+      `<button class="brchip${brSame(c, sel) ? " on" : ""}" data-brc="${i}">${c.title}</button>`
+    ).join("") + `</div>`;
+  }
+  bar.innerHTML = html;
+  bar.querySelectorAll("[data-brt]").forEach(b =>
+    b.addEventListener("click", () => {
+      const t = B.barTiles[+b.dataset.brt];
+      const w = WIDGETS[t.type];
+      if (w && w.select) w.select(resolveEntity(t.entity), t);
+    }));
+  bar.querySelectorAll("[data-brr]").forEach(b =>
+    b.addEventListener("click", () => {
+      const c = B.ui.roots[+b.dataset.brr];
+      /* an expandable root selects; a playable-only root just PLAYS
+         (a favorite station pinned at the top level) */
+      if (c.can_expand) brSelRoot(c);
+      else callService("media_player", "play_media",
+        { media_content_id: c.media_content_id,
+          media_content_type: c.media_content_type }, B.mp);
+    }));
+  bar.querySelectorAll("[data-brc]").forEach(b =>
+    b.addEventListener("click", () => {
+      const c = B.ui.cats[+b.dataset.brc];
+      if (B.ui.flat) brSelRoot(c); else brSelCat(c);
+    }));
+  /* horizontal SWIPE on the grid steps categories (touch) */
+  if (!browseBar._swipe) {
+    browseBar._swipe = true;
+    const g = document.getElementById("grid");
+    let sx = 0, sy = 0, st = 0;
+    g.addEventListener("pointerdown", e => {
+      sx = e.clientX; sy = e.clientY; st = Date.now();
+    }, { passive: true });
+    g.addEventListener("pointerup", e => {
+      if (!S.browse._active) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Date.now() - st < 600 && Math.abs(dx) > 70 && Math.abs(dy) < 50)
+        brStepCat(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+}
+
+/* ================================================================
+   QUEUE (v0.51 — Suresh: "One thing that would be nice for all
+   music players is the queue… Each item would be a full row tile.
+   Click and we jump to that song.")
+
+   The queue is NOT part of HA's standard media_player contract, so
+   this speaks per-platform services through ADAPTER PROBING — no
+   name-guessing: each adapter is TRIED (a call with return_response)
+   and the first that answers owns the entity from then on. Probed
+   live 2026-07-31 on Suresh's HA:
+     · Music Assistant — mass_queue.get_queue_items {entity,
+       limit_before, limit_after} → [items]; jump =
+       mass_queue.play_queue_item {entity, queue_item_id}
+     · Sonos — sonos.get_queue @entity → [{media_title,
+       media_artist, media_album_name, …}]; jump =
+       sonos.play_queue {queue_position} (list order)
+   Neither answers → "Queue not available for this player".
+   ================================================================ */
+S.queue = { ent: null, items: null, busy: false, err: null, adapter: {} };
+
+const QUEUE_ADAPTERS = [
+  {
+    id: "ma",
+    get: (e, cb) => callServiceResp("mass_queue", "get_queue_items",
+      { entity: e, limit_before: 30, limit_after: 170 }, null, cb),
+    map: (it, i) => ({
+      title: it.media_title || it.title || it.name || "…",
+      artist: it.media_artist || it.artist || "",
+      album: it.media_album_name || it.album || "",
+      image: it.media_image || it.image || null,
+      action: { service: "mass_queue.play_queue_item",
+        data: { entity: null /* stamped below */, queue_item_id:
+          it.queue_item_id || it.item_id || null } },
+    }),
+  },
+  {
+    id: "sonos",
+    get: (e, cb) => callServiceResp("sonos", "get_queue", {}, e, cb),
+    map: (it, i) => ({
+      title: it.media_title || "…",
+      artist: it.media_artist || "",
+      album: it.media_album_name || "",
+      image: null,
+      action: { service: "sonos.play_queue", target: null /* stamped */,
+        data: { queue_position: i } },
+    }),
+  },
+];
+
+function queueFetch(ent) {
+  const Q = S.queue;
+  if (Q.busy) return;
+  Q.busy = true; Q.err = null;
+  const known = Q.adapter[ent];
+  const order = known
+    ? QUEUE_ADAPTERS.filter(a => a.id === known)
+    : QUEUE_ADAPTERS;
+  const tryAt = (i) => {
+    if (i >= order.length) {
+      Q.busy = false; Q.ent = ent; Q.items = [];
+      Q.err = "Queue not available for this player";
+      if (S.screen === "queue:" + ent) navigate(S.screen, true);
+      return;
+    }
+    const ad = order[i];
+    ad.get(ent, m => {
+      if (!m.success) { tryAt(i + 1); return; }
+      Q.adapter[ent] = ad.id;
+      const resp = (m.result && m.result.response) || {};
+      const raw = resp[ent] || [];
+      Q.busy = false; Q.ent = ent;
+      Q.items = raw.slice(0, 200).map((it, i2) => {
+        const r = ad.map(it, i2);
+        /* stamp the entity into the jump action */
+        if (r.action.data && "entity" in r.action.data)
+          r.action.data.entity = ent;
+        if ("target" in r.action) r.action.target = ent;
+        return r;
+      });
+      if (S.screen === "queue:" + ent) navigate(S.screen, true);
+    });
+  };
+  tryAt(0);
+}
+
+/* the virtual QUEUE screen: full-row tiles, ▶ marks the playing one
+   (matched on the player's live media_title), tap = jump */
+function queueScreen(eid) {
+  if (!eid) return null;
+  const Q = S.queue;
+  const fn = st(eid).a.friendly_name;
+  const name = (fn || eid.split(".")[1].replace(/_/g, " ")) + " · Queue";
+  let tiles;
+  if (Q.ent !== eid || Q.items === null) {
+    queueFetch(eid);
+    tiles = [{ id: "q_ld", type: "preset", icon: "material:hourglass_empty",
+      label: "Loading queue…", action: {} }];
+  } else if (Q.err) {
+    tiles = [{ id: "q_err", type: "preset", icon: "material:error_outline",
+      label: Q.err, action: {} }];
+  } else if (!Q.items.length) {
+    tiles = [{ id: "q_mt", type: "preset", icon: "material:queue_music",
+      label: "The queue is empty", action: {} }];
+  } else {
+    /* qrow tiles (v0.51.1 — Suresh's mock): art left · bold title ·
+       "artist · album" on line two · ▶ HARD RIGHT — and the mark is
+       LIVE (each row carries the player entity, so state updates
+       re-evaluate isOn instead of a baked-at-build label) */
+    tiles = Q.items.map((r, i) => ({
+      id: "q_" + i, type: "qrow", entity: eid,
+      label: r.title,
+      sub_label: [r.artist, r.album].filter(Boolean).join(" · "),
+      q_title: r.title, q_artist: r.artist,
+      icon: "material:music_note",
+      ...(r.image ? { icon_image: r.image } : {}),
+      action: r.action,
+    }));
+  }
+  const nowT = st(eid).a.media_title;
+  const nowRow = tiles.find(x => x.q_title === nowT);
+  return {
+    name, virtual: true, class: "group", font_scope: "music",
+    grid: { columns: 1 },
+    tiles,
+    initial_focus: (nowRow || tiles[0]).id,
+  };
+}
+
+/* ================================================================
+   KEY CAPTURE (v0.55 — Suresh: "we need a v1 capture helper") — a
+   VIRTUAL SCREEN (the queue: pattern: an address, no config
+   authoring). Open it, press keys on whatever remote is paired to
+   this device, and every arriving event renders as a row — raw
+   key · code · keyCode, plus what the CURRENT keymap resolves it
+   to. UNMAPPED rows get the accent ring: those are the codes you
+   are hunting when learning a new remote. While this screen is
+   up, the engine SWALLOWS every key (logging is the point — a
+   captured "back" must not navigate); exit is the title-bar ‹
+   chevron (touch/mouse — this is a setup surface, someone is
+   holding the device). Rows are newest-first, capped at 60.
+
+   v0.56 — CAPTURE-ASSIGN (Suresh: "in next iteration of capture, I
+   can hit the remote key, and on the tile, press to assign the
+   physical key!"). The screen now leads with THE REMOTE: the
+   profile's soft_layout (the Studio's ✎ layout builder — the same
+   data, the same order, blanks included) rendered as slot tiles.
+   The flow is two gestures and no typing: press a key on the
+   physical remote (it becomes PENDING, shown in the hint tile),
+   then tap the slot it belongs to. 💾 Save reads the live config
+   over the authenticated Studio API, merges the assignments into
+   remotes.<this device>.keymap, POSTs it back (the integration
+   validates + deploys), and applies them to the running KEYMAP
+   immediately — so the very next press already routes.
+
+   Custom slot names are first-class by v0.54's open button
+   vocabulary: assigning "Red" mints the logical button `Red`,
+   bindable from any screen's `buttons:` map with zero engine
+   edits.
+   ================================================================ */
+S.keycap = [];
+S.keyPending = null;    // last raw key captured — the thing to assign
+S.keyAssign = {};       // raw key → logical slot name (this session)
+
+/* the glyph vocabulary, mirrored from the Studio's soft remote so the
+   slot grid READS as the remote's face. Plain text on purpose — no
+   icon font between you and a diagnostic surface. A CUSTOM slot name
+   (Red, "..", anything Suresh types into the layout builder) has no
+   glyph and doesn't get a dot: its own name is the legend, and the
+   stylesheet promotes a glyph-less slot's label to key size. */
+const KEYCAP_GLYPHS = {
+  back: "↩", home: "⌂", power: "⏻", menu: "≡",
+  up: "▲", down: "▼", left: "◀", right: "▶", select: "OK",
+  vol_up: "＋", vol_down: "－", ch_up: "CH＋", ch_down: "CH－",
+  mute: "🔇", info: "ⓘ",
+};
+const keycapGlyph = n => KEYCAP_GLYPHS[n] || "";
+
+/* the stock arrangement, mirrored from the Studio's soft-remote
+   editor: what a remote looks like before anyone describes one */
+const KEYCAP_DEFAULT_LAYOUT = [
+  ["back", "home", "power"],
+  ["vol_up", "up", "ch_up"],
+  ["left", "select", "right"],
+  ["vol_down", "down", "ch_down"],
+  ["menu", "mute", null],
+];
+
+function keycapLog(e) {
+  S.keycap.unshift({
+    key: e.key, code: e.code || "?", kc: e.keyCode,
+    mapped: keycapMap()[e.key] || null,
+  });
+  if (S.keycap.length > 60) S.keycap.length = 60;
+  S.keyPending = e.key;
+  if (S.screen === "keys:") navigate(S.screen, true);
+}
+
+/* effective map = what the profile ships + what this session has
+   assigned but not yet saved (so a slot's sub tells the truth the
+   instant you tap it, before the round trip) */
+function keycapMap() { return Object.assign({}, KEYMAP, S.keyAssign); }
+
+/* every raw key that currently emits this logical button */
+function keysForSlot(name) {
+  const m = keycapMap();
+  return Object.keys(m).filter(k => m[k] === name);
+}
+
+function keycapLayout() {
+  const L = (DEVICE && DEVICE.soft_layout) || KEYCAP_DEFAULT_LAYOUT;
+  return Array.isArray(L) && L.length ? L : KEYCAP_DEFAULT_LAYOUT;
+}
+
+/* tap a slot = the pending key becomes this slot's key. Reassigning
+   a raw key simply overwrites — one key, one logical button. */
+function keycapAssign(name) {
+  if (!S.keyPending) {
+    flashBar("Press a key on the remote first", "off");
+    return;
+  }
+  const k = S.keyPending;
+  S.keyAssign[k] = name;
+  S.keyPending = null;
+  /* the log rows show resolutions — refresh them with the new truth */
+  S.keycap.forEach(r => { r.mapped = keycapMap()[r.key] || null; });
+  /* re-render FIRST: navigate() rewrites the bar title, so the flash
+     has to land after it or it never gets read */
+  navigate("keys:", true);
+  flashBar(JSON.stringify(k) + " → " + name);
+}
+
+/* Save: GET the live config for THIS workspace, merge the session's
+   assignments into this remote's keymap, POST it back. The Studio
+   API is the same authenticated endpoint the Studio itself uses —
+   the integration validates and deploys, so the change reaches
+   every remote on this workspace, not just the one in your hand. */
+function keycapApiBase() {
+  const host = localStorage.getItem("hakr_host");
+  return (host && host !== location.host)
+    ? location.protocol + "//" + host : "";
+}
+async function keycapSave() {
+  const n = Object.keys(S.keyAssign).length;
+  if (!n) { flashBar("Nothing to save — capture a key, then tap a slot", "off"); return; }
+  const dev = S.deviceName || "default";
+  const url = keycapApiBase() + "/api/harmonium/config" +
+    (WS && WS !== "main" ? "?ws=" + encodeURIComponent(WS) : "");
+  const auth = { Authorization: "Bearer " + (localStorage.getItem("hakr_token") || "") };
+  let msg, tone;
+  try {
+    const g = await fetch(url, { headers: auth, cache: "no-store" });
+    if (!g.ok) throw new Error("GET " + g.status);
+    const cfg = await g.json();
+    if (!cfg.remotes) cfg.remotes = {};
+    const p = cfg.remotes[dev] ||
+      (cfg.remotes[dev] = { capabilities: ["touch", "pointer"] });
+    /* a profile with no keymap of its own has been riding the global
+       one — inherit it once, so saving never silently narrows it */
+    p.keymap = Object.assign({}, p.keymap || cfg.keymap || {}, S.keyAssign);
+    const q = await fetch(url, {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, auth),
+      body: JSON.stringify(cfg),
+    });
+    if (!q.ok) throw new Error("POST " + q.status);
+    /* live, immediately: the next press already routes */
+    KEYMAP = Object.assign({}, KEYMAP, S.keyAssign);
+    if (DEVICE) DEVICE.keymap = Object.assign({}, p.keymap);
+    if (CONFIG) {
+      if (!CONFIG.remotes) CONFIG.remotes = {};
+      CONFIG.remotes[dev] = p;
+    }
+    S.keyAssign = {};
+    msg = "Saved " + n + " key" + (n > 1 ? "s" : "") + " to '" + dev + "'";
+    tone = "on";
+  } catch (err) {
+    msg = "Save failed: " + err.message;
+    tone = "off";
+  }
+  /* re-render first (the sub lines and the Save tile change), then
+     flash — navigate() would otherwise overwrite the message */
+  navigate("keys:", true);
+  flashBar(msg, tone);
+}
+
+function keysScreen() {
+  const dev = S.deviceName || "default";
+  const pend = S.keyPending;
+  const nAssign = Object.keys(S.keyAssign).length;
+
+  /* --- band 1: THE REMOTE (the slot grid, in the profile's order) */
+  const slots = [];
+  keycapLayout().forEach((row, ri) => (row || []).forEach((name, ci) => {
+    const id = "ks_" + ri + "_" + ci;
+    if (!name) {           // a blank in the physical grid stays a blank
+      slots.push({ id, type: "kslot", blank: true, icon: " ", label: "" });
+      return;
+    }
+    slots.push({ id, type: "kslot", slot: name, icon: keycapGlyph(name), label: name });
+  }));
+
+  /* --- band 2: the pending readout + save */
+  const tools = [{
+    id: "kc_hint", type: "preset",
+    icon: "material:" + (pend ? "touch_app" : "keyboard"),
+    ...(pend ? { color: "var(--accent)" } : {}),
+    label: pend ? "Pending: " + JSON.stringify(pend) : "Press a key on the remote…",
+    sub_label: pend
+      ? "now tap the slot it belongs to"
+      : "then tap its slot above · accent ring below = unmapped · exit with ‹",
+    action: {},
+  }, {
+    id: "kc_save", type: "kslot", save: true, icon: "💾",
+    label: nAssign ? "Save " + nAssign + " to '" + dev + "'" : "Save",
+    sub_label: nAssign ? "writes this remote's keymap and deploys"
+      : "nothing assigned yet",
+  }];
+
+  /* --- band 3: RECENT KEYS (the v0.55 log, unchanged in spirit) */
+  const rows = S.keycap.map((r, i) => ({
+    id: "kc_" + i, type: "preset",
+    icon: "material:" + (r.mapped ? "keyboard_return" : "help"),
+    ...(r.mapped ? {} : { color: "var(--accent)" }),
+    label: JSON.stringify(r.key) + " · " + r.code + " · kc " + r.kc,
+    sub_label: r.mapped ? "→ " + r.mapped : "unmapped in '" + dev + "'",
+    action: {},
+  }));
+
+  return {
+    name: "Key capture", virtual: true, class: "group",
+    grid: { columns: 1 },
+    sections: [
+      { title: "The remote — " + dev, hero_label: "Remote",
+        columns: 3, tiles: slots },
+      { columns: 1, tiles: tools },
+      { title: "Recent keys", hero_label: "Keys", columns: 1, tiles: rows },
+    ],
+    initial_focus: "kc_hint",
+  };
 }
 
 /* ================================================================
@@ -1281,6 +2329,10 @@ function screenOf(id) {
     return detailScreen(id.slice(7));
   if (typeof id === "string" && id.startsWith("sources:"))
     return sourcesScreen(id.slice(8));
+  if (typeof id === "string" && id.startsWith("queue:"))
+    return queueScreen(id.slice(6));
+  if (id === "keys:")           /* key capture (v0.55) */
+    return keysScreen();
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
@@ -1419,9 +2471,15 @@ WIDGETS.nav = {
 /* PRESET tile — icon square that fires an app/preset (warm-start:
    ensures its activity first); drawer screens pop back after firing. */
 WIDGETS.preset = {
-    sub: () => "",
+    sub: (e, t) => t.sub_label || "",
     isOn: (e, t) => !!(t.activity && isActivityActive(t.activity)),
     select: (e, t) => {
+      /* BROWSE taps (v0.49) navigate WITHIN the drawer — stepping
+         into Albums must not pop the drawer shut */
+      if (t.action && t.action.browse !== undefined) {
+        browseGo(t.action.browse);
+        return;
+      }
       const fired = firePreset(t);
       /* drawer screens (apps, music library): picking an item is a
          one-shot — fire it, announce it, and pop back to where the
@@ -1435,6 +2493,18 @@ WIDGETS.preset = {
       }
     }
   };
+
+/* the QUEUE ROW widget — see queueScreen above. isOn is the LIVE
+   playing test (title + artist beats duplicate titles); the ▶ mark
+   and the accent highlight both ride renderStates. */
+WIDGETS.qrow = {
+  sub: (e, t) => t.sub_label || "",
+  isOn: (e, t) => !!e && st(e).a.media_title === t.q_title &&
+    (!t.q_artist || !st(e).a.media_artist ||
+      st(e).a.media_artist === t.q_artist),
+  select: (e, t) => runAction(t.action),
+  body: () => `<span class="qnowic material-symbols-outlined">play_arrow</span>`,
+};
 
 /* TRANSPORT strip — prev · play/pause · next for a media_player. */
 WIDGETS.transport = {
@@ -1481,6 +2551,7 @@ WIDGETS.mediabtns = {
     body: () => `<div class="btnrow">
       <button class="dpbtn cvsel" data-mb="shuffle"><span class="material-symbols-outlined">shuffle</span></button>
       <button class="dpbtn" data-mb="repeat"><span class="material-symbols-outlined">repeat</span></button>
+      <button class="dpbtn" data-mb="queue"><span class="material-symbols-outlined">queue_music</span></button>
     </div>`,
     wire: (el, t) => {
       el._ci = 0;                       // roving default = shuffle (matches cvsel)
@@ -1502,6 +2573,10 @@ WIDGETS.mediabtns = {
 function mbPress(e, k) {
   if (!e) return;
   const a = st(e).a;
+  /* QUEUE (v0.51 — Suresh: "one thing that would be nice for all music
+     players is the queue"): opens the queue view; adapter probing
+     decides how (core/queue.js) — refetched fresh on every open */
+  if (k === "queue") { S.queue.items = null; navigate("queue:" + e); return; }
   if (k === "shuffle")
     callService("media_player", "shuffle_set", { shuffle: !a.shuffle }, e);
   else {
@@ -1522,9 +2597,21 @@ WIDGETS.buttons = {
         `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
       ).join("") + `</div>`,
     wire: (el, t) => wireTaps(el, "cmd", k => {
-      /* "power" is the DEVICE power (control target / $context.power),
-         not a remote keycode */
+      /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
+         is turning off the device, not the activity"): toggling the
+         activity keeps the select and the devices moving TOGETHER —
+         end (with the standard confirm) when it's running, start (the
+         full generated sequence) when it isn't. Raw device power is
+         what the PHYSICAL short-press power policy is for; pages with
+         no current activity keep the old device fallback. */
       if (k === "power") {
+        const aid = currentActivityId();
+        const a = aid && (CONFIG.activities || {})[aid];
+        if (a) {
+          if (isActivityActive(aid)) { endCurrentActivity(); renderStates(); }
+          else { startActivity(aid); flashBar("Starting " + (a.name || aid), "on"); }
+          return;
+        }
         if (ctPower()) return;
         const pe = resolveEntity("$context.power");
         if (pe) callService("homeassistant", "toggle", null, pe);
@@ -2009,6 +3096,43 @@ WIDGETS.sources = {
   }
 };
 
+/* KSLOT — one slot of THE REMOTE on the key-capture screen (v0.56).
+   A physical button described in the Studio's layout builder, waiting
+   to learn which raw key it emits. Tap = assign the pending capture.
+   Three flavors, one widget: a named slot, a BLANK (a spacer in the
+   physical grid — inert), and the 💾 Save tile.
+
+   The tile is deliberately dumb: no entity, no subscription. Its sub
+   line reports the raw keys currently routed to it (profile keymap
+   plus this session's unsaved assignments), so the grid reads as the
+   remote's own legend. isOn lights a slot the moment it has a key —
+   at a glance you can see which buttons are still unlearned.
+   (Lives in widgets/ because WIDGETS is not defined until
+   registry.js — the v0.51.1 lesson.) */
+WIDGETS.kslot = {
+  /* two chassis-level looks, decided once at build time: a slot with
+     no standard glyph wears its NAME at key size (the chassis always
+     renders SOME icon — "•" is its fallback — so the class hides it),
+     and a blank slot fades to a spacer. */
+  wire: (el, t) => {
+    if (t.blank) el.classList.add("kblank");
+    else if (t.slot && !KEYCAP_GLYPHS[t.slot]) el.classList.add("noglyph");
+  },
+  sub: (e, t) => {
+    if (t.blank) return "";
+    if (t.save) return t.sub_label || "";
+    const ks = keysForSlot(t.slot);
+    return ks.length ? ks.map(k => (k === " " ? "Space" : k)).join(" · ")
+                     : "unassigned";
+  },
+  isOn: (e, t) => !t.blank && !t.save && keysForSlot(t.slot).length > 0,
+  select: (e, t) => {
+    if (t.blank) return;
+    if (t.save) { keycapSave(); return; }
+    keycapAssign(t.slot);
+  },
+};
+
 /* Shared widget helpers — remote-command resolution (DPAD_DEFAULT <
    tile commands < activity dpad_commands), icon map, nudge steppers
    for light/climate. */
@@ -2048,7 +3172,7 @@ const grid = document.getElementById("grid");
 
 function iconHtml(t, row) {
   let inner;
-  if (t.icon_image) inner = `<img src="${t.icon_image}" alt="">`;
+  if (t.icon_image) inner = `<img src="${t.icon_image}" alt=""${t.icontain ? ' class="contain"' : ""}>`;
   else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
@@ -2196,8 +3320,12 @@ window.addEventListener("resize", () => scheduleFit());
 
 function makeTile(t, row) {
   const el = document.createElement("div");
-  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "");
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "") +
+    (t.color ? " tacc" : "") + (t.brw ? " brw" : "");
   el.id = "tile_" + t.id;
+  /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
+     circle — see grid.css .tacc */
+  if (t.color) el.style.setProperty("--tacc", t.color);
   const w = WIDGETS[t.type] || {};
   const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
   const body = `<div class="lbl">${t.label}</div>
@@ -2255,6 +3383,32 @@ function makeTile(t, row) {
 }
 
 function navigate(screenId, isBack) {
+  /* CROSS-WORKSPACE DOORWAY (v0.50.2 — Suresh: "a nav tile on main
+     porch page that takes me to deck and vice versa"): a `ws:<id>`
+     target switches WORLDS by canonical address — the browser leaves
+     for /local/harmonium/<id>/index.html (a peek: nothing pinned).
+     In the Studio preview, changing the iframe's world would desync
+     the editor — flash instead. */
+  if (typeof screenId === "string" && screenId.startsWith("ws:")) {
+    const w = screenId.slice(3).trim();
+    if (!w) return;
+    if (typeof PREVIEW !== "undefined" && PREVIEW) {
+      flashBar("Opens workspace '" + w + "' on the real remote");
+      return;
+    }
+    const tail = new RegExp("/" + WS + "/index\\.html$");
+    location.href = tail.test(location.pathname)
+      ? location.pathname.replace(tail, "/" + w + "/index.html")
+      : location.pathname.replace(/index\.html$/, w + "/index.html");
+    return;
+  }
+  /* LIBRARY CANONICALIZATION (v0.47.4 — Suresh: "The apps drawer
+     doesn't work"): a bare ref to a screen that now lives in the
+     controller LIBRARY (the apps drawer moved there so it travels
+     into every workspace) resolves to its controller: address —
+     heals every stale {navigate: apps} in deployed configs. */
+  if (!screenOf(screenId) && screenOf("controller:" + screenId))
+    screenId = "controller:" + screenId;
   const sc = screenOf(screenId);           // config screen or detail:<entity>
   if (!sc) return;
   if (S.screen && !isBack && screenId !== S.screen) S.stack.push(S.screen);
@@ -2264,6 +3418,12 @@ function navigate(screenId, isBack) {
   /* (the v0.35 title-bar input button lived one day — a bar icon is a
      fingertip-hostile target on a remote. The source_select ROLE +
      Source tile replaced it, v0.36.) */
+  /* MUSIC TYPE SCOPE (v0.52.1 — Suresh: "set Primary and Secondary
+     font for the music player separately"): screens declaring
+     font_scope: music read --font-m1/--font-m2 (they follow the
+     global pair unless the theme sets them) */
+  document.getElementById("app").classList.toggle("scr-music",
+    (sc.font_scope || "") === "music");
   renderBanner(sc);
   const cols = (sc.grid && sc.grid.columns) || 2;
   /* minmax(0,1fr): columns may shrink below content min-width, so a
@@ -2273,9 +3433,19 @@ function navigate(screenId, isBack) {
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
+  /* BROWSE BANDS (v0.50): a section containing a browse tile sends
+     its OTHER tiles to the fixed bar (band 1) — the grid carries
+     items only. _active re-arms per render via the generator. */
+  S.browse._active = false;
+  S.browse.barTiles = [];
   sections.forEach(sec => {
     if (sec.enabled === false) return;   // switched off in the Studio
-    const vis = sec.tiles.flatMap(expandTile).filter(visibleTile);
+    let secTiles = sec.tiles;
+    if (secTiles.some(x => x.type === "browse")) {
+      S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
+      secTiles = secTiles.filter(x => x.type === "browse");
+    }
+    const vis = secTiles.flatMap(expandTile).filter(visibleTile);
     if (!vis.length) return;
     let anchorEl = null;
     if (sec.title) {
@@ -2302,10 +3472,29 @@ function navigate(screenId, isBack) {
     if (sec.hero_label)
       heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
   });
+  /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
+     a page with nothing to render says WHY instead of showing void —
+     a pure controller waits for an activity; a hub waits for content */
+  if (!grid.children.length) {
+    const hint = document.createElement("div");
+    const isCtrl = sc.class === "activity" || sc.type === "controller" ||
+      sc.view_kind === "controller";
+    hint.textContent = isCtrl
+      ? "No activity is active — start one from its room page and this player fills in."
+      : "Nothing here yet — add activities or tiles to this page in the Studio, then Save & Deploy.";
+    hint.style.cssText = "grid-column:1/-1;padding:36px 16px;text-align:center;" +
+      "opacity:.45;font-size:14px;line-height:1.5;";
+    grid.appendChild(hint);
+  }
   /* jumps ALWAYS register (CH▲▼/MENU step them even bannerless —
      the Apps drawer); the visible strip needs a banner with tabs on */
   buildHeroNav(heroJumps, !!(sc.banner && sc.banner.enabled !== false &&
     sc.banner.tabs !== false));
+  /* fresh page = top of page (v0.53 — the grid keeps its scrollTop
+     across innerHTML swaps, so the PREVIOUS page's scroll position
+     leaked into this one, eating the top padding); initial_focus
+     deeper in the page still scrolls to itself via setFocus */
+  grid.scrollTop = 0;
   const all = tilesOf(sc);
   setFocus(sc.initial_focus || (all[0] && all[0].id));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
@@ -2313,6 +3502,8 @@ function navigate(screenId, isBack) {
   scheduleFit();
   /* global back affordance: chevron in the status bar iff history */
   document.getElementById("backBtn").classList.toggle("hidden", !S.stack.length);
+  updateBarChrome();
+  if (typeof browseBar === "function") browseBar();
   /* passthrough cue: accent rule + gamepad glyph while the physical
      D-pad drives the device (and hold-Back/Home send device keys) */
   const pt = passthroughActive();
@@ -2321,9 +3512,25 @@ function navigate(screenId, isBack) {
   if (S.connected) subscribeFor(screenId);
 }
 
+/* app-level bar chrome (v0.48.1 — Suresh: "In a browser, how do I turn
+   off the activity? Or Go Back a page? Or go home?"): Home + End live
+   in the title bar on TOUCH clients; physical-key remotes have real
+   keys, so the bar stays clean there. End shows while an activity is
+   current (select or pending) and rides the standard confirm flow. */
+function updateBarChrome() {
+  const touchOnly = !CAPS.has("physical_dpad");
+  const home = document.getElementById("homeBtn");
+  const end = document.getElementById("endBtn");
+  if (!home || !end) return;
+  home.classList.toggle("hidden",
+    !touchOnly || S.screen === CONFIG.home_screen);
+  end.classList.toggle("hidden", !(touchOnly && currentActivityId()));
+}
+
 function renderStates() {
   const sc = screenOf(S.screen);
   if (!sc) return;
+  updateBarChrome();
   /* generated tiles (presets_from) are STRUCTURAL: when their source
      attribute changes the tile set itself changes, so patch-in-place
      isn't enough — re-render the grid. Rare (favorites edit), cheap. */
@@ -2793,6 +4000,10 @@ function act(button, phys) {
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
       /* unbound CH on a multi-section page = CATEGORY/SECTION paging
          (the Music Library's ▲▼; bindings above always win) */
+      /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
+      if ((button === "ch_up" || button === "ch_down") &&
+          typeof brStepCat === "function" &&
+          brStepCat(button === "ch_up" ? 1 : -1)) break;
       if ((button === "ch_up" || button === "ch_down") &&
           heroCycle(button === "ch_up" ? 1 : -1)) break;
       /* mute default (no config binding needed): toggle mute on the
@@ -2802,6 +4013,18 @@ function act(button, phys) {
         if (tgt) callService("media_player", "volume_mute",
           { is_volume_muted: !st(tgt).a.is_volume_muted }, tgt);
       }
+      break;
+    }
+    default: {
+      /* OPEN BUTTON VOCABULARY (v0.54 — Suresh: "dpad left hold and
+         right hold to do RWD and FFWD"): ANY logical button a keymap
+         can emit is bindable — a screen/global `buttons` entry runs
+         its action (shared grammar: navigate/sequence/service/seek).
+         Unbound stays a deliberate no-op. left_hold/right_hold land
+         here; new remotes can mint new names without engine edits. */
+      const bd = Object.assign({}, CONFIG.global.buttons,
+        (screenOf(S.screen) || {}).buttons || {})[button];
+      if (bd) runAction(bd);
       break;
     }
   }
@@ -2846,6 +4069,14 @@ window.addEventListener("keypress", e => dbgKey("·", e), true);
    (Enter delivers proper pairs and the gesture is field-verified). */
 document.addEventListener("keydown", e => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return; // let the auth form type
+  /* KEY CAPTURE screen (v0.55): log EVERYTHING (mapped or not) and
+     swallow it — a captured "back" must not navigate. Exit is the
+     title-bar ‹ chevron (a DOM click, not this path). */
+  if (S.screen === "keys:") {
+    e.preventDefault();
+    if (!e.repeat) keycapLog(e);
+    return;
+  }
   const b = KEYMAP[e.key];
   if (!b) return;
   e.preventDefault();
@@ -2869,6 +4100,7 @@ document.addEventListener("keydown", e => {
 
 document.addEventListener("keyup", e => {
   if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (S.screen === "keys:") { e.preventDefault(); return; }
   if (KEYMAP[e.key] !== "select") return;
   e.preventDefault();
   clearTimeout(holdTimer);
@@ -2887,6 +4119,29 @@ function showAuth(err) {
     (location.protocol.startsWith("http") ? location.host : "");
 }
 document.getElementById("backBtn").addEventListener("click", () => act("back"));
+/* browser chrome (v0.48.1): app-level Home + End-activity in the bar */
+document.getElementById("homeBtn").addEventListener("click", () => act("home"));
+document.getElementById("endBtn").addEventListener("click", () => {
+  endCurrentActivity();
+  renderStates();
+});
+/* ⓘ: tap = the perf flash (unchanged) · HOLD 550ms = the KEY CAPTURE
+   screen (v0.55 — a diagnostic surface behind the info icon, where
+   the family never trips on it; also reachable as nav target keys:) */
+{
+  const info = document.getElementById("info");
+  let iT = null, iHeld = false;
+  info.addEventListener("pointerdown", () => {
+    iHeld = false;
+    clearTimeout(iT);
+    iT = setTimeout(() => { iHeld = true; navigate("keys:"); }, 550);
+  });
+  const iEnd = () => clearTimeout(iT);
+  info.addEventListener("pointerup", iEnd);
+  info.addEventListener("pointercancel", iEnd);
+  info.addEventListener("pointerleave", iEnd);
+  info.addEventListener("click", () => { if (!iHeld) perfInfo(); iHeld = false; });
+}
 document.getElementById("connectBtn").addEventListener("click", () => {
   const host = document.getElementById("hostIn").value.trim();
   const token = document.getElementById("tokenIn").value.trim();
@@ -2913,9 +4168,12 @@ let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
 function applyConfig(cfg, devName) {
   CONFIG = cfg;
   if (!devName) devName = localStorage.getItem("hakr_device");
-  if (!devName && window.fully && CONFIG.devices)
-    devName = Object.keys(CONFIG.devices).find(k => CONFIG.devices[k].fully) || null;
-  DEVICE = (CONFIG.devices || {})[devName] || (CONFIG.devices || {}).default || {};
+  // v0.45: hardware profiles renamed devices -> remotes (devices is now
+  // the bundle library); read remotes with a legacy-config fallback
+  const REMOTES = CONFIG.remotes || CONFIG.devices || {};
+  if (!devName && window.fully)
+    devName = Object.keys(REMOTES).find(k => REMOTES[k].fully) || null;
+  DEVICE = REMOTES[devName] || REMOTES.default || {};
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
@@ -2947,6 +4205,10 @@ function previewListen() {
         S.stack = [];
         navigate(m.screen, true);
       }
+    } else if (m.type === "harmonium_preview_activity") {
+      /* impersonate the activity being edited (null clears) */
+      S.pvActivity = m.activity || null;
+      if (CONFIG && S.screen) { navigate(S.screen, true); subscribeFor(S.screen); }
     } else if (m.type === "harmonium_key" && m.key) {
       const opts = { key: m.key, bubbles: true, cancelable: true };
       document.dispatchEvent(new KeyboardEvent("keydown", opts));
@@ -3006,6 +4268,17 @@ function previewListen() {
     return;
   }
   WS = loaded.ws;
+  /* CANONICAL ADDRESS v2 (v0.48.3 — Suresh: "it should be
+     workspacename/index.html everywhere"): whatever door you came in
+     through — bare engine path, stub, hidden pin — the address bar
+     ends at <ws>/index.html, MAIN INCLUDED (main gets its own stub
+     dir server-side). The bar always tells the truth about which
+     world you're in; a refresh re-enters through the stub. Rewrite
+     only when the loaded workspace is certain (never on fallback). */
+  if (/\/index\.html$/.test(location.pathname) &&
+      !location.pathname.endsWith("/" + loaded.ws + "/index.html") &&
+      (!WS_PEEK || loaded.ws === WS_PEEK))
+    history.replaceState(null, "", loaded.ws + "/index.html");
   applyConfig(loaded.cfg, localStorage.getItem("hakr_device"));
   if (loaded.missed)
     flashBar("Workspace '" + loaded.missed + "' not deployed — using main", "off");
