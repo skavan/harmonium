@@ -48,11 +48,31 @@ registered) · `studio-src/src/lib/PreviewPane.svelte` ·
 `integration/custom_components/harmonium/studio/studio.html` (built) ·
 `dist/index.html` · `tests/smoke-keys.mjs` · `tests/smoke-studio.mjs`.
 
+## New since v0.56 (2026-08-02, docs only)
+
+- `docs/GETTING-STARTED.md` — product-level install guide (clean clone
+  → engine → integration → Studio → first workspace), with a **Jamaica
+  appendix** for the second house.
+- `docs/todo-remote-pairing.md` — the parked remote-pairing work in
+  full: (A) field-test v0.56 on hardware, (B) the RS90 pair-a-new-remote
+  runbook incl. KeyMapper conventions, (C) the token/auth onboarding
+  ladder ending in TV-style pairing codes.
+- **SECOND INSTANCE, JAMAICA**: HA at `192.168.1.95`, repo cloned to
+  `G:\Local Documents\Code 2025\repos\harmonium` on the laptop
+  (dragonfly-evo), `H:` remapped to `\\192.168.1.95\config`. Install
+  not yet performed. Decision taken: build that house from a **BLANK
+  workspace** in the Studio, not by importing Porch.
+- ⚠ **v0.56 is not in git.** It exists only in the `G:\` working tree
+  on neptune. The Jamaica clone is at whatever was last pushed — commit
+  and push, or apply the delivered `v056-batch.tgz` over the clone.
+  Sanity check: `src/widgets/kslot.js` present = v0.56.
+
 ## Open / parked after v0.56
 
 - **Parked (his words: "One day… V2 UX")**: photograph the physical
   remote and map hotspot areas onto the image — the "mirror the
   remote" experience at full fidelity. Revisit when the RS90 lands.
+  Detail in `docs/todo-remote-pairing.md`.
 - Capture-assign v1 deliberately has no UNASSIGN gesture: a raw key
   is reassigned by capturing it again and tapping a different slot,
   and a wrong entry is edited in the Studio's Code tab. Add one if it
