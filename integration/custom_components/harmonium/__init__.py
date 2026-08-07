@@ -14,6 +14,7 @@ whose live preview is the engine itself in #preview=1 mode.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -142,6 +143,45 @@ class HarmoniumStore:
     async def get_ws(self, ws: str):
         data = await self.load()
         return data["workspaces"].get(ws)
+
+
+def _engine_fingerprint(path: Path) -> str:
+    """8 hex chars of the DEPLOYED engine's bytes. Cheap (one ~200KB
+    read), and it is the file itself that is authoritative — not a
+    version the repo claims, not a deploy timestamp we hope was
+    updated. push-to-ha.bat copies a new index.html; the next boot
+    sees a different fingerprint. Nothing to remember to bump."""
+    try:
+        h = hashlib.sha1()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()[:8]
+    except OSError:
+        return ""
+
+
+class HarmoniumEngineVersionView(HomeAssistantView):
+    """GET /api/harmonium/engine_version -> {"v": "<fingerprint>"}
+
+    UNAUTHENTICATED on purpose: the entry stub runs before any token
+    exists, and a content hash of a file already served at /local/ is
+    not a secret. no-store so the answer is never itself cached."""
+
+    url = "/api/harmonium/engine_version"
+    name = "api:harmonium:engine_version"
+    requires_auth = False
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request: web.Request) -> web.Response:
+        engine = Path(self.hass.config.path(DEPLOY_DIR)) / "index.html"
+        v = await self.hass.async_add_executor_job(_engine_fingerprint, engine)
+        return web.json_response(
+            {"v": v},
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
 
 
 class HarmoniumConfigView(HomeAssistantView):
@@ -512,6 +552,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for ws, cfg in data["workspaces"].items():
             if ws != MAIN:
                 await hstore.deploy(ws, cfg)
+        # MINT WHAT THE MERGE BROUGHT IN (2026-08-06). A reseed can add a
+        # whole ROOM — the Games Room did — and every page that owns
+        # activities needs its select.harmonium_<page>_activity. Save &
+        # Deploy has always minted (the POST view calls it); reseed never
+        # did, so a room arriving by file copy had no select until the
+        # next restart or reload. The engine reads that select to know
+        # what is running in the room, so this is not cosmetic.
+        for ws, cfg in data["workspaces"].items():
+            await mint(ws, cfg)
         _LOGGER.info("Harmonium main reseeded from %s (three-way merge: %s; "
                      "+%d workspace file(s) re-deployed)", deployed,
                      "yes" if base is not None and current is not None else
@@ -572,6 +621,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.http.register_view(HarmoniumConfigView(hass, hstore, mint))
     hass.http.register_view(HarmoniumWorkspacesView(hass, hstore, mint))
+    hass.http.register_view(HarmoniumEngineVersionView(hass))
 
     studio = Path(__file__).parent / "studio"
     await hass.http.async_register_static_paths(

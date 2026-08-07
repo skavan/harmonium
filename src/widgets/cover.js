@@ -18,7 +18,7 @@ WIDGETS.cover = {
       return entOpt(e, "invert_position") ? s === "closed" : s === "open";
     },
     meter: e => {
-      const p = st(e).a.current_position ?? 0;
+      const cp = st(e).a.current_position; const p = cp != null ? cp : 0;
       return (entOpt(e, "invert_position") ? 100 - p : p) / 100;
     },
     select: e => callService("cover", "toggle", null, e),

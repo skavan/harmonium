@@ -1,6 +1,13 @@
 /* STEPPER — the − value + row (brightness, setpoint, position,
    percentage…); kind picks entity attribute + service. */
 WIDGETS.stepper = {
+    /* v0.58: a stepper for a range the device does not expose is a lie
+       that reads 0% forever — the Fire TV reports 22961 (no VOLUME_SET
+       / STEP / MUTE), so its generated detail page drew a dead volume
+       control. Only the volume kind has a feature bit to check; the
+       rest are gated by their own attributes elsewhere. */
+    hidden: (e, t) => !!e && t.kind === "volume" &&
+      !sfHas(e, MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
     /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
        Kinds with a bounded 0-100 range also get a fat slider track
        (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
@@ -36,7 +43,7 @@ WIDGETS.stepper = {
         f = Math.max(0, Math.min(1, f));
         sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";
-        const min = k.min ?? 0, max = k.max ?? 100;
+        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const v = Math.round(min + f * (max - min));
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
@@ -62,7 +69,7 @@ WIDGETS.stepper = {
       el.querySelector(".stepval").textContent = k ? k.fmt(k.get(e)) : "–";
       const sl = el.querySelector(".sldr");
       if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
-        const min = k.min ?? 0, max = k.max ?? 100;
+        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
         sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";

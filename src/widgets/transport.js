@@ -5,6 +5,10 @@ WIDGETS.transport = {
        screen has no dpad_passthrough, so the row IS the transport),
        select presses the highlighted control (default play-pause). */
     sub: () => "",
+    /* v0.57: an AV receiver has no transport — drawing prev/play/next
+       on one is a lie, not a control. Onkyo TX-NR6100 reports 69516:
+       volume, power, source, sound mode, and nothing to press here. */
+    hidden: e => !!e && !sfHas(e, MPF.PAUSE | MPF.PLAY | MPF.NEXT | MPF.PREV | MPF.STOP),
     isOn: e => st(e).s === "playing",
     keys: {
       left:  (e, t) => roveMove(t, "tr", -1),

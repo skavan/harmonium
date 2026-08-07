@@ -37,12 +37,19 @@
 
   let heroOpen = $state(false);
   let actsOpen = $state(true);
-  /* returning from a ＋-minted action draft re-opens the exact card */
+  /* returning from a ＋-minted action draft — or from the pre-wired
+     device library (v0.61) — re-opens the exact card AND scrolls to
+     it: on a room with five activities, landing "somewhere on the
+     page" is not landing where you left */
+  let actEls = $state({});
   $effect(() => {
     if (app.focusActivity && d?.activities?.[app.focusActivity]) {
-      lastAdded = app.focusActivity;
+      const want = app.focusActivity;
+      lastAdded = want;
       actsOpen = true;
       app.focusActivity = null;
+      requestAnimationFrame(() =>
+        actEls[want]?.scrollIntoView({ block: "start", behavior: "smooth" }));
     }
   });
   /* the page id AUTO-FOLLOWS the name (slug) until hand-pinned —
@@ -584,10 +591,12 @@
       {#if secSet.acts}{@render secSettings(roleSection("activities")?.s)}{/if}
       <div class={"space-y-3 " + (roleSection("activities") && !secEnabled(roleSection("activities").s) ? "opacity-50" : "")}>
         {#each owned as id, i (id)}
-          <ActivityCard {id} open={id === lastAdded}
-            onrename={(nid) => (lastAdded = nid)}
-            onup={i > 0 ? () => moveActivity(id, -1) : null}
-            ondown={i < owned.length - 1 ? () => moveActivity(id, 1) : null} />
+          <div bind:this={actEls[id]}>
+            <ActivityCard {id} open={id === lastAdded}
+              onrename={(nid) => (lastAdded = nid)}
+              onup={i > 0 ? () => moveActivity(id, -1) : null}
+              ondown={i < owned.length - 1 ? () => moveActivity(id, 1) : null} />
+          </div>
         {:else}
           <p class="m-0 text-xs text-dim">No activities yet — an activity is something you do here (Watch TV, Listen to Music). ＋ Add activity starts one.</p>
         {/each}

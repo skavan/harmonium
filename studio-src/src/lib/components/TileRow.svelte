@@ -63,8 +63,12 @@
   /* the Type list, grouped so it reads: device + doorway (the two
      archetypes), content generators, then raw widgets for the
      advanced hand — Advanced-tab furniture only */
-  const CONTENT_TYPES = ["activity", "activities", "devices", "preset",
-    "presets_from", "apps", "sources", "scene", "script"];
+  /* v0.60: `volumes` and `groups` are cast GENERATORS like `devices` —
+     they name no device, so ONE tile on a shared controller serves
+     every room (this house's zones, the next house's whatever) */
+  const CONTENT_TYPES = ["activity", "activities", "devices", "volumes",
+    "groups", "presets", "preset", "presets_from", "apps", "browse",
+    "sources", "scene", "script"];
   /* cast GENERATOR (type "devices") → Unlink bakes it into plain
      device tiles (a point-in-time copy you then own) */
   function castOf(aid) {
@@ -91,6 +95,9 @@
     }));
     tiles.splice(index, 1, ...baked);
   }
+  /* the kinds a media search may ask for (media_filter_classes) */
+  const SEARCH_CLASSES = ["artist", "album", "track", "playlist",
+    "radio", "podcast", "audiobook"];
   const RAW_TYPES = ["light", "switch", "climate", "cover", "fan", "media",
     "volume", "transport", "mediabtns", "dpad", "buttons"];
   const ENTITY_TYPES = new Set(["light", "switch", "climate", "cover", "fan", "media",
@@ -179,14 +186,20 @@
      choices compile to the ONE action shape the engine already fires
      (service + entity + data — no config-model change) ---- */
   const presetMode = () => {
+    /* v0.64: a preset may name a sequence DIRECTLY ({sequence: id}) —
+       the same grammar activities and key bindings speak. The long
+       harmonium.run spelling still reads as a sequence, so tiles
+       written before the engine learned the short form keep working. */
+    if (tile.action?.sequence !== undefined) return "sequence";
     const svc = tile.action?.service || "";
     if (svc === "harmonium.run") return "sequence";
     if (svc === "scene.turn_on") return "scene";
     return "service";
   };
+  const presetSeq = () => tile.action?.sequence ?? tile.action?.data?.sequence ?? "";
   function setPresetMode(m) {
     if (m === presetMode()) return;
-    if (m === "sequence") tile.action = { service: "harmonium.run", data: { sequence: "" } };
+    if (m === "sequence") tile.action = { sequence: "" };
     else if (m === "scene") tile.action = { service: "scene.turn_on", entity: "" };
     else tile.action = { service: "" };
   }
@@ -389,8 +402,8 @@
             <div class="flex items-end gap-2">
               <div class="min-w-0 flex-1">
                 <Field label="Action" hint="">
-                  <Select value={tile.action?.data?.sequence ?? ""} allowEmpty
-                    onchange={(e) => { tile.action = { service: "harmonium.run", data: { sequence: e.target.value } }; }}
+                  <Select value={presetSeq()} allowEmpty
+                    onchange={(e) => { tile.action = { sequence: e.target.value }; }}
                     options={seqIds} />
                 </Field>
               </div>
@@ -463,6 +476,67 @@
                 title="Replace the generator with plain device tiles (a snapshot you then own — it no longer follows the cast)"
                 onclick={unlinkCast}>⛓ Unlink → baked tiles</button>
             </div>
+          {:else if tile.type === "browse"}
+            <!-- THE MEDIA LIBRARY (v0.66). One setting here is a
+                 DECLARATION, not a control: which engine answers a
+                 search. There is one option today and it still shows,
+                 because otherwise the next person finds search working
+                 and no idea what is behind it. -->
+            <Field label="Search engine"
+              hint={tile.search?.engine
+                ? "the only engine today — Sonos itself cannot search streaming services"
+                : "no engine = no magnifier; the library still browses"}>
+              <Select value={tile.search?.engine ?? ""} allowEmpty
+                options={[{ value: "music_assistant", label: "Music Assistant" }]}
+                onchange={(e) => {
+                  const v = e.target.value;
+                  if (!v) { delete tile.search; return; }
+                  tile.search = Object.assign({ classes: SEARCH_CLASSES.slice() },
+                    tile.search || {}, { engine: v });
+                }} />
+            </Field>
+            {#if tile.search?.engine}
+              <Field label="Search player"
+                hint="the player that SEARCHES — results still play on this activity's own player wherever the id converts">
+                <EntityPicker domains={["media_player"]}
+                  value={tile.search.entity ?? ""}
+                  onchange={(e) => (tile.search.entity = e.target.value)} />
+              </Field>
+              <div class="col-span-2">
+                <Field label="Result kinds" hint="what the engine is ASKED for — leaving generated playlists, audiobooks and podcasts unasked is the point">
+                  <Chips bind:value={tile.search.classes}
+                    suggestions={SEARCH_CLASSES} placeholder="add kind…" />
+                </Field>
+              </div>
+              <!-- DEPTH (v0.67.3 — Suresh: "we get 18 result tiles…
+                   now tap Tracks and I get 5"). HA's generic search
+                   caps at five per kind and offers no dial. Music
+                   Assistant's own service has one, but it is addressed
+                   by CONFIG ENTRY rather than by player — so naming it
+                   here is exactly what buys the deeper well. -->
+              <Field label="Music Assistant entry"
+                hint="Settings → Devices & Services → Music Assistant → the id in the URL. Empty = the shallow standard search, 5 per kind.">
+                <input class="w-full rounded-[8px] border border-line bg-panel px-2 py-1.5 font-mono text-xs text-ink"
+                  placeholder="01ABC…"
+                  value={tile.search.config_entry ?? ""}
+                  oninput={(e) => {
+                    const v = e.target.value.trim();
+                    if (v) tile.search.config_entry = v;
+                    else delete tile.search.config_entry;
+                  }} />
+              </Field>
+              <Field label="Results per kind"
+                hint="needs the entry above — how deep to dig (default 25)">
+                <input type="number" min="5" max="100" placeholder="25"
+                  class="w-full rounded-[8px] border border-line bg-panel px-2 py-1.5 text-xs text-ink"
+                  value={tile.search.limit ?? ""}
+                  oninput={(e) => {
+                    const v = +e.target.value;
+                    if (v > 0) tile.search.limit = v;
+                    else delete tile.search.limit;
+                  }} />
+              </Field>
+            {/if}
           {:else if ENTITY_TYPES.has(tile.type)}
             <Field label="Entity"><EntityPicker bind:value={tile.entity} /></Field>
           {:else}

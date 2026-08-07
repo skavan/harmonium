@@ -71,17 +71,45 @@ def deploy_file(ws: str) -> str:
 
 def stub_html(ws: str) -> str:
     """PATH-PER-WORKSPACE entry stub (v0.38): www/harmonium/<ws>/
-    index.html — the address IS the workspace. Three lines that hand
-    off to the single shared engine with a PEEK (pin=0: nothing
-    written to the device; the path decides on every boot, so one
-    physical browser can serve different worlds by URL alone). Stubs
-    never change when the engine updates — no version skew."""
+    index.html — the address IS the workspace.
+
+    CACHE CORRECTNESS (v0.57): the stub used to hand off to a BARE
+    ../index.html. HA serves www/ with long cache headers, so a kiosk
+    browser kept the engine it first saw while happily re-fetching
+    config.json — new config, old engine, and a config that names a
+    widget the old engine has never heard of renders as a tile
+    labelled "undefined". Diagnosing that from a screenshot is a
+    waste of a life.
+
+    So the stub now asks the integration what the deployed engine's
+    fingerprint is (unauthenticated, no-store, computed per request
+    from the file on disk) and hands off to ../index.html?v=<hash>.
+    The ENGINE stays cacheable — instant-on is the whole thesis — but
+    its URL changes the moment its bytes do, so every browser refetches
+    exactly when it should and never otherwise. No per-device setup,
+    no IPs: add the tenth tablet and it inherits this for free.
+
+    The stub itself may be cached forever; its logic is what is
+    stable, not the version it resolves. Deliberately ES5 — this runs
+    on whatever webview the vendor froze (Fire OS 7 ships Chromium 75).
+    """
     return (
         "<!doctype html><meta charset=\"utf-8\">"
         f"<title>Harmonium · {ws}</title>"
-        f"<script>location.replace(\"../index.html#ws={ws}&pin=0\""
-        " + (location.hash.length > 1 ? \"&\" + location.hash.slice(1) : \"\"))"
-        "</script>"
+        "<script>(function(){"
+        f"var h=\"#ws={ws}&pin=0\"+(location.hash.length>1?\"&\"+location.hash.slice(1):\"\");"
+        "var go=function(v){location.replace(\"../index.html\"+(v?\"?v=\"+v:\"\")+h);};"
+        "try{"
+        "var x=new XMLHttpRequest();"
+        "x.open(\"GET\",\"/api/harmonium/engine_version?t=\"+(new Date()).getTime(),true);"
+        "x.timeout=4000;"
+        "x.onreadystatechange=function(){if(x.readyState===4){"
+        "var v=null;try{v=JSON.parse(x.responseText).v;}catch(e){}go(v);}};"
+        "x.ontimeout=function(){go(null);};"
+        "x.onerror=function(){go(null);};"
+        "x.send();"
+        "}catch(e){go(null);}"
+        "})()</script>"
     )
 
 

@@ -2,13 +2,14 @@
   /* One activity, full harmonia-style card: identity, Setup ($context
      devices), State rules, navigation + confirm, controls JSON escape
      hatch. Lives in the OWNING room's editor. */
-  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf, showUndo, actDirty, recompileContext, setStatus, schedulePreview, seedDeviceFromEntity, impliedGroups, platformOf, previewActivity, previewGoto } from "../state.svelte.js";
+  import { app, selectSlice, beginSeqDraft, beginPageDraft, isControllerScreen, instantiateController, revertToStock, saveSnippet, snippetsOf, showUndo, actDirty, recompileContext, setStatus, schedulePreview, seedDeviceFromEntity, impliedGroups, platformOf, previewActivity, previewGoto, ROLE_KEYS, isCastGroup, SHOWS_KINDS, showsRole, openDeviceEditor } from "../state.svelte.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
   import Switch from "./Switch.svelte";
   import Chips from "./Chips.svelte";
   import CardRow from "./CardRow.svelte";
+  import TileRow from "./TileRow.svelte";
   import EntityPicker from "./EntityPicker.svelte";
   import IconPicker from "./IconPicker.svelte";
   import ActionPicker from "./ActionPicker.svelte";
@@ -155,12 +156,29 @@
   /* ============ THE TABBED BUILDER (v0.45 — the Device Round) ============
      Harmony-wizard answers as ADDRESSABLE TABS, not a step-by-step flow
      (Suresh: the audience is HA-comfortable — "tabs with a lit up dot
-     when done"). Setup · Devices · Jobs · Inputs · Actions · State, each
+     when done"). Setup · Devices · Roles · Inputs · Actions · State, each
      dot lighting when its facet is complete. Devices are LIBRARY BUNDLES
-     (first-class); Jobs are the plain-language role questions; wiring
+     (first-class); Roles are the plain-language role questions; wiring
      compiles to context via recompileContext on every edit. */
   const devLib = $derived(app.draft?.devices || {});
-  const cast = $derived(a?.cast || []);
+  /* THE CAST IS MIXED (v0.60): device ids AND group objects. `cast`
+     keeps its old meaning — the device ids — so everything downstream
+     (jobs, inputs, actions, state, the dot) is untouched by groups.
+     A group is a VIEW over some of those devices; membership never
+     removes a device from the cast, it only says where its control
+     gets drawn (Suresh: "A grouped device keeps its other jobs"). */
+  const castRaw = $derived(Array.isArray(a?.cast) ? a.cast : []);
+  const groups = $derived(castRaw.filter(isCastGroup));
+  /* the device ids, in cast order, INCLUDING ones only named by a
+     group — a grouped device is still cast, so it still answers the
+     Roles tab and still contributes its entities */
+  const cast = $derived([
+    ...castRaw.filter((m) => typeof m === "string"),
+    ...groups.flatMap((g) => (g.members || [])
+      .filter((m) => typeof m === "string" && !castRaw.includes(m))),
+  ]);
+  const groupOf = (devId) =>
+    groups.find((g) => (g.members || []).includes(devId)) || null;
   const wiring = $derived(a?.wiring || {});
   /* ROLES tab copy (Suresh's ruling, v0.45.1): control name leads,
      mono role key beside it, effect line as the tooltip/hint — no
@@ -188,7 +206,7 @@
      manual extras whenever the device cast changes */
   function regenDevices() {
     const ents = [];
-    for (const devId of a.cast || [])
+    for (const devId of cast)
       for (const ent of Object.values(devLib[devId]?.roles || {}))
         if (!ents.includes(ent)) ents.push(ent);
     for (const ent of a.extra_devices || []) if (!ents.includes(ent)) ents.push(ent);
@@ -199,8 +217,8 @@
     if (!a.cast) a.cast = [];
     if (a.cast.includes(devId)) return;
     a.cast.push(devId);
-    /* prefill: unclaimed jobs only — first come, first served; the
-       Jobs tab is where exceptions get decided */
+    /* prefill: unclaimed roles only — first come, first served; the
+       Roles tab is where exceptions get decided */
     if (!a.wiring) a.wiring = {};
     for (const role of ROLES)
       if (!a.wiring[role] && devLib[devId].roles?.[role]) a.wiring[role] = devId;
@@ -209,12 +227,83 @@
   }
   function removeCast(devId) {
     a.cast = (a.cast || []).filter((c) => c !== devId);
+    for (const g of groups)                 /* leave no dangling member */
+      if ((g.members || []).includes(devId))
+        g.members = g.members.filter((m) => m !== devId);
     for (const [role, t] of Object.entries(a.wiring || {}))
       if (t === devId) delete a.wiring[role];
     if (a.inputs) delete a.inputs[devId];
     regenDevices();
     recompile();
   }
+  /* ---- GROUPS (v0.60 — Suresh: "Group is a per activity decision.
+     Here's a group (Nav)"). A group is a nav card on the controller
+     and a generated page behind it; `shows` decides what its children
+     render as. It is the SAME mechanism as Devices > Add Nav Card —
+     the only new idea is that the children can be the control itself
+     rather than a launcher. ---- */
+  function addGroup() {
+    if (!a.cast) a.cast = [];
+    let gid = "group", n = 2;
+    while (groups.some((g) => g.group === gid)) gid = "group_" + n++;
+    a.cast.push({ group: gid, name: "Group", icon: "material:widgets",
+      shows: "device", members: [] });
+    openGroup = gid;
+    recompile();
+  }
+  function removeGroup(gid) {
+    /* the members stay cast — only the view goes away */
+    a.cast = (a.cast || []).filter((m) => !(isCastGroup(m) && m.group === gid));
+    recompile();
+  }
+  function renameGroup(g, name) {
+    g.name = name;
+    /* the id follows the name until the group has members, so a fresh
+       group reads well in the config; after that it is load-bearing
+       (a nav card may target "group:<id>") and stays put */
+    if (!(g.members || []).length) {
+      const slug = (name || "").trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      if (slug && !groups.some((x) => x !== g && x.group === slug)) {
+        if (openGroup === g.group) openGroup = slug;
+        g.group = slug;
+      }
+    }
+    recompile();
+  }
+  /* move a device into a group (or out of every group when gid is "") */
+  function setDeviceGroup(devId, gid) {
+    for (const g of groups)
+      if ((g.members || []).includes(devId))
+        g.members = g.members.filter((m) => m !== devId);
+    if (gid) {
+      const g = groups.find((x) => x.group === gid);
+      if (g) g.members = [...(g.members || []), devId];
+    }
+    recompile();
+  }
+  /* what a member will actually DRAW as — the honest answer, because
+     a missing claim falls back to the launcher rather than vanishing */
+  function showsFallback(devId, shows) {
+    const role = showsRole(shows);
+    if (!role) return null;
+    return devLib[devId]?.roles?.[role] ? null : role;
+  }
+  let openGroup = $state(null);   /* group row expanded for editing */
+
+  /* THE RETURN TRIP (v0.61 — Suresh: "We need a *prominent* return to
+     Bar>Activity Name … then it will feel like a shortcut. Hopefully
+     it will go to the open activity on the bar page!"). Named for the
+     room AND the activity, and it re-opens this exact card. */
+  const castBack = () => {
+    const k = app.selKey || "";
+    const sid = k.startsWith("view.") ? k.slice(5)
+      : k.startsWith("screens.") ? k.slice(8) : null;
+    const room = sid ? (app.draft?.screens?.[sid]?.name || sid) : null;
+    return { key: k, activityId: id,
+      label: (room ? room + " · " : "") + (a?.name || id) };
+  };
+  const toDevice = (devId) => openDeviceEditor(devId, castBack());
   function castPrimary(devId) {
     a.cast = [devId, ...(a.cast || []).filter((c) => c !== devId)];
     regenDevices();
@@ -318,16 +407,51 @@
     setStatus("⊞ " + (dev.name || id) + " pre-wired and cast — " + ent +
       " now rides its bundle", "ok");
   }
-  /* JOBS: candidates per role = cast devices claiming it; a raw entity
-     stays possible (the escape hatch is part of the grammar) */
-  const jobCandidates = (role) => cast.filter((c) => devLib[c]?.roles?.[role]);
-  function setJob(role, target) {
+  /* ROLES: candidates = cast devices that already CLAIM this role; a
+     raw entity stays possible (the escape hatch is part of the
+     grammar) */
+  const roleCandidates = (role) => cast.filter((c) => devLib[c]?.roles?.[role]);
+  /* ...but a cast device that hasn't claimed the role was simply
+     INVISIBLE here (v0.62 — Suresh: "In the drop down for Power Button,
+     only get nobody or 'an entity directly' … Volume Readout doesn't
+     list Bar Sonos"). The doctrine is right — a device declares what it
+     can do — but the dropdown enforced it by HIDING the answer instead
+     of offering to write it down. So the rest of the cast appears too,
+     each shown with the entity it WOULD use: its own bundle, first
+     entity whose domain this role accepts. Picking one mints the claim
+     on the device (permanent — every future cast of it fills this role
+     by itself) and wires it, in one gesture. */
+  function claimableEntity(devId, role) {
+    const d = devLib[devId];
+    if (!d || d.roles?.[role]) return null;
+    const doms = SLOT_DOMAINS[role] || [];
+    for (const k of ROLE_KEYS) {
+      const e = d.roles?.[k];
+      if (e && doms.includes(String(e).split(".")[0])) return e;
+    }
+    return null;
+  }
+  const roleClaimable = (role) => cast
+    .filter((c) => !devLib[c]?.roles?.[role])
+    .map((c) => ({ id: c, ent: claimableEntity(c, role) }))
+    .filter((x) => x.ent);
+  function claimAndWire(role, devId) {
+    const ent = claimableEntity(devId, role);
+    const d = devLib[devId];
+    if (!ent || !d) return;
+    if (!d.roles) d.roles = {};
+    d.roles[role] = ent;
+    setRole(role, devId);
+    setStatus("↥ " + (d.name || devId) + " now claims " + role + " → " + ent +
+      " — saved to the device, so every future cast fills it by itself", "ok");
+  }
+  function setRole(role, target) {
     if (!a.wiring) a.wiring = {};
     if (target) a.wiring[role] = target;
     else delete a.wiring[role];
     recompile();
   }
-  let customJob = $state(null);   /* role currently picking a raw entity */
+  let customRole = $state(null);   /* role currently picking a raw entity */
   /* PROMOTE A CLAIM (v0.48.1 — Suresh: "I figured out the adb device
      carried the volume level... Should I have the option of updating
      the Pre-Wired Device?"): when a role is wired to a RAW entity that
@@ -346,7 +470,7 @@
     const d = devLib[devId];
     if (!d) return;
     d.roles = { ...(d.roles || {}), [role]: ent };
-    setJob(role, devId);          /* wiring now rides the device claim */
+    setRole(role, devId);          /* wiring now rides the device claim */
     setStatus("claim saved — " + (d.name || devId) + " now pre-wires " + role);
   }
   /* CONSUMES: which $context roles the Navigate-to surface references —
@@ -540,7 +664,7 @@
   /* ---- the completion DOTS: a facet is lit when answered ---- */
   const dotSetup = $derived(!!a?.screen);
   const dotDevices = $derived(cast.length > 0 || deviceList().length > 0);
-  const dotJobs = $derived(!!a?.context?.media_player &&
+  const dotRoles = $derived(!!a?.context?.media_player &&
     (!consumedRoles.length || consumedRoles.filter((r) => r !== "commands")
       .every((r) => !!a?.context?.[r])));
   /* v0.53 (Suresh: "inputs does not [dot] if only one is filled in…
@@ -553,6 +677,19 @@
     : inputsAnswered === inputTargets.length ? true
     : inputsAnswered ? "part" : false);
   const dotActions = $derived(!!a?.start);
+  /* PRESETS BELONG TO THE ACTIVITY (v0.64 — Suresh: "these presets
+     shouldn't be hardcoded in the stock controller … what if I wanted
+     a preset to play CoffeeHouse Radio?"). The controller carries a
+     `presets` generator and names none of them; this tab is where
+     they live. Same shape as a page's Presets section, so TileRow
+     edits them unchanged. */
+  const presetCount = () => (a?.presets || []).length;
+  function addPreset() {
+    if (!a.presets) a.presets = [];
+    a.presets.push({ type: "preset", id: "p_" + Math.random().toString(36).slice(2, 6),
+      label: "New preset", icon: "material:play_circle", action: {} });
+    recompile();
+  }
 
   let tab = $state("setup");
   /* while THIS card is open, the preview impersonates this activity
@@ -610,7 +747,9 @@
      compatible one (Suresh's spec — same pair on Setup and State) ---- */
   function exportSetup() {
     saveSnippet("setup", (a.name || id) + " setup", {
-      cast: [...(a.cast || [])],
+      /* deep — the cast now holds group OBJECTS (v0.60), and a
+         snippet that shares them would edit the activity it came from */
+      cast: JSON.parse(JSON.stringify($state.snapshot(a.cast || []))),
       wiring: $state.snapshot(a.wiring || {}),
       ...(a.extra_devices ? { extra_devices: [...a.extra_devices] } : {}),
       ...(a.device_options ? { device_options: $state.snapshot(a.device_options) } : {}),
@@ -848,9 +987,10 @@
         {#each [
           { k: "setup", label: "Setup", dot: dotSetup && dotDevices,
             n: cast.length || deviceList().length || null },
-          { k: "jobs", label: "Roles", dot: dotJobs },
+          { k: "roles", label: "Roles", dot: dotRoles },
           { k: "inputs", label: "Inputs", dot: dotInputs },
           { k: "actions", label: "Actions", dot: dotActions },
+          { k: "presets", label: "Presets", dot: presetCount() > 0, n: presetCount() || null },
           { k: "state", label: "State", dot: stateCount() > 0, n: stateCount() },
         ] as t (t.k)}
           <!-- FIRST-CLASS TABS (v0.48; v0.48.1 — Suresh: "the active
@@ -999,6 +1139,11 @@
         {/snippet}
         <div class="mb-1 flex items-center gap-1.5">
           <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">The cast — what's involved</span>
+          <!-- v0.60: a group is a per-ACTIVITY decision, so it is minted
+               here and nowhere else -->
+          <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
+            title="Tuck some of the cast behind one nav card — a group is a view, not a device"
+            onclick={addGroup}>⊞ Add group</button>
           <button class="flex h-[26px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk"
             title="Save this cast + wiring to Snippets as a reusable set" onclick={exportSetup}>{@render uploadIcon()} Save cast as set</button>
           <div class={"relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong px-2 text-[11px] font-medium " +
@@ -1018,47 +1163,162 @@
         <p class="mt-0 mb-2 text-[11px] text-dim">
           Cast <b>devices</b> from the library — each brings its member
           entities and claims. First in the cast is <b>primary</b> (the
-          activity's face). The <b>Jobs</b> tab decides who actually does
+          activity's face). The <b>Roles</b> tab decides who actually does
           what; checkboxes curate the controller's Devices list.
+          A <b>group</b> tucks some of them behind one nav card on the
+          controller — where they're drawn, never what they are.
         </p>
-        <div class="space-y-2">
-          {#each cast as devId (devId)}
-            {@const d = devLib[devId]}
-            <div class={"rounded-[8px] px-2.5 py-2 " + (cast[0] === devId ? "border border-note-line bg-note-bg" : "bg-inset")}>
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="min-w-0 truncate text-[13px] font-semibold text-ink">{d?.name || devId}</span>
-                <span class="truncate font-mono text-[10.5px] text-faint">{devId}</span>
-                {#each Object.entries(wiring).filter(([, t]) => t === devId) as [role] (role)}
-                  <span class="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
-                {/each}
-                {#if !d}<span class="text-[11px] text-danger">not in the library</span>{/if}
-                <span class="ml-auto flex shrink-0 items-center gap-2.5">
-                  {#if cast[0] !== devId}
-                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
-                      title="Make this the primary device" onclick={() => castPrimary(devId)}>☆ primary</button>
-                  {:else}<span class="text-[11px] font-medium text-accent-text" title="Leads the cast — the activity's face">★ primary</span>{/if}
-                  <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                    title="Remove from cast — jobs it held unwire" onclick={() => removeCast(devId)}>✕</button>
-                </span>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                {#each [...new Set(Object.values(d?.roles || {}))] as ent (ent)}
-                  <label class="inline-flex cursor-pointer items-center gap-1.5"
-                    title={tileOn(ent) ? "Shown in the controller's Devices list — untick to hide (jobs stay wired)" : "Hidden from the controller's Devices list"}>
-                    <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
-                    <span class="font-mono text-[10.5px] text-dim">{ent}</span>
-                  </label>
-                {/each}
-              </div>
+        <!-- ONE ROW SHAPE, two homes (v0.60): a cast device renders the
+             same whether it stands on the controller or sits inside a
+             group. The row is a DOORWAY — its name opens the device in
+             the library, which is the "jumping around" Suresh called
+             out. `g` is the group it lives in, or null. -->
+        {#snippet castRow(devId, g)}
+          {@const d = devLib[devId]}
+          {@const miss = g ? showsFallback(devId, g.shows) : null}
+          <div class={"rounded-[8px] px-2.5 py-2 " +
+            (g ? "bg-bg" : cast[0] === devId ? "border border-note-line bg-note-bg" : "bg-inset")}>
+            <div class="flex flex-wrap items-center gap-2">
+              <button class="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-left font-[inherit] text-[13px] font-semibold text-ink hover:text-accent hover:underline"
+                title={"Open " + (d?.name || devId) + " in the pre-wired device library"}
+                onclick={() => toDevice(devId)}>{d?.name || devId}</button>
+              <span class="truncate font-mono text-[10.5px] text-faint">{devId}</span>
+              {#each Object.entries(wiring).filter(([, t]) => t === devId) as [role] (role)}
+                <span class="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
+              {/each}
+              {#if !d}<span class="text-[11px] text-danger">not in the library</span>{/if}
+              <span class="ml-auto flex shrink-0 items-center gap-2.5">
+                {#if groups.length}
+                  <!-- WHERE THIS DEVICE'S CONTROL IS DRAWN. Not what it
+                       is, not what it does — only where it appears. -->
+                  <select value={g?.group || ""}
+                    title="Which group draws this device's control — the cast, the roles and the entities are unaffected"
+                    onchange={(e) => setDeviceGroup(devId, e.target.value)}
+                    class="h-[24px] max-w-[150px] cursor-pointer rounded-[5px] border border-line bg-field px-1.5 font-[inherit] text-[10.5px] text-dim outline-none hover:text-ink focus:border-accent">
+                    <option value="">on the controller</option>
+                    {#each groups as gg (gg.group)}
+                      <option value={gg.group}>in {gg.name || gg.group}</option>
+                    {/each}
+                  </select>
+                {/if}
+                <!-- primary is about the ACTIVITY's face, so it is only
+                     offered where the cast actually stands -->
+                {#if cast[0] === devId}
+                  <span class="text-[11px] font-medium text-accent-text" title="Leads the cast — the activity's face">★ primary</span>
+                {:else if !g}
+                  <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
+                    title="Make this the primary device" onclick={() => castPrimary(devId)}>☆ primary</button>
+                {/if}
+                <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                  title="Remove from cast — roles it held unwire" onclick={() => removeCast(devId)}>✕</button>
+              </span>
             </div>
-          {:else}
-            {#if !(a.extra_devices || []).length && !legacyEnts.length}
-              <p class="m-0 text-xs text-dim">
-                No devices cast yet — search below. Devices you pick are
-                added to your library automatically.
+            {#if miss}
+              <!-- honest, not hidden: the engine falls back to a
+                   launcher rather than dropping the tile -->
+              <p class="mt-1 mb-0 text-[10.5px] text-dim italic">
+                no <span class="font-mono">{miss}</span> claim — draws as a
+                launcher into its own controller.
+                <button class="cursor-pointer border-0 bg-transparent p-0 text-[10.5px] text-accent hover:underline"
+                  onclick={() => toDevice(devId)}>add the claim →</button>
               </p>
             {/if}
+            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+              {#each [...new Set(Object.values(d?.roles || {}))] as ent (ent)}
+                <label class="inline-flex cursor-pointer items-center gap-1.5"
+                  title={tileOn(ent) ? "Shown in the controller's Devices list — untick to hide (roles stay wired)" : "Hidden from the controller's Devices list"}>
+                  <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
+                  <span class="font-mono text-[10.5px] text-dim">{ent}</span>
+                </label>
+              {/each}
+            </div>
+          </div>
+        {/snippet}
+        <div class="space-y-2">
+          <!-- the cast in ITS OWN ORDER: ungrouped devices where they
+               stand, each group where it stands, members nested -->
+          {#each castRaw as member (typeof member === "string" ? "d:" + member : "g:" + member.group)}
+            {#if typeof member === "string"}
+              {#if !groupOf(member)}{@render castRow(member, null)}{/if}
+            {:else}
+              {@const g = member}
+              {@const kind = SHOWS_KINDS.find((k) => k.value === (g.shows || "device"))}
+              <div class="rounded-[8px] border border-line-strong bg-inset px-2.5 py-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-[13px]" aria-hidden="true">⊞</span>
+                  <button class="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-left font-[inherit] text-[13px] font-semibold text-ink hover:text-accent"
+                    title={openGroup === g.group ? "Collapse" : "Name, icon and what its children show"}
+                    onclick={() => (openGroup = openGroup === g.group ? null : g.group)}>{g.name || g.group}</button>
+                  <span class="truncate font-mono text-[10.5px] text-faint">group:{g.group}</span>
+                  <span class="rounded-full bg-raised px-2 py-0.5 text-[10px] font-medium text-dim"
+                    title={kind?.hint}>shows {kind?.label || g.shows}</span>
+                  <span class="text-[10.5px] text-dim">{(g.members || []).length} of the cast</span>
+                  <span class="ml-auto flex shrink-0 items-center gap-2.5">
+                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
+                      onclick={() => (openGroup = openGroup === g.group ? null : g.group)}>{openGroup === g.group ? "done" : "edit"}</button>
+                    <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                      title="Remove the group — its members stay cast and return to the controller"
+                      onclick={() => removeGroup(g.group)}>✕</button>
+                  </span>
+                </div>
+                {#if openGroup === g.group}
+                  <div class="mt-2 flex flex-wrap items-end gap-3 border-t border-line pt-2">
+                    <div class="min-w-[160px] flex-[2]">
+                      <Field label="Name">
+                        <Input value={g.name || ""} onchange={(e) => renameGroup(g, e.target.value)} />
+                      </Field>
+                    </div>
+                    <div class="w-[180px] min-w-[140px] flex-1">
+                      <Field label="Icon">
+                        <IconPicker bind:value={g.icon} onchange={recompile} />
+                      </Field>
+                    </div>
+                    <div class="w-[210px] min-w-[170px] flex-1">
+                      <Field label="Children show" hint={kind?.hint || ""}>
+                        <Select value={g.shows || "device"}
+                          options={SHOWS_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+                          onchange={(e) => { g.shows = e.target.value; recompile(); }} />
+                      </Field>
+                    </div>
+                  </div>
+                  <p class="mt-2 mb-1 text-[11px] text-dim">
+                    A group is a <b>nav card</b> on the controller and a page
+                    behind it — the same thing as Devices ▸ Add Nav Card. What
+                    changes is the children: a control that fits in a tile is
+                    drawn there; anything bigger becomes a launcher into that
+                    device's own controller.
+                    {#if !(g.members || []).length}<b> Tick the devices it holds.</b>{/if}
+                  </p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1">
+                    {#each cast as cid (cid)}
+                      {@const other = groupOf(cid)}
+                      {@const mine = other?.group === g.group}
+                      <label class={"inline-flex items-center gap-1.5 " +
+                        (other && !mine ? "cursor-not-allowed opacity-45" : "cursor-pointer")}
+                        title={other && !mine ? "already in " + (other.name || other.group) : ""}>
+                        <input type="checkbox" checked={mine} disabled={!!other && !mine} class="h-3 w-3"
+                          onchange={() => setDeviceGroup(cid, mine ? "" : g.group)} />
+                        <span class="text-[11.5px] text-ink-2">{devLib[cid]?.name || cid}</span>
+                      </label>
+                    {:else}
+                      <span class="text-[11px] text-dim italic">nothing cast yet — add devices below, then tick them here</span>
+                    {/each}
+                  </div>
+                {/if}
+                {#if (g.members || []).length}
+                  <div class="mt-2 space-y-1.5 border-l-2 border-line pl-2.5">
+                    {#each g.members as mid (mid)}{@render castRow(mid, g)}{/each}
+                  </div>
+                {/if}
+              </div>
+            {/if}
           {/each}
+          {#if !cast.length && !(a.extra_devices || []).length && !legacyEnts.length}
+            <p class="m-0 text-xs text-dim">
+              No devices cast yet — search below. Devices you pick are
+              added to your library automatically.
+            </p>
+          {/if}
           <!-- LEGACY rows (v0.53): entities wired straight into roles
                by yaml-era activities — visible again, promotable -->
           {#each legacyEnts as ent (ent)}
@@ -1141,7 +1401,7 @@
       </div>
       {/if}
 
-      {#if tab === "jobs"}
+      {#if tab === "roles"}
       <!-- ROLES — where each control on the remote routes (v0.45.1:
            control name + mono role key + effect tooltip; singular by
            nature — a button press has ONE destination. Plural lives
@@ -1163,7 +1423,7 @@
         {/if}
         <div class="mt-2 space-y-1.5">
           {#each ROLES as role (role)}
-            {@const cands = jobCandidates(role)}
+            {@const cands = roleCandidates(role)}
             {@const cur = wiring[role]}
             {@const isEnt = typeof cur === "string" && cur.includes(".")}
             {@const offStage = a.screen && consumedRoles.length && !consumedRoles.includes(role)}
@@ -1173,10 +1433,11 @@
                 <span class="text-[12.5px] text-ink-2">{ROLE_CONTROLS[role]}</span>
                 <span class="font-mono text-[10px] text-faint">{role}</span>
               </span>
-              <select value={customJob === role ? "__custom" : (cur ?? "")}
+              <select value={customRole === role ? "__custom" : (cur ?? "")}
                 onchange={(e) => { const v = e.target.value;
-                  if (v === "__custom") customJob = role;
-                  else { customJob = null; setJob(role, v || null); } }}
+                  if (v === "__custom") customRole = role;
+                  else if (v.startsWith("__claim:")) { customRole = null; claimAndWire(role, v.slice(8)); }
+                  else { customRole = null; setRole(role, v || null); } }}
                 class="h-[32px] w-[320px] cursor-pointer rounded-[6px] border border-line-strong bg-field px-2 text-[12px] text-ink outline-none focus:border-accent">
                 <option value="">— nobody (unwired) —</option>
                 {#each cands as c (c)}
@@ -1188,14 +1449,18 @@
                 {#if isEnt && !cands.includes(cur)}
                   <option value={cur}>{cur}</option>
                 {/if}
+                <!-- the rest of the cast: able, just not yet declared -->
+                {#each roleClaimable(role) as x (x.id)}
+                  <option value={"__claim:" + x.id}>＋ {devLib[x.id]?.name || x.id} · {x.ent} — add the claim</option>
+                {/each}
                 <option value="__custom">an entity directly…</option>
               </select>
-              {#if customJob === role}
+              {#if customRole === role}
                 <div class="min-w-[220px] flex-1">
                   <EntityPicker value="" domains={SLOT_DOMAINS[role]}
-                    placeholder="entity for this job…"
+                    placeholder="entity for this role…"
                     onchange={(e) => { const v = (e?.target?.value || "").trim();
-                      if (v) setJob(role, v); customJob = null; }} />
+                      if (v) setRole(role, v); customRole = null; }} />
                 </div>
               {:else if consumedRoles.includes(role) && !a.context?.[role]}
                 <span class="text-[10.5px] text-dim italic">consumed — unwired hides its tiles</span>
@@ -1330,6 +1595,39 @@
         </div>
         <Switch label="Confirm before ending (press twice)"
           bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
+      </div>
+      {/if}
+
+      {#if tab === "presets"}
+      <!-- PRESETS — one-touch shortcuts that belong to THIS activity
+           (v0.64). The controller carries a `presets` generator and
+           names none of them, so a shared surface stays shared while
+           every room's shortcuts are its own. -->
+      <div class="rounded-[10px] border border-line bg-tile p-3">
+        <div class="mb-1 flex items-center gap-1.5">
+          <span class="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[.07em] text-dim uppercase">Presets — one-touch shortcuts for this activity</span>
+          <Button size="sm" onclick={addPreset}>＋ Add preset</Button>
+        </div>
+        <p class="mt-0 mb-2 text-[11px] text-dim">
+          A preset does one thing in one tap — play a favourite, bond a
+          speaker, set a scene. They render wherever this activity's
+          controller carries a <span class="font-mono">presets</span> tile,
+          and nowhere else: the surface is shared, the shortcuts are yours.
+          An action can be a service call or one of your
+          <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-accent hover:underline"
+            onclick={() => selectSlice("sequences")}>Actions →</button>
+        </p>
+        <div class="space-y-2">
+          {#each a.presets || [] as tile, ti (ti)}
+            <TileRow {tile} tiles={a.presets} index={ti} />
+          {:else}
+            <p class="m-0 text-xs text-dim">
+              No presets yet. Here they'd be things like “Coffee House”
+              (play a Sonos favourite) or “Add the Pool” (run one of your
+              Actions).
+            </p>
+          {/each}
+        </div>
       </div>
       {/if}
 

@@ -107,7 +107,13 @@ function updateSpy() {
   const top = grid.getBoundingClientRect().top + 48;
   let active = 0;
   js.forEach((j, i) => { if (j.anchorEl.getBoundingClientRect().top <= top) active = i; });
-  if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4)
+  /* the bottom rule only means something on a page that SCROLLS
+     (v0.68): when everything fits — common once a wide panel lays the
+     same tiles out in 5 columns — scrollHeight === clientHeight, so
+     this fired at rest and lit the LAST section while you were looking
+     at the first. Latent on a 480 panel, where pages usually overflow. */
+  if (grid.scrollHeight > grid.clientHeight + 4 &&
+      grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4)
     active = js.length - 1;             // scrolled to bottom → last section
   js.forEach((j, i) => j.btn && j.btn.classList.toggle("active", i === active));
 }
@@ -151,10 +157,85 @@ function scheduleFit() {
 }
 window.addEventListener("resize", () => scheduleFit());
 
-function makeTile(t, row) {
+/* ================================================================
+   WIDE LAYOUT (v0.68). The rule in one sentence: a screen's declared
+   `columns` is a statement about how big a TILE is, not a count to
+   obey at every width.
+
+   THE HARDWARE is the reference, not the old 520 cap: the Astrion and
+   the Haptique are 480 wide, so that is the width every tile size in
+   this config was actually judged at. 480 minus 24px of grid padding
+   and a 10px gap is 223px per tile in a 2-column grid — the size the
+   whole design is tuned to and the size a fingertip expects. Hand that
+   same tile size a 1280-wide tablet and you get 5 columns: identical
+   physical tiles, more of them. A room page (declared `columns: 1`,
+   tiles ~456px) becomes 2 columns of rows — exactly the landscape
+   layout that was previously unsayable.
+
+   Using 520 here instead costs real quality at 1024: a room page lands
+   one pixel-pair short of two columns and renders a single 1000px row.
+   Measured, not guessed.
+
+   Nothing here runs unless html.wide is set, so compact panels — both
+   remotes, every phone, any window under the gate — take the original
+   path and render byte-identically.
+
+   Why the count is computed here and not by CSS `auto-fill`: (1)
+   `minmax(0, 1fr)` has to survive or a long label bursts the viewport
+   (v0.27), and auto-fill needs a real px minimum instead; (2) the span
+   rule below needs to KNOW the count. */
+const REF_W = 480;        /* the panel this layout was authored on */
+const GRID_PAD = 24;      /* #grid padding, both sides */
+const GRID_GAP = 10;      /* --grid-gap default */
+const MAX_COLS = 12;      /* a 4K monitor is not an invitation */
+function isWide() { return document.documentElement.classList.contains("wide"); }
+/* the tile size a declared column count implies at the reference
+   width — or an explicit `tile_width`, which always wins */
+function tileWidthOf(cols, declared) {
+  const w = +declared;
+  if (w > 0) return w;
+  return (REF_W - GRID_PAD - (cols - 1) * GRID_GAP) / Math.max(1, cols);
+}
+/* the CONTENT width a grid has to fill — the viewport less padding,
+   or the declared cap, whichever is smaller */
+function usableWidth(maxW) {
+  const vw = (window.innerWidth || REF_W) - GRID_PAD;
+  return maxW > 0 ? Math.min(maxW, vw) : vw;
+}
+function colsFor(cols, declaredTileW, usable) {
+  if (!isWide()) return cols;
+  const tw = tileWidthOf(cols, declaredTileW);
+  const u = usable || usableWidth(0);
+  const n = Math.floor((u + GRID_GAP) / (tw + GRID_GAP));
+  return Math.max(cols, Math.min(n, MAX_COLS));
+}
+/* SPAN IS A PROPORTION, NOT A COUNT (v0.68). `span: 2` was authored in
+   a 2-column world, where it plainly meant "the whole row" — 39 tiles
+   in the live config say so. Read literally at 5 columns it would mean
+   "two fifths", which nobody wrote. So a span scales: span N of a
+   declared C covers the same FRACTION of the real count, and N >= C
+   means full width at any size. span 1 is never scaled — an ordinary
+   tile is one column everywhere. */
+function spanOf(t, declaredCols, actualCols) {
+  const n = +t.span;
+  if (!(n >= 2)) return 1;
+  if (!isWide() || actualCols === declaredCols) return Math.min(n, actualCols);
+  if (n >= declaredCols) return actualCols;              /* was full width */
+  return Math.max(2, Math.min(actualCols,
+    Math.round(n / declaredCols * actualCols)));
+}
+function makeTile(t, row, spanCols) {
   const el = document.createElement("div");
-  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "") +
-    (t.color ? " tacc" : "") + (t.brw ? " brw" : "");
+  const sp = spanCols || 1;
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && sp === 2 ? " span2" : "") +
+    (t.color ? " tacc" : "") + (t.brw ? " brw" : "") +
+    /* chassis-level class passthrough (v0.68.1): a generator that needs
+       one specific look — the search "Searching…" line — says so once
+       instead of earning a widget type */
+    (typeof t.cls === "string" && /^[\w -]+$/.test(t.cls) ? " " + t.cls : "");
+  /* .span2 carries the common case in CSS so compact output is
+     unchanged; any other width is stated inline */
+  if (!row && sp > 2) el.style.gridColumn = "span " + sp;
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */
@@ -172,6 +253,15 @@ function makeTile(t, row) {
     : `<div class="top">${iconHtml(t, false)}<span class="lbl">${t.label}</span>${
         inline ? '<span class="sub subin"></span>' : ""}</div>
        ${inline ? "" : '<div class="sub"></div>'}${extra}<div class="hint"></div>`;
+  /* CORNER BADGE (v0.62): a tiny mark naming what a tile IS, for grids
+     that MIX kinds — the browse "All" view sets it, and nothing else
+     does yet. Chassis level, so any tile may declare one. */
+  if (typeof t.badge === "string" && t.badge.startsWith("material:")) {
+    const bd = document.createElement("span");
+    bd.className = "bdg material-symbols-outlined";
+    bd.textContent = t.badge.slice(9);
+    el.appendChild(bd);
+  }
   el.addEventListener("click", () => {
     if (el._heldFired) { el._heldFired = false; return; }
     setFocus(t.id); act("select");
@@ -201,9 +291,17 @@ function makeTile(t, row) {
      set trailing: false in config to suppress it. */
   const trailing = trailingOf(t);
   if (trailing) {
+    /* PROMINENCE IS DECLARED (v0.68.1 — Suresh, of the library button
+       on Now Playing: "Lets try inverting the library launch button,
+       to make it more prominent. And give it just a little more
+       width."). A trail is a chassis slot used by every device tile's
+       quiet ⚙ chevron, so inverting THE class would shout everywhere.
+       `trailing.emphasis: "accent"` says which one earns it. */
+    const acc = trailing.emphasis === "accent";
     el.classList.add("has-trail");
+    if (acc) el.classList.add("has-trail-acc");
     const tr = document.createElement("button");
-    tr.className = "trail";
+    tr.className = "trail" + (acc ? " tracc" : "");
     tr.dataset.fid = t.id + TRAIL;
     tr.innerHTML = iconHtml({ icon: trailing.icon || "material:chevron_right" }, false);
     tr.addEventListener("click", ev => {
@@ -258,11 +356,48 @@ function navigate(screenId, isBack) {
   document.getElementById("app").classList.toggle("scr-music",
     (sc.font_scope || "") === "music");
   renderBanner(sc);
-  const cols = (sc.grid && sc.grid.columns) || 2;
+  /* DECLARED vs RENDERED columns (v0.68). `decl` is what the config
+     says — the author's statement of tile size, and the thing ROW-NESS
+     and SPAN are measured against. `cols` is what actually fits. On a
+     compact panel they are always equal and this is the old code. */
+  /* NOT EVERY PAGE WANTS THE WHOLE TABLE (v0.68). A controller is a
+     STACK of full-width bands — now playing, transport, volume — and
+     scaling it faithfully just yields a stretched stack: 1256px of
+     band, 84px tall, around a play button. `max_width` lets such a
+     page say so and stay a centred column, while the room pages and
+     the library take everything they can get. Declared, because only
+     the page knows whether its width means "a wall" or "a column".
+     Applied BEFORE the count, because it IS the width tiles fit into. */
+  const maxW = isWide() && sc.grid && +sc.grid.max_width > 0
+    ? +sc.grid.max_width : 0;
+  /* PADDING, NOT max-width + auto MARGINS. Measured, and it cost an
+     hour: #grid is a flex item in a COLUMN flex container, where auto
+     margins on the cross axis OVERRIDE align-items: stretch — the grid
+     stopped filling its parent and collapsed to its own content width
+     (320px inside a 1280px page) instead of capping at 760. Symmetric
+     padding caps the content column while the element still stretches,
+     and it leaves the scroll track at the screen edge where a thumb
+     expects it. */
+  const pad = maxW
+    ? Math.max(12, Math.round(((window.innerWidth || REF_W) - maxW) / 2)) : 0;
+  grid.style.paddingLeft = grid.style.paddingRight = pad ? pad + "px" : "";
+  const usable = usableWidth(maxW);
+  const decl = (sc.grid && sc.grid.columns) || 2;
+  const cols = colsFor(decl, sc.grid && sc.grid.tile_width, usable);
   /* minmax(0,1fr): columns may shrink below content min-width, so a
      wide tile (trail + long label) can never burst the viewport */
   grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-  const row = cols === 1;
+  /* ROW-NESS IS DECLARED, NOT ARITHMETIC (v0.68). It used to be
+     `cols === 1`, which made "two columns of rows" — the obvious
+     landscape layout for a room page — literally unsayable: asking for
+     a second column silently converted the rows to cards. Row-ness is
+     a TILE STYLE decision; the column count is a fitting decision.
+     They were the same expression by accident. `tile_style: row|card`
+     states it outright, and the fallback reads the DECLARED count so
+     every existing page keeps its look at any width. */
+  const rowOf = (styleDecl, declCols) =>
+    styleDecl ? styleDecl === "row" : declCols === 1;
+  const row = rowOf(sc.grid && sc.grid.tile_style, decl);
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
@@ -287,18 +422,23 @@ function navigate(screenId, isBack) {
       grid.appendChild(h);
       anchorEl = h;
     }
-    const secCols = sec.columns || cols;
-    const secRow = secCols === 1;
+    /* a section may declare its own tile size; absent, it inherits the
+       screen's — declared AND rendered, so spans scale consistently */
+    const secDecl = sec.columns || decl;
+    const secCols = sec.columns
+      ? colsFor(sec.columns, sec.tile_width, usable) : cols;
+    const secRow = rowOf(sec.tile_style || (sec.columns ? null :
+      (sc.grid && sc.grid.tile_style)), secDecl);
     let host = grid;
     if (sec.columns) {
       host = document.createElement("div");
       host.className = "secgrid";
-      host.style.gridTemplateColumns = `repeat(${sec.columns}, minmax(0, 1fr))`;
+      host.style.gridTemplateColumns = `repeat(${secCols}, minmax(0, 1fr))`;
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }
     vis.forEach(t => {
-      const el = makeTile(t, secRow);
+      const el = makeTile(t, secRow, spanOf(t, secDecl, secCols));
       host.appendChild(el);
       anchorEl = anchorEl || el;
     });
@@ -307,8 +447,12 @@ function navigate(screenId, isBack) {
   });
   /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
      a page with nothing to render says WHY instead of showing void —
-     a pure controller waits for an activity; a hub waits for content */
-  if (!grid.children.length) {
+     a pure controller waits for an activity; a hub waits for content.
+     …except when the BROWSE BAR is up (v0.67.2): search with nothing
+     typed yet is an empty grid ON PURPOSE — the query line and the
+     keyboard above it ARE the page, and "add tiles in the Studio"
+     would be a lie. */
+  if (!grid.children.length && !(S.browse && S.browse._active)) {
     const hint = document.createElement("div");
     const isCtrl = sc.class === "activity" || sc.type === "controller" ||
       sc.view_kind === "controller";
@@ -391,7 +535,7 @@ function renderStates() {
 /* the ⓘ icon replaces the always-on perf clutter in the bar —
    tap it for boot/msgs/device/connection details (v0.32) */
 function perfInfo() {
-  flashBar((S.bootMs ?? Math.round(performance.now() - T0)) + "ms boot · " +
+  flashBar((S.bootMs != null ? S.bootMs : Math.round(performance.now() - T0)) + "ms boot · " +
     S.msgCount + " msgs · device " + (S.deviceName || "default") +
     " · " + (S.connected ? "connected" : "offline"));
 }
@@ -399,14 +543,21 @@ function perf() {
   /* boot time is FROZEN at first paint (it's a boot metric, not an
      uptime counter); msgs and device stay live */
   document.getElementById("perf").textContent =
-    (S.bootMs ?? Math.round(performance.now() - T0)) + "ms · " +
+    (S.bootMs != null ? S.bootMs : Math.round(performance.now() - T0)) + "ms · " +
     S.msgCount + " msgs · " + (S.deviceName || "");
 }
 setInterval(() => { if (S.painted) perf(); }, 5000);
 function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
 
 function barTitle(sc) {
-  const room = (CONFIG.global || {}).room;
+  /* v0.67: the ROOM name follows the room you are in — a screen may
+     name its own, and a shared controller inherits it from the
+     activity that sent you there. `global.room` is the fallback, so a
+     one-room workspace reads exactly as before. */
+  const aidR = renderActivityId();
+  const aR = aidR && CONFIG.activities[aidR];
+  const rvS = aR && aR.room_view && (CONFIG.screens || {})[aR.room_view];
+  const room = sc.room_name || (rvS && rvS.room_name) || (CONFIG.global || {}).room;
   /* a screen the ACTIVE activity navigates to titles by the activity
      ("Watch Fire TV"), not the library label ("TV Media Player") */
   let name = sc.name;

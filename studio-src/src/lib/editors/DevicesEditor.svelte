@@ -6,7 +6,7 @@
      engine reads. A device may span several HA integrations (the
      projector is androidtv_remote + ADB) — the bundle is the only
      place that knowledge lives. */
-  import { app, schedulePreview, recompileContext, ROLE_KEYS, seedDeviceFromEntity, platformOf, selectSlice } from "../state.svelte.js";
+  import { app, schedulePreview, recompileContext, ROLE_KEYS, seedDeviceFromEntity, platformOf, selectSlice, returnFromDevice } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
   import IconPicker from "../components/IconPicker.svelte";
   import Input from "../components/Input.svelte";
@@ -45,15 +45,31 @@
 
   let openId = $state(null);
 
+  /* ARRIVED FROM A CAST ROW (v0.60): the activity's cast links here,
+     so land ON the device rather than at the top of the library. */
+  $effect(() => {
+    const want = app.focusDevice;
+    if (!want) return;
+    app.focusDevice = null;
+    if (!devices?.[want]) return;
+    openId = want;
+    requestAnimationFrame(() =>
+      rowEls[want]?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  });
+  let rowEls = $state({});
+
+  /* v0.60: a device inside a cast GROUP is still cast — count it, or
+     the library offers to delete a device the activity is drawing */
+  const inCast = (a, id) => (a.cast || []).some((m) =>
+    m === id || (m && typeof m === "object" && (m.members || []).includes(id)));
   const usedBy = (id) => Object.values(app.draft?.activities || {})
-    .filter((a) => (a.cast || []).includes(id) ||
-      Object.values(a.wiring || {}).includes(id))
+    .filter((a) => inCast(a, id) || Object.values(a.wiring || {}).includes(id))
     .map((a) => a.name || "?");
 
   /* every wiring that targets this device recompiles when it changes */
   function touched(id) {
     for (const a of Object.values(app.draft?.activities || {}))
-      if ((a.cast || []).includes(id) || Object.values(a.wiring || {}).includes(id))
+      if (inCast(a, id) || Object.values(a.wiring || {}).includes(id))
         recompileContext(a, devices);
     schedulePreview();
   }
@@ -120,7 +136,14 @@
     for (const [k, v] of Object.entries(devices)) rebuilt[k === oldId ? newId : k] = v;
     app.draft.devices = rebuilt;
     for (const a of Object.values(app.draft.activities || {})) {
-      if (Array.isArray(a.cast)) a.cast = a.cast.map((c) => (c === oldId ? newId : c));
+      if (Array.isArray(a.cast))
+        a.cast = a.cast.map((c) => {
+          if (c === oldId) return newId;
+          /* v0.60: a group's member list holds device ids too */
+          if (c && typeof c === "object" && Array.isArray(c.members))
+            c.members = c.members.map((m) => (m === oldId ? newId : m));
+          return c;
+        });
       for (const [role, t] of Object.entries(a.wiring || {}))
         if (t === oldId) a.wiring[role] = newId;
       if (a.inputs && oldId in a.inputs) {
@@ -141,7 +164,21 @@
 
 {#if app.draft}
   <div class="space-y-4">
-    {#if backTo}
+    <!-- CAME IN THROUGH A CAST ROW (v0.61): the way back is the whole
+         difference between a shortcut and losing your place, so it is
+         a banner, it names where it goes, and it STAYS as you scroll
+         down the library. -->
+    {#if app.deviceReturn}
+      <button class="sticky top-0 z-10 -mx-1 flex w-[calc(100%+0.5rem)] cursor-pointer items-center gap-2 rounded-[8px] border border-accent/40 bg-note-bg px-3 py-2 text-left font-[inherit] hover:border-accent hover:bg-sunk"
+        title={"Back to " + app.deviceReturn.label + " — the activity re-opens where you left it"}
+        onclick={returnFromDevice}>
+        <span class="text-[15px] leading-none text-accent" aria-hidden="true">←</span>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-[13px] font-semibold text-ink">{app.deviceReturn.label}</span>
+          <span class="block text-[11px] text-dim">back to the cast you came from</span>
+        </span>
+      </button>
+    {:else if backTo}
       <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
         onclick={() => selectSlice(backTo)}>← back</button>
     {/if}
@@ -157,6 +194,7 @@
 
     {#each Object.entries(devices || {}) as [id, d] (id)}
       {@const users = usedBy(id)}
+      <div bind:this={rowEls[id]}>
       <CardRow title={d.name || id} subtitle={summary(d)}
         bind:open={() => openId === id, (v) => (openId = v ? id : null)}
         ondelete={users.length ? null : () => delDevice(id)}>
@@ -280,6 +318,7 @@
           {/if}
         </div>
       </CardRow>
+      </div>
     {/each}
 
     <div class="flex flex-wrap items-center gap-3">

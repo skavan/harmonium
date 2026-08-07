@@ -23,6 +23,7 @@ const STYLES = [
   "styles/grid.css",       // screen grid + tile chassis
   "styles/controls.css",   // trailing zones, meters, touch buttons, dpad ring
   "styles/auth.css",       // auth overlay + .hidden
+  "styles/compat.css",     // old-webview fallbacks (html.nogap) — MUST be last
 ];
 
 const SCRIPTS = [

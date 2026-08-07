@@ -41,9 +41,21 @@ Full details in `docs/ARCHITECTURE.md`; the short version:
 - **Buttons are first-class.** Full D-pad/spatial-focus operation;
   Harmony-style passthrough (during an activity, the physical D-pad IS
   the device's D-pad); touch always drives the UI.
-- **Registries generate UI.** Activities, an activity's device cast,
-  apps/presets, and the controller library all render from generators —
-  edit the model once, every surface follows.
+- **Registries generate UI.** Activities, an activity's device cast, its
+  volumes and groups, apps/presets, and the controller library all
+  render from generators — edit the model once, every surface follows.
+- **Structure is declared, never inferred — at the layer that owns the
+  decision.** A device declares what it *can do*; the activity's cast
+  declares where those controls are *drawn* (a `group` tucks some of
+  them behind one nav card, and `shows` picks what the children render
+  as). The UI cannot show — and the user cannot set — a thing the config
+  only implies; and a thing declared on the wrong layer cannot be
+  reused.
+- **A control the device can't perform is a lie — but a sleeping device
+  is not an incapable one.** Widgets self-suppress on
+  `supported_features` (no transport row on an AV receiver), and the
+  engine remembers the union of everything an entity has ever reported,
+  so a device that is merely off still shows its whole page.
 - **Two tile archetypes.** A `device` tile is ONE entity — renderer,
   icon, tap verb and page all infer from it. A `nav` card opens another
   page (styles: `auto | plain | image | summary`). Everything else is a
@@ -91,7 +103,10 @@ node build.mjs            # engine + config → dist/  (no npm install, no bundl
 cd studio-src && npm run build   # Studio → integration/.../studio/studio.html
 ```
 
-The engine build is deliberately zero-dependency: the artifact must
+The engine targets **ES2019 / Chromium 75** — cheap Android remotes ship
+vendor-frozen webviews, so that floor is the normal case rather than the
+exception (`styles/compat.css` carries the flexbox-gap fallback behind a
+boot probe). The build is deliberately zero-dependency: the artifact must
 stay a single auditable file. (`build.mjs` invokes `yaml/build_config.py`
 — python3 + PyYAML — to compile the YAML views; without python it falls
 back to the frozen `config/config.json`.)
@@ -110,12 +125,16 @@ Suites print JSON result objects; `errs` must stay empty.
 ## Deploy (current dev loop)
 
 1. Push the repo to HA (`push-to-ha.bat` robocopies to the config
-   share): `dist/` → `/config/www/remote-proto/`, the integration →
+   share): `dist/` → `/config/www/harmonium/`, the integration →
    `/config/custom_components/harmonium/`.
-2. Config changed? `harmonium.reseed` re-seeds the integration's store.
-3. Engine changed? Press `button.astrion1_clear_browser_cache` +
-   `button.astrion1_load_start_url` (Fully Kiosk) to reload the remote.
+2. Config changed? `harmonium.reseed` — a three-way merge, not an
+   overwrite; snapshots first, `harmonium.restore_backup` undoes it.
+3. Engine changed? **Just reload.** The entry stub asks the integration
+   for a hash of the deployed engine and hands off to
+   `index.html?v=<hash>`, so browsers refetch exactly when the bytes
+   change. No cache clear, no per-device setup, no IPs to pin.
 4. Integration `.py` changed? Restart HA.
+5. `studio.html` changed? Hard-refresh the Studio tab (browser cache).
 
 The Studio lives in the HA sidebar (Harmonium panel) and edits the
 stored config live: **Save & Deploy** validates server-side, stores,
@@ -136,6 +155,8 @@ that avoids pasting tokens anywhere near the device.
 - `docs/screen-schema.md` — the config contract (working design doc).
 - `docs/authoring-ui.md` — Studio design notes (historical).
 - `docs/PROJECT.md` — intent, thesis, full decision log, roadmap.
+- `docs/GETTING-STARTED.md` — clean install, end to end.
+- `docs/HANDOFF.md` — where the last session stopped and what is open.
 
 ## Status & roadmap
 

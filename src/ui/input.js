@@ -250,7 +250,19 @@ function act(button, phys) {
       }
       if (!aid) {
         /* doctrine 2026-07-23: idle view -> tap does NOTHING (hold is
-           the All Off gesture); no more idle-tap All Off confirm */
+           the All Off gesture); no more idle-tap All Off confirm.
+           v0.61 amends that for ONE case: a surface being drawn as its
+           PRESUMED activity. What you are looking at IS that activity,
+           off — so power starts it, which is the only thing the button
+           could sensibly mean here. An idle ROOM page presumes nothing
+           and still does nothing. */
+        const pres = presumedActivity();
+        if (pres) {
+          const pa = CONFIG.activities[pres] || {};
+          startActivity(pres);
+          flashBar("Starting " + (pa.name || pres), "on");
+          break;
+        }
         flashBar("Nothing running");
         break;
       }
@@ -367,6 +379,27 @@ document.addEventListener("keydown", e => {
     e.preventDefault();
     if (!e.repeat) keycapLog(e);
     return;
+  }
+  /* SEARCH TYPING (v0.65): while the library's search bar is open,
+     TEXT WINS — the same contract as any focused field on any OS.
+     It has to: the profiles bind `m`→mute, `p`→power, `o`→power_hold
+     and space→select as desktop conveniences, so a rule of "don't
+     capture mapped keys" made those four letters untypable and turned
+     Backspace into Back, which navigated out of the library mid-word.
+     Only PRINTABLE keys are taken. Arrows, Enter, F-keys and the
+     punctuation KeyMapper actually emits (`[`, `;`, `#`, backtick,
+     PageUp…) still route as buttons, so a hardware remote loses
+     nothing and can still walk the results and press play. Escape
+     closes search, which hands Escape back to Back. */
+  if (S.browse && S.browse.qon && S.browse._active) {
+    if (e.key === "Backspace") { e.preventDefault(); brKey("<"); return; }
+    if (e.key === "Escape") { e.preventDefault(); brSearchToggle(); return; }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey &&
+        /[a-z0-9 ]/i.test(e.key)) {
+      e.preventDefault();
+      brKey(e.key === " " ? "_" : e.key.toLowerCase());
+      return;
+    }
   }
   const b = KEYMAP[e.key];
   if (!b) return;

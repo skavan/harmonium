@@ -3,7 +3,7 @@
 WIDGETS.climate = {
     sub: e => {
       const a = st(e).a;
-      return `${cap(st(e).s)} · now ${a.current_temperature ?? "–"}° → set ${a.temperature ?? "–"}°`;
+      return `${cap(st(e).s)} · now ${a.current_temperature != null ? a.current_temperature : "–"}° → set ${a.temperature != null ? a.temperature : "–"}°`;
     },
     isOn: e => st(e).s !== "off",
     detailable: true,

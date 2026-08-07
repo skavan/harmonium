@@ -79,7 +79,7 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.14 Studio, 2026-07-21)
+## Current state (v0.68.3, 2026-08-07)
 
 v0.14: **the Studio chain is live end-to-end.** Engine grew
 `#preview=1` (same-origin postMessage: parent injects configs +
@@ -685,6 +685,1409 @@ overlay), thumb shrunk 96→64 — metadata keeps full width.
 connection flash); title size themable (--bar-fs). Answered: apps
 drawer pops because drawer:true (Key Mappings switch turns it
 off). All 10 suites green.
+
+v0.68.3 — **THREE FROM THE TABLET, AND TWO OF THEM WERE MINE.**
+
+**(1) A SURFACE IS SUPPLIED BY THE ACTIVITY THAT OWNS IT.** Suresh:
+"Games Room - Music Media Player has Games TV and Games Receiver in
+it. As I said before, Sonos Pool has zero other devices… Clicking the
+library brings up a Nothing to browse on this player."
+
+Games TV + Games Receiver is *precisely* `games_xbox`'s cast, which is
+what identified it. With the Xbox running, opening the MUSIC player in
+that room drew the XBOX's `$context` onto it — its volume cast, and
+`media_player` = the television. Hence the library too: browsing a
+Google TV returns an "Applications" directory whose children are empty
+(that integration has no apps configured), so after the media-source
+filter there were no roots and the grid said, accurately, that there
+was nothing to browse. Confirmed by measurement — `browse_media` on
+`media_player.sonos_pool` returns Favorites plus the media-source
+roots, exactly as it should.
+
+v0.67.4 gave the engine the ROOM axis: an activity only supplies
+surfaces in its own room. The missing axis is the SURFACE: being in
+the right room does not make the Xbox the right source for a music
+controller. A controller is declared by the activities that name it as
+their `screen`, and `games_xbox` is not one of them.
+
+`renderActivityId()` now asks `surfaceOwners()` — the nearest screen
+in the inheritance chain that any activity declares — and if the
+running activity is not among them, the page draws as its owner, which
+is what `presumedActivity()` already computed. Surfaces nobody owns (a
+room page) keep the running activity, and truth does not move: this is
+presentation, exactly as v0.61 was.
+
+**A REGRESSION MY OWN TEST CAUGHT, which is the part worth keeping.**
+The first version broke the BAR: with Fire TV running, its Apps drawer
+resolved to `games_gtv`. The Apps drawer declares `parent:
+controller:tv` — the generic TV controller, owned by the two GAMES
+activities — while the Bar reaches Apps through its own `bar_tv` fork.
+So the owner search found a foreign room's activities one step before
+the back-stack could offer the right one. Both `surfaceOwners()` and
+`presumedActivity()` now filter owners through the existing
+`activityInScope()`, so an out-of-room parent is skipped and the walk
+continues. Twelve cases now pass, including every Bar case that had to
+stay still. I would not have found that by reading.
+
+**(2) I SHIPPED TWO FIXES THAT CANCELLED EACH OTHER.** Suresh: "As
+soon as we fire off any search, it should display a line searching
+for… all i get is a blank screen for 30+ seconds."
+
+v0.68.1 fixed the same complaint twice, and the two fixes met. The
+speed fix made typing repaint only the query TEXT (`brEcho`) instead
+of the whole page — correct, and it stands. But "Searching…" lives in
+the GRID, and the grid is only built by `navigate()`. The one render
+that would have drawn it was the render I had just removed: `qbusy`
+went true, `brBusy()` lit the small dot in the bar, and the grid kept
+the empty-query `[]` it was already showing. Thirty seconds of
+nothing — precisely as reported, and precisely what I claimed to have
+fixed.
+
+**I tested them one at a time.** That is the whole lesson: two changes
+to the same surface, each verified alone, neither verified together.
+One render now happens where a search BEGINS — after the debounce, so
+once per query and not once per keystroke, and the per-keystroke win
+is untouched.
+
+**(3) LOCAL FIRST, THEN THE WORLD.** v0.68.1 split one four-kind MA
+call into one per kind so the first kind could paint alone. It helped,
+but every one of those calls still went out to Spotify, so the floor
+stayed at whatever the slowest provider round-trip cost. Measured:
+the same query with `library_only: true` returns his own ripped tracks
+essentially instantly.
+
+Each kind is now asked twice — library first (painted the moment it
+lands), providers second (merged in as they arrive), deduped per kind
+by `uri`, which also puts HIS music above the catalogue's. Verified
+against a stubbed socket: 8 calls fire, "Searching…" appears, the
+library wave alone paints 12 tiles with the busy dot still spinning,
+and the provider wave merges to 24 with the 12 overlapping uris
+correctly dropped.
+
+**AND THE APP CATALOGUE IS BACK TO 13.** Suresh: "I have a google tv
+at home in CT and the app list 100% works with that. I hope we created
+a new one and not overwrote the reference library. We should show my
+full app set. I'll add the missing apps." Right on both counts — I
+said myself in v0.68.2 that pruning a dialect to one television's
+inventory was the wrong layer, and then did it anyway. Restored in the
+original order. A device-level installed-apps filter remains the
+correct fix if dead tiles ever become a nuisance.
+
+v0.68.2 — **THE GOOGLE TV: FOUR FAULTS, NOT ONE.** Suresh: "The
+googletv integration was broken. I fixed it. power should now work
+directly. We may need to fix all the keys too as they dont work and
+the app list doesn't fill in. the entities may have changed name. not
+sure."
+
+Right on every count, and there were four distinct causes — so I
+measured each rather than fixing the first one and hoping.
+
+**(1) THE ADB ENTITY WAS RENAMED, NOT DELETED.** Re-adding the
+integration re-created it with the area folded into the slug:
+
+    media_player.android_games_tv_192_168_1_41           (gone)
+    media_player.games_room_android_games_tv_192_168_1_41 (new)
+
+10 references in config — the `commands` role, both activities'
+`context.commands`, every `if` guard in the four Games sequences, and
+two `state` blocks. All repointed. The new entity reports `idle` with
+`app_name` and `source` populated, so ADB is genuinely connected.
+
+**(2) THE `googletv` DIALECT HAS NEVER WORKED — ALL 18 COMMANDS CARRY
+AN `adb shell` PREFIX.** `androidtv.adb_command` already executes
+inside the device's shell, so `"adb shell input keyevent 176"` runs
+`adb shell …` ON the TV and dies with `adb: not found`. The working
+dialects give it away: firetv (2 commands) and firetv_embedded (6)
+carry no prefix; googletv carries it on all 18. Proved with a
+read-only probe rather than argued:
+
+    "getprop ro.product.model"            → adb_response "SmartTV 4K FFM"
+    "adb shell getprop ro.product.model"  → no response at all
+
+Stripped from all 18. This was independent of the rename and predates
+it — those keys and apps were never once going to fire.
+
+**(3) THE DIALECT NEVER REACHED THE ACTIVITY CONTEXT — hence the EMPTY
+drawer.** The apps/keys generators resolve `t.dialect → ctx.dialect →
+the only dialect when exactly one exists`. `devices.games_tv` declares
+`dialect: googletv`, but that lives on the DEVICE; the generators read
+the CONTEXT, and neither Games activity carried the key. With four
+dialects configured, the "exactly one" fallback can't fire either, so
+`cls` was undefined and the generator returned `[]`. `watch_firetv`
+has `"dialect": "firetv_embedded"` in its context and works, which is
+the control case. Added to both Games activities: **0 apps → 13, 0
+keys → 5.**
+
+**(4) POWER GOES DIRECT, WITH AN OUTCOME-GUARDED IR FALLBACK.**
+`media_player.games_room_tv` now advertises TURN_ON|TURN_OFF
+(`supported_features` 153529), so v0.67.6's IR-only power is
+superseded. But v0.67.6 was written because the network entities are
+unavailable while the TV sleeps, and I have not been able to test the
+cold-start path without switching off a television he may be watching.
+So both routes run, SEQUENCED and CONDITIONED rather than fired blind:
+`turn_on` → wait up to 8s for the TV to answer → IR `PowerToggle`
+**only if the ADB witness still says off**. A toggle that cannot
+double-fire, because it is conditioned on the outcome of the thing
+before it. That is the difference between this and the v0.67 mistake,
+where two unproven routes fired in parallel behind
+`continue_on_error` and failed in silence.
+
+HDMI1 stays on Harmony IR: his own working script used it, and ADB
+`input keyevent 243` is still unproven. It is now testable in seconds
+whenever he wants it.
+
+**AND A FIFTH THING NOBODY ASKED ABOUT.** With the drawer finally
+populating, `pm list packages` says only **4 of the 13** apps in the
+catalogue are installed on that television:
+
+    installed      netflix · prime · youtube · disney
+    not installed  youtubetv · peacock · paramount · max · appletv ·
+                   hulu · fubo · espn · britbox
+
+Nine tiles that appear and do nothing is worse than an empty drawer,
+so the googletv catalogue is pruned to the four. **This is the wrong
+LAYER and I know it** — a dialect is a platform's vocabulary, not one
+television's inventory, and a second Google TV with a different app
+set would need the full list back. The right fix is a device-level
+installed-apps filter (the generator already honours `t.include`, but
+the apps controller is shared across rooms so narrowing it there would
+hit the Bar's Fire TV too). Not inventing a config key mid-test; the
+removed entries are recorded verbatim below and are one paste from
+returning:
+
+    youtubetv   am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity
+    peacock     am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity
+    paramount   am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity
+    max         am start -n com.wbd.stream/com.wbd.beam.BeamActivity
+    appletv     am start -n com.apple.atve.androidtv.appletv/.MainActivity
+    hulu        am start -n com.hulu.livingroomplus/.WKFactivity
+    fubo        am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity
+    espn        am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity
+    britbox     am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity
+
+v0.68.1 — **FIVE NOTES FROM A RUN-THROUGH.** Suresh, after using it
+on the tablet.
+
+(1) **THE LIBRARY BUTTON IS A DESTINATION, NOT A DETAIL.** "Lets try
+inverting the library launch button, to make it more prominent. And
+give it just a little more width." A trail is a CHASSIS slot — the
+same one carrying every device tile's quiet ⚙ chevron — so inverting
+the class would shout everywhere. `trailing.emphasis: "accent"` names
+the one that earns it: accent fill, background-coloured glyph, 76px
+instead of 60, sized off `--trail-w-acc`.
+
+(2) **CHIP SIZE IS A TOKEN.** "make that tab row a little bigger
+(maybe its a theme setting because on a small remote we probably want
+to keep as is)" — exactly right, and the reason to do it as tokens
+rather than a wide-only rule. `--chip-fs`/`--chip-gap`/`--chip-pad`
+default to today's values, `html.wide` bumps them to 16px/26px, and a
+theme or per-remote style block can override either way.
+
+(3) **SHOW THE SLICES BEFORE THERE IS ANYTHING TO SLICE.** "Its not
+obvious what Im looking at… we should have the tab bar
+(artists/playlists etc..) shown. Not just the magnifying icon. If
+there is no search text, the tabs are disabled." With no results the
+strip collapsed to a lone magnifier, which says nothing about what
+search even does. The declared `classes` already name the answer's
+shape, so they are drawn from the start — greyed and unpressable until
+an answer exists. (CH▲▼/swipe skip a disabled strip; and while in
+there, `brStepCat` learned search mode at all — it compared the tree's
+root/cat refs, which search never sets, so stepping had been silently
+dead on the results strip.)
+
+(4) **TWO CAUSES OF THE 20 SECONDS, AND THE FIRST ONE WAS EMBARRASSING.**
+"When I type, there is no visual feedback and it can take 20 seconds
+for the results. (a) we should have a centered 'searching…' and (b)
+can we return the first results quicker?"
+
+  - **Search was queued behind the browse tree.** The generator's
+    `if (!L0) return loading` gate fired before the search branch, so
+    opening the library and typing straight away waited out a
+    `browse_media` fetch whose answer search never uses — with an
+    empty bar the whole time, because that path sets `B.ui = null` and
+    `browseBar` renders nothing. That is also most of why "it's not
+    obvious what I'm looking at". Search now renders immediately; the
+    tree fetch still starts (closing search lands you there) but no
+    longer blocks the door.
+  - **One call for four kinds** meant nothing could paint until the
+    slowest provider for the slowest type returned. Now one call per
+    kind, each painting as it lands, merged in the declared class
+    order so the strip reads the same however the answers race. The
+    TOTAL may not shrink — MA may serialise them server-side — but
+    the wait before you see SOMETHING drops to the fastest kind, which
+    is what those 20 seconds actually were.
+  - And a centred **"Searching…"** across the full grid width,
+    pulsing, deliberately distinct from the library's hourglass: a
+    query in flight is not a page loading. It suppresses its own focus
+    ring, because a ring around a status message reads as a button.
+
+(5) **LEAVING SEARCH NEEDS A DOOR.** "Clicking the magnifying glass
+takes me out of search mode, but its not obvious. Maybe we have a
+close icon after the keyboard icon." Added, set apart by a rule so it
+never reads as another "clear" — and the clear ✕ now only exists while
+there IS text, so the two are never side by side.
+
+Chassis: tiles gained a `cls` passthrough (validated against
+`/^[\w -]+$/`) so a generator needing one specific look can say so
+without earning a widget type. Used once, by "Searching…".
+
+v0.68 — **LANDSCAPE: THE WIDE SIZE CLASS.** Suresh: "A simple way to
+handle landscape mode tablets where we have a lot of real estate that
+is unused. My sense is we fold to a 2 column layout at certain
+breakpoints for the screens where that makes sense. And we use the
+full screen for things like media library."
+
+His instinct was right and the diagnosis was one level off, which the
+code said immediately:
+
+    #app { ... max-width: 520px; margin: 0 auto; }
+
+**The waste was never mainly the column count — it was that cap.** A
+1280-wide tablet rendered a 520px strip with 760px of black either
+side. Column count is the second-order question.
+
+**The gate.** `html.wide` when `width >= 840 AND height >= 600`. Two
+dimensions, because a phone in landscape is ~844×390 and sails past
+any width-only test. Both remotes are **480×800**, so they miss on
+width by 360px — a chasm, not a near thing. And 480×800 vs 1280×800
+means the panels are the SAME HEIGHT: nothing vertical changes, not
+the hero, not the tile height, not the fold. The whole feature is
+horizontal. Set by an ES5 probe beside the flex-gap probe; a panel
+that cannot answer keeps today's layout.
+
+**The rule.** A screen's declared `columns` is a statement about how
+big a TILE is, not a count to obey at every width. 480 minus 24px
+padding and a 10px gap is 223px per tile in a 2-column grid — the size
+this design is tuned to. Feed that same size a 1280 tablet and you get
+5 columns: identical physical tiles, more of them. One number, no
+breakpoint table, and it fixes every desktop window width as a side
+effect. Measured:
+
+    viewport   rooms(decl 1)   controllers(2)   library(3)
+    480         1 × 456px       2 × 223px        3 × 145px   (unchanged)
+    1024        2 × 495px       4 × 243px        6 × 158px
+    1280        2 × 623px       5 × 243px        8 × 148px
+    1920        4 × 467px       8 × 228px       12 × 149px
+
+Using the 520 cap as the reference instead of the hardware costs real
+quality at 1024 — a room page lands one pixel-pair short of two
+columns and renders a single 1000px row. Measured, not guessed.
+
+**THREE INFERENCES BECAME DECLARATIONS**, which is why this is a
+correctness fix that happens to make landscape work rather than a
+landscape hack:
+
+1. `const row = cols === 1` — ROW-NESS WAS ARITHMETIC. That single
+   expression made "two columns of rows", the obvious landscape layout
+   for a room page, literally unsayable: asking for a second column
+   silently converted the rows to cards. Row-ness is a tile-style
+   decision; the column count is a fitting decision; they were the same
+   expression by accident. `tile_style: row|card` states it, and the
+   fallback reads the DECLARED count so every existing page is
+   unchanged at any width.
+2. `span: 2` — A COUNT THAT MEANT A PROPORTION. All 39 spans in the
+   live config (and all 35 in the engine) are `2`, authored in a
+   2-column world where that plainly meant "the whole row". Read
+   literally at 5 columns it means "two fifths". So a span now scales:
+   N of a declared C covers the same FRACTION of the real count, and
+   N >= C is full width forever. span 1 is never scaled.
+3. `max_width` — WIDTH THAT MEANS "A COLUMN", NOT "A WALL". A
+   controller is a STACK of full-width bands; scaling it faithfully
+   produced a *stretched* stack, 1256px of band around a play button.
+   Only the page knows which it is, so it says. Set to 760 on the
+   music, tv and bar_tv controllers; the room pages and the library
+   take everything they can get.
+
+**TWO BUGS THE WIDE VIEW EXPOSED**, both latent on a 480 panel:
+
+- The scroll-spy's bottom rule (`scrollTop + clientHeight >=
+  scrollHeight`) is TRUE at rest on a page that does not scroll — so
+  the hero strip lit the LAST section while you were looking at the
+  first. Invisible at 480, where pages usually overflow; obvious at
+  1280 in 5 columns. Now gated on the grid actually scrolling.
+- `.hjump { flex: 1 }` makes the jump strip a tab bar spanning the
+  hero. Right at 480; at 1280 it flung two labels into opposite
+  corners 640px apart. Wide keeps them centred as a group.
+
+**AND ONE HOUR LOST TO A FLEXBOX RULE, worth writing down.** Capping
+the grid with `max-width: 760px; margin: 0 auto` did not cap it — it
+COLLAPSED it, to 320px inside a 1280px page. `#grid` is a flex item in
+a *column* flex container, and **auto margins on the cross axis
+override `align-items: stretch`**: the item stops filling its parent
+and sizes to its own content, then centres that. The fix is symmetric
+padding (which also leaves the scroll track at the screen edge). The
+same trap was waiting in `#brbar` for the search keyboard cap —
+`width: 100% + align-self: center` there. I only caught it because I
+rendered the real engine in a real browser and MEASURED the tile
+widths; the arithmetic all said 760 and the screen said 320.
+
+Verified by driving the built engine headless at 480×800, 844×390,
+1194×834 and 1280×800: compact geometry byte-for-byte unchanged, the
+Bar at 1280 in 2 columns of rows, the library at 8, the controller a
+centred 760 column.
+
+v0.67.6 — **THE GAMES ROOM TV IS AN IR TELEVISION, AND I SHOULD HAVE
+LOOKED.** Suresh, from the room: "1. TV doesn't come on. 2. XBOX
+doesn't come on."
+
+Both true, both mine, and the evidence had been sitting in his own
+Home Assistant the whole time. `script.hisense_gtv_on` and
+`script.hisense_xbox_on` — the routines this room actually ran before
+Harmonium — say:
+
+    if media_player.android_games_tv… is off/standby/unavailable/unknown:
+        harmony → Hisense TV → PowerToggle
+        harmony → Hisense TV → InputHdmi1
+    else:
+        harmony → Hisense TV → HDMI1
+
+**Harmony IR wakes that television. Nothing else can.** I built the
+room from the dashboards, read "we can reduce dependency on harmony as
+we did in the bar" as a goal to reach immediately, and wired power to
+WOL + `androidtv_remote.turn_on` + a 12-second `wait_for_trigger`.
+Measured tonight with the TV asleep:
+
+    media_player.games_room_tv        → unavailable   (androidtv_remote)
+    media_player.android_games_tv_…   → unavailable   (androidtv/ADB)
+
+Both network entities are unavailable **because the TV is off**. An
+integration that talks to the TV over the network cannot be the thing
+that wakes it. My HDMI1-over-ADB route had the same circularity: ADB
+needs the TV awake to accept the keyevent that switches its input. And
+the WOL button did fire — `button.wake_on_lan_7c_b3_7b_83_f7_39` has a
+timestamp from his test at 22:07 — it simply woke nothing, so the MAC
+question (wired 64:ae:f1:… vs 7c:b3:7b:…) turned out to be moot rather
+than the answer.
+
+The reduce-Harmony instruction was real, but it described the Bar,
+where a working non-IR path EXISTED. Here there is none. **"Reduce the
+dependency" is a direction, not a licence to invent a route and ship it
+untested.** Every step carried `continue_on_error: true` — deliberate,
+while the routes were unproven — so all of it failed in silence, which
+is how an untested guess reaches the field looking like a feature.
+
+All four Games sequences now mirror his scripts: IR PowerToggle for
+power, guarded by the ADB entity's state so a TOGGLE never turns a
+running TV off, IR for the input, and `media_player.turn_on` on the
+console (his own step — `media_player.xbox` is a Music Assistant UPnP
+renderer for an Xbox One, and waking it was his idea, not the Xbox
+integration's).
+
+**Three more bugs fell out of reading the real scripts:**
+
+1. The receiver's Xbox input is **`"Game"`**, not `"GAME"`. My
+   `select_source` would have failed even once the TV worked, and
+   `games_xbox`'s truth test — `source in ["GAME"]` — could never have
+   matched. Both corrected.
+2. Both **off** sequences called `media_player.turn_off` on
+   `media_player.games_room_tv`, which is unavailable whenever it
+   matters. Off was as broken as on; he had not reached it yet. Now IR,
+   with the same only-if-on guard.
+3. `games_gtv`'s truth watched the androidtv_remote entity. It now
+   watches the ADB entity his own guards trust, via `not_in` — and
+   `not_state`, which I reached for first, **is not in the condition
+   grammar** (`equals` / `state` / `in` / `not_in` are). Caught by
+   reading `evalCond` before shipping rather than after.
+
+The WOL `cold_start` trait on the games_tv device is gone: disproven by
+its own timestamp.
+
+**The rule this earns:** when replacing something that already works,
+READ WHAT WORKS FIRST. His scripts were three tool calls away for two
+days. I had even written "Watch which one actually moves the TV and
+delete the other" into the handoff — planning to learn in the field
+what one `ha_config_get_script` would have told me for free.
+
+v0.67.5 — **THREE SEARCH TWEAKS.** Suresh, testing: "1. Working —
+but when I click a tab like Tracks in search mode, that should
+highlight. 2. The There's more add a word should appear in the tab
+results too, if true. 3. Its a bit slow."
+
+(1) **THE SEARCH CHIPS NEVER LIT.** The chip strip marks its selection
+with `brSame(c, sel)`, which compares MEDIA IDS against `B.root` /
+`B.cat`. Search chips are synthetic — `{title, qclass}` minted from the
+result set — and their selection lives in `B.qcat`, a media_class.
+Neither of the two things brSame reads is ever set in search mode, so
+no chip could ever be current. Selection is now asked the right
+question per mode: `qclass === qcat` while searching, `brSame` while
+browsing.
+
+(2) **THE NOTE NOW NAMES THE KIND.** It always did appear in a tab
+whose kind was capped — the rule was right. What was wrong was that it
+was ILLEGIBLE: an unnamed "There's more" in All that vanishes when you
+tap Tracks reads as a bug, not as an answer. The limit is PER KIND, so
+All can be deep in artists while tracks are genuinely exhausted. Now it
+says which: "More artists · playlists — add a word to narrow it down",
+and in a tab, "More tracks — …" or nothing. Same logic, visible rule.
+
+(3) **TYPING STOPPED REBUILDING THE PAGE.** Every keystroke called
+`navigate()`. That tears the grid down, re-runs every generator,
+rebuilds up to 200 tiles, re-focuses, repaints all states, refits, AND
+does an unsubscribe/subscribe round trip on the websocket. One more
+letter in a query changes none of it. `brEcho()` now repaints just the
+query text — one assignment instead of ~200 DOM nodes and a socket
+exchange per keypress — and falls back to a full render only when the
+grid genuinely moves (a kind filter or a drill-in being dropped, or
+Clear). The busy dot became a permanently-present hidden node so
+`brBusy()` can toggle it without a render.
+
+The lesson generalises past search: **a text field is not a page.**
+The engine has exactly one repaint path, which is a virtue everywhere
+except on the one surface that changes 5 times a second.
+
+v0.67.4 — **A SHARED SURFACE CANNOT NAME A ROOM.** Suresh: "When I
+run Listen To Music in the Games room, it takes me to the bar
+controller page. This implies stock has hardcoded stuff in it."
+
+Nothing was hardcoded — and that mattered, because the fix for a
+hardcode would have been to FORK the controller, which is the thing
+this architecture exists to avoid. The shared `controller:music` was
+*answering* for a room, and answering first-come.
+
+`roomActivitySelect()` (v0.67) walks the trail — current screen, then
+back through the stack — looking for a page that names an
+`activity_select`. A controller names none, so it fell to the second
+rung: ask the activities that OWN this screen which room they live in.
+Both `listen_sonos` (Bar) and `games_music` (Games) declare
+`screen: controller:music`, so `activitiesOwning()` returned both and
+the loop took `[0]` — the Bar. The Bar's select read `listen_sonos`,
+so every `$context` slot filled with Bar devices and the title bar
+said Bar. The right answer was one step further along the very same
+trail: the room page he had walked THROUGH.
+
+So an owner-derived guess now only counts when the owners AGREE. A
+split vote means the surface abstains and the walk continues. This is
+exactly `presumedActivity()`'s v0.61 rule — "a SHARED surface cannot be
+guessed from the surface alone; the ROOM we walked through is the
+disambiguator" — which the select lookup had failed to learn. Two
+places asked the same question and only one of them knew the answer.
+
+Proved both directions before shipping: driving the real config
+through the old function returns `select.harmonium_bar_activity` /
+`listen_sonos` for the Games trail, the new one returns
+`select.harmonium_games_activity` / `games_music`, and the Bar trail,
+the drawer trail (games → music → library) and both room pages are
+unchanged.
+
+**Same class, caught while in there.** `isActivityActive()`'s fallback
+for an activity with no declared `state` read
+`CONFIG.global.activity_select` — which is literally the Bar's select.
+It now asks the select of the room that OWNS the activity (its truth,
+not the current screen's), keeping global as the last resort. No
+activity reaches that path today, since all five declare `state` —
+which is precisely why it would have waited quietly for the third
+room.
+
+**THE ONKYO LEAVES THE POOL.** Suresh: "in games/pool the onkyo is not
+involved at all in Sonos. I've delete it from activity." He cut the
+Zone Amps group from the cast in the Studio; the rest of the Onkyo was
+still threaded through `games_music` because I had built that activity
+by analogy with the Bar's, where the Sonos genuinely does feed the
+receiver. The Pool Sonos is a standalone speaker. Removed:
+`wiring.source_select`, `context.source_select`, both receivers from
+`devices`, the receiver power/`select_source`/volume steps from
+`games_music_on`, and the receiver power-off from `games_music_off`.
+
+That left the activity with no way to know it was on: truth had been
+"the receiver is powered AND on the CD input". The Sonos is now the
+only witness, so `state` becomes
+`{entities: [media_player.sonos_pool], on: {any_state: [playing,
+paused]}}`. Worth watching on the panel — a Sonos that is idle rather
+than playing will read as off, and the pending-impersonation path
+(v0.48) is what carries the UI across the gap between tapping the
+activity and the first note.
+
+Config v20 also **adopts the live store wholesale** before editing —
+his tile reorder in Bar › Devices and the new "Bar" card on the Games
+page came down from HA first, so the next reseed has nothing to fight.
+
+v0.67.3 — **FIVE IS NOT A SEARCH.** Suresh, precisely: "Type 'Love'
+into search. We get 18 result tiles. (It should show that there are
+more, must be thousands!) Now tap Tracks. I would expect to see Tracks
+with Love (also a gazillion). But I get 5. This is where I think its
+rescoping to favorites."
+
+He was right that something was wrong and wrong about what. Measured
+on his box: `media_player/search_media` for "love" returns **exactly
+5 per class** — and asking for `media_filter_classes: ["track"]`
+ALONE still returns 5. So the chip was an honest filter over a well
+that was only ever five deep, and 4 classes × 5 = 20 (18 after the
+kinds that came back short). Nothing was rescoping. HA's generic
+search-media contract has no `limit` argument at all.
+
+Music Assistant's own service does:
+
+    music_assistant.search {config_entry_id, name, media_type[],
+                            limit, library_only}
+
+Same query at limit 25 → **23 tracks**, mixing `library://` (his
+ripped CDs) with `spotify--<instance>://` (the catalogue) — which is
+also the direct disproof of "scoped to favourites", since a Spotify
+provider hit cannot be a favourite.
+
+So the browse tile learned to declare **which** Music Assistant to
+ask, and how deep:
+
+    "search": { "engine": "music_assistant",
+                "entity": "media_player.ma_bar",
+                "classes": ["artist","album","track","playlist"],
+                "config_entry": "01KK4WSP09VCQ4G6PY95KTFP4R",
+                "limit": 25 }
+
+With `config_entry` the engine calls MA directly and adapts the reply
+(`maItem`) into ordinary browse items — `uri` IS a media_content_id,
+so v0.66's Sonos share-link rewrite, the badges, the thumbnails, the
+drill-in and the play path all keep working with no idea where the
+items came from. Buckets are emitted in the order the tile declared
+its classes, so the chip strip reads the way the author wrote it.
+**Without** `config_entry` the standard contract still runs — any
+player, five deep, unchanged. The engine stays dumb: it knows the
+shape of MA's answer, not which MA it is talking to nor how deep to
+dig. Declared, at the layer that owns the decision.
+
+Two things fell out. Search results now go through the thumbnail
+signing pass (`brThumbs`, lifted out of `browseFetch`) — **they never
+had artwork before**, which nobody had noticed. And the v0.62
+no-silent-truncation rule finally reaches search: a kind that comes
+back FULL gets "There's more — add a word to narrow it down",
+scoped to what you're looking at (filtered to Tracks, it only appears
+if TRACKS were capped). `node.more` now takes a string as well as a
+count, because search knows there is deeper water but not how deep.
+
+Studio: the browse tile gained **Music Assistant entry** and **Results
+per kind** — SOURCE only this time (see below); rebuild `studio-src`
+to see them. It already round-tripped unknown keys (`Object.assign`
+over `tile.search`), so nothing was ever at risk — but a setting you
+can't see is a setting you can't fix.
+
+**A NEAR MISS WORTH MORE THAN THE FIX.** Mid-session I concluded from
+file sizes that `studio-src/` was "three days stale" and that the
+shipped `studio.html` dated from 2026-08-03 — and wrote that into this
+document as fact. **It was false.** I was reading the assistant's
+uploaded SNAPSHOT of the repo, not the repo. `src/` in that snapshot
+happened to be current; `studio-src/` was days behind. His real
+working tree had every byte of the v0.60–v0.66 Studio work, and his
+`studio.html` was built the moment after his last TileRow edit.
+
+Caught only because acting on the belief meant overwriting his tree,
+so I checked the other end first: listed every file on the device and
+compared it to the snapshot. Every file I had NOT edited matched
+byte-for-byte; the five that differed were exactly the five I had
+touched. That is the whole check, and it is cheap:
+
+> **The snapshot is not the repo. Before writing back, prove that the
+> files you did not touch are identical — a stale upload and a stale
+> repo look the same until you look at both ends.**
+
+Corollary learned the same way: the scratch rebuild of `studio.html`
+came out 11 KB SMALLER than his despite ADDING fields, because the
+scratch tree carries its own `node_modules`. An artifact from a
+different toolchain is not the same artifact. Ship the source and let
+his build produce his binary.
+
+v0.67.2 — **FOUR TWEAKS BEFORE A TEST RUN.** Suresh, on his way to
+the panel: "1. I added a nav tile to Bar. Not rendering properly.
+2. I need a way to hide/show the keyboard. We can use the input line.
+3. What is the point of that great big button? Type to search ma bar?
+4. The search results seem scoped to favorites."
+
+(1) **A ROOM CARD BORROWS THE ROOM'S PICTURE.** His new card —
+`{type: nav, label: "Games Room", target: "games"}`, no `style`, no
+`image` — resolved through `navStyle`'s `auto` ladder, whose second
+rung was "target page is a room → image". So it wore the photo shape
+and rendered `<img src="">`: a broken-image glyph. The rung was wrong
+in principle, not just in this case — it decided the STYLE from the
+target's kind while the picture came from the tile, so the two could
+always disagree. Now `navImage(t)` answers one question — is there a
+picture to show? — as `t.image` **else the target screen's
+`banner.image`**, and the ladder asks it instead. A room already
+declares its photograph once; the card that points there borrows it
+rather than making the author paste the path twice. An explicit
+`style: image` with nothing to show now falls through the ladder too,
+because a broken image is never what anyone asked for.
+
+(2) **THE QUERY LINE IS THE KEYBOARD'S SWITCH.** `S.browse.qkb`,
+sticky for the session, toggled by tapping anywhere on `.brq` that
+isn't ⌫ or ✕ (those now `stopPropagation`) — plus a trailing
+`keyboard_hide` / `keyboard` button so the affordance is stated, not
+guessed at. Opening search always raises the keyboard; the placeholder
+reads "tap to type…" when it's down. The tablet has room for it while
+typing and wants the room back while reading results.
+
+(3) **AN EMPTY QUERY SHOWS NOTHING.** The "Type to search ma bar"
+tile was mine, an empty-state placeholder, and it was furniture: the
+query line directly above it already says *type to search*, and the
+tile did nothing when tapped. Deleted. Its removal exposed the v0.47.1
+empty-page hint ("Nothing here yet — add tiles in the Studio"), which
+would have been a lie, so that hint now stands down whenever the
+browse bar is up: an empty grid under a keyboard is the intended
+picture, not a broken one.
+
+(4) **SEARCH IS NOT FAVOURITE-SCOPED — measured, not argued.** Called
+`media_player/search_media` on `media_player.ma_bar` with
+`search_query: "radiohead"` and our four filter classes. It came back
+with the full Spotify catalogue: 5 artists (Radiohead ×2, Nirvana,
+Muse, Thom Yorke), 5 albums (OK Computer, In Rainbows, The Bends,
+Kid A, Pablo Honey), 5 tracks (Creep, Let Down, No Surprises, All I
+Need, Karma Police), 5 playlists. Nothing in our code narrows the
+scope. The likely cause of what he saw: MA ranks LIBRARY matches
+above provider matches, so a word that appears in his own favourites
+("coffee", "chill") fills the first screen with them and looks
+scoped. Asking what he typed before changing anything — the wrong fix
+here would be to widen a scope that is already wide.
+
+v0.67.1 — **THE INPUT SWITCH GOES OVER ADB** (Suresh: "I'm pretty
+sure you can switch inputs on a google tv via adb commands." He is
+right, and my "no clean API" was lazy — I had reached for
+`androidtv_remote` and stopped looking).
+
+Checked both paths rather than guessing again. `androidtv_remote`'s
+`remote.send_command` takes a FIXED command list — navigation, volume,
+media, channel, colour keys, HOME/MENU/SETTINGS/POWER — and no input
+keys at all. But this TV also has the ADB `androidtv` integration
+(`media_player.android_games_tv_192_168_1_41`), and his own legacy
+script used that entity as the Hisense's state proxy, which is the
+evidence that both entities are the same television. So:
+
+    androidtv.adb_command → "input keyevent 243"   (KEYCODE_TV_INPUT_HDMI_1)
+
+Both routes now run, both `continue_on_error`, and both are DISCRETE
+(set HDMI1, not toggle) so running them together cannot fight — the
+alias on the IR step says to delete whichever turns out to be
+redundant. That is deliberate for a room built blind: whichever works,
+the Xbox activity lands on the right input the first time.
+
+If neither fires, the fallback worth trying is the passthrough intent
+— `am start -a android.intent.action.VIEW -d
+content://android.media.tv/passthrough/<inputId>` — with the ids from
+`cmd tv list_inputs`.
+
+**AND AN INTEGRATION BUG THE SECOND ROOM SURFACED.** `harmonium.reseed`
+saved, merged and deployed — but never MINTED. Every page that owns
+activities needs its `select.harmonium_<page>_activity`, and Save &
+Deploy has always minted one (the POST view calls it); reseed did not.
+So the Games Room arrived by file copy with no select at all, and the
+engine reads that select to know what is running in the room. Found it
+by looking for the entity after the reseed rather than assuming the
+room was fine — worth remembering as a habit. Fixed: reseed now mints
+every workspace it just wrote. Until this ships, a new room needs an
+integration reload (which is how the Games Room got its select today).
+
+v0.67 — **A SECOND ROOM** (the Games Room), and the engine change it
+forced.
+
+Built from the existing `games-*` dashboards and their scripts rather
+than from a description — same method as the Bar. What the room is:
+a Hisense with Google TV built in, an Onkyo TX-NR6100 (+ Zone 2), an
+Xbox on the receiver's GAME input, and a Harmony hub.
+
+**THE BUG A SECOND ROOM EXPOSED.** `currentActivityId()` read exactly
+one entity, `global.activity_select`. The integration has always
+minted `select.harmonium_<page>_activity` PER ROOM, so with two rooms
+the engine was reading the Bar's select everywhere — music playing in
+the Bar would have supplied `$context` for a controller opened from
+the Games Room, putting the Bar's Sonos on the Games Room's screen.
+Fixed three ways, all small:
+
+- a room page may name its own `activity_select`, and the engine asks
+  the room it is STANDING IN (`roomActivitySelect()`, reusing
+  presumedActivity's trail — the screen, then what we came through).
+  Absent, the global one still answers, so a one-room workspace is
+  bit-for-bit unchanged.
+- `activityInScope()` — an activity only owns the surfaces of its OWN
+  room. Belt and braces for the case where a select is shared.
+- `barTitle` and the subscription set follow suit: `room_name` per
+  screen (the bar reads "Bar", the games room "Games Room"), and every
+  room's select is subscribed so activity tiles stay truthful while
+  you stand in the other room.
+
+Proven in the harness, and it is the test worth keeping: opening
+`controller:music` from the BAR resolves `$context.media_player` to
+`media_player.sonos_bar`; opening the SAME shared controller from the
+GAMES ROOM resolves it to `media_player.sonos_pool`.
+
+**HARMONY IS DOWN TO ONE JOB.** The legacy scripts drove the TV
+entirely by IR through the hub — PowerToggle, InputHdmi1, Home. The
+room has a better path: `media_player.games_room_tv` is the
+**androidtv_remote** integration (the Google TV protocol), which does
+power and keys natively, plus a wake-on-LAN button on the same MAC.
+So power and HOME are now native, and the hub is left with exactly
+one thing — **putting the TV on HDMI1** for the Xbox, an input switch
+Google TV exposes no clean API for. Same shape as the Bar, where
+Harmony survives only for the soundbar's IR sound modes.
+
+Two corrections the entity registry handed over. The legacy scripts
+select the Onkyo source `"Game"`; the receiver's actual `source_list`
+reads **`GAME`** (and `CD ··· TV/CD` for the Sonos feed) — the new
+sequences use the real strings. And `media_player.xbox` is a MUSIC
+ASSISTANT player, not the Xbox integration, so the old script's
+`media_player.turn_on` against it is unlikely to have woken anything;
+the new Xbox sequence does not pretend to.
+
+v0.66 — **THE SONOS PLAYER IS THE TARGET** (his words, after the
+rental conversation settled what search was actually for).
+
+Search stays on Music Assistant because nothing else in the house can
+do it. **Playback moves to Sonos**, which removes the second player
+from view entirely:
+
+    spotify--<instance>://track/6vMpPxLV0F5Diwcs6awI1Z
+        →  spotify:track:6vMpPxLV0F5Diwcs6awI1Z
+
+Two facts make that safe, both read out of the source rather than
+assumed. HA's Sonos `_play_media` checks
+`share_link.is_share_link(media_id)` **before** any `media_type`
+branch, so the type barely matters and a share link is taken as-is.
+And SoCo's SpotifyShare canonical regex is
+`spotify.*[:/](album|episode|playlist|show|track)[:/](\w+)` — which is
+also why **artist is not in the convertible set**: Sonos cannot
+share-link an artist. Guessing either of those would have produced a
+button that silently does nothing.
+
+So the routing is honest rather than uniform, and says so:
+
+| result | plays on |
+|---|---|
+| Spotify album / playlist / track / show / episode | **the Sonos entity**, as `spotify:<kind>:<id>` |
+| artist | MA (and drilling in lists their albums, which then play on Sonos) |
+| MA `library://…` | MA — no Spotify equivalent exists |
+
+The artist case turned out to be the nice one: MA marks artists
+expandable, so stepping into one lists their albums FROM MA and those
+albums play on Sonos like anything else. The fetch has to use the
+ENGINE's player, though — the ids are MA's and the tree's player has
+never heard of them.
+
+**Scoped, and the scope is the point.** `media_filter_classes:
+[artist, album, track, playlist]` is his original list, and never
+ASKING for MA's generated playlists, audiobooks and podcasts is the
+cure for "I like music assistant, but its almost too overwhelming".
+
+**The engine is declared, not inferred.** The tile carries a block, not
+a loose key:
+
+    "search": { "engine": "music_assistant",
+                "entity": "media_player.ma_bar",
+                "classes": ["artist","album","track","playlist"] }
+
+with a matching editor in the Studio — engine, search player, result
+kinds. One option today and it still shows: "there is no plan B today,
+but it may come". Note the deliberate distinction from v0.62, where I
+collapsed a one-option roots row — that was a control with one ACTION
+and pressing it did nothing. This is a declaration of WHICH ENGINE
+ANSWERS, and it has to be legible even at one option or the next
+person finds search working with no idea what is behind it.
+
+DESIGN NOTE 2026-08-05 — **THE HOUSE IS RENTED** (no code shipped;
+this is the reasoning, and two deliberate refusals worth more than the
+decision they replaced).
+
+Context Suresh gave after v0.65 landed: "I rent this house. Guests come
+and attach their own sonos apps (and libraries) and play through my
+sonos boxes." Everything Harmonium has assumed until now — one
+household, one intent, one actor — stops being true. This note records
+what that changes and, mostly, what it does NOT.
+
+**WHAT THE RESEARCH FOUND** (he asked whether Spotify could be searched
+and handed to Sonos, bypassing Music Assistant):
+
+- **Sonos CAN play Spotify.** HA's Sonos integration takes
+  `spotify:playlist:…` with `media_content_type: playlist`, and
+  `https://open.spotify.com/…` share links with type `music`, "as-is".
+  This house's Sonos household already has Spotify linked — several
+  Sonos favourites ARE Spotify playlists.
+- **Sonos CANNOT search Spotify.** Its `search_media` covers the LOCAL
+  Sonos library only; the docs say streaming services "are not included
+  in search results". Confirmed live: "coffee" and even "the" against
+  `media_player.sonos_bar` both return `[]`.
+- **There is no Spotify integration in this HA**, and HA's official one
+  does not implement `search_media` anyway — it documents browsing and
+  `play_media`. Since Feb 2026 it also needs a Premium account plus a
+  self-created developer app.
+- So **Music Assistant is the only thing in the house that can search
+  Spotify.** Not a preference — the only door.
+- **But MA's ids convert.** A result comes back as
+  `spotify--<instance>://track/6vMpPxLV0F5Diwcs6awI1Z`; the tail is a
+  real Spotify base-62 id, so `spotify:track:6vMpPxLV0F5Diwcs6awI1Z`
+  falls straight out and Sonos accepts it. Library items
+  (`library://playlist/11`) have no Spotify equivalent and do not
+  convert — the design must be honest about that split rather than
+  pretend it is uniform.
+- Worth knowing: MA STREAMS audio from its own server (re-encoded), so
+  the HA box sits in the audio path. A `spotify:` URI handed to Sonos
+  does not — Sonos streams from Spotify directly, survives an HA
+  restart, and skips a transcode. MA's own docs also warn that running
+  HA's Sonos integration alongside MA's Sonos provider can misbehave
+  ("speakers do not like too many requests from too many sources").
+  Both are running here.
+
+**THE ENTITY MODEL** (his question: "does it target the sonos players or
+the ma_sonos players?"). Different entity per job, and the split is the
+answer rather than a dodge:
+
+| job | entity | why |
+|---|---|---|
+| display + control | the **Sonos** entity | it is the truth of the speaker, whoever is driving |
+| search | the **MA** entity | the only thing that can |
+| playback | **Sonos** where the id converts, MA otherwise | one entity to look at |
+
+Which demotes MA from a PLAYER to a SERVICE WE CALL. It never becomes
+a surface; it answers questions. That also answers his "MA is almost
+too overwhelming" — a scoped search is us choosing which of MA's world
+to ask about, so generated playlists and recommendations are never
+requested in the first place.
+
+**DECIDED — scoped MA search, with the engine visible.** Restrict
+`search_media` to artists / albums / tracks / playlists (its
+`media_filter_classes` parameter), which is exactly the list he asked
+for originally, and which is what keeps MA's generated content out.
+Expose the backend as a SETTING even though there is exactly one
+option today: "there is no plan B today, but it may come."
+
+Note the tension with v0.62, and the distinction that resolves it: I
+collapsed the Sonos roots row because a control with one option is not
+a control. That row was a control with one **action** — pressing it did
+nothing. This is a declaration of **which engine answers**, and it has
+to be visible even at one option, or the next person finds search
+working with no idea what is behind it. Documentation that happens to
+be a dropdown, and the seam a plan B slots into.
+
+**REJECTED — the takeover confirm.** The idea was "Bar is playing X —
+press again to take over", reusing `barConfirm`. I proposed firing it
+when the speaker is playing and no activity is running. Suresh: "Unless
+we know that the new play request comes from NOT US, the whole takeover
+thing is too brittle… net net, not worth the brain damage." He is
+right, and the rule was worse than I described it:
+
+- "no activity running" is not a proxy for "not us". Fire a preset from
+  the room page without starting the activity and the SECOND press
+  confirms against your own music.
+- A guest who stomps you mid-session produces no confirm at all — the
+  one moment it would have earned its keep.
+
+The only sound signal is HA's `context` on state changes: our service
+calls carry one, the Sonos app's do not. The engine subscribes to
+entity DIFFS, not state-changed events, so honouring it means a
+different subscription model for one dialog. Matching on
+`media_content_id` does not work either — Sonos rewrites a `spotify:`
+URI into its own internal id the moment it accepts it. **If this ever
+comes back, `context` is the only honest path.**
+
+**REJECTED — "the receiver is off" hint.** I offered that a Sonos
+playing into a powered-off Onkyo produces silence a guest reads as
+"broken", so the controller could say so. Suresh: "If someone tries to
+play on the sonos, from their phone, they are almost certainly not
+looking at the tablet, so showing a message is redundant." Aimed at the
+wrong person — the one who caused the silence is holding a phone in
+another room. Filed under *right instinct, wrong audience*.
+
+**OUT OF SCOPE — waking the Onkyo automatically.** An automation on
+"Bar Sonos starts playing" could bring the receiver up. It is an
+automation about the HOUSE, not about the remote: engine dumb, HA
+brain. It belongs in his automations, not in Harmonium.
+
+**THE PRINCIPLE THAT CAME OUT OF IT — multi-user by DISPLAY HONESTY,
+not arbitration.** Sonos has no ownership and no locking: one transport
+per speaker, last writer wins, and nothing we build changes that. So
+the remote shows the truth of the speaker and never editorialises about
+who is driving. A guest plays from their phone and your Now Playing,
+artwork and transport follow them; you can pause them, skip them, take
+the volume down. In a rental that is the feature, not a compromise.
+No locks, no dialogs — and it is what the system already did, which is
+usually the sign of a right shape.
+
+One honest limit: if a guest arrives via Spotify Connect rather than
+loading a Sonos queue, Now Playing is correct while the queue screen
+may read empty. That is Sonos's model, not ours.
+
+Also flagged for a look, unverified: **SpotifyPlus**, a HACS
+integration wrapping much of the Spotify Web API as HA services —
+search plus Spotify Connect device transfer, and Sonos speakers are
+Connect targets. Potentially MA-free end to end. Needs Premium and a
+developer app, and its current surface has NOT been checked.
+
+v0.65 — **SEARCH, WITH A KEYBOARD** (Suresh, heading out to dinner:
+"Here's a big lift for music library. Search (artists|albums|tracks|
+playlists etc…). On a tablet I have plenty of room for an on-screen
+keyboard. Give it a go.").
+
+**The finding that shaped it: Sonos cannot search.** HA exposes
+`media_player/search_media`, and asking the house rather than the docs
+settled it in two calls — `media_player.sonos_bar` answers an empty
+list; `media_player.ma_bar`, the Music Assistant player driving the
+SAME physical speaker, returns artists, albums, tracks, playlists,
+podcasts and audiobooks with artwork. And the ids it returns
+(`library://playlist/11`, `spotify--…://track/…`) mean nothing to
+Sonos, so results must PLAY on the player that found them. One entity
+has to be both, and the tile names it: `search_entity` on the browse
+tile. Absent, there is no magnifier and nothing changes for anybody.
+
+The UI reuses what browse already had rather than inventing a screen:
+
+- The magnifier is a **chip**, first in the strip — the strip is
+  already "which slice am I looking at", and the roots row may not
+  exist to hold a button (v0.62 collapses it).
+- Search MODE swaps the bands: query line + on-screen keyboard above,
+  and the chips become the KINDS the answer contains (All · Playlists ·
+  Artists · Albums · Tracks · Podcasts), built from the results'
+  `media_class`, filtering client-side. He asked for
+  "artists|albums|tracks|playlists"; the answer decides which of them
+  exist.
+- Results render through `mkItems` — the same renderer as the tree, so
+  thumbnails, the ▶ play badge, drill-in and the v0.62 kind badges all
+  come along free. Search results mix kinds by nature, which is
+  precisely what that badge was built for.
+- Keystrokes debounce at 350ms and every reply carries a sequence
+  number, so a slow answer can never overwrite a newer query.
+
+**The keyboard is a CSS grid, not flex** — Chromium 75 has grid gap
+and won't have flex gap until 84 (the tablet's floor, see v0.56.1).
+Keys size off `--kb-*` custom properties, so the wall tablet can grow
+them from its remote profile without a fork, exactly like `--bar-*`.
+
+The bug worth recording, because the first design was backwards:
+**while a search field is open, TEXT WINS.** I first wrote "capture
+only keys that aren't remote buttons", reasoning that KeyMapper emits
+punctuation. Then the test typed "miguel" and got "iguel" — because
+every profile binds `m`→mute, `p`→power, `o`→power_hold and
+space→select as desktop conveniences, and Backspace→back, which
+navigated out of the library mid-word. Now every PRINTABLE key types;
+arrows, Enter, F-keys and the punctuation KeyMapper actually sends
+still route as buttons, so a hardware remote loses nothing and can
+still walk the results and press play. Escape closes search and hands
+Escape back to Back.
+
+v0.64 — **PRESETS BELONG TO THE ACTIVITY** (Suresh, one push after
+v0.63 shipped: "these presets shouldn't be hardcoded in the stock
+controller. The logical place to define presets is in the Listen to
+Sonos activity isn't it? What if I wanted a preset to play CoffeeHouse
+Radio?").
+
+He is right, and the CoffeeHouse question is what makes it obvious:
+"Add the Pool" is arguably infrastructure, but a favourite radio
+station could never belong to the shared Media Player surface. v0.63
+put both tiles ON `controllers.music` and scoped them with
+`when: {activity: listen_sonos}` — which WORKS, and is the same
+mistake as `volume_zone`: content owned by one activity, stored in the
+thing every activity shares, with a filter papering over it. `when`
+earns its keep for genuine per-activity *variation* of a shared
+surface; it should not be how content gets there in the first place.
+
+So `activities.<id>.presets` joins the cast, its groups and its
+volumes as things the ACTIVITY owns, and the controller carries one
+more generator that names nothing:
+
+    { "id": "acts_presets", "type": "presets" }
+
+Same contract as `devices` / `volumes` / `groups`: reads the RUNNING
+(or presumed) activity, emits its tiles, and renders nothing —
+section header included — for a room that has none. Tile objects pass
+through whole, so a preset keeps every field it always had
+(`activity:` warm-start included).
+
+STUDIO: a **Presets** tab on the activity card, which is exactly where
+he went looking. It reuses `TileRow` verbatim, so activity presets get
+the same editor as a page's — icon, label, the three-door "On tap"
+(sequence / scene / service), reorder, duplicate, delete — for free.
+The count rides the tab like State's does.
+
+Also aligned: v0.63 taught the ENGINE that a preset may name a
+sequence directly (`{"sequence": "id"}`) but the Studio still wrote
+the long `harmonium.run` spelling. `presetMode()` now recognises both
+and writes the short form. Old tiles keep working, which is the whole
+point of recognising both.
+
+Rule earned, and it is the third time this session: **ask who OWNS a
+thing before asking where to put it.** The cast, groups, volumes and
+now presets all answer "the activity" — and every time I have put one
+of them on a shared surface instead, it has come back.
+
+v0.63 — **A PRESET MAY NAME A SEQUENCE**, and the Bar learned to
+lend the Pool its music.
+
+Suresh asked how to pair two Sonos players and I offered three shapes —
+a per-room control, a preset pair, or a whole activity. He picked the
+preset ("LOVE the preset idea… for now we can handle it in our
+actions"), which is the right answer for something used occasionally:
+one tap, no state to read, nothing to clutter the page the rest of the
+time. `media_player.join` (target = the COORDINATOR, `group_members` =
+who joins it) and `media_player.unjoin`, verified live on the pair
+before writing a line of config.
+
+The engine change is one line and overdue: `firePreset` handled only
+`action.service`, so a preset could not run a SEQUENCE — the exact
+grammar activities, nav tiles and key bindings already speak. It can
+now, and warm-start still applies (the activity comes up first, then
+the sequence). Orchestration belongs HA-side; a preset that bonds two
+speakers is a sequence, not a service call.
+
+Placement is the part worth remembering. The tiles want to be where
+the hand is — on the music controller — but that controller is SHARED,
+and bar-specific tiles on it would leak into every room that ever uses
+it. `when: { activity: listen_sonos }` is exactly the tool for that
+(v0.36's per-activity content override), so the Speakers section
+appears under the Bar's activity and nowhere else, with **no fork**.
+A section whose tiles all filter out renders nothing at all, header
+included — so the cost to every other room is zero.
+
+Also: `media_player.bar` → **`media_player.sonos_bar`** and
+`media_player.pool` → **`media_player.sonos_pool`** in the HA registry.
+HA does not update references, so the sweep was manual — 11 in the
+Harmonium config (including the `device_options` KEYS, which are entity
+ids in key position and are exactly what a careless find-and-replace
+misses) and two dashboard cards. Everything else that mentioned the old
+ids pointed at `media_player.bar_2`, dead since v0.58.
+
+And `bar_devices` became a real SUBPAGE: it had `class: group` and
+`type: hub` right, but no `parent`, because *＋ Add page* doesn't ask
+for one while *Add Nav Card* sets it automatically. Worth closing that
+gap in the Studio — a page reachable from exactly one nav card should
+adopt that page as its parent. Taxonomy note for the next reader:
+`class` is the only field the ENGINE reads (the key policy); `type` is
+the Studio's Hub-vs-Controller choice; `view_kind` is a derived label.
+"Hub" just means "a page of tiles, not a controller".
+
+v0.62 — **THE LIBRARY STOPS SLICING WHEN THE SLICES ARE ARBITRARY**
+(Suresh: "what Sonos is returning is ALL FAVORITES and then we're
+slicing them by category, which is useful, but sometimes artificial.
+What's the difference between a coffee shop playlist and coffee shop
+radio? Semantics.").
+
+Method note first, because I got it wrong before I got it right: asked
+how the chips were ordered, I answered from `favList` — the Music
+Assistant *synthesized* path — when the Bar plays through
+`media_player.bar`, the SONOS entity, so the real tree was running and
+`favList` never fires. Asking the machine settled it in one call:
+`media_player/browse_media` returns Albums · Playlists · Radio ·
+Tracks, and since the engine has never sorted anything, that IS the
+order. **When two code paths can produce the same screen, find out
+which one ran before explaining it.**
+
+(1) **`categories` on the browse tile** — `["Playlists","Radio",
+"Albums","Tracks"]` reorders and filters the chips by title,
+case-insensitively, on EVERY path (the Sonos tree, MA's flat tree, the
+synthesized favourites). Absent, or matching nothing, leaves the source
+order alone, so no existing tile changes.
+
+(2) **The "All" chip**, first and selected by default, when the root is
+the only one — i.e. when the categories ARE the whole library. It
+concatenates every category in `categories` order, so the option that
+sets the chip order also sets the grouping inside All. Each item
+carries a **badge** naming the folder it came from (queue_music /
+album / person / audiotrack / radio), keyed on the FOLDER rather than
+`media_class` — Sonos reports its radio favourites as media_class
+`genre`, so the folder is the more truthful label. Badges ride
+alongside the children (`node.badges[i]`), never stamped onto them: the
+child objects are the shared node cache, and mutating them left badges
+behind in the single-category grids once you had visited All. Opt out
+with `all: false`.
+
+(3) **The roots row collapses to nothing when it holds one root and no
+tiles of its own.** Suresh, of the lone Sonos badge: "What does the
+favorite icon at the top do?" Nothing — Sonos's root has nine children
+and eight are `media-source://`, which we hide, so it was a selector
+with one option. It returns by itself when a second root exists.
+
+(4) **No silent truncation.** The 200-per-node cap has always been
+there; what was missing was saying so. A node now records `more`
+(our slice plus HA's own `not_shown`) and the grid ends with
+"221 shown · 50 more". The synthesized path says the same for the
+integration's 100-per-category sensor cap, which cannot report its own
+truncation — a full list is the only signal there is.
+
+(5) **Drawers presume too.** v0.61 let the generated screens inherit an
+activity from where they were opened; a DRAWER (`drawer: true` — the
+Apps grid, the Music Library) is the same kind of destination, and
+without it the library opened cold was blank. Its declared `parent` is
+consulted before the history stack, so a cold open still resolves.
+`rawScreen()` reads the config directly rather than via `screenOf`,
+because `screenOf` generates the virtual screens and `groupScreen` asks
+for the render activity — that way lies recursion.
+
+Also v0.62, STUDIO: **the Roles dropdown stopped hiding the answer.**
+Suresh: "In the drop down for Power Button, only get nobody or 'an
+entity directly' … Volume Readout doesn't list Bar Sonos." Cause:
+candidates were `cast.filter(c => devLib[c].roles[role])` — only
+devices that ALREADY claim the role. The doctrine behind that is right
+(a device declares what it can do) but the UI enforced it by making the
+device invisible, so the only way forward looked like wiring a raw
+entity — which is exactly the move that skips the library and leaves
+nothing for the next room to inherit. Now the rest of the cast appears
+below the claimants, each shown with the entity it WOULD use (its own
+bundle, first entity whose domain the role accepts), labelled
+"＋ <name> · <entity> — add the claim". Picking one writes the claim
+onto the DEVICE and wires it in one gesture, and says so. The claim is
+permanent, so every future cast of that device fills the role by
+itself. Principle: **when the model says no, offer to change the
+model — don't just hide the option.**
+
+And the code finally learned the word the UI has used since v0.45.1:
+the tab is **Roles**, but `jobCandidates` / `setJob` / `customJob` /
+`dotJobs` / `tab === "jobs"` and a paragraph of copy still said Jobs.
+All renamed. Suresh: "Its roles, not jobs."
+
+Also: **the Studio's edits came home.** Suresh: "I made changes to the
+workspace, how do we stop them getting overwritten." They were only
+ever safe by accident — the next `reseed` with a repo config still
+holding the old `screens.bar` tile array would have taken the room's
+Devices section back. So `dist/config.json` ADOPTED the live store
+wholesale (v10) and the `categories` edit went on top: his new "Device
+Control (Expert)" nav card and `bar_devices` page, "Zone Amps", "Upper
+Area Amp", "Entry & Gazebo Amp", and the `device_options` tile
+curation. Repo and store now agree, which is the only state in which
+reseed is harmless. **Until yaml round-trip exists, pulling the store
+into the repo is a step in the deploy ceremony, not an afterthought.**
+One casualty worth naming: the Studio recompiles `context` from
+`wiring`, so `listen_sonos.context.power` — hand-authored by me,
+pointing at the Onkyo, never wired to a device — is gone. Harmless
+today (power is activity-scoped everywhere it matters), and the fix if
+ever wanted is to wire `power` to the Bar Receiver in Jobs.
+
+v0.61 — **THE PRESUMED ACTIVITY** (Suresh, on the Studio preview:
+"As discussed, I should NEVER see this blank page. I want to see the
+preview. I can always hit the power button to turn it on! But I want
+to see it!"). Third time this complaint has come back, and each time
+the cause was different — which is the point worth recording.
+
+v0.48 fixed the TAPPED case (`pendingActivity`: you pressed the tile,
+so render as that activity even before the select agrees). v0.60 fixed
+the ASLEEP case (`SF_SEEN`: an entity that has never reported its
+features is capable, not incapable). This is the third: **standing on
+a controller with nothing running at all.** No activity means no
+`$context`, so every `$context.*` tile resolved to null, hide-unwired
+did its job on all of them, and the page rendered its "No activity is
+active" apology. Correct by every local rule and useless.
+
+Fix: `presumedActivity()` — if nothing is running, the page is drawn
+as the activity that OWNS this surface (`activities.<id>.screen ===
+S.screen`), showing that activity's devices in their real, off state.
+`renderActivityId()` = running ?? presumed, and it replaces
+`currentActivityId()` at exactly the render sites: `ctxFor`, the
+`when` filter, the `devices`/`volumes`/`groups` generators, the
+resubscribe check, `groupScreen`. Nowhere else. **Truth did not
+move** — the End button, hold-Power's end, and the activity tile's own
+ON state still ask `currentActivityId()`, so nothing claims to be
+running that isn't. The safety argument is structural: the fallback
+fires only where the old code had NO context, so it can only add to a
+page that was previously blank.
+
+Details worth keeping: (a) only the GENERATED screens (`detail:`,
+`sources:`, `queue:`, `group:`, `keys:`) inherit a presumption from
+the page they were reached through — a real page that owns no
+activity (a room, a drawer) presumes nothing, or the guess leaks
+backwards onto the room page. (b) A SHARED surface (one TV player,
+many TV activities) can't be guessed from the surface alone, so the
+room walked through disambiguates, nearest first, then config order —
+verified with a synthetic two-room config: the same `controller:music`
+presumes Bar or Games depending on which room you came through, and
+retargets `$context.media_player` with it. (c) The **on-screen power
+button** and the physical power tap now START the presumed activity,
+which is his sentence made literal. That amends the 2026-07-23 "idle
+tap does nothing" doctrine in exactly one place: a surface drawn as a
+presumed activity. An idle room page presumes nothing and still does
+nothing. (d) The honest indicator was already there and cost nothing:
+`barTitle` renames to the activity only when it is genuinely running,
+so "Bar · Music Media Player" means presumed and "Bar · Listen to
+Sonos" means live.
+
+Lesson: **"never show me a blank page" is not one bug.** It is a
+standing requirement, and every subsystem that can produce emptiness
+has to answer to it separately — the select, the capability probe, the
+context. Engine-only; config stays v9, so this deploys with a push and
+a reload, no reseed.
+
+Also v0.61, STUDIO: **the return trip.** I asked whether the new cast →
+device-library jump read as a shortcut or as losing your place, and it
+was the latter — because the way back was a 12px "← back". Suresh:
+"We need a *prominent* return to Bar>Activity Name when we jump in to
+device library. Then it will feel like a shortcut. Hopefully it will
+go to the open activity on the bar page!" So `openDeviceEditor(devId,
+back)` now carries `{key, label, activityId}`, the library shows a
+STICKY banner naming where it goes ("Bar · Listen to Sonos / back to
+the cast you came from") that survives scrolling the whole device
+list, and pressing it re-opens that exact activity card and scrolls to
+it — reusing `app.focusActivity`, the mechanism a minted action draft
+already used to come home. The return is scoped to one visit
+(`selectSlice` drops it the moment you leave by any other road), so it
+can never point somewhere stale. Rule of thumb earned: **a shortcut is
+a round trip.** A one-way door is a detour no matter how good the
+destination is.
+
+v0.60 — **GROUPS ARE A PER-ACTIVITY VIEW, AND A PANEL IS NEVER
+BLANK.** Two things, and the second is the one to remember.
+
+(1) THE ZONE ROLE WAS THE WRONG LAYER. v0.59 made zones visible by
+declaring them on the DEVICE (`roles.volume_zone`). Suresh killed it
+with one question: "what if in another page I want them as individual
+Volumes not hidden behind a Zone Group Tile. Do I create new pre-wired
+devices for that?" No — a device is what it *is*; where its control
+gets drawn is what the ACTIVITY decides. So `volume_zone` is
+withdrawn and the cast became a mixed array: device ids AND group
+objects.
+
+    "cast": ["bar_sonos",
+             {"group": "zones", "name": "Zones",
+              "icon": "material:speaker_group", "shows": "volume",
+              "members": ["bar_onkyo", "bar_onkyo_z2"]}]
+
+A group is a nav card plus a generated page — the SAME mechanism as
+Devices ▸ Add Nav Card, which is exactly how Suresh framed it ("we
+ALREADY HAVE in devices >> Add Nav Card"). The one new idea is his:
+"Maybe that's TYPE????" — `shows` says what the children render as.
+`shows: volume` draws the control inline; `shows: device` (the
+default AND the universal fallback) draws a launcher into that
+device's own controller. His own boundary, kept verbatim in the
+code: a control that fits in a tile is drawn; a surround-preset
+picker doesn't fit, so it becomes the parent tile that launches the
+child. Engine: `castMembers`/`castGroups`/`groupedDeviceIds`/
+`groupChildTile` + a `groups` generator (context.js) and
+`group:<id>` joining the virtual screens (details.js); `zones:` is
+gone. A grouped device KEEPS ITS OTHER JOBS — the receiver sits in
+the Zones group and is still the activity's `source_select`. Groups
+are per-activity, so the SHARED controller carries one `{type:
+groups}` tile and every room gets its own cards for free.
+
+(2) FEATURE-GATING TURNED "ASLEEP" INTO "INCAPABLE." My own v0.57
+`hidden()` work read `supported_features` live — and an off receiver
+reports nothing, so the panel emptied itself. Suresh: "it is
+infuriating… I never want to see a blank panel. I should always see
+the page. Its up to me to turn it on if its off." Fixed with sticky
+memory: `SF_SEEN` / `OPT_SEEN` in widgets/helpers.js remember the
+union of every capability bitmask and the last non-empty option list
+per entity, and an entity that has never answered is treated as
+CAPABLE, not incapable. Absence of evidence is not evidence of
+absence — the same rule the whole engine should follow when a device
+is merely asleep.
+
+(3) STUDIO CATCHES UP (the debt v0.59 left: "Where in the harmonium
+ui is the zone stuff being set? I dont see it?"). ActivityCard's cast
+now renders groups: ⊞ Add group, name/icon/`shows`, member ticks over
+the whole cast, and a per-row "where is this drawn" select. Members
+render as nested cast rows — same row shape, same badges, so the
+`source_select` badge Suresh missed is now on the grouped receiver.
+A member whose claim is missing for the chosen `shows` says so and
+links to the fix rather than silently degrading. Every cast row's
+NAME is now a doorway into the pre-wired device library (his point 4:
+"If I click on a pre-wired item in the cast section, I should go to
+its editing page"), landing on that device with the row open and a
+← back link. `volumes`/`groups` joined the tile type list and the
+workspace map's generator names; the minted Media Player carries a
+`groups` tile. **studio.html is a real vite build again** — v0.59's
+hand-patch is retired. Method note: the Jamaica clone has no
+`node_modules`, so the build ran in the container against a staged
+copy of `studio-src` and the artifact was written back.
+
+Lesson, and it is the sharper form of v0.59's: inferred structure
+cannot be taught — but structure declared at the wrong LAYER cannot
+be reused. Ask whose decision it is before choosing where it lives.
+
+v0.59 — **VOLUME ZONES ARE DECLARED, NOT INFERRED** (Suresh: "there
+is no way to know zones exist? Or to set them… its not intuitive
+right now"). v0.57.1 picked the master by reading the activity's
+`wiring.volume` and called everything else "the rest". It worked and
+it was invisible: nothing in the config said "this is a zone", so the
+Studio could not show it and the user could not set it. Replaced by a
+DEVICE role — `roles.volume` draws on the controller, `roles.volume_zone`
+draws behind the Zones card. The `volumes` generator now takes
+`role` (default `volume`) instead of `scope`; `zones:` asks for
+`volume_zone`. One word per device, and it appears in the Studio's
+device library beside Volume keys and Volume readout (ROLE_KEYS in
+state.svelte.js + label/hint in DevicesEditor). Deliberately NOT added
+to ActivityCard's own ROLES list or to castFromCtx — it is a property
+of the device, not activity wiring, and offering it there would be a
+control that does nothing. Lesson worth keeping: **inferred structure
+cannot be taught.** If the UI should show it, the config has to say it.
+
+v0.58 — **PROFILE CHROME, MEASURED DIALECTS, THE SONOS ENTITY.**
+(1) STATUS BAR SIZING is a remote-profile decision: every metric in
+`#bar` became a `--bar-*` custom property whose fallback is exactly
+what shipped, and `remotes.<id>.style` layers a map of CSS custom
+properties over the theme in applyConfig. A `tablet` profile carries
+`bar-h: 100px`; `default` is untouched (Suresh: "Default is what we
+have"). (2) FIRE TV (EMBEDDED) DIALECT — Prime never launched because
+the `firetv` dialect named `com.amazon.firebatcore.deeplink.
+DeepLinkRoutingActivity`; asking the TV (`cmd package resolve-activity
+--brief -c android.intent.category.LEANBACK_LAUNCHER`) gave
+`com.amazon.pyrocore.IgnitionActivity`. New `firetv_embedded` dialect
+built from MEASURED components, carrying only the six apps actually
+installed — the drawer stops offering buttons that do nothing. The CT
+stick keeps `firetv`. Method note: **ask the device, do not port the
+package list.** (3) The activity tile's ON line now reads "On · press
+to open · hold to end" — `hold` always called requestEnd, the tile
+just never said so. (4) `media_player.bar_2` (Music Assistant's player)
+→ the Sonos integration's own `media_player.bar`; MA-Bar renamed
+`media_player.ma_bar` for clarity. My misread of "the Sonos variant".
+
+v0.57.1 — **ZONES ARE A VIEW + CACHE CORRECTNESS.** (1) `zones:`
+joins `detail:`/`sources:`/`queue:`/`keys:` as a virtual screen —
+the running activity's secondary volumes, generated on demand, so the
+SHARED controllers carry one Zones card and every room gets its own
+list without a fork. Cost, stated plainly: a virtual screen is
+invisible to the Studio — it cannot be listed, previewed or edited.
+(2) The `volumes` generator was bound to `act.screen === S.screen`,
+so it produced nothing anywhere except the activity's own controller;
+now it binds to the RUNNING activity wherever you stand. (3) Summary
+nav cards read `rawTilesOf` and so could not see through a generator
+("0 entities · 0 active"); they now expand while STANDING ON the
+target (generators resolve $context against S.screen), depth-guarded
+against a target that points back. (4) `hide_when_empty` on nav —
+opt-in, so no existing card changes. (5) INTEGRATION: engine caching
+was silently poisoning every deploy — HA serves www/ with long cache
+headers, so a kiosk kept the engine it first saw while happily
+re-fetching config.json, and a config naming a widget the old engine
+never heard of renders as a tile labelled "undefined". Fix is the
+versioned-asset pattern: unauthenticated `/api/harmonium/engine_version`
+returns an 8-char SHA-1 OF THE FILE ON DISK (no version to remember to
+bump), no-store; the entry stub asks for it and hands off to
+`../index.html?v=<hash>`. Engine stays cacheable, its URL changes when
+its bytes do. No per-device setup, no IPs — the tenth tablet inherits
+it. ES5 stub with a 4s timeout and an unversioned fallback so a
+mid-restart integration still boots the remote.
+
+v0.57 — **VOLUMES GENERATE; WIDGETS SUPPRESS THEMSELVES** (Suresh:
+"there might be 8 volumes… think of them as device tiles with a volume
+role"). New `volumes` generator walks the activity's cast and emits one
+control per device declaring a volume role, taking label and icon from
+the DEVICE REGISTRY — so the shared controller stays generic and each
+house names its own zones. `global.style.volume` (`compact` | `slider`
+| `stepper`) picks the treatment, overridable per tile and per device
+(`device_options[entity].volume_style`); the stepper's `.sldr` track was
+ported into the volume widget so the two stop looking like unrelated
+controls. New generic hook: a widget may declare `hidden(e, t)` and
+vanish — `transport` when the device reports no play/pause/next/prev/
+stop (an Onkyo at 69516 has no transport; drawing one is a lie, not a
+control), `sources` without SELECT_SOURCE, `chips` when its option list
+is empty, `stepper` (v0.58) when a volume range is not exposed. Unknown
+state never hides; supported_features arrives with the first diff and
+tileSig re-renders. New `sound_mode` CHIP_KIND puts MultiChannel Stereo
+on the receiver's own page instead of bouncing it through Harmony IR.
+
+v0.56.1 — **THE WEBVIEW FLOOR** (Fire OS 7 tablet, Fully Kiosk: blank
+screen, engine chrome painted, nothing else). Amazon pins Fire HD 8
+(KFONWI, Android 9) to `com.amazon.webview.chromium` **75** — and
+`dumpsys webviewupdate` lists exactly one valid provider, so Google's
+WebView cannot be installed over it and the ADB provider swap is
+closed. The engine used `??` ×22 and `??=` ×1 (Chrome 80 / 85): a
+single unparseable token throws a SyntaxError over the WHOLE script,
+so the HTML shell paints and not one line of JS runs — which looks
+exactly like a config bug. Fixed with `!= null` ternaries (NOT `||`,
+which changes behaviour wherever 0 or "" is legitimate — and this is a
+volume/brightness codebase). CSS: flex `gap` needs 84 and silently
+collapses to zero, which on a touch surface means the D-pad and
+transport render flush together; fixed additively — a boot probe sets
+`html.nogap` only when flex gap is unsupported, and `styles/compat.css`
+carries margin fallbacks scoped under it, so a modern engine matches
+NOTHING and renders byte-identically. `inset: 0` (Chrome 87) → longhands.
+**Baseline decided: the engine targets ES2019 / Chromium 75.** "Runs on
+cheap Android remotes" is the product thesis; the Astrion and RS90 are
+this class of hardware, and a vendor-frozen webview is the normal case,
+not the exception. Verified by parsing the built artifact with acorn at
+ecmaVersion 2019 and by measuring child-to-child spacing in every flex
+container with and without the fallback (13/13 identical). Two bugs the
+harness caught that review had not: the probe itself reported
+"unsupported" on EVERY engine because a `height: 0` on the test element
+clamps scrollHeight to 0, and two widget files still carried `??`
+because they were staged after the sweep.
 
 v0.56 — **THE REMOTE-CREATION SCREEN** (Suresh, verbatim: "I want a
 'remote' creation screen where I specify the physical buttons of a

@@ -100,7 +100,8 @@
   /* generator tiles get WORDS, not their config ids (m_pl reads like
      debris; "Preset list" reads like furniture) */
   const GEN_NAME = { apps: "App grid", sources: "Sources", activities: "Activities",
-    presets_from: "Preset list", devices: "Device cast" };
+    presets_from: "Preset list", devices: "Device cast",
+    volumes: "Cast volumes", groups: "Cast groups" };
   const devices = (scr) => devTiles(scr).map((t) => {
     if (t.type === "nav") return {
       name: t.label || t.id, code: "→", detail: "opens " + (t.target ? nameOf(t.target) : "—"), mono: false };

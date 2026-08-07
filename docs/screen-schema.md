@@ -1281,3 +1281,345 @@ menu. Keys: unbound CH▲▼ on any page with 2+ labeled sections steps
 between them (screen/global `buttons` bindings always win); MENU
 tours them (wraps) when no device menu target resolves. Stepping
 remembers its own position per page (`S.heroAt`).
+
+---
+
+# Addenda — v0.57 → v0.64
+
+Everything below is live in the engine and validated by the
+integration. It post-dates the body of this document.
+
+## `volumes` — the volume generator
+
+```json
+{ "id": "vol", "type": "volumes" }
+```
+
+Walks the running activity's `cast` and emits ONE volume control per
+device that declares the named role. Label and icon come from the
+**device registry** (`devices.<id>.name` / `.icon`), which is what lets
+a shared controller stay generic while each house names its own zones.
+
+| field | default | meaning |
+|---|---|---|
+| `role` | `"volume"` | which device role to draw — see below |
+| `style` | `global.style.volume` | `compact` \| `slider` \| `stepper` |
+| `activity` | the running one | pin to a specific activity id |
+
+Per-device override: `activities.<id>.device_options[<entity>]` takes
+`volume: false` (skip it) and `volume_style` (this device only).
+
+A room with eight zones authors nothing: add the device, give it a
+volume role, cast it.
+
+A device that a **group** draws (below) is skipped here — its control
+lives on the group's page instead.
+
+`volume_level` means "where the slider reads truth when it differs from
+who takes the keys" (the ARC split).
+
+## Cast groups (v0.60)
+
+`activities.<id>.cast` is a MIXED array: device ids and group objects.
+
+```json
+"cast": ["bar_sonos",
+         { "group": "zones", "name": "Zones",
+           "icon": "material:speaker_group", "shows": "volume",
+           "members": ["bar_onkyo", "bar_onkyo_z2"] }]
+```
+
+| field | default | meaning |
+|---|---|---|
+| `group` | *required* | the group id — `group:<id>` addresses its page |
+| `name` / `icon` | id / `material:widgets` | what the nav card shows |
+| `members` | `[]` | device ids this group draws |
+| `shows` | `"device"` | what each child renders as — table below |
+| `style` | `"summary"` | the nav card's style |
+| `target` | — | point at an AUTHORED page instead of the generated one |
+| `grid.columns` | `1` | the generated page's grid |
+
+`shows` binds each child to one device role:
+
+| `shows` | child tile | role |
+|---|---|---|
+| `device` | launcher into the device's own controller | — |
+| `volume` / `stepper` | the level control inline | `volume` |
+| `power` | power button | `power` |
+| `media` / `transport` | Now Playing / transport | `media_player` |
+| `sources` | input picker | `source_select` |
+
+A member missing that claim falls back to `device` — the launcher is
+always available and always correct, so a group never renders an empty
+tile. A grouped device KEEPS ITS OTHER JOBS: it can sit in the group and
+still be the activity's `source_select`.
+
+Groups are per ACTIVITY, so a shared controller carries one generator
+and never names a group:
+
+```json
+{ "id": "grp", "type": "groups" }
+```
+
+which emits one `nav` card per group (`hide_when_empty: true`), pointed
+at `group:<id>` unless the group declares its own `target`.
+
+## `group:<id>` — a virtual screen
+
+`navigate("group:zones")` renders that group from the RUNNING activity's
+cast: its members, each drawn as `shows`. Virtual, like `detail:<entity>`,
+`sources:<entity>`, `queue:<entity>` and `keys:` — generated at render
+time, not authored. (It replaces v0.57.1's `zones:`, which is gone.)
+
+**Known cost:** a virtual screen is invisible to the Studio's page list
+— it cannot be previewed or edited there. The group's *data*, though, is
+fully editable: Studio → the activity → Setup → the cast.
+
+## `browse` additions (v0.62)
+
+```json
+{ "id": "lib", "type": "browse",
+  "categories": ["Playlists", "Radio", "Albums", "Tracks"] }
+```
+
+| field | default | meaning |
+|---|---|---|
+| `categories` | source order | reorder AND filter the chip strip by title, case-insensitive. Unlisted chips drop. Matching nothing = no change |
+| `all` | `true` | the synthetic **All** chip, first, when the tree has exactly one root — every category concatenated in `categories` order, each item badged with the folder it came from |
+| `include` | — | (v0.49.1) narrows the ROOTS row by title |
+| `media_sources` | `false` | keep HA's `media-source://` roots (hidden by default) |
+| `default_root` | first expandable | root to select on open, by title |
+| `search_entity` | — | the player SEARCH runs on (v0.65). No magnifier without it |
+| `search` | — | the block form (v0.66/v0.67.3) — engine, player, kinds, and how deep. See below |
+
+Two things the engine does NOT do: **sort** (chips and items arrive in
+the source's order — Sonos hands back Albums/Playlists/Radio/Tracks and
+that is what you see unless `categories` says otherwise), and **hide
+truncation**. A node caps at 200 children and the grid ends with
+"N shown · M more"; the synthesized favourites path says the same at
+the integration's 100-per-category sensor cap.
+
+**Search (v0.65).** `media_player/search_media` is the backend, and it
+is not always the same player as the tree: **Sonos returns nothing**,
+while the Music Assistant player driving the same speaker answers
+fully — and its content ids only play THERE. So `search_entity` names
+one player that both searches and plays:
+
+```json
+{ "id": "lib", "type": "browse", "search_entity": "media_player.ma_bar" }
+```
+
+The magnifier appears as the first chip. In search mode the chip strip
+becomes the KINDS the answer contains (All · Playlists · Artists · …,
+from each result's `media_class`) and filters client-side; the grid is
+the results, rendered exactly like tree items. Typing works from the
+on-screen keyboard, from a real keyboard (every printable key —
+remote buttons keep arrows/Enter/F-keys/punctuation), and ⌫ / Escape
+delete and close. Queries debounce and are sequence-guarded.
+
+The ROOTS row renders only when it carries a real choice — more than
+one root, or a tile of its own ("Pull Music Here"). One root is not a
+choice.
+
+**Search, declared (v0.66) and made deep (v0.67.3).** The flat
+`search_entity` still works; the block form says more:
+
+```json
+"search": {
+  "engine": "music_assistant",
+  "entity": "media_player.ma_bar",
+  "classes": ["artist", "album", "track", "playlist"],
+  "config_entry": "01KK4WSP09VCQ4G6PY95KTFP4R",
+  "limit": 25
+}
+```
+
+| key | default | meaning |
+|---|---|---|
+| `engine` | `music_assistant` when `entity` is set | WHICH engine answers. One option today; a declaration, not a control |
+| `entity` | — | the player that SEARCHES (results still play wherever the id converts) |
+| `classes` | artist, album, track, playlist | the scope. Never ASKING for generated playlists, audiobooks and recommendations is the cure for "almost too overwhelming" |
+| `config_entry` | — | **which** Music Assistant, by config-entry id. Present → the engine calls `music_assistant.search` directly; absent → HA's generic `media_player/search_media` |
+| `limit` | 25 | results per kind. Only meaningful with `config_entry` |
+
+Why `config_entry` exists: HA's generic `search_media` caps at **5 per
+class** and takes no limit argument — asking for tracks alone still
+returns five. Music Assistant's own service takes `limit`, but it is
+addressed by config entry rather than by player. So the tile declares
+it; the engine adapts MA's `{artists, albums, tracks, playlists, …}`
+reply into ordinary browse items (`uri` IS a `media_content_id`), and
+everything downstream — badges, thumbnails, drill-in, the v0.66 Sonos
+share-link rewrite — is none the wiser. Buckets come back in the order
+`classes` declares them, so the chip strip reads the way you wrote it.
+When a kind returns FULL the grid ends with "There's more — add a word
+to narrow it down", scoped to the kind you are filtered to.
+
+The id lives in Settings → Devices & Services → Music Assistant, in
+the URL. Removing and re-adding the integration changes it, and search
+then falls back to the shallow path — the Studio shows the field
+(browse tile → Music Assistant entry) so it can be repaired.
+
+## `trailing` — the tile's right-edge action (v0.28; emphasis v0.68.1)
+
+```json
+"trailing": { "icon": "material:library_music",
+              "emphasis": "accent",
+              "action": { "navigate": "music_library" } }
+```
+
+| key | default | meaning |
+|---|---|---|
+| `icon` | `material:chevron_right` | the glyph |
+| `action` | — | the standard action grammar (navigate / sequence / service) |
+| `emphasis` | quiet | `"accent"` inverts it — accent fill, background-coloured glyph, wider (`--trail-w-acc`, 76px). For a trail that is a DESTINATION rather than a detail |
+
+`trailing: false` suppresses the implicit ⚙ a detailable device tile
+would otherwise get.
+
+## Screen `grid` — and the WIDE size class (v0.68)
+
+```json
+"grid": { "columns": 2, "tile_style": "card", "tile_width": 220, "max_width": 760 }
+```
+
+| key | default | meaning |
+|---|---|---|
+| `columns` | 2 | how many columns AT THE REFERENCE WIDTH (480, the remote). Read as a statement of tile SIZE, not a count to obey everywhere |
+| `tile_style` | from `columns` | `row` (icon left, text right) or `card`. Absent, it falls back to `columns === 1`, so existing pages are unchanged |
+| `tile_width` | derived | px. Overrides the size implied by `columns` — say this when you want a specific density regardless of the declared count |
+| `max_width` | none | px. "My width means a COLUMN, not a wall" — the page stays centred at this width when wide. Controllers want it; room pages and the library do not |
+
+A section may carry `columns`, `tile_style` and `tile_width` of its
+own; absent, it inherits the screen's.
+
+**The size class.** `html.wide` is set when the viewport is at least
+**840 × 600**. Two dimensions on purpose: a phone in landscape is
+~844×390 and would pass a width-only test, then be handed a layout
+meant for 800px of height. The Astrion and the Haptique are 480×800,
+so they never match; nothing below documented as "wide" can reach
+them. `#app`'s 520px cap lifts only under `html.wide`.
+
+**What wide actually does.** It re-derives the column COUNT from the
+tile SIZE the declared `columns` implies at 480:
+
+| viewport | rooms (`columns: 1`) | controllers (2) | library (3) |
+|---|---|---|---|
+| 480 (remote) | 1 × 456px | 2 × 223px | 3 × 145px |
+| 1280 (tablet) | 2 × 623px | 5 × 243px | 8 × 148px |
+
+Tiles stay the size a fingertip expects; there are simply more of
+them. Nothing vertical changes — both the remote and a landscape
+tablet are 800px tall.
+
+**`span` scales with the grid.** `span: 2` was authored in a 2-column
+world, where it meant "the whole row". At 5 columns, read literally, it
+would mean "two fifths". So span N of a declared C covers the same
+FRACTION of the rendered count, and N >= C is full width at any size.
+`span: 1` is never scaled.
+
+## `presets` — the activity's own shortcuts (v0.64)
+
+```json
+{ "id": "acts_presets", "type": "presets" }
+```
+
+Emits one tile per entry in the RUNNING (or presumed) activity's
+`presets` array. The controller names none of them, so a shared
+surface serves every room:
+
+```json
+"activities": {
+  "listen_sonos": {
+    "presets": [
+      { "id": "sp_pool_on", "type": "preset", "icon": "material:pool",
+        "label": "Add the Pool", "action": { "sequence": "bar_pool_join" } },
+      { "id": "coffee", "type": "preset", "icon": "material:local_cafe",
+        "label": "Coffee House",
+        "action": { "service": "media_player.select_source",
+                    "target": "$context.media_player",
+                    "data": { "source": "Coffeehouse Rock" } } }
+    ]
+  }
+}
+```
+
+Entries are ordinary tile objects — every preset field still applies,
+including `activity:` for a Harmony-style warm start. `action` accepts
+`{sequence: <id>}` (v0.63) as well as the usual `{service, target,
+data}`. `{ "type": "presets", "activity": "<id>" }` pins a specific
+activity instead of the running one.
+
+A room whose activity has no presets renders nothing here — the
+section vanishes, header included.
+
+## `nav` additions
+
+- `hide_when_empty: true` — a **summary** card whose target resolves to
+  zero entities hides itself. Opt-in; existing cards are unaffected.
+- Summary cards now see THROUGH generators. `navTargetEntities` expands
+  the target's tiles while standing on the target (generators resolve
+  `$context` against `S.screen`), depth-guarded against a target that
+  points back.
+
+## Widget self-suppression — `hidden(e, t)`
+
+A widget adapter may declare `hidden(entity, tile)` and vanish when the
+device cannot do the thing it draws. Unknown state NEVER hides —
+`supported_features` arrives with the first diff and `tileSig`
+re-renders, so the filtered set settles on its own.
+
+| widget | hides when |
+|---|---|
+| `transport` | no PAUSE / PLAY / NEXT / PREV / STOP |
+| `sources` | no SELECT_SOURCE |
+| `stepper` (kind `volume`) | no VOLUME_SET / STEP / MUTE |
+| `chips` | its option list is empty |
+| `nav` | `hide_when_empty` and an empty summary |
+
+This is why an AV receiver's generated detail page has no transport row
+and a Fire TV's has no volume slider: drawing a control the device
+cannot perform is a lie, not a control.
+
+## `sound_mode` chip kind
+
+`CHIP_KINDS.sound_mode` reads `sound_mode_list` / `sound_mode` and calls
+`media_player.select_sound_mode`. Present on every generated
+`media_player` detail page and hidden (by the rule above) wherever the
+device publishes no list.
+
+## `global.style`
+
+```json
+"global": { "style": { "volume": "slider" } }
+```
+
+House-wide presentation defaults. Currently one key, `volume`.
+
+## `remotes.<id>.style` — profile chrome
+
+A map of CSS custom properties applied OVER the theme when that remote
+profile is active. Every status-bar metric falls back to what shipped,
+so an unstyled profile renders unchanged.
+
+```json
+"remotes": {
+  "tablet": {
+    "capabilities": ["touch", "pointer"],
+    "style": { "bar-h": "100px", "bar-fs": "30px", "bar-icon": "34px",
+               "bar-btn-w": "64px", "bar-btn-h": "56px" }
+  }
+}
+```
+
+Available: `--bar-h`, `--bar-pad`, `--bar-gap`, `--bar-fs` (title),
+`--bar-sub`, `--bar-icon`, `--bar-btn-w`, `--bar-btn-h`, `--bar-dot`.
+
+A hardware remote wants the compact bar; a wall tablet across the room
+wants a header you can read standing up. Same config, different profile.
+
+## Engine baseline
+
+The engine targets **ES2019 / Chromium 75**. No `??`, no `??=`, no `?.`,
+no flex `gap` without the `html.nogap` fallback in `styles/compat.css`,
+no `inset` shorthand. Cheap Android remotes ship vendor-frozen webviews;
+that is the normal case, not the exception. See PROJECT.md v0.56.1.

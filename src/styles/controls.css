@@ -15,6 +15,23 @@
     border-color: var(--accent); color: var(--text);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
   }
+  /* ACCENT TRAIL (v0.68.1 — Suresh, of the library button on Now
+     Playing: "inverting the library launch button, to make it more
+     prominent. And give it just a little more width"). INVERTED: the
+     accent is the button and the glyph is the hole in it. Opt-in via
+     `trailing.emphasis: "accent"`, because a trail is the same chassis
+     slot as every device tile's quiet ⚙ chevron — restyling the class
+     would shout everywhere. */
+  .tile.has-trail-acc { padding-right: calc(var(--trail-w-acc, 76px) + 16px); }
+  .trail.tracc {
+    width: var(--trail-w-acc, 76px);
+    background: var(--accent); color: var(--bg);
+  }
+  .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
+  .trail.tracc:active { background: var(--on); }
+  .trail.tracc.focused {
+    background: var(--accent); color: var(--bg); border-color: var(--text);
+  }
   .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
   .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
 

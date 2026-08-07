@@ -49,6 +49,12 @@
     overflow: hidden; user-select: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+  /* WIDE (v0.68): the wasted real estate was never really the column
+     count — it was this cap. A 1280-wide tablet rendered a 520px strip
+     with 760px of black either side. Both remotes are 480 wide, so the
+     cap has never once applied to them, and lifting it here cannot
+     reach them. */
+  html.wide #app { max-width: none; }
   /* the music scope (navigate() toggles it from sc.font_scope);
      icon glyphs keep their own family via .material-symbols-outlined */
   #app.scr-music #grid, #app.scr-music #brbar, #app.scr-music #banner {
@@ -67,12 +73,20 @@
 
 /* status bar — ONE line, always: back chevron (when history) +
      ellipsized title + compact perf readout */
+  /* SIZING IS A REMOTE-PROFILE DECISION (v0.58). A hardware remote
+     wants the compact bar; a wall tablet across the room wants a
+     header you can read standing up. Every value below falls back to
+     exactly what shipped, so an un-styled profile is unchanged. */
   #bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px 4px; font-size: 13px; color: var(--dim);
+    display: flex; align-items: center; gap: var(--bar-gap, 8px);
+    padding: var(--bar-pad, 8px 14px 4px);
+    font-size: var(--bar-sub, 13px);
+    min-height: var(--bar-h, 0);
+    color: var(--dim);
   }
   #backBtn {
-    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    flex: 0 0 auto; width: var(--bar-btn-w, 44px);
+    height: var(--bar-btn-h, 34px); border-radius: 10px;
     border: 0; background: var(--tile-hi); color: var(--text);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; padding: 0;
@@ -84,14 +98,15 @@
      live in the TITLE BAR — always reachable, never crowding the
      grid. Hidden on physical-key remotes (they have real keys). */
   #homeBtn, #endBtn {
-    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    flex: 0 0 auto; width: var(--bar-btn-w, 44px);
+    height: var(--bar-btn-h, 34px); border-radius: 10px;
     border: 0; background: var(--tile-hi); color: var(--text);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; padding: 0;
   }
   #homeBtn > *, #endBtn > * { pointer-events: none; }
   #homeBtn .material-symbols-outlined,
-  #endBtn .material-symbols-outlined { font-size: 20px; }
+  #endBtn .material-symbols-outlined { font-size: var(--bar-icon, 20px); }
   #endBtn { color: var(--danger, #ff5a5f); }
   #bar .name {
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
@@ -117,9 +132,9 @@
     font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
     color: var(--text); white-space: pre; overflow: hidden;
   }
-  #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
+  #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  #info { color: var(--dim); font-size: 20px; cursor: pointer; padding: 4px; }
+  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer; padding: 4px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */
@@ -149,6 +164,12 @@
     text-transform: uppercase; color: #d4d8dd;
     text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
   }
+  /* WIDE (v0.68): `flex: 1` makes the strip a tab bar spanning the
+     hero — right on a 480 panel, wrong at 1280, where it flings two
+     labels into opposite corners 640px apart. Wide keeps them together
+     as a centred group under the centred title. */
+  html.wide .hstrip { justify-content: center; }
+  html.wide .hjump { flex: 0 0 auto; }
   .hstrip .hjump:last-child { justify-content: flex-end; }
   .hstrip .hjump:only-child { justify-content: flex-start; }  /* a lone label is FIRST, not last */
   .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }
@@ -165,7 +186,7 @@
     position: relative; padding: 0; min-height: 132px; overflow: hidden;
   }
   .tile.wgt-nav.nav-image .roomimg {
-    position: absolute; inset: 0; width: 100%; height: 100%;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; opacity: .85;
   }
   .tile.wgt-nav.nav-image .top {
@@ -420,17 +441,111 @@
     font-size: 11.5px; max-width: 110px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  /* CHIP SIZE IS A TOKEN (v0.68.1 — Suresh: "make that tab row a
+     little bigger (maybe its a theme setting because on a small remote
+     we probably want to keep as is)"). Exactly right, so: --chip-*
+     default to today's values, and html.wide bumps them. A theme (or a
+     per-remote style block) can override either way. */
   .brchips {
-    display: flex; gap: 16px; overflow-x: auto; padding: 2px 2px 6px;
+    display: flex; gap: var(--chip-gap, 16px); overflow-x: auto;
+    padding: 2px 2px 6px;
     scrollbar-width: thin; scrollbar-color: var(--tile-hi) transparent;
   }
   .brchip {
     flex: 0 0 auto; background: none; border: 0; cursor: pointer; font: inherit;
     color: var(--dim); font-weight: 750; letter-spacing: .07em;
-    text-transform: uppercase; font-size: 12.5px; padding: 3px 1px 5px;
+    text-transform: uppercase; font-size: var(--chip-fs, 12.5px);
+    padding: var(--chip-pad, 3px 1px 5px);
     border-bottom: 2px solid transparent;
   }
+  html.wide { --chip-fs: 16px; --chip-gap: 26px; --chip-pad: 6px 2px 8px; }
   .brchip.on { color: var(--accent); border-bottom-color: var(--accent); }
+  /* a chip with nothing to filter yet: visible, so you can SEE what
+     the answer will be sliced into, but plainly not pressable */
+  .brchip[disabled] { opacity: .38; cursor: default; }
+  .brchipq { padding-bottom: 3px; }
+  .brchipq .material-symbols-outlined {
+    font-size: calc(var(--chip-fs, 12.5px) + 6.5px); display: block;
+  }
+  /* ---- SEARCH (v0.65): query line + on-screen keyboard --------------
+     Sized off --kb-* so a remote profile can grow the keys for a wall
+     tablet without a fork (remotes.<id>.style, same lever as --bar-*). */
+  .brq {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--tile); border-radius: 10px;
+    padding: 7px 10px; margin: 2px 0 4px;
+  }
+  .brqi { font-size: 18px; color: var(--dim); }
+  .brqt {
+    flex: 1 1 auto; min-width: 0; font-size: var(--kb-qfs, 17px);
+    color: var(--ink); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .brqp { color: var(--faint); font-style: italic; }
+  .brqs { color: var(--accent); font-size: 17px; }
+  .brqb {
+    flex: 0 0 auto; cursor: pointer; font: inherit; font-size: 15px;
+    color: var(--dim); background: var(--tile-hi); border: 0;
+    border-radius: 8px; padding: 4px 10px;
+  }
+  .brqb:hover { color: var(--ink); }
+  /* WIDE (v0.68): the query line and keyboard do NOT want 1280px. A
+     QWERTY stretched that far is a worse target, not a better one —
+     the thumbs have to travel. Cap and centre; the results grid keeps
+     the whole width. */
+  /* width + align-self, NOT auto margins: #brbar is a column flex
+     container too, and auto cross-axis margins there collapse the item
+     to its content width instead of capping it (see render.js). */
+  html.wide .brq, html.wide .brkb {
+    width: 100%; max-width: 760px; align-self: center;
+  }
+  /* THE KEYBOARD LATCH (v0.67.2): an icon rather than a glyph, sized
+     to sit level with the ⌫/✕ beside it. The whole line is the same
+     switch, so it takes the pointer cursor too. */
+  .brq { cursor: pointer; }
+  .brqk { padding: 2px 8px; }
+  /* SEARCHING… (v0.68.1): a centred line across the whole grid, not a
+     tile pretending to be content. Distinct from the library's
+     hourglass on purpose — a query in flight is not a page loading. */
+  .tile.brwait {
+    grid-column: 1 / -1; background: none; min-height: 0;
+    padding: 42px 16px; text-align: center; opacity: .8;
+    animation: brwaitpulse 1.1s ease-in-out infinite;
+  }
+  .tile.brwait .top { display: block; }
+  .tile.brwait .ic { width: auto; display: block; margin: 0 auto 6px; }
+  .tile.brwait .ic.material-symbols-outlined { font-size: 30px; color: var(--accent); }
+  .tile.brwait .lbl { font-size: calc(var(--fs-1) + 1px); color: var(--dim); }
+  .tile.brwait .sub, .tile.brwait .hint, .tile.brwait .meter { display: none; }
+  /* it is the only tile on screen, so it collects focus — but a focus
+     ring around a status message reads as something you can press */
+  .tile.brwait.focused { border-color: transparent; background: none; }
+  @keyframes brwaitpulse { 0%,100% { opacity: .45; } 50% { opacity: .95; } }
+  /* the way OUT (v0.68.1) — set apart from the edit buttons by a rule,
+     so "close search" never reads as another "clear" */
+  .brqx {
+    padding: 2px 8px; margin-left: 4px;
+    border-left: 1px solid var(--line, #2c333d); border-radius: 0 8px 8px 0;
+  }
+  .brqx .material-symbols-outlined { font-size: 20px; display: block; }
+  .brqx:hover { color: var(--danger); }
+  .brqk .material-symbols-outlined { font-size: 20px; display: block; }
+  /* GRID, not flex: Chromium 75 has grid gap but not flex gap (84) */
+  .brkb { display: block; margin-bottom: 4px; }
+  .brkr {
+    display: grid; grid-template-columns: repeat(10, 1fr);
+    gap: var(--kb-gap, 5px); margin-bottom: var(--kb-gap, 5px);
+  }
+  .brk {
+    cursor: pointer; font: inherit; text-transform: uppercase;
+    font-size: var(--kb-fs, 15px); font-weight: 650; color: var(--ink);
+    background: var(--tile-hi); border: 0; border-radius: 8px;
+    padding: var(--kb-pad, 9px) 0; min-width: 0;
+  }
+  .brk:hover, .brk:active { background: var(--accent); color: var(--accent-ink, #1a1a1a); }
+  .brkr:nth-child(3) { padding: 0 5%; }     /* asdf row, gently inset */
+  .brkr:nth-child(4) { padding: 0 10%; }    /* zxcv row */
+  .brksp { grid-column: 1 / -1; text-transform: none; letter-spacing: .1em; }
   /* browse ITEM tiles: art-forward, centered column */
   .tile.brw:not(.row) { text-align: center; }
   .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
@@ -438,6 +553,16 @@
   .tile.brw:not(.row) .top .lbl { width: 100%; }
   .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: 34px; width: auto; height: 58px; display: inline-flex; align-items: center; }
   .tile.brw .sub { display: none; }
+  /* KIND BADGE (v0.62): only the mixed "All" grid sets one, where the
+     chip above no longer tells you what a thing is. Top LEFT, so it
+     never fights the play ▶ badge on the right. */
+  .tile.brw { position: relative; }
+  .tile .bdg {
+    position: absolute; top: 5px; left: 5px;
+    font-size: 13px; line-height: 1; padding: 3px;
+    border-radius: 7px; background: var(--tile-hi); color: var(--dim);
+    pointer-events: none;
+  }
   /* browse tiles' trailing ▶ shrinks to a CORNER BADGE (v0.50) — the
      full-height right zone ate 60% of a narrow 3-col tile, so center
      taps played instead of drilling */
@@ -490,6 +615,23 @@
   .trail.focused {
     border-color: var(--accent); color: var(--text);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  /* ACCENT TRAIL (v0.68.1 — Suresh, of the library button on Now
+     Playing: "inverting the library launch button, to make it more
+     prominent. And give it just a little more width"). INVERTED: the
+     accent is the button and the glyph is the hole in it. Opt-in via
+     `trailing.emphasis: "accent"`, because a trail is the same chassis
+     slot as every device tile's quiet ⚙ chevron — restyling the class
+     would shout everywhere. */
+  .tile.has-trail-acc { padding-right: calc(var(--trail-w-acc, 76px) + 16px); }
+  .trail.tracc {
+    width: var(--trail-w-acc, 76px);
+    background: var(--accent); color: var(--bg);
+  }
+  .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
+  .trail.tracc:active { background: var(--on); }
+  .trail.tracc.focused {
+    background: var(--accent); color: var(--bg); border-color: var(--text);
   }
   .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
   .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
@@ -558,7 +700,7 @@
 
 /* auth overlay */
   #auth {
-    position: fixed; inset: 0; background: var(--bg);
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: var(--bg);
     display: flex; flex-direction: column; justify-content: center;
     padding: 32px; gap: 12px; z-index: 10;
   }
@@ -575,6 +717,50 @@
   }
   #auth .err { color: var(--danger); font-size: 13px; min-height: 17px; }
   .hidden { display: none !important; }
+
+/* ================================================================
+   COMPAT — old-webview fallbacks. ADDITIVE ONLY.
+
+   Every rule here is scoped under html.nogap, a class that is set at
+   boot ONLY when the engine detects that flexbox `gap` is unsupported
+   (Chromium < 84). On any modern engine the class is never added, so
+   not one of these rules can ever match and the stylesheet above is
+   what renders — byte for byte, exactly as it does today on the
+   Astrion, the Haptique and a desktop browser.
+
+   Why this exists: Amazon pins Fire OS 7 tablets to WebView 75, and
+   locked-down Android remotes generally ship whatever the vendor
+   froze. Flex `gap` silently collapses to zero there, which on a
+   touch surface means the D-pad, transport and volume controls
+   render flush against each other.
+
+   GRID gap is NOT affected (supported since Chromium 66), so #grid,
+   .secgrid and .chiprow are deliberately absent below.
+   ================================================================ */
+  html.nogap #bar > * + * { margin-left: 8px; }
+
+  html.nogap .dp-wrap > * + * { margin-left: 10px; }
+  html.nogap .dp-side > * + * { margin-top: 8px; }
+  html.nogap .dp-mid  > * + * { margin-top: 10px; }
+  html.nogap .volrow  > * + * { margin-left: 12px; }
+  html.nogap .tile.row > * + * { margin-left: var(--tile-gap); }
+
+  html.nogap .tile .top > * + * { margin-left: 10px; }
+  html.nogap .npwrap  > * + * { margin-left: 12px; }
+  html.nogap .trow    > * + * { margin-left: 26px; }
+  html.nogap .btnrow  > * + * { margin-left: 12px; }
+  html.nogap .steprow > * + * { margin-left: 14px; }
+
+  html.nogap #brbar   > * + * { margin-top: 4px; }
+  html.nogap .brrow   > * + * { margin-left: 8px; }
+  html.nogap .brchips > * + * { margin-left: 16px; }
+  html.nogap .brq     > * + * { margin-left: 8px; }   /* v0.65 search line */
+  html.nogap .brroot  > * + * { margin-top: 2px; }
+  /* browse item tiles stack their .top as a COLUMN — must beat the
+     row rule above, hence the longer selector */
+  html.nogap .tile.brw:not(.row) .top > * + * { margin-left: 0; margin-top: 6px; }
+
+  html.nogap #auth    > * + * { margin-top: 12px; }
 
 </style>
 </head>
@@ -798,11 +984,21 @@ function currentActivityId() {
      that activity will see it (cast, dialect keys, apps), instead of
      whatever the live select happens to hold. Preview-only. */
   if (S.pvActivity && (CONFIG.activities || {})[S.pvActivity]) return S.pvActivity;
-  const sel = CONFIG.global.activity_select;
+  /* ONE SELECT PER ROOM (v0.67 — the Games Room made this real). The
+     integration mints `select.harmonium_<page>_activity` for every
+     page that owns activities, but the engine only ever read the one
+     named in `global.activity_select`. With a second room that is
+     actively wrong: music playing in the Bar would have supplied the
+     $context for a controller opened from the Games Room. A room page
+     may now name its own select, and we ask the room we are STANDING
+     IN — falling back to the global one, so a single-room workspace
+     is untouched. */
+  const sel = roomActivitySelect();
   if (sel) {
     const v = st(sel).s;
     for (const [id, a] of Object.entries(CONFIG.activities || {}))
-      if ((a.state_value || id) === v) return id === "off" ? null : id;
+      if ((a.state_value || id) === v)
+        return id === "off" ? null : (activityInScope(id) ? id : null);
   }
   /* PENDING IMPERSONATION (v0.48 — Suresh: "I should never see that
      page. It should always fill in"): the select doesn't (yet, or at
@@ -815,9 +1011,209 @@ function currentActivityId() {
     return S.pendingActivity;
   return null;
 }
+/* WHICH ROOM AM I IN? The screen itself if it owns activities, else
+   the page we were reached through (a controller is shared, so it
+   belongs to whoever opened it). Shares presumedActivity's trail. */
+function roomTrail() {
+  const out = [S.screen];
+  for (let i = S.stack.length - 1; i >= 0; i--) out.push(S.stack[i]);
+  return out;
+}
+/* A SHARED SURFACE CANNOT NAME A ROOM (v0.67.4 — Suresh: "When I run
+   Listen To Music in the Games room, it takes me to the bar controller
+   page. This implies stock has hardcoded stuff in it.")
+
+   Nothing was hardcoded — the shared `controller:music` was ANSWERING
+   for a room, and answering first-come. Both `listen_sonos` (Bar) and
+   `games_music` (Games) declare it as their screen, so
+   activitiesOwning() returned both and this loop took [0]: the Bar.
+   The Bar's select said `listen_sonos`, so every $context slot filled
+   with Bar devices and the title bar said Bar.
+
+   The trail already held the right answer one step further along — the
+   room page we walked THROUGH. So: an owner-derived guess only counts
+   when the owners AGREE. Split the vote and the surface abstains and
+   we keep walking. This is presumedActivity's rule (v0.61) applied to
+   the select, and it is why a shared controller stays shared. */
+function roomActivitySelect() {
+  const trail = roomTrail();
+  for (let i = 0; i < trail.length; i++) {
+    const sc = rawScreen(trail[i]);
+    if (sc && sc.activity_select) return sc.activity_select;
+    /* the activity we are standing on names its owning room */
+    const owns = activitiesOwning(trail[i]);
+    let found = null, split = false;
+    for (let j = 0; j < owns.length && !split; j++) {
+      const rv = (CONFIG.activities[owns[j]] || {}).room_view;
+      const rs = rv && rawScreen(rv);
+      const s = rs && rs.activity_select;
+      if (!s) continue;
+      if (found && s !== found) split = true;
+      else found = s;
+    }
+    if (found && !split) return found;
+  }
+  return (CONFIG.global || {}).activity_select;
+}
+/* an activity only owns the surfaces of its OWN room — otherwise the
+   Bar's running music would supply $context in the Games Room */
+function activityInScope(id) {
+  const a = (CONFIG.activities || {})[id];
+  if (!a || !a.room_view) return true;          /* unroomed = global */
+  const trail = roomTrail();
+  if (trail.indexOf(a.room_view) >= 0) return true;
+  if (a.screen && trail.indexOf(a.screen) >= 0) return true;
+  /* a room with no OTHER room in play keeps the old behaviour */
+  const rooms = {};
+  for (const k in CONFIG.activities) {
+    const rv = CONFIG.activities[k].room_view;
+    if (rv) rooms[rv] = 1;
+  }
+  return Object.keys(rooms).length < 2;
+}
+
+/* ---- THE PRESUMED ACTIVITY (v0.61) --------------------------------
+   Suresh, twice now: "I should NEVER see this blank page. I want to
+   see the preview. I can always hit the power button to turn it on!"
+
+   Standing on a controller with nothing running, the page had no
+   $context, so every tile resolved to null and hid itself — a void
+   with an apologetic sentence in it. v0.48 fixed the TAPPED case
+   (pendingActivity); this fixes the rest: RENDER AS the activity that
+   owns this surface, showing its devices in their true (off) state.
+
+   Nothing here claims the activity is running. Truth stays with
+   `currentActivityId()` — the End button, hold-Power, the activity
+   tile's own ON state. This is presentation, and only presentation.
+   Note it can only ever ADD to a page that was previously blank: the
+   fallback fires exactly when the old code had no context at all. */
+function activitiesOwning(sid) {
+  const acts = (CONFIG && CONFIG.activities) || {};
+  const owns = [];
+  for (const id in acts) if (acts[id].screen === sid) owns.push(id);
+  return owns;
+}
+/* Screens that own no activity and never will, and so may inherit a
+   presumption from wherever they were opened: the GENERATED ones, and
+   DRAWERS (`drawer: true` — the Apps grid, the Music Library), which
+   are destinations you step into and back out of. A plain page —
+   a room — presumes nothing, or the guess leaks backwards onto it. */
+const VIRTUAL_PREFIX = ["detail:", "sources:", "queue:", "group:", "keys:"];
+/* raw config lookup, deliberately NOT screenOf: screenOf generates the
+   virtual screens, and groupScreen asks for the render activity — that
+   way lies recursion */
+function rawScreen(sid) {
+  if (!CONFIG || typeof sid !== "string") return null;
+  if (sid.startsWith("controller:"))
+    return (CONFIG.controllers || {})[sid.slice(11)] || null;
+  return (CONFIG.screens || {})[sid] || null;
+}
+/* WHO OWNS THE SURFACE I AM STANDING ON? The nearest screen in the
+   inheritance chain that any activity declares as its `screen`, and
+   the activities that declare it. Shared by presumedActivity (which
+   picks one) and renderActivityId (which only asks whether the
+   RUNNING activity is among them). Empty = this surface belongs to
+   nobody in particular — a room page, the library — and imposes no
+   opinion. */
+function surfaceOwners() {
+  if (!CONFIG || !CONFIG.activities) return [];
+  const sid = S.screen;
+  const back = [];
+  for (let i = S.stack.length - 1; i >= 0; i--) back.push(S.stack[i]);
+  const virt = typeof sid === "string" &&
+    VIRTUAL_PREFIX.some(p => sid.startsWith(p));
+  const sc = virt ? null : rawScreen(sid);
+  const inherits = virt || !!(sc && sc.drawer);
+  const search = [sid];
+  if (inherits) {
+    if (sc && sc.parent) search.push(sc.parent);
+    back.forEach(x => search.push(x));
+  }
+  for (let t = 0; t < search.length; t++) {
+    /* IN SCOPE ONLY (v0.68.3). A drawer's declared `parent` can point
+       at a surface owned by ANOTHER ROOM — the Apps drawer's parent is
+       the generic `controller:tv`, owned by the Games activities,
+       while the Bar reaches it through its own `bar_tv` fork. Without
+       this filter the Bar's Apps drawer answers "games_gtv". Caught by
+       the regression test, not by reading. */
+    const owns = activitiesOwning(search[t]).filter(id => activityInScope(id));
+    if (owns.length) return owns;
+  }
+  return [];
+}
+function presumedActivity() {
+  if (!CONFIG || !CONFIG.activities) return null;
+  const sid = S.screen;
+  /* where we came from, nearest first */
+  const back = [];
+  for (let i = S.stack.length - 1; i >= 0; i--) back.push(S.stack[i]);
+  const virt = typeof sid === "string" &&
+    VIRTUAL_PREFIX.some(p => sid.startsWith(p));
+  const sc = virt ? null : rawScreen(sid);
+  const inherits = virt || !!(sc && sc.drawer);
+  /* a drawer's declared `parent` is consulted first — it is the way
+     back, so it is also the honest answer when the stack is empty */
+  const search = [sid];
+  if (inherits) {
+    if (sc && sc.parent) search.push(sc.parent);
+    back.forEach(x => search.push(x));
+  }
+  for (let t = 0; t < search.length; t++) {
+    /* same scope filter as surfaceOwners (v0.68.3) — a parent in
+       another room is not this page's owner */
+    const owns = activitiesOwning(search[t]).filter(id => activityInScope(id));
+    if (!owns.length) continue;
+    if (owns.length === 1) return owns[0];
+    /* a SHARED surface (one TV player, many TV activities) cannot be
+       guessed from the surface alone — the ROOM we walked through is
+       the disambiguator, nearest first; failing that, config order */
+    for (let s = 0; s < back.length; s++) {
+      const local = owns.filter(id => CONFIG.activities[id].room_view === back[s]);
+      if (local.length) return local[0];
+    }
+    return owns[0];
+  }
+  return null;
+}
+/* what the page DRAWS as (running, else presumed) — never what is
+   running. Every caller that acts on the world wants currentActivityId.
+
+   A SURFACE IS SUPPLIED BY THE ACTIVITY THAT OWNS IT (v0.68.3 —
+   Suresh: "Games Room - Music Media Player has Games TV and Games
+   Receiver in it. As I said before, Sonos Pool has zero other
+   devices… Clicking the library brings up a Nothing to browse on this
+   player.")
+
+   Games TV + Games Receiver is precisely `games_xbox`'s cast. With
+   Xbox running, opening the MUSIC player in that room drew the Xbox's
+   $context onto it: its volume cast, and `media_player` = the
+   television — which is why the library then had nothing to browse.
+   The room scope from v0.67.4 was doing its job; the missing rule is
+   the other axis. Being in the right ROOM does not make an activity
+   the right source for the surface you are standing on: a music
+   controller is declared by the music activities, and the Xbox is not
+   one of them.
+
+   So: if this surface is OWNED (some activity declares it as its
+   `screen`) and the running activity is not one of the owners, the
+   page draws as its owner instead — which is exactly what
+   presumedActivity() already computes, room-disambiguated. Surfaces
+   nobody owns (a room page) keep the running activity, and truth
+   (isActivityActive, the End button, hold-Power) does not move: this
+   is presentation, as v0.61 was. */
+function renderActivityId() {
+  const cur = currentActivityId();
+  if (cur) {
+    const owners = surfaceOwners();
+    if (!owners.length || owners.indexOf(cur) >= 0) return cur;
+    const owned = presumedActivity();
+    if (owned) return owned;
+  }
+  return cur || presumedActivity();
+}
 function ctxFor(screenId) {
   const scCtx = (screenOf(screenId) || {}).context || {};
-  const aid = currentActivityId();
+  const aid = renderActivityId();
   const aCtx = aid ? (CONFIG.activities[aid].context || {}) : {};
   return Object.assign({}, scCtx, aCtx);
 }
@@ -871,6 +1267,16 @@ function visibleTile(t) {
       !resolveEntity(t.entity)) return false;
   if (t.only && !arr(t.only).every(c => CAPS.has(c))) return false;
   if (t.unless && arr(t.unless).some(c => CAPS.has(c))) return false;
+  /* WIDGET SELF-SUPPRESSION (v0.57): a widget may declare hidden(e, t)
+     and vanish when the device cannot do the thing it draws — the
+     Onkyo has no transport, so the transport row is not a control, it
+     is a lie. Unknown state never hides (supported_features arrives
+     with the first diff; tilesOf re-filters and tileSig re-renders). */
+  {
+    const w = (typeof WIDGETS !== "undefined" && WIDGETS[t.type]) || null;
+    if (w && typeof w.hidden === "function" &&
+        w.hidden(resolveEntity(t.entity), t)) return false;
+  }
   /* per-activity content overrides on a SHARED controller: one Watch
      TV page, many activities — tiles opt in/out declaratively.
        when: { activity: watch_smart }        show only then
@@ -878,7 +1284,7 @@ function visibleTile(t) {
      Re-render rides tileSig: the filtered set changes with the
      activity, so the grid refreshes on activity switches. */
   if (t.when) {
-    const cur = currentActivityId();
+    const cur = renderActivityId();
     if (t.when.activity && !arr(t.when.activity).includes(cur)) return false;
     if (t.when.not_activity && arr(t.when.not_activity).includes(cur)) return false;
   }
@@ -1009,15 +1415,54 @@ function expandTile(t) {
       S.browse.root = S.browse.cat = null; S.browse.sub = [];
     }
     const B = S.browse;
+    /* SEARCH, DECLARED (v0.66). Sonos cannot search — it answers an
+       empty list — so the tile names the engine that can. Written as a
+       BLOCK rather than a loose key because the engine is a decision
+       someone has to be able to see:
+
+         "search": { "engine": "music_assistant",
+                     "entity": "media_player.ma_bar",
+                     "classes": ["artist","album","track","playlist"] }
+
+       There is one engine today and the setting still exists — this is
+       not a control with one option (v0.62), it is a declaration of
+       WHICH ENGINE ANSWERS, and the seam a second one slots into.
+       `classes` is the scope: Suresh likes MA but finds it "almost too
+       overwhelming", and never ASKING for its generated playlists,
+       audiobooks and recommendations is the cure. v0.65's flat
+       `search_entity` still works. */
+    const sQ = t.search || (t.search_entity ? { entity: t.search_entity } : null);
+    B.qmp = sQ && sQ.entity ? resolveEntity(sQ.entity) : null;
+    B.qengine = (sQ && sQ.engine) || (B.qmp ? "music_assistant" : "");
+    B.qclasses = (sQ && sQ.classes) ||
+      ["artist", "album", "track", "playlist"];
+    /* DEPTH IS DECLARED (v0.67.3): `config_entry` names WHICH Music
+       Assistant to ask directly — its own service takes a `limit`,
+       HA's generic search_media does not and stops at 5 per class.
+       Absent, the standard contract still runs. */
+    B.qentry = (sQ && sQ.config_entry) || "";
+    B.qlimit = (sQ && +sQ.limit) || 0;
+    if (!B.qmp && B.qon) { B.qon = false; B.q = ""; B.qres = null; }
     B._active = true;
     const loading = [{ type: "preset", id: t.id + "_ld", span: 2, brw: true,
       icon: "material:hourglass_empty", label: "Loading library…", action: {} }];
     const L0 = B.nodes[browseKey(mp, null)];
-    if (!L0) { B.ui = null; browseFetch(mp, null); return loading; }
+    /* SEARCH DOES NOT WAIT FOR THE TREE (v0.68.1). This gate returned
+       "Loading library…" until the browse ROOT came back — and search
+       needs none of it: it has its own engine, its own player and its
+       own results. Opening the library and typing straight away meant
+       waiting out a fetch whose answer was never going to be used,
+       with an empty bar (B.ui = null renders NOTHING) while you did.
+       The fetch still starts, because closing search lands you in the
+       tree; it just no longer blocks the door. */
+    if (!L0) {
+      browseFetch(mp, null);
+      if (!B.qon) { B.ui = null; return loading; }
+    }
     /* ROOT CURATION (v0.49.1, a setting not a hardcode): HA's
        media-source:// plumbing hides by default (`media_sources:
        true` keeps it); `include: [titles]` narrows — advisory. */
-    let roots = L0.children;
+    let roots = L0 ? L0.children : [];
     if (!t.media_sources)
       roots = roots.filter(c =>
         !String(c.media_content_id || "").startsWith("media-source://"));
@@ -1027,25 +1472,44 @@ function expandTile(t) {
         want.includes(String(c.title || "").toLowerCase()));
       if (m.length) roots = m;
     }
-    if (!roots.length) {
+    if (!roots.length && !B.qon) {
       B.ui = null;
       return [{ type: "preset", id: t.id + "_err", span: 2, brw: true,
         icon: "material:error_outline",
-        label: L0.error || "Nothing to browse on this player", action: {} }];
+        label: (L0 && L0.error) || "Nothing to browse on this player",
+        action: {} }];
     }
+    /* WHICH PLAYER GETS THE PLAY (v0.66). Browsing: the tree's own
+       player, as always. SEARCHING: the SONOS entity whenever the id
+       converts to a Spotify share link — one entity to look at, and
+       Sonos streams from Spotify with the HA box out of the audio
+       path. Artists and MA-library ids cannot share-link, so those
+       fall back to the player that found them. */
+    const playOf = (c, viaMa) => {
+      if (viaMa) {
+        const uri = brSpotifyUri(c.media_content_id);
+        if (uri) return { service: "media_player.play_media", target: mp,
+          data: { media_content_id: uri, media_content_type: "music" } };
+        return { service: "media_player.play_media", target: viaMa,
+          data: { media_content_id: c.media_content_id,
+                  media_content_type: c.media_content_type } };
+      }
+      return { service: "media_player.play_media", target: mp,
+        data: { media_content_id: c.media_content_id,
+                media_content_type: c.media_content_type } };
+    };
     const mkItems = (node, out) => {
       if (node.error)
         out.push({ type: "preset", id: t.id + "_err", span: 2, brw: true,
           icon: "material:error_outline", label: node.error, action: {} });
       node.children.forEach((c, i) => {
-        const play = {
-          service: "media_player.play_media", target: mp,
-          data: { media_content_id: c.media_content_id,
-                  media_content_type: c.media_content_type },
-        };
+        const play = playOf(c, node.viaMa);
         out.push({
           type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
           icon: BROWSE_ICON[c.media_class] || "material:library_music",
+          /* the badge is set only where the kind ISN'T implied by the
+             chip you're standing on — i.e. the All grid */
+          ...(node.badges && node.badges[i] ? { badge: node.badges[i] } : {}),
           ...(c._thumb ? { icon_image: c._thumb, icontain: true } : {}),
           action: c.can_expand
             ? { browse: { id: c.media_content_id, type: c.media_content_type,
@@ -1058,6 +1522,16 @@ function expandTile(t) {
       if (!node.children.length && !node.error)
         out.push({ type: "preset", id: t.id + "_mt", span: 2, brw: true,
           icon: "material:music_off", label: "Nothing here", action: {} });
+      /* SAY WHEN YOU TRUNCATE (v0.62): silence here reads as "that is
+         everything", which is the one thing it isn't */
+      /* a STRING more says it in words (search knows there is deeper
+         water but not how deep); a number counts what was withheld */
+      if (node.more)
+        out.push({ type: "preset", id: t.id + "_more", span: 2, brw: true,
+          icon: "material:more_horiz",
+          label: typeof node.more === "string" ? node.more
+            : node.children.length + " shown · " + node.more + " more",
+          action: {} });
       return out;
     };
     /* FAVORITES PROMOTION (v0.50.3 — Suresh: "promote the Show
@@ -1085,9 +1559,10 @@ function expandTile(t) {
       const selS = SROOTS.find(c => brSame(c, B.root)) || SROOTS[0];
       B.root = brRef(selS);
       if (B.root.id === "__fav") {
-        const cats = fc.map(x => ({ title: x.lbl,
+        const cats = brOrder(fc.map(x => ({ title: x.lbl,
           media_content_id: "__fav:" + x.k, media_content_type: "__synth",
-          media_class: "directory", can_expand: true, can_play: false }));
+          media_class: "directory", can_expand: true, can_play: false })),
+          t.categories);
         const selCat = cats.find(c => brSame(c, B.cat)) || cats[0];
         B.cat = brRef(selCat);
         B.ui = { roots: SROOTS, cats };
@@ -1095,7 +1570,7 @@ function expandTile(t) {
         const FICON = { playlists: "material:queue_music",
           artists: "material:person", albums: "material:album",
           tracks: "material:music_note", radio: "material:radio" };
-        return fav.items.map((it, i) => ({
+        const ftiles = fav.items.map((it, i) => ({
           type: "preset", id: t.id + "_" + i, label: it.name, brw: true,
           icon: FICON[fav.k] || "material:library_music",
           ...(it.image ? { icon_image: it.image } : {}),
@@ -1103,15 +1578,118 @@ function expandTile(t) {
             data: { media_content_id: it.uri,
                     media_content_type: it.media_type } },
         }));
+        /* the SENSOR caps at 100 (sensor.py LIMIT) and cannot tell us
+           whether it truncated — a full list is the only signal there
+           is, so say it plainly rather than imply completeness */
+        if (fav.items.length >= FAV_SENSOR_CAP)
+          ftiles.push({ type: "preset", id: t.id + "_more", span: 2, brw: true,
+            icon: "material:more_horiz",
+            label: FAV_SENSOR_CAP + " shown · the favourites feed caps here",
+            action: {} });
+        return ftiles;
       }
       /* __lib: the real tree's top level becomes the chips */
       const selCat = roots.find(c => brSame(c, B.cat)) || roots[0];
       B.cat = brRef(selCat);
-      B.ui = { roots: SROOTS, cats: roots };
+      B.ui = { roots: SROOTS, cats: brOrder(roots, t.categories) };
       const L2 = B.nodes[browseKey(mp, B.cat)];
       if (!L2) { browseFetch(mp, B.cat); return loading; }
       return L2;
     };
+    /* SEARCH MODE (v0.65) short-circuits the tree entirely: the bands
+       become the query + keyboard, and the chips become the KINDS the
+       answer contains. Everything below (roots, categories, drill)
+       resumes untouched the moment search closes. */
+    if (B.qon) {
+      /* DRILLING A RESULT (v0.66): an artist can't be share-linked to
+         Sonos, but MA marks it expandable — so stepping into one lists
+         their albums FROM MA, and those albums play on Sonos like any
+         other result. The fetch has to use the ENGINE's player: the
+         ids are its own and the tree's player has never heard of them. */
+      if (B.sub.length) {
+        const top = B.sub[B.sub.length - 1];
+        const Ln = B.nodes[browseKey(B.qmp, top)];
+        B.ui = { roots: [], cats: null, search: true };
+        if (!Ln) { browseFetch(B.qmp, top); return loading; }
+        Ln.viaMa = B.qmp;
+        return mkItems(Ln, [{ type: "preset", id: t.id + "_up", span: 2,
+          brw: true, icon: "material:arrow_back",
+          label: Ln.title ? "\u2039 " + Ln.title : "\u2039 Back",
+          action: { browse: "__up" } }]);
+      }
+      const items = (B.qres && B.qres.items) || [];
+      const kinds = [];
+      items.forEach(c => {
+        const k = c.media_class || "item";
+        if (!kinds.some(x => x.qclass === k))
+          kinds.push({ title: BR_KIND_NAME[k] || k, qclass: k,
+            media_content_id: "__q:" + k, media_content_type: "__qkind" });
+      });
+      /* SHOW THE SLICES BEFORE THERE IS ANYTHING TO SLICE (v0.68.1 —
+         Suresh: "Its not obvious what Im looking at, I think we should
+         have the tab bar (artists/playlists etc..) shown. Not just the
+         magnifying icon. If there is no search text, the tabs are
+         disabled."). With no results the strip collapsed to a lone
+         magnifier, which says nothing about what search even DOES.
+         The declared `classes` already name the answer's shape, so
+         draw them — greyed and unpressable until an answer exists. */
+      const cats = items.length
+        ? [{ title: "All", qclass: "", media_content_id: "__q:",
+             media_content_type: "__qkind" }].concat(kinds)
+        : [{ title: "All", qclass: "", disabled: true,
+             media_content_id: "__q:", media_content_type: "__qkind" }].concat(
+            (B.qclasses || []).map(k => ({
+              title: BR_KIND_NAME[k] || k, qclass: k, disabled: true,
+              media_content_id: "__q:" + k, media_content_type: "__qkind" })));
+      B.ui = { roots: [], cats: cats, search: true };
+      /* SAY THAT WE ARE LOOKING (v0.68.1 — "there is no visual
+         feedback"). A centred line, not the library's hourglass tile:
+         this is a search in flight, not a page loading. */
+      if (B.qbusy && !items.length)
+        return [{ type: "preset", id: t.id + "_qw", brw: true,
+          /* no `span`: .brwait takes 1/-1 in CSS, and an inline span
+             from the v0.68 proportional rule would out-specify it */
+          cls: "brwait", icon: "material:search",
+          label: "Searching…", action: {} }];
+      if (B.qerr)
+        return [{ type: "preset", id: t.id + "_qe", span: 2, brw: true,
+          icon: "material:error_outline", label: B.qerr, action: {} }];
+      /* AN EMPTY QUERY SHOWS NOTHING (v0.67.2 — Suresh, of the tile
+         that used to sit here: "What is the point of that great big
+         button? Type to search ma bar?"). None: the query line right
+         above it already says "type to search", and a tile that does
+         nothing when tapped is furniture. Silence is the answer. */
+      if (!B.q.trim()) return [];
+      const shown = B.qcat
+        ? items.filter(c => (c.media_class || "item") === B.qcat) : items;
+      if (!shown.length)
+        return [{ type: "preset", id: t.id + "_qn", span: 2, brw: true,
+          icon: "material:search_off",
+          label: "Nothing for “" + B.q.trim() + "”", action: {} }];
+      /* SAY THAT THE WELL IS DEEPER (v0.67.3 — "It should show that
+         there are more, must be thousands!"), and SAY WHICH (v0.67.5 —
+         "The There's more should appear in the tab results too, if
+         true"). It always did appear in a tab whose kind was capped —
+         but an unnamed note in All that vanishes on a tab reads as a
+         bug rather than as an answer. Naming the kinds makes the rule
+         visible: the limit is PER KIND, so All can be deep in artists
+         while tracks are exhausted. */
+      const cap = (B.qres && B.qres.capped) || [];
+      const capShown = B.qcat
+        ? (cap.indexOf(B.qcat) >= 0 ? [B.qcat] : []) : cap;
+      const deep = capShown.length
+        ? "More " + capShown.map(k =>
+            (BR_KIND_NAME[k] || k).toLowerCase()).join(" · ") +
+          " — add a word to narrow it down"
+        : 0;
+      /* the SAME item renderer the tree uses — thumbnails, play,
+         drill-in and the ▶ badge all come along. Results MIX kinds by
+         nature, which is exactly what the v0.62 badge is for. */
+      return mkItems({ title: "Search", children: shown, viaMa: B.qmp,
+        more: deep,
+        badges: shown.map(c => BROWSE_ICON[c.media_class] ||
+          "material:library_music") }, []);
+    }
     let gridNode = null;
     /* a sticky __synth selection must not be stomped by the tree
        defaulting below — re-enter synthetic mode directly */
@@ -1148,13 +1726,48 @@ function expandTile(t) {
          top level IS the categories → chips (favorites-promoted when
          the sensors are live, plain otherwise). */
       if (L1.children.length && L1.children.every(brDir)) {
-        const cats = L1.children;
+        const real = brOrder(L1.children, t.categories);
+        /* THE "ALL" CHIP (v0.62 — Suresh: "what Sonos is returning is
+           ALL favorites and then we're slicing them by category, which
+           is useful, but sometimes artificial. What's the difference
+           between a coffee shop playlist and coffee shop radio?").
+           So when this root is the only one — i.e. the categories ARE
+           the whole library — offer the unsliced view first. Each item
+           carries a badge naming the folder it came from, which is the
+           thing the slicing was for. */
+        const wantAll = roots.length === 1 && real.length > 1 &&
+          t.all !== false;
+        const cats = wantAll ? [BR_ALL].concat(real) : real;
         const selCat = cats.find(c => brSame(c, B.cat)) || cats[0];
         B.cat = brRef(selCat);
         B.ui = { roots, cats };
-        const L2 = B.nodes[browseKey(mp, B.cat)];
-        if (!L2) { browseFetch(mp, B.cat); return loading; }
-        gridNode = L2;
+        if (B.cat.type === BR_ALL.media_content_type) {
+          const keys = real.map(c => browseKey(mp, brRef(c)));
+          const missing = real.filter((c, i) => !B.nodes[keys[i]]);
+          if (missing.length) {
+            missing.forEach(c => browseFetch(mp, brRef(c)));
+            return loading;
+          }
+          /* badges ride ALONGSIDE the children, never ON them: the
+             child objects are the shared node cache, and stamping
+             them would leave badges behind in the single-category
+             grids once you had visited All */
+          const kids = [], badges = [];
+          let more = 0;
+          real.forEach((c, i) => {
+            const n = B.nodes[keys[i]];
+            more += n.more || 0;
+            (n.children || []).forEach(k => {
+              kids.push(k);
+              badges.push(brBadge(c.title, k));
+            });
+          });
+          gridNode = { title: "All", children: kids, more: more, badges: badges };
+        } else {
+          const L2 = B.nodes[browseKey(mp, B.cat)];
+          if (!L2) { browseFetch(mp, B.cat); return loading; }
+          gridNode = L2;
+        }
       } else if (roots.length > 1 && roots.every(brDir)) {
         const fc = favList();
         if (fc.length) {
@@ -1164,7 +1777,7 @@ function expandTile(t) {
           if (Array.isArray(r)) return r;
           gridNode = r;
         } else {
-          B.ui = { roots: [], cats: roots, flat: true };
+          B.ui = { roots: [], cats: brOrder(roots, t.categories), flat: true };
           gridNode = L1;
         }
       } else {
@@ -1204,7 +1817,7 @@ function expandTile(t) {
        devices" switch) suppresses it. */
     let castAid = t.activity || null;
     if (!castAid) {
-      const cur = currentActivityId();
+      const cur = renderActivityId();
       const act = cur && (CONFIG.activities || {})[cur];
       if (act && act.screen === S.screen) {
         if (act.surface && act.surface.devices === false) return [];
@@ -1243,6 +1856,118 @@ function expandTile(t) {
       };
     });
   }
+  if (t.type === "volumes") {
+    /* VOLUME CAST (v0.57 — Suresh: "there might be 8 volumes; think of
+       them as device tiles with a volume role"). One control per CAST
+       device that declares roles.volume. Label and icon come from the
+       DEVICE registry, so the shared controller stays generic and each
+       house names its own zones — no volume_2/volume_3 slots, no
+       per-room controller fork. Treatment follows global.style.volume
+       ("compact" | "slider" | "stepper"), overridable on the generator
+       tile and per device via device_options[entity].volume_style. */
+    /* v0.57.1: bind to the RUNNING activity, NOT to "the activity whose
+       screen I am standing on". The old test (act.screen === S.screen)
+       meant the generator produced nothing anywhere except the
+       activity's own controller — so a zones view reached by nav came
+       up empty, and a nav summary could not expand it either. */
+    let aid = t.activity && t.activity !== "$current" ? t.activity : null;
+    if (!aid) {
+      const cur = renderActivityId();
+      if (cur && (CONFIG.activities || {})[cur]) aid = cur;
+    }
+    const act = aid && (CONFIG.activities || {})[aid];
+    if (!act) return [];
+    /* WHICH ROLE THIS INSTANCE DRAWS (v0.59 — Suresh: "it's not
+       intuitive right now"). Was: infer the master from the activity
+       wiring and call everything else "the rest". Nothing declared it,
+       so nothing could show it or set it — zones were invisible.
+       Now the DEVICE says which it is:
+         roles.volume       -> a control on the controller (the master)
+         roles.volume_zone  -> a room this feeds, behind the Zones card
+       One word per device, visible in the Studio's role table. */
+    const role = t.role || "volume";
+    /* a device inside a group is drawn on the GROUP's page, not here */
+    const grouped = groupedDeviceIds(act);
+    const dopts = act.device_options || {};
+    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "compact";
+    const out = [];
+    castDeviceIds(act).forEach(did => {
+      if (grouped.indexOf(did) >= 0) return;
+      const d = (CONFIG.devices || {})[did];
+      if (!d) return;
+      const roles = d.roles || {};
+      const ve = roles[role];
+      if (!ve) return;
+      const o = dopts[ve] || {};
+      if (o.volume === false) return;
+      const style = o.volume_style || dflt;
+      const base = {
+        id: t.id + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
+        entity: ve,
+        label: d.name || did,
+        icon: d.icon || "material:volume_up",
+        span: 2
+      };
+      out.push(style === "stepper"
+        ? Object.assign(base, { type: "stepper", kind: "volume" })
+        : Object.assign(base, {
+            type: "volume",
+            level_entity: roles.volume_level || ve,
+            slider: style === "slider"
+          }));
+    });
+    return out;
+  }
+  if (t.type === "presets") {
+    /* THE ACTIVITY'S OWN SHORTCUTS (v0.64 — Suresh: "these presets
+       shouldn't be hardcoded in the stock controller. The logical
+       place to define presets is in the Listen to Sonos activity
+       isn't it? What if I wanted a preset to play CoffeeHouse
+       Radio?"). Quite so. v0.63 put two on the SHARED music
+       controller and scoped them with `when` — which works, and is
+       the wrong layer: content that belongs to one activity was
+       living in the surface every activity shares.
+
+       So presets join the cast, its groups and its volumes as things
+       the ACTIVITY owns, and the controller carries one generator
+       that never names them. A room with no activity presets renders
+       nothing here, header and all. */
+    let aid = t.activity && t.activity !== "$current" ? t.activity : null;
+    if (!aid) {
+      const cur = renderActivityId();
+      if (cur && (CONFIG.activities || {})[cur]) aid = cur;
+    }
+    const act = aid && (CONFIG.activities || {})[aid];
+    if (!act || !Array.isArray(act.presets)) return [];
+    return act.presets.map((p, i) => Object.assign(
+      { type: "preset", span: 2 }, p,
+      { id: t.id + "_" + (p.id || i) }));
+  }
+  if (t.type === "groups") {
+    /* One nav card per group in the running activity's cast. The
+       controller says "render this activity's groups" and never names
+       one, so the SHARED surfaces stay generic: a room with no groups
+       renders nothing here. Same doctrine as always — groups are
+       views, and the tile that points at one is a nav card. */
+    let aid = t.activity && t.activity !== "$current" ? t.activity : null;
+    if (!aid) {
+      const cur = renderActivityId();
+      if (cur && (CONFIG.activities || {})[cur]) aid = cur;
+    }
+    const act = aid && (CONFIG.activities || {})[aid];
+    if (!act) return [];
+    return castGroups(act).map(g => ({
+      type: "nav",
+      id: t.id + "_" + String(g.group).replace(/[^a-zA-Z0-9]+/g, "_"),
+      label: g.name || g.group,
+      icon: g.icon || "material:widgets",
+      style: g.style || "summary",
+      /* no target -> the generated page; target -> the author's own */
+      target: g.target || ("group:" + g.group),
+      hide_when_empty: true,
+      span: 2
+    }));
+  }
   if (t.type !== "presets_from") return [t];
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
@@ -1266,6 +1991,81 @@ function castFromCtx(ctx) {
   }
   return seen;
 }
+/* ---- THE CAST, v0.60 -------------------------------------------------
+   A cast member is a DEVICE id (string) or a GROUP (object):
+
+     "cast": [ "bar_sonos",
+               { "group": "zones", "name": "Zones",
+                 "icon": "material:speaker_group", "shows": "volume",
+                 "members": ["bar_onkyo", "bar_onkyo_z2"] } ]
+
+   Grouping is a PER-ACTIVITY composition decision, not a property of
+   the device — the same two receivers can be tucked behind a card in
+   one room and stand inline in another, with no duplicate devices.
+   (v0.59 put `volume_zone` on the device and got this backwards; the
+   question "what if another page wants them individually?" had no
+   answer but 'clone the device', which is the tell.)
+
+   A grouped device KEEPS ITS OTHER JOBS: the receiver can sit inside
+   the Zones group and still be the activity's source_select. A group
+   governs the presentation of the thing it draws, nothing else. */
+function castMembers(act) {
+  return Array.isArray(act && act.cast) ? act.cast : [];
+}
+function castGroups(act) {
+  return castMembers(act).filter(m => m && typeof m === "object" && m.group);
+}
+function castDeviceIds(act) {
+  return castMembers(act).filter(m => typeof m === "string");
+}
+function groupedDeviceIds(act) {
+  const out = [];
+  castGroups(act).forEach(g => (g.members || []).forEach(m => {
+    if (typeof m === "string" && out.indexOf(m) < 0) out.push(m);
+  }));
+  return out;
+}
+function castGroup(act, gid) {
+  return castGroups(act).filter(g => g.group === gid)[0] || null;
+}
+/* which ROLE a `shows` type binds to. Unknown types fall back to the
+   launcher, which is always available and always correct. */
+const SHOWS_ROLE = {
+  volume: "volume", stepper: "volume", power: "power",
+  media: "media_player", transport: "media_player", sources: "source_select"
+};
+/* one tile for one member of a group, drawn as `shows` */
+function groupChildTile(did, shows, idPrefix) {
+  const d = (CONFIG.devices || {})[did];
+  if (!d) return null;
+  const roles = d.roles || {};
+  const base = {
+    id: idPrefix + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
+    label: d.name || did,
+    icon: d.icon || "material:devices",
+    span: 2
+  };
+  const role = SHOWS_ROLE[shows];
+  const ent = role ? roles[role] : null;
+  /* THE SUMMARY-VS-CONTROL LINE (Suresh): a control that fits in a
+     tile is drawn; anything needing more room becomes a launcher into
+     that device's own controller, which is where complexity belongs.
+     `device` is the default AND the universal fallback. */
+  if (!ent) {
+    const primary = roles.media_player || roles.volume || roles.power ||
+      roles.source_select || roles.dpad || roles.commands;
+    if (!primary) return null;
+    return Object.assign(base, { type: "device", entity: primary });
+  }
+  if (shows === "volume")
+    return Object.assign(base, { type: "volume", entity: ent,
+      level_entity: roles.volume_level || ent,
+      slider: (((CONFIG.global || {}).style || {}).volume || "compact") === "slider" });
+  if (shows === "stepper")
+    return Object.assign(base, { type: "stepper", kind: "volume", entity: ent });
+  return Object.assign(base, { type: shows, entity: ent });
+}
+
 function castOf(aid) {
   const a = (CONFIG.activities || {})[aid];
   if (!a) return [];
@@ -1321,6 +2121,12 @@ function entitiesFor(screenId) {
     ["playlists", "artists", "albums", "tracks", "radio"]
       .forEach(k => set.add("sensor.harmonium_music_" + k));
   if (CONFIG.global.activity_select) set.add(CONFIG.global.activity_select);
+  /* v0.67: every ROOM's select — a second room's activity tiles must
+     stay truthful while you are standing in the first one */
+  for (const sid in (CONFIG.screens || {})) {
+    const sel2 = CONFIG.screens[sid].activity_select;
+    if (sel2) set.add(sel2);
+  }
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
   activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
   return [...set];
@@ -1348,7 +2154,7 @@ function applyDiff(ev) {
   if (ev.r) ev.r.forEach(eid => S.states.delete(eid));
 
   /* activity changed → context may rebind: resubscribe current screen */
-  const aid = currentActivityId();
+  const aid = renderActivityId();
   if (aid !== S.lastAct) { S.lastAct = aid; if (S.connected) subscribeFor(S.screen); }
 
   renderStates();
@@ -1423,7 +2229,17 @@ function isActivityActive(id) {
   if (!a) return false;
   const ev = activityStateOn(a);
   if (ev !== null) return ev;                 // v2: devices are the truth
-  const sel = CONFIG.global.activity_select;
+  /* THE ACTIVITY'S OWN ROOM ANSWERS (v0.67.4). This read
+     `global.activity_select` — which is literally the Bar's select —
+     so a second room's undeclared-state activity would have taken its
+     truth from the Bar. Ask the select of the room that OWNS it (not
+     the room we are standing in: this is the ACTIVITY's truth, not the
+     screen's), keeping global as the last resort so a single-room
+     workspace is untouched. Nothing reaches this path today — every
+     activity declares `state` — which is precisely why it would have
+     sat here waiting for the next room. */
+  const own = a.room_view && rawScreen(a.room_view);
+  const sel = (own && own.activity_select) || CONFIG.global.activity_select;
   return !!(sel && st(sel).s === (a.state_value || id));
 }
 /* all entities any activity's state eval depends on (subscribed on
@@ -1491,6 +2307,13 @@ function firePreset(t) {
   const ref = a.target || a.entity;
   const target = resolveEntity(ref);
   const run = () => {
+    /* A PRESET MAY NAME A SEQUENCE (v0.63): the same action grammar
+       everything else already speaks. Orchestration belongs HA-side —
+       a preset that joins two speakers is a sequence, not a service
+       call, and it shouldn't have to spell out harmonium.run by hand.
+       Warm-start still applies: the activity comes up first, then
+       this runs. */
+    if (a.sequence) { runActionRef("sequence:" + a.sequence); return; }
     if (parts.length !== 2) return;
     /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
        playlist: no music activity on the deck meant no player wired,
@@ -1584,7 +2407,8 @@ function clearConfirm() {
    for ON (tone, default "off") — second within TIMING.confirm
    returns true. */
 function barConfirm(key, msg, tone) {
-  const t = (barConfirm._t ??= {});
+  if (barConfirm._t == null) barConfirm._t = {};
+  const t = barConfirm._t;
   if (Date.now() - (t[key] || 0) > TIMING.confirm) {
     t[key] = Date.now();
     flashBar(msg, tone || "off", TIMING.confirm);
@@ -1618,7 +2442,33 @@ function barConfirm(key, msg, tone) {
    horizontal SWIPE on the grid steps categories too.
    ================================================================ */
 S.browse = { mp: null, root: null, cat: null, sub: [], nodes: {}, signed: {},
-  busy: {}, ui: null, barTiles: [], _active: false };
+  busy: {}, ui: null, barTiles: [], _active: false,
+  /* SEARCH (v0.65): q = what's typed, qon = the mode, qres = the last
+     answer, qcat = which media_class chip filters it */
+  q: "", qon: false, qres: null, qbusy: false, qerr: "", qcat: "",
+  qmp: null, qseq: 0, qclasses: null, qengine: "",
+  /* qkb — is the on-screen keyboard down? (v0.67.2 — Suresh: "I need
+     a way to hide/show the keyboard. We can use the input line.") The
+     tablet has room for it; once you've typed, the results want the
+     space back. Sticky for the session: decided once, not per search. */
+  qkb: true };
+
+/* the on-screen keyboard. Deliberately a GRID (Chromium 75 has grid
+   gap; flex gap is 84 — see compat.css) and deliberately made of
+   buttons, so touch and the D-pad's pointer both just work. */
+const KB_ROWS = ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+/* what the result KINDS are called on the chip strip */
+const BR_KIND_NAME = {
+  artist: "Artists", album: "Albums", track: "Tracks",
+  playlist: "Playlists", genre: "Genres", podcast: "Podcasts",
+  channel: "Radio", directory: "More", movie: "Films", tv_show: "Shows",
+};
+
+/* per-node child cap — the tree can be enormous, the grid cannot */
+const BROWSE_CAP = 200;
+/* the integration's own per-category favourites cap (sensor.py LIMIT) —
+   mirrored here only so the grid can SAY when it has been reached */
+const FAV_SENSOR_CAP = 100;
 
 const BROWSE_ICON = {
   playlist: "material:queue_music", album: "material:album",
@@ -1628,6 +2478,352 @@ const BROWSE_ICON = {
   tv_show: "material:tv", movie: "material:movie",
   app: "material:apps", url: "material:link",
   fav_root: "material:star", lib_root: "material:library_music",
+};
+
+/* THE BADGE (v0.62 — Suresh: "in All, we could have a tiny badge
+   indicating playlist, album, artist, radio, track"). Keyed on the
+   FOLDER an item came from, not its media_class: Sonos reports its
+   radio favorites as media_class "genre", so the folder is the more
+   truthful label. media_class is the fallback. */
+const BADGE_BY_CAT = {
+  playlists: "material:queue_music", playlist: "material:queue_music",
+  albums: "material:album", album: "material:album",
+  artists: "material:person", artist: "material:person",
+  tracks: "material:audiotrack", track: "material:audiotrack",
+  radio: "material:radio", stations: "material:radio",
+  podcasts: "material:podcasts", genres: "material:category",
+  folders: "material:folder",
+};
+const brBadge = (catTitle, c) =>
+  BADGE_BY_CAT[String(catTitle || "").toLowerCase()] ||
+  BROWSE_ICON[c.media_class] || "material:library_music";
+
+/* CHIP ORDER (v0.62 — Suresh: "Can we change the order of the media
+   sections"). Until now the SOURCE decided: Sonos hands back Albums /
+   Playlists / Radio / Tracks and we never sorted, so that is what you
+   saw. `categories: [titles]` on the browse tile reorders AND filters
+   by title, case-insensitively; anything unlisted drops. Absent — or
+   matching nothing — leaves the source order untouched, so no
+   existing tile changes behaviour. */
+function brOrder(cats, want) {
+  if (!Array.isArray(cats) || !Array.isArray(want) || !want.length) return cats;
+  const rank = {};
+  want.forEach((w, i) => { rank[String(w).toLowerCase()] = i; });
+  const key = c => String(c.title || "").toLowerCase();
+  const out = cats.filter(c => rank[key(c)] != null)
+    .sort((a, b) => rank[key(a)] - rank[key(b)]);
+  return out.length ? out : cats;
+}
+
+/* ---- SEARCH (v0.65) ------------------------------------------------
+   HA's `media_player/search_media` is the whole backend — no service
+   hardcoding, same doctrine as browse. The catch, found by asking the
+   house rather than the docs: **Sonos answers an empty list.** Sonos
+   has no search; MUSIC ASSISTANT does, and the MA player drives the
+   same physical speaker. So search runs against a player that can,
+   named by the tile (`search_entity`), and its results play there too
+   — the content ids it returns are MA's and mean nothing to Sonos. */
+/* the query is USER TEXT going into innerHTML — escape it */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+/* MA → SONOS (v0.66 — Suresh: "The sonos player is the target!").
+   MA hands back `spotify--<instance>://track/<id>`; the tail is a real
+   Spotify base-62 id, so a canonical `spotify:track:<id>` falls out —
+   and HA's Sonos integration checks `share_link.is_share_link(media_id)`
+   BEFORE any media_type branch, so Sonos takes it as-is. Verified
+   against SoCo's SpotifyShare regex,
+       spotify.*[:/](album|episode|playlist|show|track)[:/](\w+)
+   which is also why ARTIST is absent below: Sonos cannot share-link an
+   artist. Those (and MA's own `library://…`) fall back to the MA
+   player, which can always play its own ids. */
+const SPOTIFY_SHARE_KINDS = { album: 1, episode: 1, playlist: 1, show: 1, track: 1 };
+function brSpotifyUri(id) {
+  if (typeof id !== "string") return null;
+  let m = /^spotify[^:]*:\/\/([a-z]+)\/([A-Za-z0-9]+)/.exec(id);   /* MA */
+  if (!m) m = /^spotify:([a-z]+):([A-Za-z0-9]+)/.exec(id);            /* canonical */
+  if (!m) m = /open\.spotify\.com\/([a-z]+)\/([A-Za-z0-9]+)/.exec(id);  /* share URL */
+  if (!m || !SPOTIFY_SHARE_KINDS[m[1]]) return null;
+  return "spotify:" + m[1] + ":" + m[2];
+}
+
+/* ================================================================
+   FIVE IS NOT A SEARCH (v0.67.3 — Suresh: "Type 'Love' into search.
+   We get 18 result tiles. It should show that there are more, must be
+   thousands! Now tap Tracks… I get 5.")
+
+   He read it as a rescope to favourites. It isn't — measured on his
+   own box, `media_player/search_media` for "love" returns exactly 5
+   per class, and asking for `media_filter_classes: ["track"]` ALONE
+   still returns 5. The cap is HA's generic search-media contract and
+   it exposes no `limit`. So the tile filter wasn't lying; the well
+   was only ever five deep.
+
+   Music Assistant's OWN service does take one:
+
+       music_assistant.search {config_entry_id, name, media_type[],
+                               limit, library_only}
+
+   Same query, limit 25 → 23 tracks, mixing `library://` (his ripped
+   CDs) with `spotify--<instance>://` (the catalogue) — which is also
+   the direct disproof of "scoped to favourites". So when the tile
+   DECLARES which Music Assistant answers (`search.config_entry`), we
+   ask MA properly and adapt its reply into browse items; without that
+   declaration the standard contract still runs, five-deep, unchanged.
+   The engine stays dumb: it knows the shape of MA's answer, not which
+   MA, nor how deep to dig.
+   ================================================================ */
+const MA_SEARCH_LIMIT = 25;
+/* our browse media_class → MA's media_type argument */
+const MA_TYPE = { artist: "artist", album: "album", track: "track",
+  playlist: "playlist", channel: "radio", podcast: "podcast",
+  audiobook: "audiobook" };
+/* …and the bucket MA answers in, per class */
+const MA_BUCKET = { artist: "artists", album: "albums", track: "tracks",
+  playlist: "playlists", channel: "radio", podcast: "podcasts",
+  audiobook: "audiobooks" };
+/* MA's image is a URL string on current builds and an object on older
+   ones — take either, refuse to care which */
+function maImage(o) {
+  const im = o && o.image;
+  if (!im) return null;
+  if (typeof im === "string") return im;
+  return im.path || null;
+}
+/* one MA object → one browse item, so mkItems / brSpotifyUri / the
+   badge / the play path all keep working with no idea where it came
+   from. `uri` IS a media_content_id: spotify--<inst>://track/<id> is
+   exactly what v0.66 already rewrites into a Sonos share link. */
+function maItem(o, cls) {
+  const who = (Array.isArray(o.artists) ? o.artists : [])
+    .map(a => a && a.name).filter(Boolean).join(", ");
+  const nm = o.name || "";
+  return {
+    title: (cls === "album" || cls === "track") && who ? who + " - " + nm : nm,
+    media_class: cls, media_content_type: "music",
+    media_content_id: o.uri, thumbnail: maImage(o),
+    can_play: true, can_expand: cls !== "track", children: [],
+  };
+}
+
+/* HA-relative thumbnails need auth/sign_path (what the HA frontend
+   does); absolute URLs pass straight through. Shared by the tree and
+   — new in v0.67.3 — by search results, which never had artwork. */
+function brThumbs(list, done) {
+  let waiting = 0;
+  list.forEach(c => {
+    const t = c.thumbnail;
+    if (!t || typeof t !== "string") return;
+    if (!t.startsWith("/")) { c._thumb = t; return; }
+    if (S.browse.signed[t]) { c._thumb = S.browse.signed[t]; return; }
+    waiting++;
+    send({ type: "auth/sign_path", path: t }, sm => {
+      if (sm.success && sm.result && sm.result.path)
+        c._thumb = S.browse.signed[t] = sm.result.path;
+      if (--waiting === 0) done();
+    });
+  });
+  if (!waiting) done();
+}
+
+function brSearchRun(q) {
+  const B = S.browse;
+  const mp = B.qmp;
+  q = (q || "").trim();
+  if (!mp || q.length < 2) { B.qres = null; B.qbusy = false; brBusy(false); return; }
+  const seq = ++B.qseq;
+  B.qbusy = true; B.qerr = "";
+  /* PAINT THE WAIT (v0.68.3 — Suresh: "As soon as we fire off any
+     search, it should display a line searching for… all i get is a
+     blank screen for 30+ seconds").
+
+     v0.68.1 shipped TWO fixes that cancelled each other and I did not
+     notice, because I tested them one at a time. The speed fix made
+     typing repaint only the query TEXT (brEcho) instead of the whole
+     page — right, and it stands. But "Searching…" lives in the GRID,
+     and the grid is only built by navigate(). So the one render that
+     would have drawn it was the render I had just removed: qbusy went
+     true, brBusy() lit the little dot in the bar, and the grid kept
+     the empty-query [] it was already showing. Thirty seconds of
+     nothing, exactly as reported.
+
+     One render HERE, when a search actually begins — after the 350ms
+     debounce, so it is once per query and not once per keystroke. The
+     per-keystroke win is untouched. */
+  brBusy(true);
+  if (S.screen) navigate(S.screen, true);
+  const want = (Array.isArray(B.qclasses) && B.qclasses.length)
+    ? B.qclasses : ["artist", "album", "track", "playlist"];
+  /* `capped` names the kinds that came back FULL — the well is deeper
+     than what's on screen, and saying so is the v0.62 no-silent-
+     truncation rule applied to search (his "It should show that there
+     are more, must be thousands!") */
+  const land = (items, capped) => {
+    if (seq !== B.qseq) return;             /* a later keystroke won */
+    B.qbusy = false;
+    brThumbs(items, () => {
+      if (seq !== B.qseq) return;
+      B.qres = { q: q, items: items, capped: capped || [] };
+      if (S.screen) navigate(S.screen, true);
+    });
+  };
+  const fail = msg => {
+    if (seq !== B.qseq) return;
+    B.qbusy = false; B.qres = { q: q, items: [] }; B.qerr = msg;
+    if (S.screen) navigate(S.screen, true);
+  };
+
+  /* ---- MA's own search: LOCAL FIRST, THEN THE WORLD ----
+     v0.68.3 — Suresh, still: "Still takes a long time for anything to
+     display… As soon as we fire off any search, it should display a
+     line searching for."
+
+     v0.68.1 split one four-kind call into one call per kind so the
+     first kind could paint alone. It helped, but every one of those
+     calls still had to go out to Spotify, so the floor was whatever
+     the slowest provider round-trip cost — tens of seconds on a bad
+     day. Measured on his box: the SAME query with `library_only: true`
+     comes back with his own ripped tracks essentially instantly.
+
+     So each kind is now asked TWICE: his library first (local, fast,
+     painted the moment it lands) and the providers second (slow,
+     merged in as they arrive). Deduped per kind by `uri`, which also
+     puts HIS music above the catalogue's — the right order anyway.
+     `capped` is judged on the provider wave only; the library wave is
+     not the deep well the note is about. */
+  if (B.qengine === "music_assistant" && B.qentry) {
+    const lim = B.qlimit || MA_SEARCH_LIMIT;
+    const acc = {}, seen = {}, capped = [];
+    let pending = want.length * 2, failed = 0;
+    const paint = () => {
+      const items = [];
+      want.forEach(c2 => {
+        if (acc[c2]) items.push.apply(items, acc[c2]);
+      });
+      B.qres = { q: q, items: items.slice(0, BROWSE_CAP), capped: capped };
+      if (S.screen) navigate(S.screen, true);
+    };
+    const wave = (cls, libraryOnly) => {
+      callServiceResp("music_assistant", "search", {
+        config_entry_id: B.qentry, name: q,
+        media_type: [MA_TYPE[cls] || cls], limit: lim,
+        library_only: !!libraryOnly,
+      }, null, m => {
+        if (seq !== B.qseq) return;             /* a later keystroke won */
+        pending--;
+        const fresh = [];
+        if (!m.success) { failed++; }
+        else {
+          const r = (m.result && m.result.response) || m.result || {};
+          const bucket = r[MA_BUCKET[cls] || cls];
+          if (Array.isArray(bucket)) {
+            if (!acc[cls]) { acc[cls] = []; seen[cls] = {}; }
+            bucket.forEach(o => {
+              if (!o || !o.uri || seen[cls][o.uri]) return;
+              seen[cls][o.uri] = 1;
+              const it = maItem(o, cls);
+              acc[cls].push(it); fresh.push(it);
+            });
+            if (!libraryOnly && bucket.length >= lim &&
+                capped.indexOf(cls) < 0) capped.push(cls);
+          }
+        }
+        if (!pending) { B.qbusy = false; brBusy(false); }
+        if (!pending && failed === want.length * 2)
+          return fail("Music Assistant didn't answer");
+        /* repaint when there is something new to show — or at the end,
+           so the "Searching…" line always gets cleared */
+        if (!fresh.length && pending) return;
+        brThumbs(fresh, () => { if (seq === B.qseq) paint(); });
+      });
+    };
+    want.forEach(cls => { wave(cls, true); wave(cls, false); });
+    return;
+  }
+
+  /* ---- the standard contract: any player, five deep ---- */
+  const msg = { type: "media_player/search_media", entity_id: mp,
+    search_query: q };
+  if (want.length) msg.media_filter_classes = want;
+  send(msg, m => {
+    if (seq !== B.qseq) return;
+    if (!m.success)
+      return fail((m.error && m.error.message) || "This player can't search");
+    /* HA's generic search caps at 5 per class and never says so —
+       declare `search.config_entry` to get MA's deeper answer */
+    const got = (((m.result || {}).result) || []).slice(0, BROWSE_CAP);
+    const cnt = {};
+    got.forEach(c => { const k = c.media_class || "item";
+      cnt[k] = (cnt[k] || 0) + 1; });
+    land(got, Object.keys(cnt).filter(k => cnt[k] >= 5));
+  });
+}
+let brQT = null;
+function brSearchSoon() {
+  clearTimeout(brQT);
+  brQT = setTimeout(() => brSearchRun(S.browse.q), TIMING.searchDebounce || 350);
+}
+/* TYPING MUST NOT REBUILD THE PAGE (v0.67.5 — Suresh: "Its a bit
+   slow"). Every keystroke was calling navigate(), which tears the grid
+   down, re-runs every generator, rebuilds up to 200 tiles, re-focuses,
+   repaints all states AND does an unsubscribe/subscribe round trip on
+   the socket. One more letter in the query changes NONE of that. So
+   when the only thing that moved is the text, repaint the text —
+   ~200 DOM nodes and a websocket exchange per keypress become one
+   assignment. Returns false if the line isn't on screen, so the
+   caller can fall back to a real render. */
+function brEcho() {
+  const B = S.browse;
+  const bar = document.getElementById("brbar");
+  const el = bar && bar.querySelector(".brqt");
+  if (!el) return false;
+  el.innerHTML = B.q ? esc(B.q)
+    : `<i class="brqp">${B.qkb ? "type to search…" : "tap to type…"}</i>`;
+  return true;
+}
+/* the busy dot lives in the DOM permanently now (hidden when idle) so
+   it can be toggled without a re-render */
+function brBusy(on) {
+  const bar = document.getElementById("brbar");
+  const el = bar && bar.querySelector(".brqs");
+  if (el) el.classList.toggle("hidden", !on);
+}
+/* every key the search bar can send: a character, ⌫, or clear */
+function brKey(ch) {
+  const B = S.browse;
+  if (!B.qon) return;
+  /* a filter or a drill-in that has to be dropped DOES change the
+     grid — that one needs the full render */
+  const gridMoves = !!B.qcat || B.sub.length > 0 || ch === "!";
+  if (ch === "<") B.q = B.q.slice(0, -1);
+  else if (ch === "!") { B.q = ""; B.qres = null; B.qerr = ""; }
+  else if (ch === "_") B.q += " ";
+  else B.q += ch;
+  B.qcat = "";
+  B.sub = [];                 /* a new query leaves any drill behind */
+  brSearchSoon();
+  if (gridMoves || !brEcho()) navigate(S.screen, true);
+}
+function brSearchToggle() {
+  const B = S.browse;
+  B.qon = !B.qon;
+  B.sub = [];
+  /* opening search always opens the keyboard — you came here to type */
+  if (B.qon) B.qkb = true;
+  else { B.q = ""; B.qres = null; B.qerr = ""; B.qcat = ""; }
+  navigate(S.screen, true);
+}
+/* the query line IS the keyboard's switch (v0.67.2) */
+function brKbToggle() {
+  S.browse.qkb = !S.browse.qkb;
+  navigate(S.screen, true);
+}
+
+/* the synthetic first chip: every category at once, unsliced */
+const BR_ALL = {
+  title: "All", media_content_id: "__all", media_content_type: "__brall",
+  media_class: "directory", can_expand: true, can_play: false,
 };
 
 /* a PURE DIRECTORY — expandable, not playable. Bands are built from
@@ -1642,7 +2838,7 @@ const brSame = (c, sel) => !!sel && c.media_content_id === sel.id &&
    root children have an EMPTY media_content_id (v0.49.1): an empty
    id is NOT the root; only a null node is. */
 function browseKey(mp, node) {
-  return mp + "|" + (node ? (node.type || "") + ":" + (node.id ?? "") : "");
+  return mp + "|" + (node ? (node.type || "") + ":" + (node.id != null ? node.id : "") : "");
 }
 
 function browseFetch(mp, node) {
@@ -1651,7 +2847,7 @@ function browseFetch(mp, node) {
   S.browse.busy[key] = true;
   const msg = { type: "media_player/browse_media", entity_id: mp };
   if (node) {
-    msg.media_content_id = node.id ?? "";
+    msg.media_content_id = node.id != null ? node.id : "";
     msg.media_content_type = node.type;
   }
   send(msg, m => {
@@ -1665,27 +2861,19 @@ function browseFetch(mp, node) {
       return;
     }
     const r = m.result || {};
-    const kids = (r.children || []).slice(0, 200);
-    /* thumbnails: HA-relative paths need auth/sign_path (exactly what
-       the HA frontend does); absolute URLs pass straight through */
-    let waiting = 0;
-    const done = () => {
-      S.browse.nodes[key] = { title: r.title, children: kids };
+    /* NO SILENT TRUNCATION (v0.62): the cap has always been here; what
+       was missing was saying so. `more` counts what this node holds
+       and we don't show — our own slice plus whatever HA already
+       withheld (not_shown) — and mkItems prints a final row. */
+    const all = r.children || [];
+    const kids = all.slice(0, BROWSE_CAP);
+    const more = (all.length - kids.length) + (r.not_shown || 0);
+    /* thumbnails via brThumbs (v0.67.3 — the same pass search now
+       uses; it was inline here and search had none at all) */
+    brThumbs(kids, () => {
+      S.browse.nodes[key] = { title: r.title, children: kids, more: more };
       if (S.screen) navigate(S.screen, true);
-    };
-    kids.forEach(c => {
-      const t = c.thumbnail;
-      if (!t) return;
-      if (!t.startsWith("/")) { c._thumb = t; return; }
-      if (S.browse.signed[t]) { c._thumb = S.browse.signed[t]; return; }
-      waiting++;
-      send({ type: "auth/sign_path", path: t }, sm => {
-        if (sm.success && sm.result && sm.result.path)
-          c._thumb = S.browse.signed[t] = sm.result.path;
-        if (--waiting === 0) done();
-      });
     });
-    if (!waiting) done();
   });
 }
 
@@ -1703,6 +2891,21 @@ function brSelCat(c) {
 function brStepCat(dir) {
   const ui = S.browse.ui;
   if (!ui || !ui.cats || ui.cats.length < 2) return false;
+  /* the placeholder strip drawn before an answer exists (v0.68.1) is a
+     LABEL, not a control — CH▲▼ and swipe must not step it */
+  if (ui.cats.some(c => c.disabled)) return false;
+  /* SEARCH CHIPS STEP TOO (v0.68.1): in search mode the strip filters
+     results by media_class and the selection lives in `qcat`, so the
+     tree's root/cat refs never matched and CH▲▼ silently did nothing */
+  if (S.browse.qon) {
+    const cats = ui.cats;
+    const at = cats.findIndex(c => (c.qclass || "") === (S.browse.qcat || ""));
+    const nx = cats[((at < 0 ? 0 : at) + dir + cats.length) % cats.length];
+    S.browse.qcat = nx.qclass || "";
+    flashBar(nx.title);
+    navigate(S.screen, true);
+    return true;
+  }
   const cur = ui.flat ? S.browse.root : S.browse.cat;
   const i = ui.cats.findIndex(c => brSame(c, cur));
   const n = ui.cats[((i < 0 ? 0 : i) + dir + ui.cats.length) % ui.cats.length];
@@ -1735,7 +2938,13 @@ function browseBar() {
      selection and the roots row shrinks to the section's own tiles
      (Pull Music Here) — or disappears entirely. */
   let html = "";
-  if (B.barTiles.length || B.ui.roots.length) {
+  /* A CONTROL WITH ONE OPTION IS NOT A CONTROL (v0.62 — Suresh, of
+     the lone Sonos "Favorites" badge: "What does the favorite icon at
+     the top do?"). Nothing: it selects the only root there is, because
+     the other eight are media-source:// and hidden. So the row only
+     renders when it carries a real choice — or a tile of its own. It
+     comes back by itself the moment a second root exists. */
+  if (B.barTiles.length || B.ui.roots.length > 1) {
     html += `<div class="brrow">`;
     B.barTiles.forEach((t, i) => {
       html += `<button class="brroot" data-brt="${i}">` +
@@ -1749,10 +2958,61 @@ function browseBar() {
     });
     html += `</div>`;
   }
-  if (B.ui.cats) {
+  /* SEARCH (v0.65): the query line + keyboard sit ABOVE the chips, so
+     the chips keep meaning "which slice of what I'm looking at" in
+     both modes — categories while browsing, result KINDS while
+     searching. */
+  if (B.qon) {
+    const shown = B.q ? esc(B.q)
+      : `<i class="brqp">${B.qkb ? "type to search…" : "tap to type…"}</i>`;
+    /* THE LINE IS THE SWITCH (v0.67.2): tapping anywhere on the query
+       line that isn't ⌫ or ✕ raises/lowers the keyboard. The trailing
+       chevron button says so out loud for anyone who wouldn't guess. */
+    html += `<div class="brq" data-brkb="1">` +
+      `<span class="material-symbols-outlined brqi">search</span>` +
+      `<span class="brqt">${shown}</span>` +
+      `<span class="brqs${B.qbusy ? "" : " hidden"}">…</span>` +
+      `<button class="brqb" data-brk="&lt;" title="Backspace">⌫</button>` +
+      /* clear-text only exists while there IS text — so the ✕ next to
+         the close button is never ambiguous (v0.68.1) */
+      (B.q ? `<button class="brqb" data-brk="!" title="Clear">✕</button>` : "") +
+      `<button class="brqb brqk" data-brkb="1" title="${
+        B.qkb ? "Hide keyboard" : "Show keyboard"}">` +
+      `<span class="material-symbols-outlined">${
+        B.qkb ? "keyboard_hide" : "keyboard"}</span></button>` +
+      /* LEAVING SEARCH NEEDS A DOOR (v0.68.1 — Suresh: "Clicking the
+         magnifying glass takes me out of search mode, but its not
+         obvious. Maybe we have a close icon after the keyboard icon").
+         The magnifier chip still toggles; this is the obvious way. */
+      `<button class="brqb brqx" data-brqx="1" title="Close search">` +
+      `<span class="material-symbols-outlined">close</span></button></div>`;
+    if (B.qkb)
+      html += `<div class="brkb">` + KB_ROWS.map(r =>
+        `<div class="brkr">` + r.split("").map(ch =>
+          `<button class="brk" data-brk="${ch}">${ch}</button>`).join("") + `</div>`
+      ).join("") +
+        `<div class="brkr"><button class="brk brksp" data-brk="_">space</button></div>` +
+        `</div>`;
+  }
+  if (B.ui.cats || B.qmp) {
     const sel = B.ui.flat ? B.root : B.cat;
-    html += `<div class="brchips">` + B.ui.cats.map((c, i) =>
-      `<button class="brchip${brSame(c, sel) ? " on" : ""}" data-brc="${i}">${c.title}</button>`
+    /* WHICH CHIP AM I ON? (v0.67.5 — Suresh: "when I click a tab like
+       Tracks in search mode, that should highlight"). The tree's chips
+       are compared by media id; the SEARCH chips are synthetic and the
+       selection lives in `qcat` (a media_class), so brSame() looked at
+       B.cat — never set in search mode — and nothing ever lit up. */
+    const onChip = c => B.qon
+      ? (c.qclass || "") === (B.qcat || "")
+      : brSame(c, sel);
+    html += `<div class="brchips">`;
+    /* the magnifier is a CHIP: the strip is already where you choose
+       what you're looking at, and a lone root row may not exist */
+    if (B.qmp)
+      html += `<button class="brchip brchipq${B.qon ? " on" : ""}" data-brq="1"` +
+        ` title="Search the library"><span class="material-symbols-outlined">search</span></button>`;
+    html += (B.ui.cats || []).map((c, i) =>
+      `<button class="brchip${onChip(c) ? " on" : ""}" data-brc="${i}"${
+        c.disabled ? " disabled" : ""}>${c.title}</button>`
     ).join("") + `</div>`;
   }
   bar.innerHTML = html;
@@ -1775,8 +3035,21 @@ function browseBar() {
   bar.querySelectorAll("[data-brc]").forEach(b =>
     b.addEventListener("click", () => {
       const c = B.ui.cats[+b.dataset.brc];
+      /* in search mode the chips filter the RESULTS by media_class */
+      if (B.qon) { B.qcat = c.qclass || ""; navigate(S.screen, true); return; }
       if (B.ui.flat) brSelRoot(c); else brSelCat(c);
     }));
+  bar.querySelectorAll("[data-brq]").forEach(b =>
+    b.addEventListener("click", brSearchToggle));
+  bar.querySelectorAll("[data-brk]").forEach(b =>
+    b.addEventListener("click", ev => {
+      ev.stopPropagation();       /* ⌫/✕ sit INSIDE the toggling line */
+      brKey(b.dataset.brk);
+    }));
+  bar.querySelectorAll("[data-brkb]").forEach(b =>
+    b.addEventListener("click", ev => { ev.stopPropagation(); brKbToggle(); }));
+  bar.querySelectorAll("[data-brqx]").forEach(b =>
+    b.addEventListener("click", ev => { ev.stopPropagation(); brSearchToggle(); }));
   /* horizontal SWIPE on the grid steps categories (touch) */
   if (!browseBar._swipe) {
     browseBar._swipe = true;
@@ -2146,22 +3419,22 @@ function keysScreen() {
 /* stepper bindings: one adjustable range per kind */
 const STEP_KINDS = {
   temperature: {
-    get: e => st(e).a.temperature, fmt: v => (v ?? "–") + "°", step: 1,
+    get: e => st(e).a.temperature, fmt: v => (v != null ? v : "–") + "°", step: 1,
     set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
   },
   brightness: {
     get: e => st(e).s === "on" ? Math.round((st(e).a.brightness || 0) / 2.55) : 0,
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("light", "turn_on", { brightness_pct: v }, e)
   },
   volume: {
     get: e => Math.round((st(e).a.volume_level || 0) * 100),
-    fmt: v => (v ?? 0) + "%", step: 3, min: 0, max: 100, slider: "h",
+    fmt: v => (v != null ? v : 0) + "%", step: 3, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("media_player", "volume_set", { volume_level: v / 100 }, e)
   },
   percentage: {
-    get: e => st(e).a.percentage ?? 0,
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    get: e => { const p = st(e).a.percentage; return p != null ? p : 0; },
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
   },
   position: {
@@ -2169,10 +3442,10 @@ const STEP_KINDS = {
        retracted projector screen reads 0%. get/set both invert, so
        slider, −/+, and VOL stay coherent; cover SERVICES never invert. */
     get: e => {
-      const p = st(e).a.current_position ?? 0;
+      const cp = st(e).a.current_position; const p = cp != null ? cp : 0;
       return entOpt(e, "invert_position") ? 100 - p : p;
     },
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "v",
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "v",
     set: (e, v) => callService("cover", "set_cover_position",
       { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
   }
@@ -2197,7 +3470,11 @@ const CHIP_KINDS = {
   source: { options: e => st(e).a.source_list, current: e => st(e).a.source,
     set: (e, v) => callService("media_player", "select_source", { source: v }, e) },
   effect: { options: e => st(e).a.effect_list, current: e => st(e).a.effect,
-    set: (e, v) => callService("light", "turn_on", { effect: v }, e) }
+    set: (e, v) => callService("light", "turn_on", { effect: v }, e) },
+  /* v0.57: receivers publish listening modes — MultiChannel Stereo on
+     the Onkyo's own page beats bouncing it through Harmony IR */
+  sound_mode: { options: e => st(e).a.sound_mode_list, current: e => st(e).a.sound_mode,
+    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) }
 };
 function cycleChip(e, t, dir) {
   const k = CHIP_KINDS[t.kind], opts = (k && k.options(e)) || [];
@@ -2218,12 +3495,12 @@ function roveBtns(t, attr) {
 function roveMove(t, attr, d) {
   const [el, btns] = roveBtns(t, attr);
   if (!btns.length) return;
-  el._ci = ((el._ci ?? 1) + d + btns.length) % btns.length;
+  el._ci = ((el._ci != null ? el._ci : 1) + d + btns.length) % btns.length;
   btns.forEach((b, i) => b.classList.toggle("cvsel", i === el._ci));
 }
 function rovePick(t, attr) {
   const [el, btns] = roveBtns(t, attr);
-  return btns.length ? btns[el._ci ?? 1].dataset[attr] : null;
+  return btns.length ? btns[el._ci != null ? el._ci : 1].dataset[attr] : null;
 }
 
 /* per-domain detail composition (chips with no options self-hide).
@@ -2247,7 +3524,8 @@ const DETAIL_TILES = {
     { id: "dp", type: "power", entity: e, label: "", span: 2 },
     { id: "dt", type: "transport", entity: e, label: "", span: 2 },
     { id: "ds", type: "stepper", kind: "volume", entity: e, icon: "material:volume_up", label: "", span: 2 },
-    { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 }
+    { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 },
+    { id: "dsnd", type: "chips", kind: "sound_mode", entity: e, icon: "material:graphic_eq", label: "", span: 2 }
   ],
   cover: e => [
     { id: "dc", type: "coverbtns", entity: e, label: "", span: 2 },
@@ -2320,6 +3598,37 @@ function sourcesScreen(eid) {
   };
 }
 
+/* GROUPS (v0.60): navigate("group:<id>") renders one group from the
+   running activity's cast — its members, each drawn as `shows`. It is
+   the SAME mechanism as Devices > Add Nav Card; the only variable is
+   what the children render as, which is the whole insight (Suresh:
+   "Maybe that is TYPE").
+
+   Virtual, so a shared controller carries one groups generator and
+   every room gets its own cards for free. A group with an explicit
+   `target` never reaches here — the nav card goes straight to the
+   authored page, which then owns everything on it. */
+function groupScreen(gid) {
+  /* v0.61: presumed too — a group page reached with nothing running
+     fills in from the surface its card was on */
+  const aid = renderActivityId();
+  const act = aid && (CONFIG.activities || {})[aid];
+  if (!act) return null;
+  const g = castGroup(act, gid);
+  if (!g) return null;
+  const shows = g.shows || "device";
+  const tiles = (g.members || [])
+    .map(did => groupChildTile(did, shows, "g_" + gid))
+    .filter(Boolean);
+  if (!tiles.length) return null;
+  return {
+    name: (act.name ? act.name + " · " : "") + (g.name || gid),
+    virtual: true,
+    grid: { columns: (g.grid && g.grid.columns) || 1 },
+    tiles
+  };
+}
+
 /* screen id resolution: config screens + virtual detail screens +
    LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
    shared control surfaces; the active activity's context overlay
@@ -2333,6 +3642,8 @@ function screenOf(id) {
     return queueScreen(id.slice(6));
   if (id === "keys:")           /* key capture (v0.55) */
     return keysScreen();
+  if (typeof id === "string" && id.startsWith("group:"))
+    return groupScreen(id.slice(6));   /* a cast group (v0.60) */
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
@@ -2402,7 +3713,7 @@ WIDGETS.fan = {
       : s.a.preset_mode ? " · " + s.a.preset_mode : "");
   },
   isOn: e => st(e).s === "on",
-  meter: e => (st(e).a.percentage ?? 0) / 100,
+  meter: e => { const p = st(e).a.percentage; return (p != null ? p : 0) / 100; },
   select: e => callService("fan", "toggle", null, e),
   detailable: true,
   holdCapture: true, captureHint: "▲▼ speed · back releases",
@@ -2425,32 +3736,71 @@ WIDGETS.script = {
      image   — photo tile (the old `room`)
      summary — live "<n> entities · <k> active" derived from the
                target page's tiles (the old `group`)
-     auto    — resolved at render: tile has an image → image; target
-               page is a room → image; target page has entities →
-               summary; else plain.
+     auto    — resolved at render: a picture to show → image; target
+               page has entities → summary; else plain.
    Doctrine (2026-07-23): groups are just views; the tile that points
    at one is a nav card. Tap = go there — the target page owns all
    behaviour. */
-function navStyle(t) {
-  if (t.style && t.style !== "auto") return t.style;
-  if (t.image) return "image";
+/* THE PICTURE A ROOM CARD SHOWS (v0.67.2 — Suresh: "I added a nav
+   tile to Bar. Not rendering properly."): `auto` used to pick the
+   IMAGE style for any card pointing at a room, picture or no picture,
+   so a card without `image` rendered <img src=""> — a broken-image
+   glyph in a photo-shaped tile. A room already declares its picture
+   once, in its banner: BORROW it rather than make the author paste
+   the same path twice, and only wear the photo shape when there is
+   actually a photo. */
+function navImage(t) {
+  if (t.image) return t.image;
   const sc = t.target ? screenOf(t.target) : null;
-  if (sc && sc.room) return "image";
+  const b = sc && sc.banner;
+  if (b && b.enabled !== false && b.image) return b.image;
+  return "";
+}
+function navStyle(t) {
+  /* an explicit image: with nothing to show is still a broken image —
+     fall through to the ladder rather than render void */
+  if (t.style && t.style !== "auto" &&
+      !(t.style === "image" && !navImage(t))) return t.style;
+  if (navImage(t)) return "image";
   if (navTargetEntities(t).length) return "summary";
   return "plain";
 }
 /* summary entities: the explicit list, else DERIVED live from the
    target page's tiles — one source of truth, no baked duplicates */
+let _navDepth = 0;
 function navTargetEntities(t) {
   if (Array.isArray(t.entities) && t.entities.length) return t.entities;
   if (!t.target) return [];
   const sc = screenOf(t.target);
   if (!sc) return [];
-  return rawTilesOf(sc).map(x => x.entity)
+  /* SEE THROUGH GENERATORS (v0.57.1): a zones view whose volumes come
+     from a `volumes` tile has no raw .entity to read, so the summary
+     used to report "0 entities · 0 active" and `auto` fell back to
+     plain. Expand instead — but STAND ON THE TARGET while doing it,
+     because generators resolve $context against S.screen and would
+     otherwise answer for the wrong room. Depth-guarded: a target that
+     carries a nav card pointing back here must not recurse. */
+  let tiles;
+  if (_navDepth) {
+    tiles = rawTilesOf(sc);
+  } else {
+    const prev = S.screen;
+    _navDepth++;
+    try { S.screen = t.target; tiles = tilesOf(sc); }
+    catch (err) { tiles = rawTilesOf(sc); }
+    finally { S.screen = prev; _navDepth--; }
+  }
+  return tiles.map(x => x.entity)
     .filter(e => typeof e === "string" && e.includes("."));
 }
 
 WIDGETS.nav = {
+  /* v0.57.1: opt-in — a summary card that summarises NOTHING is
+     chrome. Lets the shared controllers carry a "Zones" card that
+     simply is not there in a room with a single volume. Opt-in so no
+     existing card changes behaviour. */
+  hidden: (e, t) => !!t.hide_when_empty && navStyle(t) === "summary" &&
+    !navTargetEntities(t).length,
   sub: (e, t) => {
     if (navStyle(t) !== "summary") return (t && t.sub) || "";
     const ents = navTargetEntities(t);
@@ -2460,7 +3810,7 @@ WIDGETS.nav = {
   isOn: (e, t) =>
     navStyle(t) === "summary" && navTargetEntities(t).some(x => ACTIVE(st(x).s)),
   body: t => navStyle(t) === "image"
-    ? `<img class="roomimg" src="${t.image || ""}" alt="">`
+    ? `<img class="roomimg" src="${navImage(t)}" alt="">`
     : `<div class="meter hidden"><i></i></div>`,
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
@@ -2513,6 +3863,10 @@ WIDGETS.transport = {
        screen has no dpad_passthrough, so the row IS the transport),
        select presses the highlighted control (default play-pause). */
     sub: () => "",
+    /* v0.57: an AV receiver has no transport — drawing prev/play/next
+       on one is a lie, not a control. Onkyo TX-NR6100 reports 69516:
+       volume, power, source, sound mode, and nothing to press here. */
+    hidden: e => !!e && !sfHas(e, MPF.PAUSE | MPF.PLAY | MPF.NEXT | MPF.PREV | MPF.STOP),
     isOn: e => st(e).s === "playing",
     keys: {
       left:  (e, t) => roveMove(t, "tr", -1),
@@ -2603,9 +3957,13 @@ WIDGETS.buttons = {
          end (with the standard confirm) when it's running, start (the
          full generated sequence) when it isn't. Raw device power is
          what the PHYSICAL short-press power policy is for; pages with
-         no current activity keep the old device fallback. */
+         no current activity keep the old device fallback.
+         v0.61: the PRESUMED activity counts here — the page you are
+         looking at is drawn as that activity, so the power button on
+         it starts that activity. Suresh's own sentence: "I can always
+         hit the power button to turn it on!" */
       if (k === "power") {
-        const aid = currentActivityId();
+        const aid = renderActivityId();
         const a = aid && (CONFIG.activities || {})[aid];
         if (a) {
           if (isActivityActive(aid)) { endCurrentActivity(); renderStates(); }
@@ -2627,7 +3985,13 @@ WIDGETS.buttons = {
 WIDGETS.activity = {
     sub: (e, t) => {
       if (S.confirmTile === t.id) return "Press again to end";
-      return isActActive(t) ? "On · press to open" : "Off · press to start";
+      /* v0.58 (Suresh: "when it\'s on, a hint — we have the room"):
+         the ON line used to advertise only how to OPEN the activity,
+         leaving the END gesture undiscoverable. `hold` has always
+         called requestEnd; now the tile says so. */
+      return isActActive(t)
+        ? "On · press to open · hold to end"
+        : "Off · press to start";
     },
     isOn: (e, t) => isActActive(t),
     select: (e, t) => {
@@ -2656,7 +4020,7 @@ WIDGETS.activity = {
 WIDGETS.climate = {
     sub: e => {
       const a = st(e).a;
-      return `${cap(st(e).s)} · now ${a.current_temperature ?? "–"}° → set ${a.temperature ?? "–"}°`;
+      return `${cap(st(e).s)} · now ${a.current_temperature != null ? a.current_temperature : "–"}° → set ${a.temperature != null ? a.temperature : "–"}°`;
     },
     isOn: e => st(e).s !== "off",
     detailable: true,
@@ -2775,13 +4139,55 @@ WIDGETS.volume = {
       select: e => callService("media_player", "volume_mute",
         { is_volume_muted: !st(e).a.is_volume_muted }, e)
     },
-    body: () => `<div class="volrow">
+    /* SLIDER TREATMENT (v0.57): the same fat .sldr track the stepper
+       draws, so a screen full of zone volumes reads as ONE control
+       repeated rather than two unrelated widgets. Opt in per tile
+       (slider: true) or house-wide via global.style.volume. */
+    body: t => (t && t.slider ? `<div class="sldr"><i></i></div>` : "") +
+      `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
       <div class="meter"><i></i></div>
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
     </div>`,
-    wire: (el, t) => wireTaps(el, "vol", d =>
-      callService("media_player", "volume_" + d, null, resolveEntity(t.entity)))
+    wire: (el, t) => {
+      wireTaps(el, "vol", d =>
+        callService("media_player", "volume_" + d, null, resolveEntity(t.entity)));
+      const sl = el.querySelector(".sldr");
+      if (!sl) return;
+      /* drag/tap → volume_set on the COMMAND entity (never level_entity:
+         an ARC pair reports on the soundbar but is driven at the TV).
+         Optimistic fill, throttled calls, final on release — same
+         contract as the stepper so the two feel identical. */
+      const apply = (ev, final) => {
+        const r = sl.getBoundingClientRect();
+        let f = (ev.clientX - r.left) / r.width;
+        f = Math.max(0, Math.min(1, f));
+        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        const now = Date.now();
+        if ((final || now - (sl._t || 0) > 150) && f !== sl._lastF) {
+          sl._t = now; sl._lastF = f;
+          callService("media_player", "volume_set",
+            { volume_level: Math.round(f * 100) / 100 }, resolveEntity(t.entity));
+        }
+      };
+      sl.addEventListener("click", ev => ev.stopPropagation());
+      sl.addEventListener("pointerdown", ev => {
+        ev.stopPropagation();
+        if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId);
+        sl._drag = true; apply(ev, false);
+      });
+      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
+      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
+      sl.addEventListener("pointerup", end);
+      sl.addEventListener("pointercancel", end);
+    },
+    /* keep the track in step with HA while not dragging */
+    render: (el, e, t) => {
+      const sl = el.querySelector(".sldr");
+      if (!sl || sl._drag || !e) return;
+      const l = st(lvlEnt(e, t)).a.volume_level;
+      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+    }
   };
 
 /* POWER toggle — standalone round homeassistant.toggle button (also
@@ -2818,7 +4224,7 @@ WIDGETS.cover = {
       return entOpt(e, "invert_position") ? s === "closed" : s === "open";
     },
     meter: e => {
-      const p = st(e).a.current_position ?? 0;
+      const cp = st(e).a.current_position; const p = cp != null ? cp : 0;
       return (entOpt(e, "invert_position") ? 100 - p : p) / 100;
     },
     select: e => callService("cover", "toggle", null, e),
@@ -2850,6 +4256,13 @@ WIDGETS.coverbtns = {
 /* STEPPER — the − value + row (brightness, setpoint, position,
    percentage…); kind picks entity attribute + service. */
 WIDGETS.stepper = {
+    /* v0.58: a stepper for a range the device does not expose is a lie
+       that reads 0% forever — the Fire TV reports 22961 (no VOLUME_SET
+       / STEP / MUTE), so its generated detail page drew a dead volume
+       control. Only the volume kind has a feature bit to check; the
+       rest are gated by their own attributes elsewhere. */
+    hidden: (e, t) => !!e && t.kind === "volume" &&
+      !sfHas(e, MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
     /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
        Kinds with a bounded 0-100 range also get a fat slider track
        (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
@@ -2885,7 +4298,7 @@ WIDGETS.stepper = {
         f = Math.max(0, Math.min(1, f));
         sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";
-        const min = k.min ?? 0, max = k.max ?? 100;
+        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const v = Math.round(min + f * (max - min));
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
@@ -2911,7 +4324,7 @@ WIDGETS.stepper = {
       el.querySelector(".stepval").textContent = k ? k.fmt(k.get(e)) : "–";
       const sl = el.querySelector(".sldr");
       if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
-        const min = k.min ?? 0, max = k.max ?? 100;
+        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
         sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";
@@ -2922,6 +4335,10 @@ WIDGETS.stepper = {
 /* CHIPS row — one-tap choice pills for an entity attribute list
    (hvac_mode, fan_mode, preset, effect …); kind picks the recipe. */
 WIDGETS.chips = {
+  /* v0.57: a chips row with nothing to choose is chrome — hide it.
+     This is what keeps the new sound_mode row off every media_player
+     that has no sound_mode_list, with no per-domain special-casing. */
+  hidden: (e, t) => !!e && !chipOptions(e, t.kind).length,
     /* option pills from a CHIP_KINDS binding (t.kind); options are
        read from entity attributes each render, so they track the
        device. Tile self-hides when the entity offers no options.
@@ -2937,7 +4354,7 @@ WIDGETS.chips = {
     render(el, e, t) {
       const k = CHIP_KINDS[t.kind];
       if (!k) return;
-      const opts = k.options(e) || [];
+      const opts = chipOptions(e, t.kind);
       el.classList.toggle("hidden", !opts.length);
       const row = el.querySelector(".chiprow");
       const sig = JSON.stringify(opts);
@@ -3083,6 +4500,8 @@ WIDGETS.device = {
    hides itself (hide-unwired doctrine). The sub line shows the
    CURRENT input, so the tile doubles as a status readout. */
 WIDGETS.sources = {
+  /* v0.57: no SELECT_SOURCE on the device -> no input picker to open */
+  hidden: e => !!e && !sfHas(e, MPF.SELECT_SOURCE),
   sub: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
     return (mp && st(mp).a.source) || "";
@@ -3132,6 +4551,43 @@ WIDGETS.kslot = {
     keycapAssign(t.slot);
   },
 };
+
+/* HA MediaPlayerEntityFeature bits used for self-suppression */
+const MPF = {
+  PAUSE: 1, VOLUME_SET: 4, VOLUME_MUTE: 8, PREV: 16, NEXT: 32,
+  SELECT_SOURCE: 2048, STOP: 4096, PLAY: 16384, SELECT_SOUND_MODE: 65536
+};
+/* CAPABILITY IS STICKY (v0.60 — Suresh: "I never want to see a blank
+   panel. I should always see the page. Its up to me to turn it on if
+   its off"). v0.57 gated widgets on the LIVE supported_features, which
+   quietly conflated two different facts:
+     capability   — this box has no transport, ever            -> hide
+     availability — this box is asleep right now               -> SHOW
+   Plenty of integrations report a thinner mask while a device is off,
+   so the live read turned "asleep" into "incapable" and emptied the
+   page. We therefore remember the RICHEST mask an entity has ever
+   published and gate on that: capability only ever grows, so a
+   sleeping receiver keeps every control it owns. */
+const SF_SEEN = {};
+function sfHas(e, mask) {
+  if (!e) return true;
+  const sf = st(e).a.supported_features;
+  if (sf != null) SF_SEEN[e] = (SF_SEEN[e] || 0) | sf;
+  const known = SF_SEEN[e];
+  return known == null ? true : !!(known & mask);   /* never seen -> assume yes */
+}
+/* same rule for attribute-driven option lists: an off receiver drops
+   sound_mode_list, and a chips row that vanishes on standby is the
+   blank panel by another route. Remember the last non-empty list. */
+const OPT_SEEN = {};
+function chipOptions(e, kind) {
+  const k = CHIP_KINDS[kind];
+  if (!k || !e) return [];
+  const cur = k.options(e) || [];
+  const key = e + "|" + kind;
+  if (cur.length) { OPT_SEEN[key] = cur; return cur; }
+  return OPT_SEEN[key] || [];
+}
 
 /* Shared widget helpers — remote-command resolution (DPAD_DEFAULT <
    tile commands < activity dpad_commands), icon map, nudge steppers
@@ -3274,7 +4730,13 @@ function updateSpy() {
   const top = grid.getBoundingClientRect().top + 48;
   let active = 0;
   js.forEach((j, i) => { if (j.anchorEl.getBoundingClientRect().top <= top) active = i; });
-  if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4)
+  /* the bottom rule only means something on a page that SCROLLS
+     (v0.68): when everything fits — common once a wide panel lays the
+     same tiles out in 5 columns — scrollHeight === clientHeight, so
+     this fired at rest and lit the LAST section while you were looking
+     at the first. Latent on a 480 panel, where pages usually overflow. */
+  if (grid.scrollHeight > grid.clientHeight + 4 &&
+      grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4)
     active = js.length - 1;             // scrolled to bottom → last section
   js.forEach((j, i) => j.btn && j.btn.classList.toggle("active", i === active));
 }
@@ -3318,10 +4780,85 @@ function scheduleFit() {
 }
 window.addEventListener("resize", () => scheduleFit());
 
-function makeTile(t, row) {
+/* ================================================================
+   WIDE LAYOUT (v0.68). The rule in one sentence: a screen's declared
+   `columns` is a statement about how big a TILE is, not a count to
+   obey at every width.
+
+   THE HARDWARE is the reference, not the old 520 cap: the Astrion and
+   the Haptique are 480 wide, so that is the width every tile size in
+   this config was actually judged at. 480 minus 24px of grid padding
+   and a 10px gap is 223px per tile in a 2-column grid — the size the
+   whole design is tuned to and the size a fingertip expects. Hand that
+   same tile size a 1280-wide tablet and you get 5 columns: identical
+   physical tiles, more of them. A room page (declared `columns: 1`,
+   tiles ~456px) becomes 2 columns of rows — exactly the landscape
+   layout that was previously unsayable.
+
+   Using 520 here instead costs real quality at 1024: a room page lands
+   one pixel-pair short of two columns and renders a single 1000px row.
+   Measured, not guessed.
+
+   Nothing here runs unless html.wide is set, so compact panels — both
+   remotes, every phone, any window under the gate — take the original
+   path and render byte-identically.
+
+   Why the count is computed here and not by CSS `auto-fill`: (1)
+   `minmax(0, 1fr)` has to survive or a long label bursts the viewport
+   (v0.27), and auto-fill needs a real px minimum instead; (2) the span
+   rule below needs to KNOW the count. */
+const REF_W = 480;        /* the panel this layout was authored on */
+const GRID_PAD = 24;      /* #grid padding, both sides */
+const GRID_GAP = 10;      /* --grid-gap default */
+const MAX_COLS = 12;      /* a 4K monitor is not an invitation */
+function isWide() { return document.documentElement.classList.contains("wide"); }
+/* the tile size a declared column count implies at the reference
+   width — or an explicit `tile_width`, which always wins */
+function tileWidthOf(cols, declared) {
+  const w = +declared;
+  if (w > 0) return w;
+  return (REF_W - GRID_PAD - (cols - 1) * GRID_GAP) / Math.max(1, cols);
+}
+/* the CONTENT width a grid has to fill — the viewport less padding,
+   or the declared cap, whichever is smaller */
+function usableWidth(maxW) {
+  const vw = (window.innerWidth || REF_W) - GRID_PAD;
+  return maxW > 0 ? Math.min(maxW, vw) : vw;
+}
+function colsFor(cols, declaredTileW, usable) {
+  if (!isWide()) return cols;
+  const tw = tileWidthOf(cols, declaredTileW);
+  const u = usable || usableWidth(0);
+  const n = Math.floor((u + GRID_GAP) / (tw + GRID_GAP));
+  return Math.max(cols, Math.min(n, MAX_COLS));
+}
+/* SPAN IS A PROPORTION, NOT A COUNT (v0.68). `span: 2` was authored in
+   a 2-column world, where it plainly meant "the whole row" — 39 tiles
+   in the live config say so. Read literally at 5 columns it would mean
+   "two fifths", which nobody wrote. So a span scales: span N of a
+   declared C covers the same FRACTION of the real count, and N >= C
+   means full width at any size. span 1 is never scaled — an ordinary
+   tile is one column everywhere. */
+function spanOf(t, declaredCols, actualCols) {
+  const n = +t.span;
+  if (!(n >= 2)) return 1;
+  if (!isWide() || actualCols === declaredCols) return Math.min(n, actualCols);
+  if (n >= declaredCols) return actualCols;              /* was full width */
+  return Math.max(2, Math.min(actualCols,
+    Math.round(n / declaredCols * actualCols)));
+}
+function makeTile(t, row, spanCols) {
   const el = document.createElement("div");
-  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && +t.span === 2 ? " span2" : "") +
-    (t.color ? " tacc" : "") + (t.brw ? " brw" : "");
+  const sp = spanCols || 1;
+  el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && sp === 2 ? " span2" : "") +
+    (t.color ? " tacc" : "") + (t.brw ? " brw" : "") +
+    /* chassis-level class passthrough (v0.68.1): a generator that needs
+       one specific look — the search "Searching…" line — says so once
+       instead of earning a widget type */
+    (typeof t.cls === "string" && /^[\w -]+$/.test(t.cls) ? " " + t.cls : "");
+  /* .span2 carries the common case in CSS so compact output is
+     unchanged; any other width is stated inline */
+  if (!row && sp > 2) el.style.gridColumn = "span " + sp;
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */
@@ -3339,6 +4876,15 @@ function makeTile(t, row) {
     : `<div class="top">${iconHtml(t, false)}<span class="lbl">${t.label}</span>${
         inline ? '<span class="sub subin"></span>' : ""}</div>
        ${inline ? "" : '<div class="sub"></div>'}${extra}<div class="hint"></div>`;
+  /* CORNER BADGE (v0.62): a tiny mark naming what a tile IS, for grids
+     that MIX kinds — the browse "All" view sets it, and nothing else
+     does yet. Chassis level, so any tile may declare one. */
+  if (typeof t.badge === "string" && t.badge.startsWith("material:")) {
+    const bd = document.createElement("span");
+    bd.className = "bdg material-symbols-outlined";
+    bd.textContent = t.badge.slice(9);
+    el.appendChild(bd);
+  }
   el.addEventListener("click", () => {
     if (el._heldFired) { el._heldFired = false; return; }
     setFocus(t.id); act("select");
@@ -3368,9 +4914,17 @@ function makeTile(t, row) {
      set trailing: false in config to suppress it. */
   const trailing = trailingOf(t);
   if (trailing) {
+    /* PROMINENCE IS DECLARED (v0.68.1 — Suresh, of the library button
+       on Now Playing: "Lets try inverting the library launch button,
+       to make it more prominent. And give it just a little more
+       width."). A trail is a chassis slot used by every device tile's
+       quiet ⚙ chevron, so inverting THE class would shout everywhere.
+       `trailing.emphasis: "accent"` says which one earns it. */
+    const acc = trailing.emphasis === "accent";
     el.classList.add("has-trail");
+    if (acc) el.classList.add("has-trail-acc");
     const tr = document.createElement("button");
-    tr.className = "trail";
+    tr.className = "trail" + (acc ? " tracc" : "");
     tr.dataset.fid = t.id + TRAIL;
     tr.innerHTML = iconHtml({ icon: trailing.icon || "material:chevron_right" }, false);
     tr.addEventListener("click", ev => {
@@ -3425,11 +4979,48 @@ function navigate(screenId, isBack) {
   document.getElementById("app").classList.toggle("scr-music",
     (sc.font_scope || "") === "music");
   renderBanner(sc);
-  const cols = (sc.grid && sc.grid.columns) || 2;
+  /* DECLARED vs RENDERED columns (v0.68). `decl` is what the config
+     says — the author's statement of tile size, and the thing ROW-NESS
+     and SPAN are measured against. `cols` is what actually fits. On a
+     compact panel they are always equal and this is the old code. */
+  /* NOT EVERY PAGE WANTS THE WHOLE TABLE (v0.68). A controller is a
+     STACK of full-width bands — now playing, transport, volume — and
+     scaling it faithfully just yields a stretched stack: 1256px of
+     band, 84px tall, around a play button. `max_width` lets such a
+     page say so and stay a centred column, while the room pages and
+     the library take everything they can get. Declared, because only
+     the page knows whether its width means "a wall" or "a column".
+     Applied BEFORE the count, because it IS the width tiles fit into. */
+  const maxW = isWide() && sc.grid && +sc.grid.max_width > 0
+    ? +sc.grid.max_width : 0;
+  /* PADDING, NOT max-width + auto MARGINS. Measured, and it cost an
+     hour: #grid is a flex item in a COLUMN flex container, where auto
+     margins on the cross axis OVERRIDE align-items: stretch — the grid
+     stopped filling its parent and collapsed to its own content width
+     (320px inside a 1280px page) instead of capping at 760. Symmetric
+     padding caps the content column while the element still stretches,
+     and it leaves the scroll track at the screen edge where a thumb
+     expects it. */
+  const pad = maxW
+    ? Math.max(12, Math.round(((window.innerWidth || REF_W) - maxW) / 2)) : 0;
+  grid.style.paddingLeft = grid.style.paddingRight = pad ? pad + "px" : "";
+  const usable = usableWidth(maxW);
+  const decl = (sc.grid && sc.grid.columns) || 2;
+  const cols = colsFor(decl, sc.grid && sc.grid.tile_width, usable);
   /* minmax(0,1fr): columns may shrink below content min-width, so a
      wide tile (trail + long label) can never burst the viewport */
   grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-  const row = cols === 1;
+  /* ROW-NESS IS DECLARED, NOT ARITHMETIC (v0.68). It used to be
+     `cols === 1`, which made "two columns of rows" — the obvious
+     landscape layout for a room page — literally unsayable: asking for
+     a second column silently converted the rows to cards. Row-ness is
+     a TILE STYLE decision; the column count is a fitting decision.
+     They were the same expression by accident. `tile_style: row|card`
+     states it outright, and the fallback reads the DECLARED count so
+     every existing page keeps its look at any width. */
+  const rowOf = (styleDecl, declCols) =>
+    styleDecl ? styleDecl === "row" : declCols === 1;
+  const row = rowOf(sc.grid && sc.grid.tile_style, decl);
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
@@ -3454,18 +5045,23 @@ function navigate(screenId, isBack) {
       grid.appendChild(h);
       anchorEl = h;
     }
-    const secCols = sec.columns || cols;
-    const secRow = secCols === 1;
+    /* a section may declare its own tile size; absent, it inherits the
+       screen's — declared AND rendered, so spans scale consistently */
+    const secDecl = sec.columns || decl;
+    const secCols = sec.columns
+      ? colsFor(sec.columns, sec.tile_width, usable) : cols;
+    const secRow = rowOf(sec.tile_style || (sec.columns ? null :
+      (sc.grid && sc.grid.tile_style)), secDecl);
     let host = grid;
     if (sec.columns) {
       host = document.createElement("div");
       host.className = "secgrid";
-      host.style.gridTemplateColumns = `repeat(${sec.columns}, minmax(0, 1fr))`;
+      host.style.gridTemplateColumns = `repeat(${secCols}, minmax(0, 1fr))`;
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }
     vis.forEach(t => {
-      const el = makeTile(t, secRow);
+      const el = makeTile(t, secRow, spanOf(t, secDecl, secCols));
       host.appendChild(el);
       anchorEl = anchorEl || el;
     });
@@ -3474,8 +5070,12 @@ function navigate(screenId, isBack) {
   });
   /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
      a page with nothing to render says WHY instead of showing void —
-     a pure controller waits for an activity; a hub waits for content */
-  if (!grid.children.length) {
+     a pure controller waits for an activity; a hub waits for content.
+     …except when the BROWSE BAR is up (v0.67.2): search with nothing
+     typed yet is an empty grid ON PURPOSE — the query line and the
+     keyboard above it ARE the page, and "add tiles in the Studio"
+     would be a lie. */
+  if (!grid.children.length && !(S.browse && S.browse._active)) {
     const hint = document.createElement("div");
     const isCtrl = sc.class === "activity" || sc.type === "controller" ||
       sc.view_kind === "controller";
@@ -3558,7 +5158,7 @@ function renderStates() {
 /* the ⓘ icon replaces the always-on perf clutter in the bar —
    tap it for boot/msgs/device/connection details (v0.32) */
 function perfInfo() {
-  flashBar((S.bootMs ?? Math.round(performance.now() - T0)) + "ms boot · " +
+  flashBar((S.bootMs != null ? S.bootMs : Math.round(performance.now() - T0)) + "ms boot · " +
     S.msgCount + " msgs · device " + (S.deviceName || "default") +
     " · " + (S.connected ? "connected" : "offline"));
 }
@@ -3566,14 +5166,21 @@ function perf() {
   /* boot time is FROZEN at first paint (it's a boot metric, not an
      uptime counter); msgs and device stay live */
   document.getElementById("perf").textContent =
-    (S.bootMs ?? Math.round(performance.now() - T0)) + "ms · " +
+    (S.bootMs != null ? S.bootMs : Math.round(performance.now() - T0)) + "ms · " +
     S.msgCount + " msgs · " + (S.deviceName || "");
 }
 setInterval(() => { if (S.painted) perf(); }, 5000);
 function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
 
 function barTitle(sc) {
-  const room = (CONFIG.global || {}).room;
+  /* v0.67: the ROOM name follows the room you are in — a screen may
+     name its own, and a shared controller inherits it from the
+     activity that sent you there. `global.room` is the fallback, so a
+     one-room workspace reads exactly as before. */
+  const aidR = renderActivityId();
+  const aR = aidR && CONFIG.activities[aidR];
+  const rvS = aR && aR.room_view && (CONFIG.screens || {})[aR.room_view];
+  const room = sc.room_name || (rvS && rvS.room_name) || (CONFIG.global || {}).room;
   /* a screen the ACTIVE activity navigates to titles by the activity
      ("Watch Fire TV"), not the library label ("TV Media Player") */
   let name = sc.name;
@@ -3959,7 +5566,19 @@ function act(button, phys) {
       }
       if (!aid) {
         /* doctrine 2026-07-23: idle view -> tap does NOTHING (hold is
-           the All Off gesture); no more idle-tap All Off confirm */
+           the All Off gesture); no more idle-tap All Off confirm.
+           v0.61 amends that for ONE case: a surface being drawn as its
+           PRESUMED activity. What you are looking at IS that activity,
+           off — so power starts it, which is the only thing the button
+           could sensibly mean here. An idle ROOM page presumes nothing
+           and still does nothing. */
+        const pres = presumedActivity();
+        if (pres) {
+          const pa = CONFIG.activities[pres] || {};
+          startActivity(pres);
+          flashBar("Starting " + (pa.name || pres), "on");
+          break;
+        }
         flashBar("Nothing running");
         break;
       }
@@ -4077,6 +5696,27 @@ document.addEventListener("keydown", e => {
     if (!e.repeat) keycapLog(e);
     return;
   }
+  /* SEARCH TYPING (v0.65): while the library's search bar is open,
+     TEXT WINS — the same contract as any focused field on any OS.
+     It has to: the profiles bind `m`→mute, `p`→power, `o`→power_hold
+     and space→select as desktop conveniences, so a rule of "don't
+     capture mapped keys" made those four letters untypable and turned
+     Backspace into Back, which navigated out of the library mid-word.
+     Only PRINTABLE keys are taken. Arrows, Enter, F-keys and the
+     punctuation KeyMapper actually emits (`[`, `;`, `#`, backtick,
+     PageUp…) still route as buttons, so a hardware remote loses
+     nothing and can still walk the results and press play. Escape
+     closes search, which hands Escape back to Back. */
+  if (S.browse && S.browse.qon && S.browse._active) {
+    if (e.key === "Backspace") { e.preventDefault(); brKey("<"); return; }
+    if (e.key === "Escape") { e.preventDefault(); brSearchToggle(); return; }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey &&
+        /[a-z0-9 ]/i.test(e.key)) {
+      e.preventDefault();
+      brKey(e.key === " " ? "_" : e.key.toLowerCase());
+      return;
+    }
+  }
   const b = KEYMAP[e.key];
   if (!b) return;
   e.preventDefault();
@@ -4111,6 +5751,75 @@ document.addEventListener("keyup", e => {
 /* ================================================================
    Auth overlay + boot
    ================================================================ */
+/* FLEX-GAP PROBE (compat): Chromium < 84 silently ignores `gap` on a
+   flex container — controls render flush together. Detect it once and
+   mark the document; styles/compat.css carries margin fallbacks scoped
+   under html.nogap, so a modern engine (Astrion, Haptique, desktop)
+   never matches a single one of them and renders exactly as before.
+   Deliberately ES5 — this must run on the oldest webview we support. */
+(function () {
+  try {
+    var p = document.createElement("div");
+    /* NB: no height:0 — it clamps scrollHeight to 0 and the probe then
+       reports "unsupported" on every engine, including modern ones. */
+    p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
+                      "position:absolute;visibility:hidden;top:-9999px";
+    p.appendChild(document.createElement("div"));
+    p.appendChild(document.createElement("div"));
+    (document.body || document.documentElement).appendChild(p);
+    var supported = p.scrollHeight === 1;
+    p.parentNode.removeChild(p);
+    if (!supported) document.documentElement.classList.add("nogap");
+  } catch (e) { /* probe must never break boot */ }
+})();
+
+/* ================================================================
+   THE SIZE CLASS (v0.68 — Suresh: "A simple way to handle landscape
+   mode tablets where we have a lot of real estate that is unused.")
+
+   ONE gate, TWO dimensions. Width alone is not enough: a phone in
+   landscape is ~844×390 and would sail past any width-only test, then
+   be handed a layout meant for 800px of height.
+
+       wide = width >= 840 AND height >= 600
+
+   Measured against the hardware that matters: the **Astrion and the
+   Haptique are both 480×800 portrait**, so they miss on width by
+   360px — not a near thing, a chasm. Landscape phones miss on height.
+   A 1280×800 tablet clears both, as does every iPad in landscape.
+
+   And note what 480×800 vs 1280×800 means: the panels are the SAME
+   HEIGHT. Nothing vertical changes — not the hero, not the tile
+   height, not the fold. This whole feature is horizontal.
+
+   Deliberately ES5 and deliberately tolerant: a panel that can't
+   answer the question keeps today's layout, which is the right
+   failure. */
+function wideProbe() {
+  try {
+    var w = window.innerWidth || 0, h = window.innerHeight || 0;
+    return w >= 840 && h >= 600;
+  } catch (e) { return false; }
+}
+(function () {
+  var apply = function () {
+    var el = document.documentElement;
+    var on = wideProbe();
+    if (on === el.classList.contains("wide")) return;    /* no churn */
+    if (on) el.classList.add("wide"); else el.classList.remove("wide");
+    /* the column count is computed in JS (colsFor), so crossing the
+       gate must re-render — CSS alone cannot do it */
+    if (typeof CONFIG !== "undefined" && CONFIG &&
+        typeof S !== "undefined" && S.screen &&
+        typeof navigate === "function") navigate(S.screen, true);
+  };
+  apply();
+  var t = null;
+  var soon = function () { clearTimeout(t); t = setTimeout(apply, 150); };
+  window.addEventListener("resize", soon);
+  window.addEventListener("orientationchange", soon);
+})();
+
 function showAuth(err) {
   document.getElementById("auth").classList.remove("hidden");
   document.getElementById("authErr").textContent = err || "";
@@ -4177,7 +5886,13 @@ function applyConfig(cfg, devName) {
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
-  applyTheme(CONFIG.theme);
+  /* v0.58: the REMOTE PROFILE may override presentation tokens on top
+     of the theme — remotes.<id>.style is a plain map of CSS custom
+     properties ({"bar-h":"100px"}). Same mechanism as the theme, one
+     layer down, so a wall tablet and a hardware remote can disagree
+     about chrome without forking a config. Applied AFTER the theme so
+     the profile wins; an un-styled profile changes nothing. */
+  applyTheme(Object.assign({}, CONFIG.theme || {}, DEVICE.style || {}));
   dbgInit();
   S.stack = [];
   /* preview re-injection keeps the screen being edited (falls back to

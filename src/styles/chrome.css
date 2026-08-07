@@ -1,11 +1,19 @@
 /* status bar — ONE line, always: back chevron (when history) +
      ellipsized title + compact perf readout */
+  /* SIZING IS A REMOTE-PROFILE DECISION (v0.58). A hardware remote
+     wants the compact bar; a wall tablet across the room wants a
+     header you can read standing up. Every value below falls back to
+     exactly what shipped, so an un-styled profile is unchanged. */
   #bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px 4px; font-size: 13px; color: var(--dim);
+    display: flex; align-items: center; gap: var(--bar-gap, 8px);
+    padding: var(--bar-pad, 8px 14px 4px);
+    font-size: var(--bar-sub, 13px);
+    min-height: var(--bar-h, 0);
+    color: var(--dim);
   }
   #backBtn {
-    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    flex: 0 0 auto; width: var(--bar-btn-w, 44px);
+    height: var(--bar-btn-h, 34px); border-radius: 10px;
     border: 0; background: var(--tile-hi); color: var(--text);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; padding: 0;
@@ -17,14 +25,15 @@
      live in the TITLE BAR — always reachable, never crowding the
      grid. Hidden on physical-key remotes (they have real keys). */
   #homeBtn, #endBtn {
-    flex: 0 0 auto; width: 44px; height: 34px; border-radius: 10px;
+    flex: 0 0 auto; width: var(--bar-btn-w, 44px);
+    height: var(--bar-btn-h, 34px); border-radius: 10px;
     border: 0; background: var(--tile-hi); color: var(--text);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; padding: 0;
   }
   #homeBtn > *, #endBtn > * { pointer-events: none; }
   #homeBtn .material-symbols-outlined,
-  #endBtn .material-symbols-outlined { font-size: 20px; }
+  #endBtn .material-symbols-outlined { font-size: var(--bar-icon, 20px); }
   #endBtn { color: var(--danger, #ff5a5f); }
   #bar .name {
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
@@ -50,9 +59,9 @@
     font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
     color: var(--text); white-space: pre; overflow: hidden;
   }
-  #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
+  #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  #info { color: var(--dim); font-size: 20px; cursor: pointer; padding: 4px; }
+  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer; padding: 4px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */
@@ -82,6 +91,12 @@
     text-transform: uppercase; color: #d4d8dd;
     text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
   }
+  /* WIDE (v0.68): `flex: 1` makes the strip a tab bar spanning the
+     hero — right on a 480 panel, wrong at 1280, where it flings two
+     labels into opposite corners 640px apart. Wide keeps them together
+     as a centred group under the centred title. */
+  html.wide .hstrip { justify-content: center; }
+  html.wide .hjump { flex: 0 0 auto; }
   .hstrip .hjump:last-child { justify-content: flex-end; }
   .hstrip .hjump:only-child { justify-content: flex-start; }  /* a lone label is FIRST, not last */
   .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }

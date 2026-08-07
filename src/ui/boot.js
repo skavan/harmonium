@@ -1,6 +1,75 @@
 /* ================================================================
    Auth overlay + boot
    ================================================================ */
+/* FLEX-GAP PROBE (compat): Chromium < 84 silently ignores `gap` on a
+   flex container — controls render flush together. Detect it once and
+   mark the document; styles/compat.css carries margin fallbacks scoped
+   under html.nogap, so a modern engine (Astrion, Haptique, desktop)
+   never matches a single one of them and renders exactly as before.
+   Deliberately ES5 — this must run on the oldest webview we support. */
+(function () {
+  try {
+    var p = document.createElement("div");
+    /* NB: no height:0 — it clamps scrollHeight to 0 and the probe then
+       reports "unsupported" on every engine, including modern ones. */
+    p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
+                      "position:absolute;visibility:hidden;top:-9999px";
+    p.appendChild(document.createElement("div"));
+    p.appendChild(document.createElement("div"));
+    (document.body || document.documentElement).appendChild(p);
+    var supported = p.scrollHeight === 1;
+    p.parentNode.removeChild(p);
+    if (!supported) document.documentElement.classList.add("nogap");
+  } catch (e) { /* probe must never break boot */ }
+})();
+
+/* ================================================================
+   THE SIZE CLASS (v0.68 — Suresh: "A simple way to handle landscape
+   mode tablets where we have a lot of real estate that is unused.")
+
+   ONE gate, TWO dimensions. Width alone is not enough: a phone in
+   landscape is ~844×390 and would sail past any width-only test, then
+   be handed a layout meant for 800px of height.
+
+       wide = width >= 840 AND height >= 600
+
+   Measured against the hardware that matters: the **Astrion and the
+   Haptique are both 480×800 portrait**, so they miss on width by
+   360px — not a near thing, a chasm. Landscape phones miss on height.
+   A 1280×800 tablet clears both, as does every iPad in landscape.
+
+   And note what 480×800 vs 1280×800 means: the panels are the SAME
+   HEIGHT. Nothing vertical changes — not the hero, not the tile
+   height, not the fold. This whole feature is horizontal.
+
+   Deliberately ES5 and deliberately tolerant: a panel that can't
+   answer the question keeps today's layout, which is the right
+   failure. */
+function wideProbe() {
+  try {
+    var w = window.innerWidth || 0, h = window.innerHeight || 0;
+    return w >= 840 && h >= 600;
+  } catch (e) { return false; }
+}
+(function () {
+  var apply = function () {
+    var el = document.documentElement;
+    var on = wideProbe();
+    if (on === el.classList.contains("wide")) return;    /* no churn */
+    if (on) el.classList.add("wide"); else el.classList.remove("wide");
+    /* the column count is computed in JS (colsFor), so crossing the
+       gate must re-render — CSS alone cannot do it */
+    if (typeof CONFIG !== "undefined" && CONFIG &&
+        typeof S !== "undefined" && S.screen &&
+        typeof navigate === "function") navigate(S.screen, true);
+  };
+  apply();
+  var t = null;
+  var soon = function () { clearTimeout(t); t = setTimeout(apply, 150); };
+  window.addEventListener("resize", soon);
+  window.addEventListener("orientationchange", soon);
+})();
+
 function showAuth(err) {
   document.getElementById("auth").classList.remove("hidden");
   document.getElementById("authErr").textContent = err || "";
@@ -67,7 +136,13 @@ function applyConfig(cfg, devName) {
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
-  applyTheme(CONFIG.theme);
+  /* v0.58: the REMOTE PROFILE may override presentation tokens on top
+     of the theme — remotes.<id>.style is a plain map of CSS custom
+     properties ({"bar-h":"100px"}). Same mechanism as the theme, one
+     layer down, so a wall tablet and a hardware remote can disagree
+     about chrome without forking a config. Applied AFTER the theme so
+     the profile wins; an un-styled profile changes nothing. */
+  applyTheme(Object.assign({}, CONFIG.theme || {}, DEVICE.style || {}));
   dbgInit();
   S.stack = [];
   /* preview re-injection keeps the screen being edited (falls back to

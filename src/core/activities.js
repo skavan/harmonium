@@ -62,7 +62,17 @@ function isActivityActive(id) {
   if (!a) return false;
   const ev = activityStateOn(a);
   if (ev !== null) return ev;                 // v2: devices are the truth
-  const sel = CONFIG.global.activity_select;
+  /* THE ACTIVITY'S OWN ROOM ANSWERS (v0.67.4). This read
+     `global.activity_select` — which is literally the Bar's select —
+     so a second room's undeclared-state activity would have taken its
+     truth from the Bar. Ask the select of the room that OWNS it (not
+     the room we are standing in: this is the ACTIVITY's truth, not the
+     screen's), keeping global as the last resort so a single-room
+     workspace is untouched. Nothing reaches this path today — every
+     activity declares `state` — which is precisely why it would have
+     sat here waiting for the next room. */
+  const own = a.room_view && rawScreen(a.room_view);
+  const sel = (own && own.activity_select) || CONFIG.global.activity_select;
   return !!(sel && st(sel).s === (a.state_value || id));
 }
 /* all entities any activity's state eval depends on (subscribed on
@@ -130,6 +140,13 @@ function firePreset(t) {
   const ref = a.target || a.entity;
   const target = resolveEntity(ref);
   const run = () => {
+    /* A PRESET MAY NAME A SEQUENCE (v0.63): the same action grammar
+       everything else already speaks. Orchestration belongs HA-side —
+       a preset that joins two speakers is a sequence, not a service
+       call, and it shouldn't have to spell out harmonium.run by hand.
+       Warm-start still applies: the activity comes up first, then
+       this runs. */
+    if (a.sequence) { runActionRef("sequence:" + a.sequence); return; }
     if (parts.length !== 2) return;
     /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
        playlist: no music activity on the deck meant no player wired,
@@ -223,7 +240,8 @@ function clearConfirm() {
    for ON (tone, default "off") — second within TIMING.confirm
    returns true. */
 function barConfirm(key, msg, tone) {
-  const t = (barConfirm._t ??= {});
+  if (barConfirm._t == null) barConfirm._t = {};
+  const t = barConfirm._t;
   if (Date.now() - (t[key] || 0) > TIMING.confirm) {
     t[key] = Date.now();
     flashBar(msg, tone || "off", TIMING.confirm);

@@ -16,9 +16,13 @@ WIDGETS.buttons = {
          end (with the standard confirm) when it's running, start (the
          full generated sequence) when it isn't. Raw device power is
          what the PHYSICAL short-press power policy is for; pages with
-         no current activity keep the old device fallback. */
+         no current activity keep the old device fallback.
+         v0.61: the PRESUMED activity counts here — the page you are
+         looking at is drawn as that activity, so the power button on
+         it starts that activity. Suresh's own sentence: "I can always
+         hit the power button to turn it on!" */
       if (k === "power") {
-        const aid = currentActivityId();
+        const aid = renderActivityId();
         const a = aid && (CONFIG.activities || {})[aid];
         if (a) {
           if (isActivityActive(aid)) { endCurrentActivity(); renderStates(); }

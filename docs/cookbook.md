@@ -201,6 +201,130 @@ per-person shortcut list, top-N scripts — same tile, different sensor.
 
 ---
 
+## Recipe 9 — Tuck part of the cast behind one card (a group)
+
+Goal: the Bar Receiver and Entry & Gazebo get their own levels, without
+adding two more sliders to a controller that already has one.
+
+A **group** is a per-activity view over some of the cast. It renders as
+one nav card on the controller and a generated page behind it — the same
+thing as Devices ▸ Add Nav Card. The devices stay exactly what they
+were; only *where their control is drawn* changes.
+
+**Step 1. Cast the devices** as usual (Studio → the activity → Setup).
+Each device just declares what it can do:
+
+```json
+"bar_onkyo_z2": {
+  "name": "Entry & Gazebo",
+  "icon": "material:speaker_group",
+  "roles": { "volume": "media_player.tx_nr6100_zone_2",
+             "volume_level": "media_player.tx_nr6100_zone_2" }
+}
+```
+
+**Step 2. ⊞ Add group**, name it, tick its members. That writes a group
+object into the cast beside the device ids:
+
+```json
+"cast": ["bar_sonos",
+         { "group": "zones", "name": "Zones",
+           "icon": "material:speaker_group", "shows": "volume",
+           "members": ["bar_onkyo", "bar_onkyo_z2"] }]
+```
+
+There is no step 3. The card appears the moment the group has members
+and hides itself again when it doesn't.
+
+**`shows` is the whole design decision.** It says what the children
+render as:
+
+| `shows` | Child tile | Needs the claim |
+|---|---|---|
+| `device` (default) | launcher into that device's own controller | — |
+| `volume` / `stepper` | the level control inline | `volume` |
+| `power` | a power button | `power` |
+| `media` / `transport` | Now Playing / transport | `media_player` |
+| `sources` | the input picker | `source_select` |
+
+The rule behind the table: a control that fits in a tile is drawn there;
+anything that needs more room becomes a launcher, because that is what
+the device's own page is for. A missing claim never breaks the page — it
+falls back to the launcher, and the Studio says so on the row.
+
+**A grouped device keeps its other jobs.** The receiver can sit in the
+Zones group *and* be the activity's Source picker; the group governs the
+presentation of the thing it draws, nothing else.
+
+The name on each tile is the DEVICE's name and the group lives in the
+ACTIVITY, so the shared controller serves every room without a fork:
+this house says "Entry & Gazebo", the next one says whatever it calls
+its second zone. Eight zones cost the same as one.
+
+## Recipe 10 — Make a wall tablet legible from across the room
+
+Goal: a 100px header on the tablet, the compact bar everywhere else.
+
+**Step 1. Give the tablet its own profile** (`remotes`):
+
+```json
+"tablet": {
+  "capabilities": ["touch", "pointer"],
+  "style": { "bar-h": "100px", "bar-pad": "0 22px", "bar-fs": "30px",
+             "bar-icon": "34px", "bar-btn-w": "64px", "bar-btn-h": "56px" }
+}
+```
+
+**Step 2. Point the device at it**, once:
+
+    .../main/index.html#device=tablet
+
+Stored in `localStorage`, stripped from the URL. `default` is untouched,
+so a hardware remote keeps the compact chrome.
+
+`style` is a plain map of CSS custom properties layered over the theme.
+Every bar metric falls back to what shipped, so an unstyled profile
+renders identically — this cannot regress a remote you did not touch.
+
+## Recipe 11 — Teach a platform's real app links
+
+Goal: the Apps drawer launches what is actually installed, not what the
+dialect hopes is installed.
+
+**Ask the device rather than porting a package list.** Over ADB:
+
+    pm list packages | grep -iE 'avod|firebat|netflix'
+    cmd package resolve-activity --brief \
+        -c android.intent.category.LEANBACK_LAUNCHER com.amazon.firebat
+
+The second command prints the launcher component — on a Hisense Fire TV
+that is `com.amazon.firebat/com.amazon.pyrocore.IgnitionActivity`, not
+the `firebatcore.deeplink.DeepLinkRoutingActivity` the stock `firetv`
+dialect names. Same package, different Fire OS build. `LEANBACK_LAUNCHER`
+matters: TV apps often have no plain `LAUNCHER` activity.
+
+Then add a dialect with the measured components and list ONLY the apps
+that resolved:
+
+```json
+"firetv_embedded": {
+  "name": "Fire TV (embedded)",
+  "channels": { "commands": { "integration": "androidtv",
+                              "domain": "media_player" } },
+  "apps": {
+    "prime": { "action": "androidtv.adb_command",
+               "entity": "$context.media_player",
+               "data": { "command": "am start -n com.amazon.firebat/com.amazon.pyrocore.IgnitionActivity" } }
+  }
+}
+```
+
+Point the device at it (`devices.<id>.dialect`) and the drawer renders
+exactly the apps that work — an app the dialect omits is an app the
+drawer never offers, which is better than a button that does nothing.
+
+---
+
 ## When config isn't enough: an unsupported domain
 
 Everything above needed zero code because a `fan` widget exists in the

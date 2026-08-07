@@ -4,7 +4,13 @@
 WIDGETS.activity = {
     sub: (e, t) => {
       if (S.confirmTile === t.id) return "Press again to end";
-      return isActActive(t) ? "On · press to open" : "Off · press to start";
+      /* v0.58 (Suresh: "when it\'s on, a hint — we have the room"):
+         the ON line used to advertise only how to OPEN the activity,
+         leaving the END gesture undiscoverable. `hold` has always
+         called requestEnd; now the tile says so. */
+      return isActActive(t)
+        ? "On · press to open · hold to end"
+        : "Off · press to start";
     },
     isOn: (e, t) => isActActive(t),
     select: (e, t) => {

@@ -41,6 +41,12 @@
     overflow: hidden; user-select: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+  /* WIDE (v0.68): the wasted real estate was never really the column
+     count — it was this cap. A 1280-wide tablet rendered a 520px strip
+     with 760px of black either side. Both remotes are 480 wide, so the
+     cap has never once applied to them, and lifting it here cannot
+     reach them. */
+  html.wide #app { max-width: none; }
   /* the music scope (navigate() toggles it from sc.font_scope);
      icon glyphs keep their own family via .material-symbols-outlined */
   #app.scr-music #grid, #app.scr-music #brbar, #app.scr-music #banner {

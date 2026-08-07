@@ -1,6 +1,10 @@
 /* CHIPS row — one-tap choice pills for an entity attribute list
    (hvac_mode, fan_mode, preset, effect …); kind picks the recipe. */
 WIDGETS.chips = {
+  /* v0.57: a chips row with nothing to choose is chrome — hide it.
+     This is what keeps the new sound_mode row off every media_player
+     that has no sound_mode_list, with no per-domain special-casing. */
+  hidden: (e, t) => !!e && !chipOptions(e, t.kind).length,
     /* option pills from a CHIP_KINDS binding (t.kind); options are
        read from entity attributes each render, so they track the
        device. Tile self-hides when the entity offers no options.
@@ -16,7 +20,7 @@ WIDGETS.chips = {
     render(el, e, t) {
       const k = CHIP_KINDS[t.kind];
       if (!k) return;
-      const opts = k.options(e) || [];
+      const opts = chipOptions(e, t.kind);
       el.classList.toggle("hidden", !opts.length);
       const row = el.querySelector(".chiprow");
       const sig = JSON.stringify(opts);

@@ -7,6 +7,8 @@
    hides itself (hide-unwired doctrine). The sub line shows the
    CURRENT input, so the tile doubles as a status readout. */
 WIDGETS.sources = {
+  /* v0.57: no SELECT_SOURCE on the device -> no input picker to open */
+  hidden: e => !!e && !sfHas(e, MPF.SELECT_SOURCE),
   sub: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
     return (mp && st(mp).a.source) || "";

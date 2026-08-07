@@ -9,22 +9,22 @@
 /* stepper bindings: one adjustable range per kind */
 const STEP_KINDS = {
   temperature: {
-    get: e => st(e).a.temperature, fmt: v => (v ?? "–") + "°", step: 1,
+    get: e => st(e).a.temperature, fmt: v => (v != null ? v : "–") + "°", step: 1,
     set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
   },
   brightness: {
     get: e => st(e).s === "on" ? Math.round((st(e).a.brightness || 0) / 2.55) : 0,
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("light", "turn_on", { brightness_pct: v }, e)
   },
   volume: {
     get: e => Math.round((st(e).a.volume_level || 0) * 100),
-    fmt: v => (v ?? 0) + "%", step: 3, min: 0, max: 100, slider: "h",
+    fmt: v => (v != null ? v : 0) + "%", step: 3, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("media_player", "volume_set", { volume_level: v / 100 }, e)
   },
   percentage: {
-    get: e => st(e).a.percentage ?? 0,
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    get: e => { const p = st(e).a.percentage; return p != null ? p : 0; },
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
     set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
   },
   position: {
@@ -32,10 +32,10 @@ const STEP_KINDS = {
        retracted projector screen reads 0%. get/set both invert, so
        slider, −/+, and VOL stay coherent; cover SERVICES never invert. */
     get: e => {
-      const p = st(e).a.current_position ?? 0;
+      const cp = st(e).a.current_position; const p = cp != null ? cp : 0;
       return entOpt(e, "invert_position") ? 100 - p : p;
     },
-    fmt: v => (v ?? 0) + "%", step: 10, min: 0, max: 100, slider: "v",
+    fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "v",
     set: (e, v) => callService("cover", "set_cover_position",
       { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
   }
@@ -60,7 +60,11 @@ const CHIP_KINDS = {
   source: { options: e => st(e).a.source_list, current: e => st(e).a.source,
     set: (e, v) => callService("media_player", "select_source", { source: v }, e) },
   effect: { options: e => st(e).a.effect_list, current: e => st(e).a.effect,
-    set: (e, v) => callService("light", "turn_on", { effect: v }, e) }
+    set: (e, v) => callService("light", "turn_on", { effect: v }, e) },
+  /* v0.57: receivers publish listening modes — MultiChannel Stereo on
+     the Onkyo's own page beats bouncing it through Harmony IR */
+  sound_mode: { options: e => st(e).a.sound_mode_list, current: e => st(e).a.sound_mode,
+    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) }
 };
 function cycleChip(e, t, dir) {
   const k = CHIP_KINDS[t.kind], opts = (k && k.options(e)) || [];
@@ -81,12 +85,12 @@ function roveBtns(t, attr) {
 function roveMove(t, attr, d) {
   const [el, btns] = roveBtns(t, attr);
   if (!btns.length) return;
-  el._ci = ((el._ci ?? 1) + d + btns.length) % btns.length;
+  el._ci = ((el._ci != null ? el._ci : 1) + d + btns.length) % btns.length;
   btns.forEach((b, i) => b.classList.toggle("cvsel", i === el._ci));
 }
 function rovePick(t, attr) {
   const [el, btns] = roveBtns(t, attr);
-  return btns.length ? btns[el._ci ?? 1].dataset[attr] : null;
+  return btns.length ? btns[el._ci != null ? el._ci : 1].dataset[attr] : null;
 }
 
 /* per-domain detail composition (chips with no options self-hide).
@@ -110,7 +114,8 @@ const DETAIL_TILES = {
     { id: "dp", type: "power", entity: e, label: "", span: 2 },
     { id: "dt", type: "transport", entity: e, label: "", span: 2 },
     { id: "ds", type: "stepper", kind: "volume", entity: e, icon: "material:volume_up", label: "", span: 2 },
-    { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 }
+    { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 },
+    { id: "dsnd", type: "chips", kind: "sound_mode", entity: e, icon: "material:graphic_eq", label: "", span: 2 }
   ],
   cover: e => [
     { id: "dc", type: "coverbtns", entity: e, label: "", span: 2 },
@@ -183,6 +188,37 @@ function sourcesScreen(eid) {
   };
 }
 
+/* GROUPS (v0.60): navigate("group:<id>") renders one group from the
+   running activity's cast — its members, each drawn as `shows`. It is
+   the SAME mechanism as Devices > Add Nav Card; the only variable is
+   what the children render as, which is the whole insight (Suresh:
+   "Maybe that is TYPE").
+
+   Virtual, so a shared controller carries one groups generator and
+   every room gets its own cards for free. A group with an explicit
+   `target` never reaches here — the nav card goes straight to the
+   authored page, which then owns everything on it. */
+function groupScreen(gid) {
+  /* v0.61: presumed too — a group page reached with nothing running
+     fills in from the surface its card was on */
+  const aid = renderActivityId();
+  const act = aid && (CONFIG.activities || {})[aid];
+  if (!act) return null;
+  const g = castGroup(act, gid);
+  if (!g) return null;
+  const shows = g.shows || "device";
+  const tiles = (g.members || [])
+    .map(did => groupChildTile(did, shows, "g_" + gid))
+    .filter(Boolean);
+  if (!tiles.length) return null;
+  return {
+    name: (act.name ? act.name + " · " : "") + (g.name || gid),
+    virtual: true,
+    grid: { columns: (g.grid && g.grid.columns) || 1 },
+    tiles
+  };
+}
+
 /* screen id resolution: config screens + virtual detail screens +
    LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
    shared control surfaces; the active activity's context overlay
@@ -196,6 +232,8 @@ function screenOf(id) {
     return queueScreen(id.slice(6));
   if (id === "keys:")           /* key capture (v0.55) */
     return keysScreen();
+  if (typeof id === "string" && id.startsWith("group:"))
+    return groupScreen(id.slice(6));   /* a cast group (v0.60) */
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;

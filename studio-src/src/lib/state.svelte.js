@@ -33,6 +33,15 @@ export const app = $state({
   prevKey: null,      // last slice before the current one (Back on model pages)
   pending: null,      // in-flight ＋-minted action draft {seqId, kind, activityId, originKey}
   focusActivity: null, // activity card to re-open after returning from a draft
+  focusDevice: null,  // device row the library page opens on arrival — the
+                      // cast is a doorway (v0.60, Suresh: "If I click on a
+                      // pre-wired item in the cast section, I should go to
+                      // its editing page in Pre-Wired Devices")
+  deviceReturn: null, // {key, label, activityId} — the way BACK out of that
+                      // doorway. A shortcut you can't undo is a detour
+                      // (v0.61, Suresh: "We need a *prominent* return to
+                      // Bar>Activity Name … then it will feel like a
+                      // shortcut")
   /* ADVANCED MODE (redesign): the generalized machinery — raw widget
      types, JSON escape hatches — lives behind this switch (NavPane
      bottom). Persisted per browser. */
@@ -77,6 +86,10 @@ export const GENERIC_MEDIA_CONTROLLER = {
       { id: "t_vol", type: "volume", entity: "$context.volume",
         level_entity: "$context.volume_level",
         icon: "material:volume_up", label: "Volume", span: 2 },
+      /* CAST GROUPS (v0.60): one nav card per group in the running
+         activity. Names no group, so the shared surface stays generic
+         — a room with no groups renders nothing here. */
+      { id: "t_grp", type: "groups" },
       /* SOURCE tile (v0.36): role-governed — appears iff the activity
          wires source_select (hide-unwired otherwise) */
       { id: "t_src", type: "sources", entity: "$context.source_select",
@@ -347,6 +360,59 @@ export function normalizeApps(cfg) {
    overrides on every wiring edit. */
 export const ROLE_KEYS = ["media_player", "dpad", "power", "volume",
   "volume_level", "source_select", "commands"];
+
+/* ---- CAST GROUPS (v0.60) ------------------------------------------
+   `cast` is a mixed array: device ids (strings) and GROUP objects
+     { group, name, icon, shows, members[], target?, style? }
+   A group is a VIEW — it says where some of the cast's controls are
+   drawn, never what the cast is. Members stay first-class cast
+   members (so they keep their jobs, their entities and their row);
+   the group only moves their control behind a nav card. Everything
+   here is the Studio's twin of context.js's castGroups/
+   groupedDeviceIds — keep the two in sync. */
+export const isCastGroup = (m) => !!m && typeof m === "object" && !!m.group;
+/* what a group's children can be DRAWN as. `device` is the default and
+   the universal fallback: a control that fits in a tile is drawn, and
+   anything needing more room becomes a launcher into that device's own
+   controller (Suresh: "we'd want the parent tile that launched its
+   child controller"). Role column = the claim the child binds to;
+   null = none needed. Mirrors SHOWS_ROLE in core/context.js. */
+export const SHOWS_KINDS = [
+  { value: "device", label: "Launcher tile", role: null,
+    hint: "opens the device's own controller — always available" },
+  { value: "volume", label: "Volume control", role: "volume",
+    hint: "a level readout with − / + (or a slider, per the theme)" },
+  { value: "stepper", label: "Volume − / +", role: "volume",
+    hint: "the compact two-button stepper" },
+  { value: "power", label: "Power button", role: "power",
+    hint: "toggles the device itself" },
+  { value: "media", label: "Now Playing", role: "media_player",
+    hint: "art, title, state" },
+  { value: "transport", label: "Transport", role: "media_player",
+    hint: "play / pause / skip" },
+  { value: "sources", label: "Source picker", role: "source_select",
+    hint: "the device's input list" },
+];
+export const showsRole = (shows) =>
+  SHOWS_KINDS.find((k) => k.value === (shows || "device"))?.role || null;
+
+/* the cast is a DOORWAY: open this device in the library, and carry
+   the way back with you. `back` = {key, label, activityId} — the slice
+   to return to, what to call it, and the activity card to re-open when
+   we land (app.focusActivity, the same mechanism a minted action draft
+   uses). Without the return trip this reads as losing your place. */
+export function openDeviceEditor(devId, back) {
+  app.focusDevice = devId || null;
+  app.deviceReturn = back || null;
+  selectSlice("devices");
+}
+export function returnFromDevice() {
+  const b = app.deviceReturn;
+  if (!b) return;
+  app.deviceReturn = null;
+  if (b.activityId) app.focusActivity = b.activityId;
+  selectSlice(b.key);
+}
 
 export function compileContext(a, devices) {
   const ctx = {};
@@ -1187,6 +1253,9 @@ export function deleteController(cid) {
 }
 
 export function selectSlice(key) {
+  /* the return trip belongs to ONE visit to the library — leave by any
+     other road and it is stale, so drop it */
+  if (key !== "devices" && app.deviceReturn) app.deviceReturn = null;
   if (key !== app.selKey) app.prevKey = app.selKey;
   app.selKey = key;
   app.tab = hasVisual(key) ? "visual" : "code";

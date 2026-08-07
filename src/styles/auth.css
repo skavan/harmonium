@@ -1,6 +1,6 @@
 /* auth overlay */
   #auth {
-    position: fixed; inset: 0; background: var(--bg);
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: var(--bg);
     display: flex; flex-direction: column; justify-content: center;
     padding: 32px; gap: 12px; z-index: 10;
   }

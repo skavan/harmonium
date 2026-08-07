@@ -9,7 +9,7 @@ WIDGETS.fan = {
       : s.a.preset_mode ? " · " + s.a.preset_mode : "");
   },
   isOn: e => st(e).s === "on",
-  meter: e => (st(e).a.percentage ?? 0) / 100,
+  meter: e => { const p = st(e).a.percentage; return (p != null ? p : 0) / 100; },
   select: e => callService("fan", "toggle", null, e),
   detailable: true,
   holdCapture: true, captureHint: "▲▼ speed · back releases",

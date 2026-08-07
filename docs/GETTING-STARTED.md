@@ -255,8 +255,10 @@ log. The outgoing config is snapshotted first —
 
 ## Appendix A — the Jamaica install (192.168.1.95)
 
-Specifics for the second house, which is otherwise a clean run of the
-guide above.
+**Status: installed and running since 2026-08-03** (engine v0.59,
+config v8, one room; **v0.60 / config v9 built in the repo, awaiting
+`push-to-ha.bat`**). What follows is what this house actually is, not a
+plan. For the session-to-session view see `docs/HANDOFF.md`.
 
 **Machine and paths**
 
@@ -264,42 +266,56 @@ guide above.
     HA config    H:\   →  \\192.168.1.95\config
     HA           http://192.168.1.95:8123
 
-**Before anything else — check the clone is current.** v0.56 (the
-remote-creation screen) was built on the *home* machine and mirrored to
-`G:\Documents\Code 2025\repos\HA-2026\harmonium` there. Unless it has
-been committed and pushed to GitHub, a fresh clone will not have it.
-Either push from home and `git pull` here, or apply the delivered
-`v056-batch.tgz` over the clone. Check for `src/widgets/kslot.js` — if
-it is missing, you are on v0.55.
+`push-to-ha.bat` is already pointed at this machine and refuses to run
+if `H:` is not the config share.
 
-**Edit `push-to-ha.bat`** for this machine before first use:
+**It was built from a BLANK workspace**, as planned — one `bar` room
+page, then activities. What is NOT blank, and matters if you build the
+next room: the stock controller library came across, and so did the app
+registry and device dialects. Those are *not* minted by the Studio — the
+docs above claim they arrive free and only the controller half is true.
+A genuinely empty install gets `apps: {}` and `dialects: {}`.
 
-    set "SRC=G:\Local Documents\Code 2025\repos\harmonium"
-    set "DST=H:\"
+**The deploy loop here**
 
-Then it does steps 2 and 3 in one run.
+1. `push-to-ha.bat`
+2. `harmonium.reseed`
+3. **No cache clear** — the entry stub version-stamps the engine URL
+   from a hash of the deployed file (v0.57.1). Every tablet inherits
+   this; there is nothing per-device to configure and no IPs to pin.
+4. HA restart only for `custom_components/harmonium/*.py`
+5. `studio.html` is browser-cached — hard-refresh that tab
 
-**Start blank.** Jamaica's device mix is its own; build the workspace
-in the Studio from `＋ Add view` rather than importing the Porch
-config. Exporting main from home and stripping it looks faster but
-carries entity ids that do not exist here, and every one of them is a
-silent no-op until you find it.
+**⚠ Do not run `node build.mjs` in this clone.** There is no Jamaica
+yaml model; the build would recompile the *Porch* yaml over
+`dist/config.json` and wipe this house. The engine half is safe, the
+config half is not. Until yaml round-trip lands, treat
+`dist/config.json` here as hand-authored source.
 
-**Things that will not carry over**
+**The webview floor.** The wall tablet is a Fire HD 8 (Fire OS 7) whose
+WebView Amazon pins at **Chromium 75**, with exactly one valid provider —
+so it cannot be upgraded and the ADB provider swap is closed. The engine
+now targets **ES2019 / Chromium 75** because of it (v0.56.1). If a device
+shows the chrome but a blank grid, load `/local/harmonium/diag.html`:
+ES5, and it names the missing syntax feature outright.
 
-- The Astrion kiosk button entities (`button.astrion1_clear_browser_cache`,
-  `button.astrion1_load_start_url`) do not exist on this instance, so
-  *Save + Reload Astrion* has nothing to press. Point those at the local
-  kiosk's own buttons in the Studio, or just use **Save & Deploy** and
-  reload the remote by hand.
-- The home instance's helpers, activity scripts and sync automation
-  (`ha/README.md`) are Porch-specific history. Modern Harmonium mints
-  its own selects and runs sequences HA-side, so you need none of them
-  on a fresh install.
-- The music favourites sensors are published by the integration itself
-  (`sensor.harmonium_music_<category>`) and appear once Music Assistant
-  is present. No template sensor to hand-write.
+**Remote profiles.** `default` is the shipped chrome. `tablet` carries a
+100px header via `remotes.tablet.style`. Provision once with
+`…/main/index.html#device=tablet`.
+
+**Things that did not carry over from home**
+
+- The Astrion kiosk button entities (`button.astrion1_*`) do not exist
+  here, so *Save + Reload Astrion* has nothing to press. The versioned
+  stub makes that irrelevant for engine updates.
+- The home instance's helpers, activity scripts and sync automation are
+  Porch-specific history. This house runs `harmonium.run` sequences
+  authored in its own config; the legacy `script.bar_*` scripts are
+  still in HA but nothing references them.
+- Music favourites sensors (`sensor.harmonium_music_*`) are published by
+  the integration and appeared on their own once Music Assistant was
+  seen.
 
 **A second HA, not a second workspace.** Two houses are two Home
-Assistant instances, each with its own Harmonium install. Workspaces
-are for two *remotes* in one house — don't reach for them here.
+Assistant instances, each with its own Harmonium install. Workspaces are
+for two *remotes* in one house — don't reach for them here.
