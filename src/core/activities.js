@@ -165,6 +165,20 @@ function firePreset(t) {
       else if (++n > 40) { clearInterval(iv); flashBar("Activity didn't start"); }
     }, TIMING.presetPoll);
   } else run();
+  /* OPTIONAL LANDING (v0.68.7 — Suresh: "we need an optional navigate
+     to in the preset"). A preset says WHAT to play; `navigate` says
+     where the tap LEAVES you — usually the now-playing controller.
+     Two decisions, declared separately, because a preset on a room
+     page and the same preset in a drawer want different landings.
+
+     Applied AT TAP TIME, not inside the deferred run(): the tap IS
+     the intent (same rule as S.pendingActivity), so the surface
+     changes immediately and a slow warm start never yanks the page
+     out from under a finger seconds later. It lands last, so it wins
+     over startActivity's own activity.screen jump — and over the
+     drawer pop-back in WIDGETS.preset.select. An unknown screen is a
+     no-op inside navigate(); the page never blanks. */
+  if (t.navigate) navigate(t.navigate);
   return true;
 }
 /* An activity's start/stop is an ACTION REF:

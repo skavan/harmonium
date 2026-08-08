@@ -16,7 +16,9 @@ WIDGETS.preset = {
          drawer was opened from (physical keys drive the UI here, so
          the user shouldn't have to Back out by hand) */
       const sc = screenOf(S.screen) || {};
-      if (fired && sc.drawer) {
+      /* an explicit `navigate` (v0.68.7) IS the declared landing —
+         firePreset has already gone there; popping would undo it */
+      if (fired && sc.drawer && !t.navigate) {
         flashBar(t.label);
         if (S.stack.length) navigate(S.stack.pop(), true);
         else if (sc.parent && screenOf(sc.parent)) navigate(sc.parent, true);

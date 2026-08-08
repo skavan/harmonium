@@ -963,8 +963,39 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act || !Array.isArray(act.presets)) return [];
-    return act.presets.map((p, i) => Object.assign(
-      { type: "preset", span: 2 }, p,
+    /* `include: [ids]` narrows to a subset, in the order given —
+       v0.68.5, and note it is not a new idea: the `apps` generator has
+       taken exactly this option since v0.46. One activity's presets can
+       now appear on two surfaces with different subsets: the three
+       music shortcuts on the room page, the whole set (those plus the
+       Pool grouping pair) on the player. */
+    let list = act.presets;
+    if (Array.isArray(t.include) && t.include.length) {
+      const by = {};
+      list.forEach(p => { if (p && p.id) by[p.id] = p; });
+      list = t.include.map(id => by[id]).filter(Boolean);
+    }
+    /* STAMP THE OWNING ACTIVITY (v0.68.6 — Suresh: "isn't this what
+       this section is for? It should turn on listen to sonos activity
+       and then launch the playlist?").
+
+       It is, and the engine has agreed since v0.12: firePreset reads
+       `t.activity` and, if that activity is not running, starts it,
+       polls the select until it confirms, THEN fires the action —
+       "Harmony-favorite behaviour", in its own words. Hand-written
+       preset tiles have always carried `activity` and always got this.
+
+       The v0.64 GENERATOR never passed it on. It knows `aid` — it just
+       looked the presets up with it — and then emitted tiles without
+       it, so every generated preset silently lost the warm-start the
+       chassis was ready to give it. One word, and the three guarded
+       start-then-play sequences I hand-rolled in v0.68.5 become
+       unnecessary: the engine was already doing it.
+
+       In the defaults, not forced, so a preset may still name a
+       different activity than the one it is listed under. */
+    return list.map((p, i) => Object.assign(
+      { type: "preset", span: 2, activity: aid }, p,
       { id: t.id + "_" + (p.id || i) }));
   }
   if (t.type === "groups") {

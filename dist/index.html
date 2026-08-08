@@ -286,6 +286,21 @@
   .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+  /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
+     is right for an app logo, where the image is a LABEL; it is wrong
+     for a playlist, where the cover IS the thing you are picking.
+     Opt-in via `cls: "art"` rather than "any preset with an image",
+     because the apps drawer carries images too and wants the stamp. */
+  .tile.wgt-preset.art { min-height: 118px; }
+  .tile.wgt-preset.art .top img {
+    width: 84px; height: 84px; border-radius: 12px; margin-bottom: 8px;
+  }
+  .tile.wgt-preset.art .lbl { font-size: 12.5px; }
+  /* the fallback glyph stands in the ART's shoes, not the label's */
+  .tile.wgt-preset.art .top .ic { font-size: 52px; margin-bottom: 8px; }
+  html.wide .tile.wgt-preset.art { min-height: 138px; }
+  html.wide .tile.wgt-preset.art .top img { width: 100px; height: 100px; }
+  html.wide .tile.wgt-preset.art .top .ic { font-size: 62px; }
 
   /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of
      a described remote. Same icon-first stack as a preset tile —
@@ -1939,8 +1954,39 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act || !Array.isArray(act.presets)) return [];
-    return act.presets.map((p, i) => Object.assign(
-      { type: "preset", span: 2 }, p,
+    /* `include: [ids]` narrows to a subset, in the order given —
+       v0.68.5, and note it is not a new idea: the `apps` generator has
+       taken exactly this option since v0.46. One activity's presets can
+       now appear on two surfaces with different subsets: the three
+       music shortcuts on the room page, the whole set (those plus the
+       Pool grouping pair) on the player. */
+    let list = act.presets;
+    if (Array.isArray(t.include) && t.include.length) {
+      const by = {};
+      list.forEach(p => { if (p && p.id) by[p.id] = p; });
+      list = t.include.map(id => by[id]).filter(Boolean);
+    }
+    /* STAMP THE OWNING ACTIVITY (v0.68.6 — Suresh: "isn't this what
+       this section is for? It should turn on listen to sonos activity
+       and then launch the playlist?").
+
+       It is, and the engine has agreed since v0.12: firePreset reads
+       `t.activity` and, if that activity is not running, starts it,
+       polls the select until it confirms, THEN fires the action —
+       "Harmony-favorite behaviour", in its own words. Hand-written
+       preset tiles have always carried `activity` and always got this.
+
+       The v0.64 GENERATOR never passed it on. It knows `aid` — it just
+       looked the presets up with it — and then emitted tiles without
+       it, so every generated preset silently lost the warm-start the
+       chassis was ready to give it. One word, and the three guarded
+       start-then-play sequences I hand-rolled in v0.68.5 become
+       unnecessary: the engine was already doing it.
+
+       In the defaults, not forced, so a preset may still name a
+       different activity than the one it is listed under. */
+    return list.map((p, i) => Object.assign(
+      { type: "preset", span: 2, activity: aid }, p,
       { id: t.id + "_" + (p.id || i) }));
   }
   if (t.type === "groups") {
@@ -2332,6 +2378,20 @@ function firePreset(t) {
       else if (++n > 40) { clearInterval(iv); flashBar("Activity didn't start"); }
     }, TIMING.presetPoll);
   } else run();
+  /* OPTIONAL LANDING (v0.68.7 — Suresh: "we need an optional navigate
+     to in the preset"). A preset says WHAT to play; `navigate` says
+     where the tap LEAVES you — usually the now-playing controller.
+     Two decisions, declared separately, because a preset on a room
+     page and the same preset in a drawer want different landings.
+
+     Applied AT TAP TIME, not inside the deferred run(): the tap IS
+     the intent (same rule as S.pendingActivity), so the surface
+     changes immediately and a slow warm start never yanks the page
+     out from under a finger seconds later. It lands last, so it wins
+     over startActivity's own activity.screen jump — and over the
+     drawer pop-back in WIDGETS.preset.select. An unknown screen is a
+     no-op inside navigate(); the page never blanks. */
+  if (t.navigate) navigate(t.navigate);
   return true;
 }
 /* An activity's start/stop is an ACTION REF:
@@ -3836,7 +3896,9 @@ WIDGETS.preset = {
          drawer was opened from (physical keys drive the UI here, so
          the user shouldn't have to Back out by hand) */
       const sc = screenOf(S.screen) || {};
-      if (fired && sc.drawer) {
+      /* an explicit `navigate` (v0.68.7) IS the declared landing —
+         firePreset has already gone there; popping would undo it */
+      if (fired && sc.drawer && !t.navigate) {
         flashBar(t.label);
         if (S.stack.length) navigate(S.stack.pop(), true);
         else if (sc.parent && screenOf(sc.parent)) navigate(sc.parent, true);
@@ -4628,12 +4690,36 @@ const grid = document.getElementById("grid");
 
 function iconHtml(t, row) {
   let inner;
-  if (t.icon_image) inner = `<img src="${t.icon_image}" alt=""${t.icontain ? ' class="contain"' : ""}>`;
-  else if (t.icon && t.icon.startsWith("material:"))
+  if (t.icon_image) {
+    /* ARTWORK FALLS BACK TO THE ICON (v0.68.7). Cover art is a REMOTE
+       url — a Spotify CDN, a Sonos coordinator, an MA thumbnail. The
+       panel is a wall tablet: the internet drops, a favorite is
+       re-added under a new id, a coordinator reboots. A broken-image
+       glyph where the album art was is the same failure as a blank
+       panel, so the declared `icon` stays on the tile as the
+       understudy — see the delegated error handler below. */
+    const fb = t.icon && t.icon.startsWith("material:") ? t.icon.slice(9) : "";
+    inner = `<img src="${t.icon_image}" alt=""` +
+      (t.icontain ? ' class="contain"' : "") +
+      (fb ? ` data-fbk="${fb}"` : "") + ">";
+  } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* `error` does not bubble, but it DOES capture — one document-level
+   listener covers every tile ever rendered, with no per-image wiring
+   and nothing to clean up on re-render. */
+document.addEventListener("error", ev => {
+  const im = ev.target;
+  if (!im || im.tagName !== "IMG" || !im.parentNode) return;
+  const fbk = im.getAttribute("data-fbk");
+  if (!fbk) return;
+  const s = document.createElement("span");
+  s.className = "ic material-symbols-outlined";
+  s.textContent = fbk;
+  im.parentNode.replaceChild(s, im);
+}, true);
 
 function renderBanner(sc) {
   const bn = document.getElementById("banner");

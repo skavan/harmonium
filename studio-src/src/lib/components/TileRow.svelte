@@ -161,6 +161,12 @@
   const activityIds = $derived(Object.keys(app.draft?.activities || {}));
   const screenIds = $derived(Object.keys(app.draft?.screens || {}));
   const seqIds = $derived(Object.keys(app.draft?.sequences || {}));
+  /* a preset's LANDING (v0.68.7): pages only. navScreenOptions also
+     offers ws: doorways and the key-capture screen — neither is a
+     sensible place for a playlist tap to leave you. */
+  const presetNavOptions = $derived(
+    Object.entries(app.draft?.screens || {})
+      .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
   /* the spec's "Auto — controller:tv rather than an em dash": the
      inherited value is SHOWN, in the empty option itself */
   const holdOptions = $derived([
@@ -440,11 +446,27 @@
             <Select value={tile.activity ?? ""} allowEmpty options={activityIds}
               onchange={(e) => { if (e.target.value) tile.activity = e.target.value; else delete tile.activity; }} />
           </Field>
+          <!-- WHERE IT LEAVES YOU (v0.68.7). The action says WHAT to
+               fire; `navigate` says where the tap ENDS UP — usually the
+               now-playing controller. Two decisions, two fields, because
+               the same preset wants a different landing on a room page
+               than in a drawer. Blank = stay put. -->
+          <Field label="Navigate to" hint="where the tap leaves you — blank = stay on this page">
+            <Select value={tile.navigate ?? ""} allowEmpty options={presetNavOptions}
+              onchange={(e) => { if (e.target.value) tile.navigate = e.target.value; else delete tile.navigate; }} />
+          </Field>
         </div>
-        {#if tile.activity}
+        {#if tile.activity || tile.navigate}
           <p class="m-0 text-[11px] text-dim">
-            This preset belongs to {app.draft?.activities?.[tile.activity]?.name || tile.activity} —
-            tapping it starts that activity if it isn't already running, then fires.
+            {#if tile.activity}
+              This preset belongs to {app.draft?.activities?.[tile.activity]?.name || tile.activity} —
+              tapping it starts that activity if it isn't already running, then fires.
+            {/if}
+            {#if tile.navigate}
+              {tile.activity ? " " : ""}After the tap you land on
+              <b>{app.draft?.screens?.[tile.navigate]?.name || tile.navigate}</b>{#if tile.activity}, which overrides
+              the activity's own page{/if}.
+            {/if}
           </p>
         {/if}
       {:else}

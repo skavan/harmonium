@@ -79,7 +79,7 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.68.3, 2026-08-07)
+## Current state (v0.68.6, 2026-08-07)
 
 v0.14: **the Studio chain is live end-to-end.** Engine grew
 `#preview=1` (same-origin postMessage: parent injects configs +
@@ -685,6 +685,151 @@ overlay), thumb shrunk 96→64 — metadata keeps full width.
 connection flash); title size themable (--bar-fs). Answered: apps
 drawer pops because drawer:true (Key Mappings switch turns it
 off). All 10 suites green.
+
+v0.68.6 — **THE CHASSIS ALREADY DID IT.** Suresh, with a screenshot
+of the Studio's empty Presets fold: "isn't this what this section is
+for? It should turn on listen to sonos activity and then launch the
+playlist?"
+
+Yes to both, and I had reimplemented the second one by hand.
+
+**`firePreset` has ensured the activity since v0.12.** Its own comment
+says so: *"Presets: one-tap content shortcuts. If the preset names an
+activity, ensure it's running first (Harmony-favorite behavior), then
+fire."* It starts the activity, polls the select for up to ~12s, and
+only then fires the action. Hand-written preset tiles have always
+carried `activity` and always got this.
+
+**The v0.64 GENERATOR never passed it on.** It resolves `aid` — it
+just looked the presets up with it — and then emitted tiles without
+it, so every generated preset silently lost the warm-start the chassis
+was standing by to give it. One word in one Object.assign. And with it,
+the three guarded start-then-play sequences I wrote in v0.68.5 are
+deleted: `bar_play_marley` / `_easy` / `_pop` are gone, and the presets
+are plain `media_player.play_media` calls again.
+
+Measured on the built engine, three states:
+
+    cold (receiver off)   -> harmonium.run bar_music_on, then the play
+    already listening     -> the play, directly — no re-run, so the
+                             0.66/0.35 volumes are not reset
+    Fire TV running       -> nothing yet: confirm_switch asks first,
+                             exactly as v0.12 intended
+
+That middle row is the case my hand-rolled guard existed for. The
+chassis does it better, because it waits on the activity's declared
+TRUTH (receiver on AND on the DVD input) rather than on the select.
+
+**And the section was in the wrong fold — a Studio bug.** `roleOf()`
+infers a hub section's role from its tile types when no `role` is set,
+and its preset test read `types.has("preset") || types.has(
+"presets_from")`. The v0.64 generator's type is **`presets`**, which is
+in neither list, so my new section fell through to the `devices`
+bucket — hence his screenshot: `bar_presets` filed under Devices with
+an empty Presets fold sitting above it. Two fixes: the section now
+declares `role: "presets"` outright (an explicit role always wins), and
+`roleOf` learns the `presets` type so the next one lands right without
+being told.
+
+**THE LESSON, AND IT IS THE SECOND TIME TODAY.** With the Games Room I
+built a power route without reading the scripts that already worked.
+Here I built a start-then-play sequence without reading the function
+that already started activities. Both times the answer was inside
+arm's reach and I wrote code instead of looking. *Before building a
+behaviour, grep for it.* His "isn't this what presets are for" was a
+better piece of engineering than my three sequences.
+
+v0.68.5 — **THE PRESETS BELONG ON THE ROOM PAGE.** Suresh: "Not
+exactly what I was thinking. I wanted them on the main room activities
+page. 3 or 4 in row."
+
+Fair — v0.68.4 put them where the grammar made them easiest (the
+player's Presets section), not where he reaches for them. The Bar page
+now carries a **MUSIC** section between Activities and Devices: three
+across on the remote at 145px, three across on the tablet at 412px
+(`columns: 3` + `tile_width: 380`, so the wide rule keeps the row a
+row instead of spreading it to eight thin columns).
+
+**Two things had to change for a room-page preset to actually work.**
+
+**(1) `include` on the presets generator.** The activity owns five
+presets — three playlists and the Pool grouping pair — and the room
+page wants only the three. `include: [ids]` narrows and orders them.
+Not a new idea: the `apps` generator has taken exactly this option
+since v0.46, with identical semantics. One activity's presets can now
+appear on two surfaces with different subsets — three on the room
+page, all five on the player.
+
+**(2) They are SEQUENCES now, not direct play calls.** v0.68.4 fired
+`media_player.play_media` at `$context.ma_player`. That was fine on
+the music controller and would have failed silently on the room page,
+twice over. First, `$context.ma_player` resolves through the RUNNING
+activity: with Fire TV running, or nothing running, the slot is absent,
+`resolveEntity` returns null and `runAction` no-ops by design. Second
+and worse — **the Bar Sonos feeds the Onkyo.** Playing to the MA
+player while the receiver is off or on the TV input produces silence,
+which would have looked exactly like a broken button.
+
+So each preset now runs `bar_play_<name>`: start Listen to Sonos
+*unless it is already running*, settle 2s, then play. The guard
+matters — `bar_music_on` sets the receiver to 0.66 and the Sonos to
+0.35, so an unguarded re-run would yank the volume out from under
+someone already listening. Tapped cold it powers the room and plays;
+tapped mid-listen it just changes the music.
+
+The `ma_player` context slot added in v0.68.4 is gone with the direct
+calls that needed it.
+
+v0.68.4 — **THREE BAR PRESETS.** Suresh, wrapping up: "I want to
+create 3 presets… Play Bob Marley Greatest Hits 2026 (but the preset
+says 'Bob Marley') on Sonos Bar. Top Easy Listening Hits of All Time –
+Smooth & Timeless Favorites ('Easy Listening'). Top Songs - USA
+('Latest Pop')."
+
+Config only — no engine change. Added to `activities.listen_sonos.
+presets`, ahead of the two Pool-grouping presets, because "play
+something" is the more frequent tap.
+
+| label | plays | icon |
+|---|---|---|
+| Bob Marley | `library://playlist/44` | `sunny` |
+| Easy Listening | `library://playlist/37` | `weekend` |
+| Latest Pop | `library://playlist/42` | `trending_up` |
+
+**Ids were looked up, not guessed.** `music_assistant.search` by exact
+name returned all three from HIS library, and `browse_media` on
+`library://playlist/44` came back as "Bob Marley Greatest Hits 2026"
+with `can_play: true` and 70 tracks — verified without playing a note
+in his house.
+
+**Why `library://` and the MA player rather than v0.66's Sonos-direct
+share link.** The v0.66 rule stands: convert to `spotify:` and let the
+Sonos stream it whenever the id is known. Here the ids are NOT
+unambiguous. "Top Easy Listening Hits of All Time" returns **two**
+Spotify playlists with byte-identical names and mosaics; "Top Songs -
+USA" has no exact Spotify match at all (it is the region chart, saved
+into his library). Only Bob Marley had a single clean candidate — and
+its library copy carries a different cover from the Spotify one, so
+even there I could not prove they are the same playlist. A `library://`
+uri is unambiguous: it IS the playlist he curated. One rule for all
+three beats a rule that guesses on two of them. Sound still comes out
+of the Bar Sonos — the MA player drives that speaker.
+
+**AND THE REPO ADOPTED HIS DELETION.** The post-reseed audit showed
+one difference between the merged store and the repo build: Bar ›
+Devices had 2 tiles in the repo and 1 live — he had removed the "Games
+Room" nav card in the Studio ("Ive given up on the games room for
+now"). The three-way merge did exactly the right thing: `base` and
+`fresh` agreed on that path, so `current` won and his deletion
+survived the reseed. The repo has now adopted the live store wholesale
+so the two do not drift — the v0.62 discipline, and the reason this
+audit is run every time rather than trusted.
+
+**`ma_player` is now a context slot.** Rather than repeat
+`media_player.ma_bar` in three preset actions, `listen_sonos.context`
+names it once and the presets say `$context.ma_player`, like every
+other wiring in the system. The browse tile's `search.entity` still
+names it separately; folding that in is a tidy-up for later.
 
 v0.68.3 — **THREE FROM THE TABLET, AND TWO OF THEM WERE MINE.**
 

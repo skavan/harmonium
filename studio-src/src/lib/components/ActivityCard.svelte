@@ -809,13 +809,21 @@
     app.draft.activities = rebuilt;
     /* keep every reference honest: tile refs, when: visibility,
        and Set-activity-state steps inside sequences (any nesting) */
+    /* `when.activity` / `when.not_activity` are SCALAR OR LIST — the
+       engine normalises with arr() (context.js §when). A strict ===
+       missed the list form entirely, so renaming an activity named in
+       a multi-activity `when:` left a stale id behind and the tile
+       quietly stopped showing. Handle both shapes. */
+    const swap = (v) => (Array.isArray(v)
+      ? v.map((x) => (x === oldId ? newId : x))
+      : v === oldId ? newId : v);
     for (const scr of Object.values(app.draft.screens || {})) {
       const groups = [scr.tiles || [], ...(scr.sections || []).map((s) => s.tiles || [])];
       for (const g of groups)
         for (const t of g) {
           if (t.activity === oldId) t.activity = newId;
-          if (t.when?.activity === oldId) t.when.activity = newId;
-          if (t.when?.not_activity === oldId) t.when.not_activity = newId;
+          if (t.when?.activity !== undefined) t.when.activity = swap(t.when.activity);
+          if (t.when?.not_activity !== undefined) t.when.not_activity = swap(t.when.not_activity);
         }
     }
     walkSetActivity(app.draft.sequences || {}, oldId, newId);

@@ -1,5 +1,5 @@
 {
-  "version": 25,
+  "version": 30,
   "home_screen": "bar",
   "screen_order": [
     "bar",
@@ -43,18 +43,73 @@
           ]
         },
         {
+          "role": "presets",
+          "hero_label": "Presets",
+          "title": "Presets",
+          "columns": 3,
+          "tile_width": 380,
+          "tiles": [
+            {
+              "id": "bar_marley",
+              "type": "preset",
+              "cls": "art",
+              "label": "Bob Marley",
+              "icon": "material:sunny",
+              "icon_image": "https://image-cdn-ak.spotifycdn.com/image/ab67706c0000da84770bd4f6dc9810dbc4cafd7a",
+              "activity": "bar_listen_sonos",
+              "navigate": "controller:music",
+              "action": {
+                "service": "media_player.play_media",
+                "entity": "media_player.sonos_bar",
+                "data": {
+                  "media_content_type": "favorite_item_id",
+                  "media_content_id": "FV:2/99"
+                }
+              }
+            },
+            {
+              "id": "bar_easy",
+              "type": "preset",
+              "cls": "art",
+              "label": "Easy Listening",
+              "icon": "material:weekend",
+              "icon_image": "https://mosaic.scdn.co/640/ab67616d00001e022a1ffd75bb148e58ce2a6cacab67616d00001e022fee61bfec596bb6f5447c50ab67616d00001e02d287ed0734d4fcf11f9a0000ab67616d00001e02e5855edffddef46b7feff49b",
+              "activity": "bar_listen_sonos",
+              "navigate": "controller:music",
+              "action": {
+                "service": "media_player.play_media",
+                "entity": "media_player.sonos_bar",
+                "data": {
+                  "media_content_type": "favorite_item_id",
+                  "media_content_id": "FV:2/84"
+                }
+              }
+            },
+            {
+              "id": "bar_pop",
+              "type": "preset",
+              "cls": "art",
+              "label": "Latest Pop",
+              "icon": "material:trending_up",
+              "icon_image": "https://charts-images.scdn.co/assets/locale_en/regional/weekly/region_us_default.jpg",
+              "activity": "bar_listen_sonos",
+              "navigate": "controller:music",
+              "action": {
+                "service": "media_player.play_media",
+                "entity": "media_player.sonos_bar",
+                "data": {
+                  "media_content_type": "favorite_item_id",
+                  "media_content_id": "FV:2/91"
+                }
+              }
+            }
+          ]
+        },
+        {
           "hero_label": "Devices",
           "title": "Devices",
           "role": "devices",
           "tiles": [
-            {
-              "type": "nav",
-              "id": "tile_o5lf",
-              "label": "Games Room",
-              "icon": "material:pages",
-              "target": "games",
-              "style": "plain"
-            },
             {
               "type": "nav",
               "id": "tile_di16",
@@ -243,7 +298,7 @@
     }
   },
   "activities": {
-    "watch_firetv": {
+    "bar_watch_firetv": {
       "name": "Watch Fire TV",
       "icon": "material:live_tv",
       "color": "#d97b3a",
@@ -306,7 +361,7 @@
         "remote.fire_tv_192_168_1_40"
       ]
     },
-    "listen_sonos": {
+    "bar_listen_sonos": {
       "name": "Listen to Sonos",
       "icon": "material:speaker",
       "color": "#1e8a82",
@@ -606,7 +661,7 @@
           "alias": "Publish activity state",
           "action": "harmonium.set_activity",
           "data": {
-            "activity": "watch_firetv"
+            "activity": "bar_watch_firetv"
           }
         },
         {
@@ -664,7 +719,7 @@
           "alias": "Publish activity state",
           "action": "harmonium.set_activity",
           "data": {
-            "activity": "listen_sonos"
+            "activity": "bar_listen_sonos"
           }
         },
         {
@@ -1422,6 +1477,18 @@
         "media_player": "media_player.sonos_pool",
         "volume": "media_player.sonos_pool",
         "volume_level": "media_player.sonos_pool"
+      }
+    },
+    "office": {
+      "name": "Office",
+      "icon": "material:tv",
+      "roles": {
+        "media_player": "media_player.office",
+        "power": "media_player.office",
+        "volume": "media_player.office",
+        "volume_level": "media_player.office",
+        "source_select": "media_player.office",
+        "commands": "media_player.office"
       }
     }
   },

@@ -153,7 +153,14 @@
     if (s.role) return s.role;
     const types = new Set((s.tiles || []).map((t) => t.type));
     if (types.has("activity") || types.has("activities")) return "activities";
-    if (types.has("preset") || types.has("presets_from")) return "presets";
+    /* "presets" — the v0.64 GENERATOR — was missing here, so a hub
+       section built from it fell through to "devices" and appeared
+       under the wrong fold with an empty Presets fold above it
+       (Suresh, with a screenshot: "isn't this what this section is
+       for?"). An explicit `role` always wins; this is the guess for
+       sections that carry none. */
+    if (types.has("preset") || types.has("presets") ||
+        types.has("presets_from")) return "presets";
     if (types.has("apps")) return "custom";
     return types.size ? "devices" : "custom";
   };

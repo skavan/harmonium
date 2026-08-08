@@ -1,4 +1,4 @@
-# HANDOFF — session ended 2026-08-06 (v0.68.3 built, awaiting push)
+# HANDOFF — session ended 2026-08-06 (v0.68.6 built, awaiting push)
 
 Read `docs/PROJECT.md` first; it is the living document. This file is
 the bridge from the last session to the next one.
@@ -7,7 +7,22 @@ the bridge from the last session to the next one.
 
 `push-to-ha.bat` → `harmonium.reseed` → reload the remote.
 **No HA restart needed** — nothing here touches `.py`.
-Carries engine **v0.68.3** + config **v25**. Engine: the surface-owner
+Carries engine **v0.68.6** + config **v28** — the three Bar music
+presets on the ROOM page in a proper `role: "presets"` section, three
+across; `include` on the presets generator; and the generator now
+stamps the owning ACTIVITY on each tile, so firePreset's v0.12
+warm-start finally applies to generated presets. The three
+hand-rolled `bar_play_*` sequences are deleted — the chassis does it.
+**The Studio also changed** (`HubEditor.roleOf` now knows the
+`presets` type): source only, so `npm run build` in `studio-src/`
+when convenient. See v0.68.5 and v0.68.6 in PROJECT.md.
+
+Before this, engine v0.68.3 + config v26 were deployed, reseeded and
+audited, and the repo adopted the live store wholesale — including his
+Studio deletion of the Bar's "Games Room" nav card, which the merge
+correctly preserved.
+
+Previously (v25, deployed): engine **v0.68.3** + config **v25**. Engine: the surface-owner
 rule (a music controller is no longer supplied by a running Xbox), the
 "Searching…" line that v0.68.1's own speed fix had suppressed, and
 two-wave search (library first, providers second). Config v25 restores
@@ -65,10 +80,12 @@ falls back to the shallow path. The Studio now shows the field.
   **v0.68 engine / config v22 was pushed, reseeded and audited
   2026-08-07 15:2x UTC** (zero-difference merge) and RUN on the
   tablet — his five notes became v0.68.1.
-  **v0.68.1 engine / config v23 was pushed, reseeded and audited
-  2026-08-07 (zero-difference merge).** **Engine v0.68.3 / config v25
-  is in the repo awaiting `push-to-ha.bat` + `harmonium.reseed`** —
-  no restart.
+  **Engine v0.68.5 / config v27 is LIVE (reseeded + audited
+  2026-08-07); engine v0.68.6 / config v28 awaits
+  `push-to-ha.bat` + `harmonium.reseed`, no restart.** The GAMES ROOM is parked: he ran
+  out of time and never tested it on hardware, and he has removed its
+  nav card from the Bar page. The BAR is working well and is where the
+  next session should start.
   The Studio's `studio.html` is CURRENT and untouched; only
   `studio-src/…/TileRow.svelte` changed, awaiting a `npm run build`.
   v0.67 / config v16 was pushed and reseeded 2026-08-06; the Games

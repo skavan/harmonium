@@ -1552,6 +1552,150 @@ activity instead of the running one.
 A room whose activity has no presets renders nothing here — the
 section vanishes, header included.
 
+### `include` + activity stamping (v0.68.6) — PARKED, not in use
+
+> **Status: parked (2026-08-08).** The engine supports all of this and
+> it is tested, but NOTHING in the shipped config uses it — the Bar's
+> playlist row was flattened to three plain `preset` tiles. Keep it for
+> the shared-controller case it was built for; do not reach for it to
+> put three known shortcuts on one known page.
+>
+> **Why it was parked.** Authoring became two hops. The page holds a
+> generator that names an activity and an `include` list of ids; the
+> tiles themselves live in `activities.<id>.presets[]`, which in the
+> Studio is a different editor entirely. So the page you are looking at
+> is not the page you edit, the ids in `include` have to stay in sync
+> by hand, and what renders carries a composite id
+> (`bar_presets_sp_marley`) that appears nowhere in the config. Suresh,
+> looking at the result: *"Its so cryptic."* He was right. The
+> indirection pays for itself only when the surface genuinely cannot
+> know its own content — a shared music controller serving every room —
+> and costs more than it earns anywhere else.
+>
+> The flat form is in "Cover art on a preset" below: `type: "preset"`
+> tiles authored directly in the section, each declaring its own
+> `activity` (so the warm start survives), `navigate`, and artwork.
+> Same rendering, same behaviour, one hop.
+
+Two additions let a ROOM page carry an activity's shortcuts before that
+activity is running — the Harmony "favorite" pattern: one tap starts
+the activity AND plays the thing.
+
+```json
+{ "id": "bar_presets", "type": "presets",
+  "activity": "listen_sonos",
+  "include": ["sp_marley", "sp_easy", "sp_pop"] }
+```
+
+- **`include`** — an ordered list of preset `id`s. Only those are
+  emitted, **in the order given** (not config order). Unknown ids are
+  dropped silently, so pruning the activity's `presets` array can
+  never blank the page. Omit `include` and you get all of them.
+- **activity stamping** — every emitted tile carries
+  `activity: <the generator's activity>`. That is what makes
+  `firePreset`'s v0.12 warm start apply: tap while the activity is
+  cold and the engine runs `startActivity` first, polls the activity's
+  declared truth, and fires the action only once it confirms.
+
+Emitted ids are `<generator id>_<preset id>` (`bar_presets_sp_marley`),
+so the same preset can appear on two surfaces without colliding.
+
+**The warm-start budget is ~12s** (40 × `TIMING.presetPoll`). If the
+activity's `state.on` rule has not become true by then, the tile
+flashes *"Activity didn't start"* and the action never fires. An
+activity whose truth depends on a slow AV receiver — power on, then
+settle on the right input — can easily miss that window from cold, and
+the symptom is a preset that "does nothing". Two ways out:
+
+- give the activity a truth rule its devices satisfy quickly, or
+- author the preset **without** `activity` (a plain `preset` tile in
+  the section rather than the generator), so it fires immediately and
+  leaves starting the activity to the activity tile.
+
+Note also that `startActivity` navigates to the activity's `screen`,
+so a cold tap leaves the room page for the controller — by design, but
+worth knowing when the music does not follow.
+
+### `navigate` — where the tap leaves you (v0.68.7)
+
+An optional tile-level field on any `preset`. The `action` says WHAT to
+fire; `navigate` says where you END UP.
+
+```json
+{ "id": "sp_marley", "type": "preset",
+  "icon": "material:sunny", "label": "Bob Marley",
+  "navigate": "controller:music",
+  "action": { "service": "media_player.play_media",
+              "entity": "media_player.sonos_bar",
+              "data": { "media_content_type": "favorite_item_id",
+                        "media_content_id": "FV:2/99" } } }
+```
+
+Two decisions, declared separately, because the same preset wants a
+different landing on a room page than in a drawer.
+
+- Applied **at tap time**, not inside the deferred `run()` — the tap
+  IS the intent (the `S.pendingActivity` rule), so the surface changes
+  immediately and a slow warm start never yanks the page out from
+  under a finger seconds later.
+- It lands last, so it **wins over** `startActivity`'s own
+  `activity.screen` jump, and over the drawer pop-back in
+  `WIDGETS.preset.select`.
+- An unknown screen id is a no-op inside `navigate()` — you stay where
+  you are; the page never blanks.
+
+Not to be confused with `action: { navigate: <screen> }`, which is the
+whole action (go there, fire nothing). `navigate` alongside `action`
+does both.
+
+### Cover art on a preset — `icon_image` + `cls: "art"` (v0.68.7)
+
+`icon_image` has always overridden `icon`. On a preset it renders at
+**42px** — right for an app logo, where the image is a LABEL. A
+playlist is the other case: the cover IS the thing you are picking.
+`cls: "art"` opts that tile into the art-forward stack — 84px cover
+(100px under `html.wide`), 12.5px label, taller tile.
+
+This is also the SHIPPED shape of the Bar's playlist row — a plain
+`preset` tile sitting directly in `screens.bar.sections[role=presets]`,
+declaring everything about itself in one place:
+
+```json
+{ "id": "bar_marley", "type": "preset", "cls": "art",
+  "label": "Bob Marley",
+  "icon": "material:sunny",
+  "icon_image": "https://image-cdn-ak.spotifycdn.com/image/ab67706c…",
+  "activity": "listen_sonos",
+  "navigate": "controller:music",
+  "action": { "service": "media_player.play_media",
+              "entity": "media_player.sonos_bar",
+              "data": { "media_content_type": "favorite_item_id",
+                        "media_content_id": "FV:2/99" } } }
+```
+
+`activity` is declared per tile rather than stamped by a generator, so
+the warm start is unchanged AND it is visible in the tile's own editor.
+
+Opt-in rather than "any preset with an image", because the apps drawer
+carries images too and wants the stamp.
+
+**Always declare `icon` as well.** Cover art is a REMOTE url — a
+Spotify CDN, a Sonos coordinator, an MA thumbnail. The panel is a wall
+tablet: the internet drops, a favourite is re-added under a new id, a
+coordinator reboots. A broken-image glyph where the art was is the
+same failure as a blank panel, so `iconHtml` stamps `data-fbk` on the
+`<img>` and a document-level capturing `error` listener swaps in the
+declared glyph. Verified: with every CDN request aborted, all three
+tiles fall back to their material icons at full size and the row keeps
+its height.
+
+Sonos favourite ids come from the media browser —
+`media_player/browse_media` with
+`media_content_type: "favorites_folder"`, `media_content_id:
+"object.container.playlistContainer"`. Each child carries
+`media_content_id` (`FV:2/99`), which is stable across renames, and a
+`thumbnail` url — that thumbnail is the `icon_image` above.
+
 ## `nav` additions
 
 - `hide_when_empty: true` — a **summary** card whose target resolves to

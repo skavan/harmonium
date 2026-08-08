@@ -5,12 +5,36 @@ const grid = document.getElementById("grid");
 
 function iconHtml(t, row) {
   let inner;
-  if (t.icon_image) inner = `<img src="${t.icon_image}" alt=""${t.icontain ? ' class="contain"' : ""}>`;
-  else if (t.icon && t.icon.startsWith("material:"))
+  if (t.icon_image) {
+    /* ARTWORK FALLS BACK TO THE ICON (v0.68.7). Cover art is a REMOTE
+       url — a Spotify CDN, a Sonos coordinator, an MA thumbnail. The
+       panel is a wall tablet: the internet drops, a favorite is
+       re-added under a new id, a coordinator reboots. A broken-image
+       glyph where the album art was is the same failure as a blank
+       panel, so the declared `icon` stays on the tile as the
+       understudy — see the delegated error handler below. */
+    const fb = t.icon && t.icon.startsWith("material:") ? t.icon.slice(9) : "";
+    inner = `<img src="${t.icon_image}" alt=""` +
+      (t.icontain ? ' class="contain"' : "") +
+      (fb ? ` data-fbk="${fb}"` : "") + ">";
+  } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* `error` does not bubble, but it DOES capture — one document-level
+   listener covers every tile ever rendered, with no per-image wiring
+   and nothing to clean up on re-render. */
+document.addEventListener("error", ev => {
+  const im = ev.target;
+  if (!im || im.tagName !== "IMG" || !im.parentNode) return;
+  const fbk = im.getAttribute("data-fbk");
+  if (!fbk) return;
+  const s = document.createElement("span");
+  s.className = "ic material-symbols-outlined";
+  s.textContent = fbk;
+  im.parentNode.replaceChild(s, im);
+}, true);
 
 function renderBanner(sc) {
   const bn = document.getElementById("banner");

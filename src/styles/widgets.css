@@ -106,6 +106,21 @@
   .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+  /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
+     is right for an app logo, where the image is a LABEL; it is wrong
+     for a playlist, where the cover IS the thing you are picking.
+     Opt-in via `cls: "art"` rather than "any preset with an image",
+     because the apps drawer carries images too and wants the stamp. */
+  .tile.wgt-preset.art { min-height: 118px; }
+  .tile.wgt-preset.art .top img {
+    width: 84px; height: 84px; border-radius: 12px; margin-bottom: 8px;
+  }
+  .tile.wgt-preset.art .lbl { font-size: 12.5px; }
+  /* the fallback glyph stands in the ART's shoes, not the label's */
+  .tile.wgt-preset.art .top .ic { font-size: 52px; margin-bottom: 8px; }
+  html.wide .tile.wgt-preset.art { min-height: 138px; }
+  html.wide .tile.wgt-preset.art .top img { width: 100px; height: 100px; }
+  html.wide .tile.wgt-preset.art .top .ic { font-size: 62px; }
 
   /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of
      a described remote. Same icon-first stack as a preset tile —
