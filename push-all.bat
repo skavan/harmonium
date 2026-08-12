@@ -1,8 +1,8 @@
 @echo off
 setlocal
 rem ============================================================
-rem  push-all -- pushes ENGINE + STUDIO + INTEGRATION (.py included)
-rem  to your default house. The integration changed, so RESTART
+rem  push-all -- pushes ENGINE + STUDIO + INTEGRATION (.py included)
+rem  to your default house. The integration changed, so RESTART
 rem  Home Assistant afterwards -- Python only loads on restart.
 rem
 rem  Works on YOUR default house. The default is one line in

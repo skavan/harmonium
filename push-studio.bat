@@ -1,8 +1,8 @@
 @echo off
 setlocal
 rem ============================================================
-rem  push-studio -- STUDIO ONLY (studio.html) to your default house.
-rem  Run after: cd studio-src ^&^& npm run build. No HA restart;
+rem  push-studio -- STUDIO ONLY (studio.html) to your default house.
+rem  Run after: cd studio-src ^&^& npm run build. No HA restart;
 rem  hard-refresh the Studio tab afterwards.
 rem
 rem  Works on YOUR default house. The default is one line in

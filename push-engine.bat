@@ -1,7 +1,7 @@
 @echo off
 setlocal
 rem ============================================================
-rem  push-engine -- ENGINE ONLY (dist\index.html) to your default
+rem  push-engine -- ENGINE ONLY (dist\index.html) to your default
 rem  house. No Studio, no Python: no HA restart, ever.
 rem
 rem  Works on YOUR default house. The default is one line in

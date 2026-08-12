@@ -20,3 +20,5 @@ houses/*/
 # ---- local scratch, never repo material ----
 _to_delete/
 _survey2/
+# markdown-editor pasted-image backups (tool scratch, not repo material)
+.md4h/

@@ -1,8 +1,8 @@
 @echo off
 setlocal
 rem ============================================================
-rem  pull-my-config -- snapshot your default house's LIVE config
-rem  into houses\<house>\config.json. One direction: HA to repo.
+rem  pull-my-config -- snapshot your default house's LIVE config
+rem  into houses\<house>\config.json. One direction: HA to repo.
 rem  A backup and a record; nothing in the push path reads it.
 rem
 rem  Works on YOUR default house. The default is one line in

@@ -1,8 +1,8 @@
 @echo off
 setlocal
 rem ============================================================
-rem  build-push -- THE ROUTINE DEPLOY: build Studio + engine, push both.
-rem  No integration .py, so no Home Assistant restart. Use
+rem  build-push -- THE ROUTINE DEPLOY: build Studio + engine, push both.
+rem  No integration .py, so no Home Assistant restart. Use
 rem  push-all.bat when the integration changed (it says so).
 rem
 rem  Works on YOUR default house. The default is one line in
