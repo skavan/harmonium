@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* ────────────────────────────────────────────────────────────────
+   Harmonium Studio — "Graphite Rails" tokens (design handoff v1)
+   Dark is the default (@theme); light overrides on [data-theme="light"].
+   LEGACY ALIASES at the bottom of each block keep the pre-redesign
+   utility names (bg-tile, text-dim, …) alive while screens migrate
+   phase-by-phase — remove an alias only when nothing references it.
+   ──────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* surfaces */
+  --color-bg:           #0e1013;
+  --color-surface:      #16191e;
+  --color-raised:       #1c2026;
+  --color-sunk:         #131519;
+  --color-field:        #101318;
+  --color-glass:        #131519;   /* Advanced tab fill */
+
+  /* lines */
+  --color-line:         #262b33;
+  --color-line-strong:  #313842;
+
+  /* ink */
+  --color-ink:          #e6e9ee;
+  --color-ink-2:        #c3c9d2;
+  --color-dim:          #8b94a1;
+  --color-faint:        #5f6773;
+
+  /* accent + state */
+  --color-accent:       #ffb300;
+  --color-accent-ink:   #1a1400;
+  --color-accent-text:  #ffc94d;
+  --color-accent-wash:  rgba(255, 179, 0, 0.11);
+  --color-ok:           #4caf7d;
+  --color-danger:       #e0655f;
+  --color-danger-line:  rgba(224, 101, 95, 0.35);
+  --color-note-bg:      #1b1710;
+  --color-note-line:    #3a3324;
+
+  /* type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  /* radii */
+  --radius-field:  4px;
+  --radius-ctl:    6px;
+  --radius-row:    8px;
+  --radius-card:   10px;
+  --radius-pill:   999px;
+
+  /* control metrics */
+  --h-field:       38px;   /* inputs, selects, icon buttons */
+  --h-icon-sm:     34px;   /* compact icon buttons (snippets) */
+  --h-navrow:      32px;
+  --h-switch:      19px;
+  --w-switch:      32px;
+
+  /* spacing scale (4px base) */
+  --sp-1: 4px;  --sp-2: 6px;  --sp-3: 8px;  --sp-4: 10px;
+  --sp-5: 12px; --sp-6: 16px; --sp-7: 22px; --sp-8: 32px;
+
+  /* elevation — in-page depth is a surface step + 1px line, not a shadow */
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-float: 0 12px 28px rgba(0, 0, 0, 0.45);
+  --ring-focus:   0 0 0 2px rgba(255, 179, 0, 0.55);
+
+  /* ── legacy aliases (pre-redesign utility names) ── */
+  --color-tile:     var(--color-surface);
+  --color-tile-hi:  var(--color-raised);
+  --color-inset:    var(--color-sunk);
+  --color-hover:    var(--color-line-strong);
+}
+
+[data-theme="light"] {
+  --color-bg:           #f4f5f7;
+  --color-surface:      #ffffff;
+  --color-raised:       #f7f8fa;
+  --color-sunk:         #eceef1;
+  --color-field:        #ffffff;
+  --color-glass:        #f2f3f5;
+
+  --color-line:         #dcdfe4;
+  --color-line-strong:  #cfd4db;
+
+  --color-ink:          #1c2128;
+  --color-ink-2:        #3f4753;
+  --color-dim:          #646c78;
+  --color-faint:        #9aa1ab;
+
+  --color-accent:       #a86f00;
+  --color-accent-ink:   #ffffff;
+  --color-accent-text:  #8c5c00;
+  --color-accent-wash:  rgba(168, 111, 0, 0.10);
+  --color-ok:           #1e7d43;
+  --color-danger:       #c02f2f;
+  --color-danger-line:  rgba(192, 47, 47, 0.30);
+  --color-note-bg:      #fdf8ee;
+  --color-note-line:    #eee2c9;
+
+  --shadow-card:  0 1px 2px rgba(28, 33, 40, 0.05);
+  --shadow-float: 0 12px 28px rgba(28, 33, 40, 0.18);
+  --ring-focus:   0 0 0 3px rgba(168, 111, 0, 0.16);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: 13px/1.45 var(--font-sans);
+  overflow: hidden;
+}
+#app { height: 100%; }
+
+a { color: var(--color-accent-text); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--color-line-strong); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* one-shot blip whenever the preview receives a fresh config */
+.pv-blip { animation: pvblip 1.2s ease-out forwards; }
+@keyframes pvblip { 0% { opacity: 1; } 100% { opacity: 0.15; } }
+
+/* ────────────────────────────────────────────────────────────────
+   STUDIO UI SETTINGS — the config UI's own knobs (nothing here
+   touches the remote; that's config.theme → engine vars).
+   Tune these variables in devtools, then bake the numbers in.
+   Approved v0.43.x: whole chrome one step up (12→13, 12.5→13.5,
+   13→14, base 14).
+   ──────────────────────────────────────────────────────────────── */
+:root {
+  --ui-fs-base:  14px;    /* body + everything font-[inherit]        */
+  --ui-fs-small: 13px;    /* was 12 — text-xs chrome, small labels   */
+  --ui-fs-mono:  13.5px;  /* was 12.5 — machine values, mono ids     */
+  --ui-fs-body:  14px;    /* was 13 — row labels, field values       */
+}
+:root { --text-xs: var(--ui-fs-small); }
+body { font-size: var(--ui-fs-base); }
+.text-\[12px\]   { font-size: var(--ui-fs-small); }
+.text-\[12\.5px\] { font-size: var(--ui-fs-mono); }
+.text-\[13px\]   { font-size: var(--ui-fs-body); }
+
+/* component surfaces & controls (Suresh v0.43.8) — one place to tune:
+   which surface each layer of the editor sits on, and the fixed
+   controls that must not size themselves from their content. */
+:root {
+  --ui-fs-nav-heading: 12px;              /* sidebar group headings (① PAGES …) */
+  --ui-row-card-bg: var(--color-bg);      /* item rows: activities · presets · devices */
+  --ui-sec-body-bg: var(--color-tile-hi); /* section accordion bodies */
+  --ui-row-body-bg: var(--color-tile-hi); /* an OPEN item card's body (Watch Fire TV…) */
+  --ui-role-select-w: 96px;               /* the "+ role" dropdown (fixed — a native
+                                             select otherwise sizes to its longest option) */
+}
+.ui-nav-heading { font-size: var(--ui-fs-nav-heading); }
+.ui-row-card    { background: var(--ui-row-card-bg); }
+.ui-sec-body    { background: var(--ui-sec-body-bg); }
+.ui-row-body    { background: var(--ui-row-body-bg); }
+.ui-role-select { width: var(--ui-role-select-w); flex: 0 0 var(--ui-role-select-w); }
+

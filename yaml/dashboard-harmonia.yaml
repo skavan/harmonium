@@ -1,0 +1,433 @@
+views:
+  - title: Test
+    url: test
+    panel: true
+    cards:
+      - type: custom:layout-card
+        layout_type: custom:grid-layout
+        layout:
+          grid-template-columns: 1fr
+          grid-template-rows: auto auto auto auto
+          gap: 12px 0
+          padding: 8px 12px 0 12px
+        cards:
+          - type: custom:harmonia-room-card
+            room_id: porch
+            room:
+              id: porch
+              name: Porch
+              activities:
+                - id: h-mncj0afv-lgqtt0sg
+                  type: watch_tv
+                  name: Watch Fire TV
+                  color: "#d97b3a"
+                  icon_path: entity_picture_auto
+                  live_badge_label: Live
+                  sub_idle_label: ""
+                  confirm_turn_off: true
+                  entity_ids:
+                    - media_player.fire_tv_family_192_168_1_65
+                    - media_player.sts_samsung_q90_porch
+                    - button.sts_samsung_q90_porch
+                    - remote.sts_samsung_q90_porch
+                  primary_entity_id: media_player.fire_tv_family_192_168_1_65
+                  state_entity_ids:
+                    - media_player.fire_tv_family_192_168_1_65
+                    - media_player.sts_samsung_q90_porch
+                  state_mode: custom
+                  state_on_eval_yaml: >-
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      equals: "on"
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      attribute: source
+                      in: [Fire TV, TV/HDMI]
+                    - display_label: "Live:
+                    {{entity[media_player.sts_samsung_q90_porch].attr.source}}"
+                  state_off_eval_yaml: |
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      equals: "off"
+                  subtitle_mode: custom
+                  subtitle_live_template: >-
+                    {{entity[media_player.fire_tv_family_192_168_1_65].attr.source}}
+                    | {{entity[media_player.sts_samsung_q90_porch].attr.source}}
+                  navigation_path: http://192.168.1.87:8123/tv-control/1
+                  devices: []
+                  on_start_actions:
+                    - action: perform-action
+                      perform_action: media_player.select_source
+                      target:
+                        entity_id: media_player.fire_tv_family_192_168_1_65
+                      data:
+                        source: Home
+                    - action: perform-action
+                      perform_action: remote.turn_on
+                      target:
+                        entity_id: remote.sts_samsung_q90_porch
+                    - action: perform-action
+                      perform_action: delay
+                      data:
+                        ms: 5000
+                    - action: perform-action
+                      perform_action: media_player.select_source
+                      target:
+                        entity_id: media_player.sts_samsung_q90_porch
+                      data:
+                        source: Fire TV
+                  on_stop_actions:
+                    - action: perform-action
+                      perform_action: media_player.turn_off
+                      target:
+                        entity_id: media_player.sts_samsung_q90_porch
+                - id: h-mnfhaecd-3dnmb20x
+                  type: watch_tv
+                  name: Watch Samsung TV
+                  color: "#e89b17"
+                  icon_path: >-
+                    M1 3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v9a1 1 0 0 1-1
+                    1H9v1h2v1H5v-1h2v-1H2a1 1 0 0 1-1-1V3zm1 0v9h12V3H2z
+                  live_badge_label: Live
+                  sub_idle_label: ""
+                  confirm_turn_off: true
+                  entity_ids:
+                    - media_player.sts_samsung_q90_porch
+                    - remote.samsung_porch_tv_q90
+                    - button.sts_samsung_q90_porch
+                  primary_entity_id: media_player.sts_samsung_q90_porch
+                  state_entity_ids:
+                    - media_player.sts_samsung_q90_porch
+                  state_mode: custom
+                  state_on_eval_yaml: >-
+
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      equals: "on"
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      attribute: source
+                      not_in: [Fire TV, Unknown (HDMI 1), TV/HDMI]
+                    - display_label: "Live:
+                    {{entity[media_player.sts_samsung_q90_porch].attr.source}}"
+                  state_off_eval_yaml: |-
+                    - entity_id: media_player.sts_samsung_q90_porch
+                      equals: "off"
+                  navigation_path: /tv-control/0
+                  devices: []
+                  on_start_actions:
+                    - action: perform-action
+                      perform_action: remote.turn_on
+                      target:
+                        entity_id: remote.sts_samsung_q90_porch
+                    - action: perform-action
+                      perform_action: delay
+                      data:
+                        ms: 5000
+                    - action: perform-action
+                      perform_action: media_player.select_source
+                      target:
+                        entity_id: media_player.sts_samsung_q90_porch
+                      data:
+                        source: Prime Video
+                  on_stop_actions:
+                    - action: perform-action
+                      perform_action: media_player.turn_off
+                      target:
+                        entity_id: media_player.sts_samsung_q90_porch
+                - id: h-mndqf610-vmwq59l9
+                  type: music
+                  name: Listen To Music
+                  color: "#1e8a82"
+                  icon_path: entity_picture_auto
+                  live_badge_label: Live
+                  sub_idle_label: ""
+                  entity_ids:
+                    - media_player.ma_sonos_basement
+                    - media_player.onkyo_avr_basement
+                  primary_entity_id: media_player.ma_sonos_basement
+                  state_entity_ids:
+                    - media_player.ma_sonos_basement
+                  state_eval_yaml: |-
+                    - entity_id: media_player.ma_sonos_basement
+                      in: [on, playing, paused, buffering]
+                  navigation_path: /ma-player/0
+                  devices: []
+                  on_start_actions:
+                    - action: perform-action
+                      perform_action: media_player.media_play
+                      target:
+                        entity_id: media_player.ma_sonos_basement
+                  on_stop_actions:
+                    - action: perform-action
+                      perform_action: media_player.media_stop
+                      target:
+                        entity_id: media_player.ma_sonos_basement
+              devices:
+                - id: h-mndst1da-9tw0sqxe
+                  name: Fire TV
+                  entity_id: media_player.fire_tv_family_192_168_1_65
+                  color: "#ff780a"
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: navigate
+                  color_mode: manual
+                  navigation_path: /tv-control/1
+                  group_id: h-mno27skp-2yfs0z4i
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  hold_action: more_info
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: true
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                    media_controls:
+                      - play_pause_stop
+                  density_profile_override: inherit
+                - id: h-mnkyih9m-2wvzih5x
+                  name: Porch TV
+                  entity_id: media_player.sts_samsung_q90_porch
+                  color: "#ed961d"
+                  color_mode: manual
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: navigate
+                  hold_action: more_info
+                  navigation_path: /tv-control/0
+                  group_id: h-mno27skp-2yfs0z4i
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: false
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                    media_controls:
+                      - play_pause_stop
+                  density_profile_override: inherit
+                - id: h-mnf3t89h-95v7jari
+                  name: Porch Music
+                  entity_id: media_player.ma_sonos_basement
+                  color: "#44a796"
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: navigate
+                  color_mode: entity
+                  navigation_path: /ma-player/0
+                  group_id: h-mno27skp-2yfs0z4i
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  hold_action: more_info
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: false
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                    media_controls:
+                      - play_pause_stop
+                  density_profile_override: inherit
+                - id: h-mnfh52jk-9jokl7c1
+                  name: Samsung Air Con
+                  entity_id: climate.room_air_conditioner
+                  color: "#ec41d5"
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: hold_action
+                  group_id: h-mno2844c-wcgum2oq
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  color_mode: manual
+                  hold_action: more_info
+                  navigation_path: ""
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: false
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                  density_profile_override: inherit
+                - id: h-mnfh8nba-ucfncuuf
+                  name: Lights
+                  entity_id: light.porch_lights
+                  color: "#e6ca65"
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: hold_action
+                  group_id: h-mno2844c-wcgum2oq
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  color_mode: manual
+                  hold_action: more_info
+                  navigation_path: ""
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: false
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                  density_profile_override: inherit
+                - id: h-mnl6obst-xxr9l1vd
+                  name: Dyson
+                  entity_id: climate.dyson_e4c_us_nja0825a
+                  color: "#db2424"
+                  color_mode: manual
+                  icon_path: M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1z
+                  tap_script: ""
+                  tap_action: hold_action
+                  hold_action: more_info
+                  navigation_path: ""
+                  group_id: h-mno2844c-wcgum2oq
+                  renderer_engine: mushroom
+                  renderer: auto
+                  control_mode: standard
+                  renderer_options:
+                    layout: default
+                    fill_container: false
+                    primary_info: name
+                    secondary_info: state
+                    icon_type: icon
+                    display_mode: slider
+                    show_buttons_control: false
+                    show_position_control: false
+                    show_tilt_position_control: false
+                    show_brightness_control: false
+                    show_color_temp_control: false
+                    show_color_control: false
+                    use_light_color: false
+                    show_temperature_control: false
+                    use_media_info: false
+                    show_volume_level: false
+                    collapsible_controls: false
+                    icon_animation: false
+                    show_percentage_control: false
+                    show_oscillate_control: false
+                    show_direction_control: false
+                  density_profile_override: inherit
+              presets:
+                - id: h-mnj42cui-4gs8uqmb
+                  name: Shutdown
+                  script: ""
+                  icon_path: ""
+                  color: ""
+                - id: h-mnj444ra-6pcn70ne
+                  name: Summer Day
+                  script: ""
+                  icon_path: ""
+                  color: ""
+                - id: h-mnj44u80-r2es26op
+                  name: Summer Night
+                  script: ""
+                  icon_path: ""
+                  color: ""
+                - id: h-mnj45zaf-77jejrzn
+                  name: Winter Day
+                  script: ""
+                  icon_path: ""
+                  color: ""
+                - id: h-mnj466i8-4c3mynov
+                  name: Winter Night
+                  script: ""
+                  icon_path: ""
+                  color: ""
+              dashboard_status_density: rich
+              show_devices: true
+              show_presets: true
+              dashboard_layout_mode: rich
+              design_pack: one_ui
+              design_profile: default
+              device_groups:
+                - id: h-mno27skp-2yfs0z4i
+                  name: Devices
+                  glue_to_previous: false
+                - id: h-mno2844c-wcgum2oq
+                  name: HVAC/Lights
+                  glue_to_previous: false
+              devices_profile_override: standard
+              presets_profile_override: compact
+              activities_profile_override: large-accented
+              top_sections_layout: split
+              devices_group_header_mode: promoted

@@ -1,0 +1,84 @@
+# WATCH TV ACTIVITY VIEW
+# Physical D-pad/Back/Home control the active source. Physical Power controls
+# the TV. Touchscreen chrome remains Harmonium navigation.
+id: tv
+name: TV Media Player
+type: controller
+# LIBRARY controller (phase 2): a shared control surface addressed as
+# controller:tv — activities pass their context+cast into it. The
+# remote's title bar shows the ACTIVE activity's name, not this label.
+library: true
+parent: porch
+activities: [watch_firetv, watch_smart]
+
+# PURE $context (v0.46.1 — the collapse made this THE player, so the
+# platform doctrine applies: "hard coding to my devices means we can
+# never ship this"). Every slot is wired by the CALLING activity's
+# cast; with no activity active the surface renders almost nothing —
+# that's honesty, not breakage (the preview impersonates the activity
+# being edited).
+
+control_target:
+  label: $activity.name
+  navigation: $context.dpad
+  power: $context.power
+  volume: $context.volume
+  pass_through: [up, down, left, right, select, back, home, power]
+
+# v0.54 (Suresh: dpad holds → RWD/FFWD): the TV path speaks remote
+# commands (androidtv: REWIND / FAST_FORWARD keyevents) at the
+# activity's dpad target
+buttons:
+  left_hold: { service: remote.send_command, entity: $context.dpad,
+               data: { command: REWIND } }
+  right_hold: { service: remote.send_command, entity: $context.dpad,
+                data: { command: FAST_FORWARD } }
+
+layout:
+  sections:
+    - tiles:
+        - id: t_np
+          type: media
+          entity: $context.media_player
+          icon: material:smart_display
+          label: Now Playing
+          span: 2
+          trailing:
+            icon: material:apps
+            action: { navigate: apps }
+        - { id: t_tr, type: transport, entity: $context.media_player, label: Transport, span: 2 }
+        - id: t_btns
+          type: buttons
+          entity: $context.dpad
+          label: On-screen device buttons
+          span: 2
+          only: physical_dpad
+          buttons: [back, home]
+        - { id: t_pad, type: dpad, entity: $context.dpad, icon: material:gamepad, label: Remote, span: 2, unless: physical_dpad }
+        - { id: t_btns2, type: buttons, entity: $context.dpad, label: '', span: 2, unless: physical_dpad, buttons: [back, home, power] }
+        - { id: t_vol, type: volume, entity: $context.volume, level_entity: $context.volume_level, icon: material:volume_up, label: Volume, span: 2 }
+        # SOURCE tile (v0.36): appears iff the activity wires the
+        # source_select ROLE (hide-unwired) — the display's inputs
+        - { id: t_src, type: sources, entity: $context.source_select,
+            icon: material:input, label: Source, span: 2 }
+
+    # DEVICE KEYS (v0.46): GENERATED from the active dialect's key
+    # catalog — Google TV activities get Settings/Search/All apps/
+    # Quick settings/Live TV over the commands channel; dialects with
+    # no catalog (firetv today) render nothing and the whole section
+    # disappears (empty sections are skipped, heading included).
+    - heading: Device keys
+      columns: 2
+      tiles:
+        - { id: keys, type: keys }
+
+    - heading: Devices
+      columns: 1
+      tiles:
+        # CAST GENERATOR: the CALLING activity's devices, not baked
+        # entities — Watch Smart TV sees its cast, Watch Fire TV sees
+        # its own. (Instances stamp the activity at attach time.)
+        - { id: cast, type: devices }
+        # (the old TV Power script tile was HOUSE content on the shared
+        #  player — moved out in the purification; re-add it on a room
+        #  page if wanted)

@@ -1,0 +1,18 @@
+# APP MASTER LIST (v0.30) — identity ONLY: display name + icon/image.
+# Could be 100 items; nothing here launches anything. Launch recipes
+# live per platform in dialects.yaml (a dialect entry per app), and a
+# surface picks its dialect via the activity's context (dialect).
+
+netflix:   { name: Netflix,      icon: material:movie }
+prime:     { name: Prime Video,  icon: material:play_circle }
+youtube:   { name: YouTube,      icon: material:smart_display }
+youtubetv: { name: YouTube TV,   icon: material:live_tv }
+peacock:   { name: Peacock,      icon: material:theaters }
+paramount: { name: Paramount+,   icon: material:star }
+max:       { name: Max,          icon: material:local_movies }
+appletv:   { name: Apple TV,     icon: material:tv_gen }
+hulu:      { name: Hulu,         icon: material:video_library }
+disney:    { name: Disney+,      icon: material:castle }
+fubo:      { name: Fubo TV,      icon: material:sports_football }
+espn:      { name: ESPN,         icon: material:sports_basketball }
+britbox:   { name: BritBox,      icon: material:tv_gen }

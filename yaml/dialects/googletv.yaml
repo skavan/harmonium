@@ -1,0 +1,73 @@
+# GOOGLE TV DIALECT — platform knowledge as data (v0.44).
+# Source of truth: docs/google tv/projector_reference.md +
+# projector_actions.json — every entry VERIFIED on the deck Hisense
+# SmartLaser; nothing inferred from documentation.
+#
+# TODAY this file is the design record the googletv controller and the
+# apps.yaml overrides were built from. The DEVICE-BUNDLES round makes it
+# machine-read: key catalogs render Keys sections, forbidden lists gate
+# the Studio's key-binding pickers, quirks drive integration auto-heals.
+
+id: googletv
+name: Google TV
+
+routing:
+  # verb → role. state/navigation ride the fast push transport; anything
+  # the remote protocol drops or misroutes rides the ADB channel.
+  state: media_player          # android-tv-remote media_player (instant push)
+  navigation: dpad             # android-tv-remote remote entity
+  launch: commands               # ADB — am start, never market://
+  system_keys: commands          # ADB — keycodes the remote silently drops
+
+keys:
+  verified:
+    - { name: HOME,        code: 3,   transports: [adb, remote] }
+    - { name: SETTINGS,    code: 176, transports: [adb], note: accepted-but-ignored over remote }
+    - { name: NOTIFICATION, code: 83, transports: [adb], label: Quick settings }
+    - { name: ALL_APPS,    code: 284, transports: [adb] }
+    - { name: TV,          code: 170, transports: [adb], label: Live TV }
+    - { name: META_LEFT,   code: 117, transports: [adb], label: Search,
+        note: Google TV remaps to the KEYBOARD search page — the one you want }
+  noop:
+    - { name: MENU,       code: 82,  note: app-dependent; launcher ignores it }
+    - { name: APP_SWITCH, code: 187 }
+    - { name: GUIDE,      code: 172 }
+    - { name: INFO,       code: 165 }
+  forbidden:
+    # Studio guardrail list (bundles round): never offerable in pickers
+    - { name: SEARCH,     code: 84,  why: voice search — activates the microphone }
+    - { name: MUTE,       code: 91,  why: mutes the MICROPHONE, not the speakers (use VOLUME_MUTE 164) }
+    - { name: POWER,      code: 26,  why: powers the device off }
+    - { name: TV_POWER,   code: 177, why: powers the device off }
+    - { name: SLEEP,      code: 223, why: powers the device off }
+    - { name: SOFT_SLEEP, code: 276, why: powers the device off }
+    - { name: TV_INPUT,   code: 178, why: kills the picture }
+    - { name: TV_INPUT_HDMI_1, code: 243, why: kills the picture }
+    - { name: TV_INPUT_HDMI_2, code: 244, why: kills the picture }
+    - { name: TV_INPUT_HDMI_3, code: 245, why: kills the picture }
+    - { name: TV_INPUT_HDMI_4, code: 246, why: kills the picture }
+    - { name: PAIRING,    code: 225, why: drops into Bluetooth pairing }
+    - { name: PROFILE_SWITCH, code: 288, why: changes the Google TV profile }
+    - { name: STB_POWER,  code: 179, why: power-cycles OTHER devices over CEC }
+    - { name: AVR_POWER,  code: 181, why: power-cycles OTHER devices over CEC }
+
+composites:
+  typed_search:
+    # keyboard search + injected query — mic never engaged. Timing is
+    # load-bearing: 4s failed (page closed before text landed), 6s
+    # verified. Spaces must be %s; avoid shell metacharacters.
+    steps:
+      - adb: input keyevent 117
+      - wait: 6s
+      - adb: "input text <query-with-%s-spaces>"
+      - optional: input keyevent 66   # ENTER if the app doesn't live-search
+
+quirks:
+  stale_app_id_after_standby:
+    symptom: app_id freezes at its pre-sleep value while state stays "on"
+    heal: homeassistant.reload_config_entry on the androidtv_remote entry
+    detect: app_id vs `dumpsys window | grep mCurrentFocus` disagreement
+    automate: on media_player transitioning to "on"   # bundles-round TODO
+  shared_adb_key:
+    note: /config/.storage/androidtv_adbkey is shared with the Fire TV —
+      deleting it de-authorizes BOTH devices

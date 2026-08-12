@@ -1,0 +1,43 @@
+/* ================================================================
+   COMPAT — old-webview fallbacks. ADDITIVE ONLY.
+
+   Every rule here is scoped under html.nogap, a class that is set at
+   boot ONLY when the engine detects that flexbox `gap` is unsupported
+   (Chromium < 84). On any modern engine the class is never added, so
+   not one of these rules can ever match and the stylesheet above is
+   what renders — byte for byte, exactly as it does today on the
+   Astrion, the Haptique and a desktop browser.
+
+   Why this exists: Amazon pins Fire OS 7 tablets to WebView 75, and
+   locked-down Android remotes generally ship whatever the vendor
+   froze. Flex `gap` silently collapses to zero there, which on a
+   touch surface means the D-pad, transport and volume controls
+   render flush against each other.
+
+   GRID gap is NOT affected (supported since Chromium 66), so #grid,
+   .secgrid and .chiprow are deliberately absent below.
+   ================================================================ */
+  html.nogap #bar > * + * { margin-left: 8px; }
+
+  html.nogap .dp-wrap > * + * { margin-left: 10px; }
+  html.nogap .dp-side > * + * { margin-top: 8px; }
+  html.nogap .dp-mid  > * + * { margin-top: 10px; }
+  html.nogap .volrow  > * + * { margin-left: 12px; }
+  html.nogap .tile.row > * + * { margin-left: var(--tile-gap); }
+
+  html.nogap .tile .top > * + * { margin-left: 10px; }
+  html.nogap .npwrap  > * + * { margin-left: 12px; }
+  html.nogap .trow    > * + * { margin-left: 26px; }
+  html.nogap .btnrow  > * + * { margin-left: 12px; }
+  html.nogap .steprow > * + * { margin-left: 14px; }
+
+  html.nogap #brbar   > * + * { margin-top: 4px; }
+  html.nogap .brrow   > * + * { margin-left: 8px; }
+  html.nogap .brchips > * + * { margin-left: 16px; }
+  html.nogap .brq     > * + * { margin-left: 8px; }   /* v0.65 search line */
+  html.nogap .brroot  > * + * { margin-top: 2px; }
+  /* browse item tiles stack their .top as a COLUMN — must beat the
+     row rule above, hence the longer selector */
+  html.nogap .tile.brw:not(.row) .top > * + * { margin-left: 0; margin-top: 6px; }
+
+  html.nogap #auth    > * + * { margin-top: 12px; }

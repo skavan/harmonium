@@ -1,0 +1,111 @@
+{
+  "name": "Music Media Player",
+  "class": "activity",
+  "view_kind": "controller",
+  "type": "controller",
+  "parent": "porch",
+  "buttons": {
+    "ch_up": {
+      "service": "media_player.media_next_track",
+      "entity": "$context.media_player"
+    },
+    "ch_down": {
+      "service": "media_player.media_previous_track",
+      "entity": "$context.media_player"
+    },
+    "menu_hold": {
+      "navigate": "music_library"
+    },
+    "left_hold": {
+      "seek": -15,
+      "entity": "$context.media_player"
+    },
+    "right_hold": {
+      "seek": 15,
+      "entity": "$context.media_player"
+    }
+  },
+  "control_target": {
+    "label": "$activity.name",
+    "power": "$context.power",
+    "volume": "$context.volume"
+  },
+  "font_scope": "music",
+  "sections": [
+    {
+      "tiles": [
+        {
+          "id": "m_np",
+          "type": "media",
+          "art": true,
+          "entity": "$context.media_player",
+          "icon": "material:music_note",
+          "label": "Now Playing",
+          "span": 2,
+          "trailing": {
+            "icon": "material:library_music",
+            "action": {
+              "navigate": "music_library"
+            },
+            "emphasis": "accent"
+          }
+        },
+        {
+          "id": "m_tr",
+          "type": "transport",
+          "entity": "$context.media_player",
+          "label": "Transport",
+          "span": 2
+        },
+        {
+          "id": "m_cmd",
+          "type": "mediabtns",
+          "entity": "$context.media_player",
+          "label": "Modes",
+          "span": 2
+        },
+        {
+          "id": "vol",
+          "type": "volumes"
+        },
+        {
+          "id": "grp",
+          "type": "groups"
+        },
+        {
+          "id": "m_src",
+          "type": "sources",
+          "entity": "$context.source_select",
+          "icon": "material:input",
+          "label": "Source",
+          "span": 2
+        }
+      ]
+    },
+    {
+      "columns": 2,
+      "title": "Presets",
+      "hero_label": "Presets",
+      "role": "presets",
+      "tiles": [
+        {
+          "id": "acts_presets",
+          "type": "presets"
+        }
+      ]
+    },
+    {
+      "columns": 1,
+      "tiles": [
+        {
+          "id": "cast",
+          "type": "devices"
+        }
+      ],
+      "title": "Devices"
+    }
+  ],
+  "grid": {
+    "max_width": 760
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Harmonium",
+  "zip_release": true,
+  "filename": "harmonium.zip",
+  "render_readme": true,
+  "homeassistant": "2024.6.0"
+}

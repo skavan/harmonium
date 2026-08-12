@@ -1,0 +1,60 @@
+run:
+  name: Run sequence
+  description: >-
+    Execute a Harmonium building-block sequence (stored in the Harmonium
+    config) with Home Assistant's script engine.
+  fields:
+    sequence:
+      name: Sequence
+      description: The sequence id (see Building blocks in Harmonium Studio).
+      required: true
+      example: firetv_on
+      selector:
+        text:
+    workspace:
+      name: Workspace
+      description: >-
+        Which workspace's sequences to look in (defaults to main — the
+        repo-built config).
+      required: false
+      example: bedroom
+      selector:
+        text:
+
+reseed:
+  name: Reseed (integrate repo build)
+  description: >-
+    Integrate a freshly pushed repo build (www/remote-proto/config.json)
+    into the MAIN workspace. Non-destructive — a three-way merge keeps
+    Studio-side changes, repo deletions still propagate, conflicts go to
+    the repo (logged). The outgoing config is snapshotted to
+    config.main.backup.json first. Other workspaces' files re-deploy
+    from the store.
+
+restore_backup:
+  name: Restore pre-reseed backup
+  description: >-
+    Undo the last reseed — put config.main.backup.json back as the MAIN
+    workspace (store + deployed file).
+
+set_activity:
+  name: Set activity
+  description: >-
+    Flip the owning hub's Harmonium routing select to an activity id
+    ("off" ends the room). Room inferred from the activity's owner.
+  fields:
+    activity:
+      name: Activity
+      description: Activity id from the Harmonium config.
+      required: true
+      example: watch_firetv
+      selector:
+        text:
+    workspace:
+      name: Workspace
+      description: >-
+        Which workspace the activity lives in (defaults to main).
+      required: false
+      example: bedroom
+      selector:
+        text:

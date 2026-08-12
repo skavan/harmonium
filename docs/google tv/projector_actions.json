@@ -1,0 +1,354 @@
+{
+  "$schema_version": "1.0",
+  "generated": "2026-07-29",
+  "description": "Machine-readable action catalog for the Hisense SmartLaser 4K projector running Google TV, as controlled from Home Assistant. Every entry below was verified against the physical device, not inferred from documentation. Each action carries a ready-to-send Home Assistant service call.",
+
+  "device": {
+    "name": "Hisense Projector",
+    "model": "SmartLaser 4K",
+    "manufacturer": "HVCL",
+    "platform": "Google TV (Android) on VIDAA/MediaTek hardware",
+    "firmware": "6.9.906821247",
+    "ip": "192.168.1.64",
+    "mac": "38:1b:9e:a3:fb:a9",
+    "area": "deck",
+    "device_own_name": "Pergola TV (set on the projector in Google TV > Settings > System > About > Device name; this is what it advertises over zeroconf)"
+  },
+
+  "transports": {
+    "remote": {
+      "label": "Android TV Remote (network protocol)",
+      "integration": "androidtv_remote",
+      "config_entry_id": "01KYMSWCPNGE5JW5QXMCBX08E9",
+      "entities": {
+        "media_player": "media_player.deck_hisense_projector",
+        "remote": "remote.deck_hisense_projector"
+      },
+      "strengths": [
+        "Instant push state — app_id/current_activity update in real time with no polling",
+        "No developer-mode dependency, survives reboots",
+        "Friendly-name launching via remote.turn_on activity"
+      ],
+      "limits": [
+        "App launching routes bare package names through market://launch?id=, which the Play Store must resolve. When it cannot, the device lands on the Play Store detail page instead of the app.",
+        "System packages (launcher, screensaver, settings) always fail this way.",
+        "Many keycodes are accepted by the API but never acted on by the device — SETTINGS is the notable one.",
+        "media_player does NOT support select_source. Apps surface via remote.activity_list.",
+        "app_id goes STALE after the projector wakes from standby and stops updating until the config entry is reloaded."
+      ]
+    },
+    "adb": {
+      "label": "Android Debug Bridge",
+      "integration": "androidtv",
+      "config_entry_id": "01KYQBCR23E97W3PH484FKRRKM",
+      "entities": {
+        "media_player": "media_player.deck_hisense_projector_adb_192_168_1_64",
+        "remote": "remote.deck_hisense_projector_adb_192_168_1_64"
+      },
+      "host": "192.168.1.64:5555",
+      "strengths": [
+        "am start goes straight to an activity and never involves the Play Store — nothing bounces",
+        "Full Android keycode surface, including keys the remote protocol silently drops",
+        "Returns command output in the adb_response attribute, so the device can be queried, not just commanded",
+        "Extra state: volume_level, is_volume_muted, hdmi_input, source_list (running processes)"
+      ],
+      "limits": [
+        "Requires Developer options + network debugging enabled on the projector",
+        "One-time on-screen authorization prompt must be accepted with 'Always allow from this computer'",
+        "The adbkey at /config/.storage/androidtv_adbkey is SHARED with the Fire TV at 192.168.1.65 — deleting it de-authorizes both",
+        "Polled, not pushed — state and adb_response lag a few seconds behind",
+        "Some devices drop network ADB after a reboot"
+      ]
+    }
+  },
+
+  "recommended_strategy": {
+    "summary": "Use ADB for launching and for anything system-level; use the remote transport for live state and for simple navigation keys.",
+    "rationale": "Every launch failure observed on this device traces to the same cause: the remote protocol's market://launch?id= indirection. ADB has no such indirection. Conversely the remote transport's state is instant while ADB polls, so it remains the better source of truth for 'what is on screen right now' — with the standby caveat noted above."
+  },
+
+  "apps": [
+    {
+      "id": "netflix", "label": "Netflix", "icon": "/local/media_icons/Netflix-sm.png",
+      "package": "com.netflix.ninja", "activity": "com.netflix.ninja/.MainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.netflix.ninja/.MainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.netflix.ninja" } },
+      "remote_verified": true
+    },
+    {
+      "id": "prime_video", "label": "Prime Video", "icon": "/local/media_icons/prime-video-sm.png",
+      "package": "com.amazon.amazonvideo.livingroom", "activity": "com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "https://app.primevideo.com" } },
+      "remote_verified": true,
+      "note": "Remote transport needs the deep link — the bare package bounces to the Play Store."
+    },
+    {
+      "id": "youtube", "label": "YouTube", "icon": "/local/media_icons/youtube-sm.png",
+      "package": "com.google.android.youtube.tv", "activity": "com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.google.android.youtube.tv" } },
+      "remote_verified": true,
+      "note": "Community sources insist vnd.youtube.launch:// is required. Not true on this device — the bare package works."
+    },
+    {
+      "id": "youtube_tv", "label": "YouTube TV", "icon": "/local/media_icons/youtube-tv-sm.png",
+      "package": "com.google.android.youtube.tvunplugged", "activity": "com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.google.android.youtube.tvunplugged" } },
+      "remote_verified": true
+    },
+    {
+      "id": "peacock", "label": "Peacock", "icon": "/local/media_icons/peacock-tv-sm.png",
+      "package": "com.peacocktv.peacockandroid", "activity": "com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.peacocktv.peacockandroid" } },
+      "remote_verified": true
+    },
+    {
+      "id": "paramount_plus", "label": "Paramount+", "icon": "/local/media_icons/paramount-sm.png",
+      "package": "com.cbs.ott", "activity": "com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.cbs.ott" } },
+      "remote_verified": true
+    },
+    {
+      "id": "max", "label": "Max", "icon": "/local/media_icons/hbo-max-stream-tv-movies-sm.png",
+      "package": "com.wbd.stream", "activity": "com.wbd.stream/com.wbd.beam.BeamActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.wbd.stream/com.wbd.beam.BeamActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "https://play.max.com" } },
+      "remote_verified": true,
+      "note": "Remote transport needs the deep link — the bare package bounces to the Play Store."
+    },
+    {
+      "id": "apple_tv", "label": "Apple TV", "icon": "/local/media_icons/apple-tv-sm.png",
+      "package": "com.apple.atve.androidtv.appletv", "activity": "com.apple.atve.androidtv.appletv/.MainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.apple.atve.androidtv.appletv/.MainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "https://tv.apple.com" } },
+      "remote_verified": true,
+      "note": "Remote transport needs the deep link — the bare package bounces to the Play Store."
+    },
+    {
+      "id": "hulu", "label": "Hulu", "icon": "/local/media_icons/hulu-sm.png",
+      "package": "com.hulu.livingroomplus", "activity": "com.hulu.livingroomplus/.WKFactivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.hulu.livingroomplus/.WKFactivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.hulu.livingroomplus" } },
+      "remote_verified": true
+    },
+    {
+      "id": "disney_plus", "label": "Disney+", "icon": "/local/media_icons/disney-sm.png",
+      "package": "com.disney.disneyplus", "activity": "com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.disney.disneyplus" } },
+      "remote_verified": true
+    },
+    {
+      "id": "fubo", "label": "Fubo TV", "icon": "/local/media_icons/fubo-sm.png",
+      "package": "com.fubo.firetv.screen", "activity": "com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.fubo.firetv.screen" } },
+      "remote_verified": true
+    },
+    {
+      "id": "espn", "label": "ESPN", "icon": "/local/media_icons/ESPN-sm.png",
+      "package": "com.espn.score_center", "activity": "com.espn.score_center/com.espn.startup.presentation.StartupActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "sportscenter://x-callback-url" } },
+      "remote_verified": true,
+      "note": "Remote transport requires the app's registered custom scheme. The bare package bounces; https://www.espn.com/watch opens the Hisense browser."
+    },
+    {
+      "id": "britbox", "label": "BritBox", "icon": "/local/media_icons/britbox-sm.png",
+      "package": "com.britbox.tv", "activity": "com.britbox.tv/axis.androidtv.sdk.app.MainActivity",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity" } },
+      "remote": { "service": "media_player.play_media", "data": { "media_content_type": "app", "media_content_id": "com.britbox.tv" } },
+      "remote_verified": false,
+      "note": "USE ADB. The remote transport has no working route — the package bounces to the Play Store, https://www.britbox.com opens the browser, and britbox:// broke the device pairing outright. Note this is the INTERNATIONAL package, not com.britbox.us as public sources claim."
+    }
+  ],
+
+  "system_actions": [
+    {
+      "id": "home", "label": "Home",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 3" } },
+      "remote": { "service": "remote.send_command", "data": { "command": "HOME" } },
+      "verified": "both", "lands_on": "com.google.android.apps.tv.launcherx/.home.HomeActivity"
+    },
+    {
+      "id": "settings", "label": "Settings",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -a android.settings.SETTINGS" } },
+      "adb_alt": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 176" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.android.tv.settings/.MainSettings",
+      "note": "No working route over the remote transport. KEYCODE_SETTINGS is accepted by the API but the device ignores it, and launching com.android.tv.settings as an app bounces to the Play Store. Both ADB forms work."
+    },
+    {
+      "id": "quick_settings", "label": "Quick Settings / Dashboard",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 83" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.google.android.apps.tv.launcherx/...dashboard.DashboardHandler",
+      "note": "KEYCODE_NOTIFICATION. The Google TV quick-settings panel. Invisible to app_id because it belongs to the launcher process — detect with dumpsys."
+    },
+    {
+      "id": "all_apps", "label": "All Apps",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 284" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.google.android.apps.tv.launcherx/...moreapps.ui.FullscreenAppsActivity"
+    },
+    {
+      "id": "live_tv", "label": "Live TV",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 170" } },
+      "adb_alt": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.vt.tv.tvcenter/.LiveTVMainActivity" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.vt.tv.tvcenter/.LiveTVMainActivity",
+      "note": "KEYCODE_TV. Opens the Hisense/VIDAA live TV app."
+    },
+    {
+      "id": "search", "label": "Search (keyboard)",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 117" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.google.android.katniss/...tvsearch.results.activity.keyboard.KeyboardSearchActivity",
+      "note": "Google TV's on-screen keyboard search page. Keycode 117 is META_LEFT in the standard Android table — Google TV remaps it, so it will not be found by reading the keycode list. Microphone is NOT engaged. This is the one you want for a Search button."
+    },
+    {
+      "id": "search_query", "label": "Search for a term",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 117; sleep 6; input text QUERY" } },
+      "remote": null,
+      "verified": "adb_only",
+      "parameters": { "QUERY": "Search term. Replace spaces with %s — `input text` treats a bare space as an argument separator. Keep to letters, digits and %s; escape or avoid shell metacharacters." },
+      "note": "Opens the on-screen keyboard search and types the query — no microphone at any point. FULLY VERIFIED: the query was visually confirmed sitting in the search box on screen. TIMING MATTERS: 4s between the keyevent and the text was too short and the page closed before the text arrived; 6s worked reliably, with the search activity confirmed focused both before and after injection. Append `; sleep 1; input keyevent 66` to submit with ENTER if the app does not search as you type."
+    },
+    {
+      "id": "voice_search", "label": "Voice Search",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell input keyevent 84" } },
+      "remote": null,
+      "verified": "adb_only", "lands_on": "com.google.android.katniss SYSTEM_ALERT_WINDOW overlay",
+      "privacy": "ACTIVATES THE MICROPHONE",
+      "note": "KEYCODE_SEARCH. Opens katniss's voice overlay with the mic live — confirmed by systemui's MicrophoneCaptureIndicator window appearing alongside it. Draws over the launcher rather than starting an activity, so mFocusedApp still reports launcherx. Dismiss with BACK (4). Use 117 instead unless you specifically want voice."
+    },
+    {
+      "id": "play_store", "label": "Play Store",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.android.vending/com.google.android.finsky.tvmainactivity.TvMainActivity" } },
+      "remote": null, "verified": "activity_known"
+    },
+    {
+      "id": "browser", "label": "Hisense Browser",
+      "adb": { "service": "androidtv.adb_command", "data": { "command": "adb shell am start -n com.hisense.odinbrowser/com.vt.hibrowser.activity.home.HomeActivity" } },
+      "remote": null, "verified": "activity_known"
+    }
+  ],
+
+  "keys": {
+    "note": "Send over ADB as `adb shell input keyevent <code>`, or over the remote transport as remote.send_command with the bare NAME (case-sensitive; the KEYCODE_ prefix is optional). Numeric codes do NOT work through remote.send_command — a string like '176' becomes KEYCODE_176 and throws.",
+    "verified_working": [
+      { "name": "HOME", "code": 3, "transports": ["adb", "remote"] },
+      { "name": "SETTINGS", "code": 176, "transports": ["adb"], "note": "Accepted but ignored over the remote transport" },
+      { "name": "NOTIFICATION", "code": 83, "transports": ["adb"], "note": "Opens quick-settings dashboard" },
+      { "name": "ALL_APPS", "code": 284, "transports": ["adb"] },
+      { "name": "TV", "code": 170, "transports": ["adb"], "note": "Opens Hisense Live TV" },
+      { "name": "META_LEFT", "code": 117, "transports": ["adb"], "note": "Remapped by Google TV to the keyboard SEARCH page. Not what the standard keycode table implies." },
+      { "name": "SEARCH", "code": 84, "transports": ["adb"], "note": "VOICE search — activates the microphone. Use 117 for keyboard search." }
+    ],
+    "verified_noop": [
+      { "name": "MENU", "code": 82, "note": "App-dependent by design — the framework delivers it to the foreground app, and the launcher ignores it. May work inside media apps." },
+      { "name": "APP_SWITCH", "code": 187 },
+      { "name": "GUIDE", "code": 172 },
+      { "name": "INFO", "code": 165 }
+    ],
+    "standard_untested": [
+      { "name": "BACK", "code": 4 }, { "name": "DPAD_UP", "code": 19 }, { "name": "DPAD_DOWN", "code": 20 },
+      { "name": "DPAD_LEFT", "code": 21 }, { "name": "DPAD_RIGHT", "code": 22 }, { "name": "DPAD_CENTER", "code": 23 },
+      { "name": "VOLUME_UP", "code": 24 }, { "name": "VOLUME_DOWN", "code": 25 }, { "name": "VOLUME_MUTE", "code": 164 },
+      { "name": "MEDIA_PLAY_PAUSE", "code": 85 }, { "name": "MEDIA_STOP", "code": 86 },
+      { "name": "MEDIA_NEXT", "code": 87 }, { "name": "MEDIA_PREVIOUS", "code": 88 },
+      { "name": "MEDIA_REWIND", "code": 89 }, { "name": "MEDIA_FAST_FORWARD", "code": 90 },
+      { "name": "CAPTIONS", "code": 175 }, { "name": "ASSIST", "code": 219 },
+      { "name": "CHANNEL_UP", "code": 166 }, { "name": "CHANNEL_DOWN", "code": 167 },
+      { "name": "PROG_RED", "code": 183 }, { "name": "PROG_GREEN", "code": 184 },
+      { "name": "PROG_YELLOW", "code": 185 }, { "name": "PROG_BLUE", "code": 186 }
+    ],
+    "do_not_send": [
+      { "name": "MUTE", "code": 91, "why": "Mutes the MICROPHONE, not the speakers. Use VOLUME_MUTE (164)." },
+      { "name": "POWER", "code": 26, "why": "Toggle — will switch the projector off." },
+      { "name": "TV_POWER", "code": 177, "why": "Toggles the display over CEC." },
+      { "name": "SLEEP", "code": 223, "why": "Sleeps the device." },
+      { "name": "SOFT_SLEEP", "code": 276, "why": "Sleeps the device." },
+      { "name": "TV_INPUT", "code": 178, "why": "Switches input — you lose the picture." },
+      { "name": "TV_INPUT_HDMI_1..4", "code": "243-246", "why": "Switches to a specific input." },
+      { "name": "PAIRING", "code": 225, "why": "Drops the device into Bluetooth accessory pairing mode." },
+      { "name": "PROFILE_SWITCH", "code": 288, "why": "Changes the active Google TV profile." },
+      { "name": "STB_POWER / AVR_POWER", "code": "179 / 181", "why": "Power-cycles OTHER devices over CEC." }
+    ]
+  },
+
+  "other_installed_apps": {
+    "note": "Present on the device and launchable, but not in the configured 13. Activities confirmed via query-activities.",
+    "spotify": "com.spotify.tv.android/com.spotify.app.androidtv.MainActivity",
+    "tubi": "com.tubitv/.activities.MainActivity",
+    "starz": "com.bydeluxe.d3.android.program.starz/com.starz.amznfiretv.SplashActivity",
+    "nordvpn": "com.nordvpn.android/.tv.MainActivity",
+    "weather_channel": "com.weathergroup.twc/.MainActivity",
+    "youtube_music": "com.google.android.youtube.tvmusic/com.google.android.apps.youtube.tvmusic.activity.MainActivity",
+    "google_tv_movies": "com.google.android.videos/.tv.presenter.activity.TvLauncherActivity",
+    "play_games": "com.google.android.play.games/com.google.android.apps.play.games.app.atv.features.home.HomeActivity",
+    "vidaa_channels": "net.vidaatv.hisense.android.tv/com.vidaa.channels.plus.SplashActivity",
+    "hisense_media_center": "com.vt.tv.mediacenter/.device.DeviceCollectionViewActivity",
+    "hisense_hishow": "com.vt.hishow/.modules.launcher.MainActivity",
+    "hisense_single_listen": "com.vt.tv.singlelisten/com.hisense.singlelisten.MainActivity",
+    "hisense_ai_sense": "com.vt.tv.ai_sense/.settings.MainSettingActivity",
+    "hisense_protector": "com.vt.tv.protector/.modules.launcher.MainActivity"
+  },
+
+  "diagnostics": {
+    "current_focus": {
+      "command": "adb shell dumpsys window | grep mCurrentFocus",
+      "why": "The authoritative 'what is on screen' probe. Unlike app_id it sees overlays, panels and dialogs that belong to another process — which is how the quick-settings dashboard and apps grid were confirmed."
+    },
+    "list_launchable_apps": {
+      "command": "adb shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER",
+      "why": "Complete inventory of launchable TV apps with exact activities, in one call. Re-run after installing anything new."
+    },
+    "resolve_one_app": {
+      "command": "adb shell cmd package resolve-activity --brief -c android.intent.category.LEANBACK_LAUNCHER <package>",
+      "why": "Single-app version of the above."
+    },
+    "generic_launch_without_activity": {
+      "command": "adb shell monkey -p <package> -c android.intent.category.LEANBACK_LAUNCHER 1",
+      "why": "Launches by package when the activity is unknown. NOTE: must be LEANBACK_LAUNCHER — the phone-style android.intent.category.LAUNCHER returns 'No activities found' on Android TV apps."
+    }
+  },
+
+  "known_issues": [
+    {
+      "id": "stale_app_id_after_standby",
+      "severity": "affects automations",
+      "description": "After the projector wakes from standby, media_player.deck_hisense_projector.app_id freezes at its pre-sleep value and never updates, while the entity still reports state: on. Anything keyed on the current app will read a stale value indefinitely.",
+      "workaround": "Call homeassistant.reload_config_entry with entry_id 01KYMSWCPNGE5JW5QXMCBX08E9. Verified to restore live updates immediately. Could be automated on the projector transitioning to on.",
+      "detection": "Compare app_id against `adb shell dumpsys window | grep mCurrentFocus`. If they disagree, app_id is stale."
+    },
+    {
+      "id": "phantom_duplicate_options",
+      "severity": "cosmetic, do not chase",
+      "description": "Reading the androidtv_remote config entry with options included shows every app TWICE — once inside options.apps and again as a top-level key. This is NOT what is stored on disk. Verified with Core stopped: the actual store contains only {enable_ime, apps}, and the duplicates reappear after a clean restart. It is an artifact of the options-flow probe used when reading, not real data."
+    },
+    {
+      "id": "cast_connection_errors",
+      "severity": "log noise",
+      "description": "pychromecast repeatedly fails to reach Pergola TV (192.168.1.64) on port 8009 and retries every 5 seconds. Unrelated to the remote/ADB setup — something holds a stale Cast reference."
+    },
+    {
+      "id": "shared_adbkey",
+      "severity": "operational",
+      "description": "/config/.storage/androidtv_adbkey is shared between this projector and the Fire TV at 192.168.1.65. Deleting it to force a fresh authorization prompt will de-authorize BOTH devices."
+    }
+  ],
+
+  "hard_won_lessons": [
+    "app_icon in the androidtv_remote integration must be an IMAGE URL (/local/... or https://...). Icon-set names (mdi:, local:, fapro:) render as a blank tile AND suppress the default fallback icon. Cards render icon names fine; this one field does not.",
+    "The remote protocol prepends market://launch?id= to any App ID lacking a URI scheme, routing it through the Play Store. That single behaviour explains every launch failure seen on this device.",
+    "Registered custom schemes work (ESPN's sportscenter://). Unregistered ones are dangerous — britbox:// dropped the connection and invalidated the pairing, forcing a manual re-pair.",
+    "Android TV apps register LEANBACK_LAUNCHER, not LAUNCHER. Using the wrong category returns 'No activities found'.",
+    "A keycode being accepted by the API does not mean the device acts on it. SETTINGS is accepted over the remote transport and silently ignored; the identical keycode over ADB works.",
+    "Never trust a single readout. app_id alone produced two wrong conclusions during this work — a launch failure that had not happened, and a device declared asleep while it was awake. Cross-check against recorder history or dumpsys."
+  ]
+}

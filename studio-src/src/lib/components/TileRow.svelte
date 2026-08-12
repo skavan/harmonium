@@ -1,0 +1,774 @@
+<script>
+  /* One item in a page's list — the ITEM-CARD GRAMMAR (redesign R4):
+     identity strip → tabs → Advanced behind glass, same shape as the
+     ActivityCard. The first tab is the item's own voice — "The device"
+     / "Where it goes" (doorway) / "What it does" (preset) / "What it
+     shows" (generators & raw widgets). `type`, `tile id` and the raw
+     JSON live in Advanced (vocabulary: they never walk the primary
+     path). Styling = column span + how a doorway renders. */
+  import { app, selectSlice, beginPageDraft, showUndo, tileDirty, saveSnippet, previewGoto, SHOWS_KINDS } from "../state.svelte.js";
+  import Field from "./Field.svelte";
+  import IconPicker from "./IconPicker.svelte";
+  import Input from "./Input.svelte";
+  import Select from "./Select.svelte";
+  import Segmented from "./Segmented.svelte";
+  import EntityPicker from "./EntityPicker.svelte";
+  import CardRow from "./CardRow.svelte";
+  import Chips from "./Chips.svelte";
+  import JsonArea from "./JsonArea.svelte";
+
+  let { tile, tiles, index, ownerScreen = null } = $props();
+  /* NAV CARDS (v0.25 — one type, four styles): pick an existing page
+     or ＋ mint one — a full hub view with activities/presets present
+     but OFF ("same anatomy, bits switched off"), entered in DRAFT
+     mode: the banner's Keep/Discard owns its fate. */
+  function mintNavPage() {
+    const d = app.draft;
+    const base = (tile.label || "page").toLowerCase()
+      .replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "page";
+    let sid = base, n = 2;
+    while (d.screens[sid] || d.controllers?.[sid]) sid = base + "_" + n++;
+    /* nav cards can live on a controller too — parent by reference */
+    const parentRef = ownerScreen
+      ? (d.screens[ownerScreen] ? ownerScreen : d.controllers?.[ownerScreen] ? "controller:" + ownerScreen : undefined)
+      : undefined;
+    d.screens[sid] = {
+      name: tile.label || sid, class: "group", view_kind: "hub", type: "hub",
+      parent: parentRef, sections: [],
+    };
+    tile.target = sid;
+    beginPageDraft(sid, { ownerScreen, tileId: tile.id });
+  }
+  const NAV_STYLES = [
+    { value: "auto", label: "Auto — image if it has one · summary if the page has devices · plain otherwise" },
+    { value: "plain", label: "Plain — icon + label button" },
+    { value: "image", label: "Image — full-bleed photo tile" },
+    { value: "summary", label: "Summary — live “n entities · k active” from its page" },
+  ];
+  const navScreenOptions = $derived([
+    ...Object.entries(app.draft?.screens || {})
+      .map(([sid, s]) => ({ value: sid, label: s.name || sid })),
+    /* CROSS-WORKSPACE DOORWAYS (v0.50.2 — Suresh: "a nav tile on main
+       porch page that takes me to deck and vice versa"): ws:<id>
+       targets leave for that workspace's canonical address */
+    ...Object.entries(app.workspaces || {})
+      .filter(([wid]) => wid !== app.workspace)
+      .map(([wid, w]) => ({ value: "ws:" + wid,
+        label: "\u21f1 " + (w.name || wid) + " (workspace)" })),
+    /* v0.55: the KEY CAPTURE virtual screen \u2014 a nav tile can point at
+       it while learning a new remote (also: hold \u24d8 on the title bar) */
+    { value: "keys:", label: "\u2328 Key capture (diagnostic)" },
+  ]);
+
+  /* the Type list, grouped so it reads: device + doorway (the two
+     archetypes), content generators, then raw widgets for the
+     advanced hand — Advanced-tab furniture only */
+  /* v0.60: `volumes` and `groups` are cast GENERATORS like `devices` —
+     they name no device, so ONE tile on a shared controller serves
+     every room (this house's zones, the next house's whatever) */
+  const CONTENT_TYPES = ["activity", "activities", "devices", "volumes",
+    "groups", "presets", "preset", "presets_from", "apps", "browse",
+    "sources", "scene", "script"];
+  /* cast GENERATOR (type "devices") → Unlink bakes it into plain
+     device tiles (a point-in-time copy you then own) */
+  function castOf(aid) {
+    const a = app.draft?.activities?.[aid];
+    if (!a) return [];
+    if (Array.isArray(a.devices) && a.devices.length) return a.devices;
+    const seen = [];
+    for (const r of ["media_player", "dpad", "power", "volume", "volume_level",
+                     "source_select"]) {
+      const v = a.context?.[r];
+      if (typeof v === "string" && v.includes(".") && !seen.includes(v)) seen.push(v);
+    }
+    return seen;
+  }
+  function unlinkCast() {
+    const baked = castOf(tile.activity)
+      .filter((e) => e.split(".")[0] !== "remote") /* the Remote pad is their tile */
+      .map((e, i) => ({
+      type: "device",
+      id: (tile.id || "cast") + "_u" + i,
+      entity: e,
+      label: friendlyOf(e) || e.split(".").pop(),
+      icon: iconFor(e),
+    }));
+    tiles.splice(index, 1, ...baked);
+  }
+  /* the kinds a media search may ask for (media_filter_classes) */
+  const SEARCH_CLASSES = ["artist", "album", "track", "playlist",
+    "radio", "podcast", "audiobook"];
+  const RAW_TYPES = ["light", "switch", "climate", "cover", "fan", "media",
+    "volume", "transport", "mediabtns", "dpad", "buttons", "power"];
+  const ENTITY_TYPES = new Set(["light", "switch", "climate", "cover", "fan", "media",
+    "volume", "transport", "mediabtns", "script", "scene", "presets_from",
+    "sources",     /* sources (v0.35): ONE tile that opens the input picker */
+    "power", "stepper"]);  /* v0.79.2: Draws-as round trips need them here */
+
+  /* ---- DEVICE tiles: a device STARTS with a name and an entity;
+     type, icon, verbs and page all INFER from the entity ---- */
+  const rec = (eid) => app.entities.find((e) => e.entity_id === eid);
+  const friendlyOf = (eid) => rec(eid)?.name || "";
+  const DOM_ICON = {
+    media_player: (r) => (r?.device_class === "tv" ? "material:tv" : "material:speaker"),
+    light: () => "material:lightbulb",
+    switch: () => "material:toggle_on",
+    fan: () => "material:mode_fan",
+    climate: () => "material:thermostat",
+    remote: () => "material:settings_remote",
+    cover: () => "material:blinds",
+    camera: () => "material:videocam",
+  };
+  const iconFor = (eid) => {
+    const dom = (eid || "").split(".")[0];
+    return DOM_ICON[dom]?.(rec(eid)) || "material:devices";
+  };
+  /* ONE icon field, two payloads: material:<glyph> stays `icon`; a
+     path/URL becomes `icon_image` (fills the icon zone — the branded
+     Fire-TV-logo look) */
+  function setIcon(v) {
+    v = (v || "").trim();
+    delete tile.icon; delete tile.icon_image;
+    if (!v) return;
+    if (v.startsWith("/") || v.startsWith("http")) tile.icon_image = v;
+    else tile.icon = v;
+  }
+  function setDeviceEntity(v) {
+    const autoLabel = !tile.label || tile.label === "New tile" ||
+      tile.label === "New device" || tile.label === friendlyOf(tile.entity);
+    const autoIcon = !tile.icon || tile.icon === "material:devices" ||
+      tile.icon === "material:lightbulb" || tile.icon === iconFor(tile.entity);
+    tile.entity = v;
+    if (autoLabel && friendlyOf(v)) tile.label = friendlyOf(v);
+    if (autoIcon) tile.icon = iconFor(v);
+  }
+  /* ---- PAGE TILES CATCH UP WITH THE ⚙ (v0.79.2 — Suresh: "We did
+     this great work with the settings of a device (using cog) in
+     Activities. Devices is lagging in its options"): Draws as,
+     Volume style and a token-aware Status line, straight onto the
+     authored tile — the engine already honoured all three fields
+     (type / slider / sub_text); only the Studio never offered them.
+     Same intelligent filtering as the ⚙'s presShows. ---- */
+  const drawsAsValue = () =>
+    tile.type === "stepper"
+      ? (tile.kind === "volume" ? "stepper" : "other")  /* a brightness
+           stepper is not a volume choice — hide the select */
+      : tile.type;
+  const drawsAsOptions = () => {
+    const dom = (tile.entity || "").split(".")[0];
+    return SHOWS_KINDS.filter((k) => !k.role || dom === "media_player" ||
+      (k.value === "power" &&
+        ["switch", "light", "fan", "input_boolean"].includes(dom)))
+      .map((k) => ({ value: k.value, label: k.label }));
+  };
+  function setDrawsAs(v) {
+    delete tile.slider; delete tile.kind;
+    if (v === "stepper") { tile.type = "stepper"; tile.kind = "volume"; }
+    else tile.type = v;
+  }
+  /* volume style, mirroring the generator's mapping (compact = bare
+     volume · slider = the fat one · stepper = − / + as its own type) */
+  const volStyleValue = () =>
+    tile.type === "stepper" && tile.kind === "volume" ? "stepper"
+      : tile.slider ? "slider" : "";
+  function setVolStyle(v) {
+    delete tile.slider; delete tile.kind;
+    if (v === "stepper") { tile.type = "stepper"; tile.kind = "volume"; }
+    else { tile.type = "volume"; if (v === "slider") tile.slider = true; }
+  }
+  const showsVolStyle = () =>
+    tile.type === "volume" || (tile.type === "stepper" && tile.kind === "volume");
+  /* status line: text (with {tokens}) beats the widget's smart line;
+     "" — the ∅ button — means NO line; absent means auto */
+  const tileAttrs = () => ["state", ...(rec(tile.entity)?.attrs || [])];
+  const tapHint = () => {
+    const dom = (tile.entity || "").split(".")[0];
+    if (dom === "media_player") return "Auto: play/pause while playing · opens its page when off";
+    if (["light", "switch", "fan", "input_boolean"].includes(dom)) return "Auto: toggle";
+    if (!dom) return "Auto — resolves from the entity";
+    return "Auto: opens its page (no obvious verb)";
+  };
+  /* mirror the engine's inference: the activity claiming this entity
+     as primary lends its view */
+  const inferredPage = () => {
+    for (const a of Object.values(app.draft?.activities || {})) {
+      const c = a.context || {};
+      const scr = a.screen || a.view;
+      if (scr && (c.media_player === tile.entity || c.dpad === tile.entity)) return scr;
+    }
+    return null;
+  };
+  const activityIds = $derived(Object.keys(app.draft?.activities || {}));
+  const screenIds = $derived(Object.keys(app.draft?.screens || {}));
+  const seqIds = $derived(Object.keys(app.draft?.sequences || {}));
+  /* a preset's LANDING (v0.68.7): pages only. navScreenOptions also
+     offers ws: doorways and the key-capture screen — neither is a
+     sensible place for a playlist tap to leave you. */
+  const presetNavOptions = $derived.by(() => {
+    const pages = Object.entries(app.draft?.screens || {})
+      .map(([sid, s]) => ({ value: sid, label: s.name || sid }));
+    /* ACTIVITY DESTINATIONS TOO (v0.79 review: "It should let me
+       navigate to the destination of an activity"): each activity's
+       landing screen, labelled by both names */
+    const seen = new Set(pages.map((o) => o.value));
+    const acts = Object.entries(app.draft?.activities || {})
+      .filter(([, a]) => a?.screen && !seen.has(a.screen))
+      .map(([aid, a]) => {
+        const cid = String(a.screen).replace(/^controller:/, "");
+        const cname = app.draft?.controllers?.[cid]?.name ||
+          app.draft?.screens?.[a.screen]?.name || a.screen;
+        return { value: a.screen, label: cname + " — " + (a.name || aid) + "'s page" };
+      });
+    /* dedupe activities sharing a controller */
+    const out = [...pages];
+    const seen2 = new Set(seen);
+    for (const o of acts) if (!seen2.has(o.value)) { seen2.add(o.value); out.push(o); }
+    return out;
+  });
+  /* the spec's "Auto — controller:tv rather than an em dash": the
+     inherited value is SHOWN, in the empty option itself */
+  const holdOptions = $derived([
+    { value: "", label: inferredPage()
+        ? "Auto — " + inferredPage() + " (from its activity)"
+        : "Auto — nothing (no activity claims it)" },
+    ...screenIds.map((s) => ({ value: s, label: s })),
+  ]);
+  /* read-only cast note (§6.9): which activities cast this device,
+     and wearing which roles */
+  const castNote = () => {
+    const out = [];
+    for (const [aid, a] of Object.entries(app.draft?.activities || {})) {
+      const roles = Object.entries(a.context || {})
+        .filter(([, v]) => v === tile.entity).map(([k]) => k);
+      const inCast = (a.devices || []).includes(tile.entity) || roles.length;
+      if (inCast) out.push((a.name || aid) + (roles.length ? " (" + roles.join(", ") + ")" : ""));
+    }
+    return out;
+  };
+
+  /* ---- PRESET (§6.8): "On tap" wears the paradigm; all three
+     choices compile to the ONE action shape the engine already fires
+     (service + entity + data — no config-model change) ---- */
+  const presetMode = () => {
+    /* v0.64: a preset may name a sequence DIRECTLY ({sequence: id}) —
+       the same grammar activities and key bindings speak. The long
+       harmonium.run spelling still reads as a sequence, so tiles
+       written before the engine learned the short form keep working. */
+    if (tile.action?.sequence !== undefined) return "sequence";
+    const svc = tile.action?.service || "";
+    if (svc === "harmonium.run") return "sequence";
+    if (svc === "scene.turn_on") return "scene";
+    return "service";
+  };
+  const presetSeq = () => tile.action?.sequence ?? tile.action?.data?.sequence ?? "";
+  function setPresetMode(m) {
+    if (m === presetMode()) return;
+    if (m === "sequence") tile.action = { sequence: "" };
+    else if (m === "scene") tile.action = { service: "scene.turn_on", entity: "" };
+    else tile.action = { service: "" };
+  }
+  const PRESET_MODES = [
+    { value: "sequence", label: "Run an action — a sequence from Building blocks" },
+    { value: "scene", label: "Activate a scene" },
+    { value: "service", label: "Call a service — any HA call, verbatim" },
+  ];
+
+  /* ---- ITEM-CARD GRAMMAR (R4) ---- */
+  let tab = $state("main");
+  const FIRST_TAB = () =>
+    tile.type === "device" ? "The device"
+    : tile.type === "nav" ? "Where it goes"
+    : tile.type === "preset" ? "What it does"
+    : "What it shows";
+
+  function move(dir) {
+    const j = index + dir;
+    if (j < 0 || j >= tiles.length) return;
+    [tiles[index], tiles[j]] = [tiles[j], tiles[index]];
+  }
+  function duplicate() {
+    const copy = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    copy.id = (copy.id || "tile") + "_copy";
+    tiles.splice(index + 1, 0, copy);
+  }
+
+  /* ---- REORDER & DELETE (redesign §7.1): three ways in, one
+     destructive path — and Remove gets an undo toast. ---- */
+  let armed = $state(false);          /* draggable only while ⠿ is held */
+  function ondragstart(e) {
+    e.dataTransfer.setData("text/hakr-tile", String(index));
+    e.dataTransfer.effectAllowed = "move";
+  }
+  function ondrop(e) {
+    e.preventDefault();
+    const from = +e.dataTransfer.getData("text/hakr-tile");
+    if (Number.isNaN(from) || from === index) return;
+    const [t] = tiles.splice(from, 1);
+    tiles.splice(index, 0, t);
+  }
+  /* other sections on the same page this tile could move to */
+  const hostSections = () => {
+    const scr = app.draft?.screens?.[ownerScreen];
+    if (!scr?.sections) return [];
+    return scr.sections
+      .filter((s) => Array.isArray(s.tiles) && s.tiles !== tiles)
+      .map((s, i) => ({
+        s,
+        label: s.title || s.hero_label ||
+          (s.role ? s.role[0].toUpperCase() + s.role.slice(1) : "Section " + (i + 1)),
+      }));
+  };
+  function moveTo(sec) {
+    const snap = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    tiles.splice(index, 1);
+    if (!Array.isArray(sec.tiles)) sec.tiles = [];
+    sec.tiles.push(snap);
+  }
+  function removeTile() {
+    const snap = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    const at = index;
+    tiles.splice(at, 1);
+    showUndo("Removed " + (snap.label || snap.id || "tile"),
+      () => tiles.splice(Math.min(at, tiles.length), 0, snap));
+  }
+  /* PRESETS ARE PORTABLE (v0.79.1 — Suresh: "I'd like to be able to
+     export (and import) a Preset to snippets"): the whole tile minus
+     its id becomes a "preset" snippet — reinserted from the ⤵ select
+     beside any ＋ Add preset (page fold or activity tab), any
+     workspace. `activity` rides along on purpose: a Discover Weekly
+     that warm-starts its activity should keep doing so wherever it
+     lands; the engine shrugs when the id doesn't exist there. */
+  function snippetize() {
+    const d = JSON.parse(JSON.stringify($state.snapshot(tile)));
+    delete d.id;
+    saveSnippet("preset", tile.label || "preset", d);
+  }
+  /* WHERE WOULD THIS TILE TAKE ME? (v0.79.2 — Suresh: "no easy way
+     for the preview page to move along sensibly"): every row's ⋯
+     menu can point the preview at the tile's own destination — a
+     nav's target, a preset's landing (explicit navigate, else its
+     activity's page), a device's generated page, else the page the
+     row lives on. */
+  const previewTarget = () => {
+    if (tile.type === "nav" && tile.target) return tile.target;
+    if (tile.type === "preset")
+      return tile.navigate ||
+        app.draft?.activities?.[tile.activity]?.screen || ownerScreen;
+    if (tile.entity) return "detail:" + tile.entity;
+    return ownerScreen;
+  };
+  const rowMenu = () => [
+    ...(previewTarget()
+      ? [{ label: "Preview it", action: () => previewGoto(previewTarget()) },
+         { divider: true }] : []),
+    { label: "Move up", action: () => move(-1) },
+    { label: "Move down", action: () => move(1) },
+    ...hostSections().map(({ s, label }) =>
+      ({ label: "Move to " + label, action: () => moveTo(s) })),
+    { divider: true },
+    ...(tile.type === "preset"
+      ? [{ label: "Export snippet", action: snippetize }] : []),
+    { label: "Duplicate", action: duplicate },
+    { label: "Remove", danger: true, action: removeTile },
+  ];
+</script>
+
+<div role="listitem" draggable={armed}
+  {ondragstart}
+  ondragover={(e) => e.preventDefault()}
+  {ondrop}
+  ondragend={() => (armed = false)}>
+<CardRow
+  title={tile.label || tile.id || "(untitled)"}
+  subtitle={tile.type + (tile.entity ? " · " + tile.entity : tile.activity ? " · " + tile.activity : "")}
+  edited={tileDirty(tile)}
+  onarm={() => (armed = true)}
+  menu={rowMenu()}
+  onup={() => move(-1)}
+  ondown={() => move(1)}
+  onduplicate={duplicate}
+  ondelete={removeTile}
+>
+  <div class="space-y-3">
+    <!-- IDENTITY STRIP (grammar): present on every tab -->
+    <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1">
+      <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
+        {#if tile.type === "nav"}
+          <Input value={tile.label} title={tile.target ? "Its page's name follows along" : ""}
+            oninput={(e) => { tile.label = e.target.value;
+              if (tile.target && app.draft.screens[tile.target])
+                app.draft.screens[tile.target].name = e.target.value; }} />
+        {:else}
+          <Input bind:value={tile.label} />
+        {/if}
+      </Field></div>
+      <div class="w-[230px] min-w-[180px] flex-1"><Field label="Icon" hint="">
+        <IconPicker value={tile.icon_image || tile.icon || ""}
+          placeholder="search icons — or an image path (/local/…)"
+          onchange={(e) => setIcon(e.target.value)} />
+      </Field></div>
+      <div class="w-[150px] min-w-[120px] flex-1"><Field label="Id" hint="">
+        <div class="flex h-[38px] items-center truncate rounded-[4px] bg-sunk px-[11px] font-mono text-[12px] text-dim"
+          title="The tile's config key — editable under Advanced">{tile.id || "—"}</div>
+      </Field></div>
+    </div>
+
+    <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->
+    <div class="flex items-end gap-1 border-b border-line px-1">
+      {#each [
+        { k: "main", label: FIRST_TAB() },
+        { k: "styling", label: "Styling" },
+      ] as t (t.k)}
+        <button class={"cursor-pointer border-0 bg-transparent px-2.5 py-[9px] text-xs transition-colors " +
+            (tab === t.k
+              ? "font-semibold text-accent-text [box-shadow:inset_0_-2px_0_var(--color-accent)]"
+              : "font-medium text-dim hover:text-ink")}
+          onclick={() => (tab = t.k)}>{t.label}</button>
+      {/each}
+      <span class="flex-1"></span>
+      <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
+          (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
+        onclick={() => (tab = "advanced")}>
+        <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+    </div>
+
+    {#snippet presFields()}
+      <!-- the ⚙-parity block (v0.79.2), shared by the device tab and
+           every raw-widget row so Draws-as round-trips freely; the
+           Draws-as select only shows where the type IS a draws-as
+           choice (a light row's "light" is not) — Status line is for
+           everyone -->
+      {#if ["device", "volume", "stepper", "power", "media", "transport", "sources"].includes(drawsAsValue())}
+        <Field label="Draws as" hint="">
+          <Select value={drawsAsValue()} onchange={(e) => setDrawsAs(e.target.value)}
+            options={drawsAsOptions()} />
+        </Field>
+      {/if}
+      {#if showsVolStyle()}
+        <Field label="Volume style" hint="">
+          <Select value={volStyleValue()} onchange={(e) => setVolStyle(e.target.value)}
+            options={[
+              { value: "", label: "Theme default" },
+              { value: "slider", label: "Slider — the fat one" },
+              { value: "stepper", label: "Stepper − / +" },
+            ]} />
+        </Field>
+      {/if}
+      <Field label="Status line" hint="">
+        <div class="flex gap-1">
+          <Input value={typeof tile.sub_text === "string" ? tile.sub_text : ""}
+            title={"the tile's second line — blank = the widget's smart summary · ∅ = no line at all · {curly} tokens read the entity live"}
+            placeholder={tile.sub_text === "" ? "hidden" : "auto"}
+            oninput={(e) => { const v = e.target.value;
+              if (v) tile.sub_text = v;
+              else if (tile.sub_text !== "") delete tile.sub_text; }} />
+          <select value="" title={"insert a live attribute — {token}s follow the entity"}
+            onchange={(e) => { const v = e.target.value;
+              if (v) tile.sub_text = (typeof tile.sub_text === "string" ? tile.sub_text : "") + "{" + v + "}";
+              e.target.value = ""; }}
+            class="h-[38px] w-[30px] shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-field text-center text-[15px] text-dim outline-none hover:text-ink">
+            <option value="">＋</option>
+            {#each tileAttrs() as at (at)}
+              <option value={at}>{at}</option>
+            {/each}
+          </select>
+          <button title="No status line at all (∅) — click again for auto"
+            onclick={() => { if (tile.sub_text === "") delete tile.sub_text; else tile.sub_text = ""; }}
+            class={"h-[38px] w-[30px] shrink-0 cursor-pointer rounded-[4px] border text-[14px] " +
+              (tile.sub_text === "" ? "border-accent/60 bg-accent-wash text-accent-text"
+                : "border-line-strong bg-field text-dim hover:text-ink")}>∅</button>
+        </div>
+      </Field>
+    {/snippet}
+    {#if tab === "main"}
+      {#if tile.type === "device"}
+        <!-- THE DEVICE (§6.9): entity leads; verbs follow it -->
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Entity" hint="icon, verbs and the page it opens all follow the entity">
+            <EntityPicker value={tile.entity} onchange={(e) => setDeviceEntity(e.target.value)} />
+          </Field>
+          <Field label="Tap action" hint={tapHint()}>
+            <Select value={tile.tap ?? ""}
+              onchange={(e) => { if (e.target.value) tile.tap = e.target.value; else delete tile.tap; }}
+              options={[
+                { value: "", label: "Auto" },
+                { value: "play_pause", label: "Play / Pause" },
+                { value: "toggle", label: "Toggle power" },
+                { value: "open", label: "Open its page" },
+                { value: "none", label: "Nothing (readout only)" },
+              ]} />
+          </Field>
+          <Field label="Hold action — opens" hint="hold opens a page of everything this device can do">
+            <Select value={tile.target ?? ""}
+              onchange={(e) => { if (e.target.value) tile.target = e.target.value; else delete tile.target; }}
+              options={holdOptions} />
+          </Field>
+          {@render presFields()}
+        </div>
+        {#if tile.entity}
+          <p class="m-0 text-[11px] text-dim">
+            {#if castNote().length}
+              Cast by {castNote().join(" · ")} — wiring lives on the activity's card.
+            {:else}
+              No activity casts this device — it plays solo on this page.
+            {/if}
+          </p>
+        {/if}
+      {:else if tile.type === "nav"}
+        <!-- WHERE IT GOES (§6.10): the doorway's destination -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex items-end gap-2">
+            <div class="min-w-0 flex-1">
+              <Field label="Opens" hint={tile.target ? "" : "＋ mints a fresh page (same anatomy, bits off) and jumps in as a draft"}>
+                <Select bind:value={tile.target} options={navScreenOptions} allowEmpty />
+              </Field>
+            </div>
+            {#if tile.target && !tile.target.startsWith("ws:")}
+              <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                onclick={() => selectSlice("screens." + tile.target)}>edit page →</button>
+            {:else if tile.target}
+              <span class="mb-6 shrink-0 text-xs text-dim italic">opens that workspace's remote</span>
+            {:else}
+              <button class="mb-6 shrink-0 cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2 py-1 text-sm leading-[1.2] text-dim hover:border-accent/60 hover:text-accent"
+                title={"Create the page “" + (tile.label || "page") + "” — a full view with activities/presets switched off"}
+                onclick={mintNavPage}>＋</button>
+            {/if}
+          </div>
+        </div>
+      {:else if tile.type === "preset"}
+        <!-- WHAT IT DOES (§6.8): one shape, three doors in -->
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="On tap" hint="">
+            <Select value={presetMode()} onchange={(e) => setPresetMode(e.target.value)}
+              options={PRESET_MODES} />
+          </Field>
+          {#if presetMode() === "sequence"}
+            <div class="flex items-end gap-2">
+              <div class="min-w-0 flex-1">
+                <Field label="Action" hint="">
+                  <Select value={presetSeq()} allowEmpty
+                    onchange={(e) => { tile.action = { sequence: e.target.value }; }}
+                    options={seqIds} />
+                </Field>
+              </div>
+              <button class="mb-6 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                onclick={() => selectSlice("sequences")}>edit →</button>
+            </div>
+          {:else if presetMode() === "scene"}
+            <Field label="Scene" hint="">
+              <EntityPicker domains={["scene"]} value={tile.action?.entity ?? ""}
+                onchange={(e) => { tile.action = { service: "scene.turn_on", entity: e.target.value }; }} />
+            </Field>
+          {:else}
+            <Field label="Service" hint="domain.service">
+              <Input value={tile.action?.service ?? ""} placeholder="media_player.play_media"
+                class="font-mono text-[12.5px]"
+                onchange={(e) => { tile.action = { ...(tile.action || {}), service: e.target.value.trim() }; }} />
+            </Field>
+            <Field label="Target entity" hint="who receives the call — $context.* works here">
+              <!-- the engine fires action.target || action.entity — honor
+                   whichever key the tile already speaks -->
+              <EntityPicker value={tile.action?.target ?? tile.action?.entity ?? ""}
+                onchange={(e) => {
+                  const k = tile.action && "target" in tile.action ? "target" : "entity";
+                  tile.action = { ...(tile.action || {}), [k]: e.target.value };
+                }} /></Field>
+            <div class="col-span-2">
+              <Field label="Service data (JSON)" hint="">
+                <JsonArea value={$state.snapshot(tile.action?.data ?? {})} rows={3}
+                  onchange={(v) => { tile.action = { ...(tile.action || {}), data: v }; }} />
+              </Field>
+            </div>
+          {/if}
+          <Field label="Belongs to activity" hint="warm-start: the preset makes sure this activity is running first">
+            <Select value={tile.activity ?? ""} allowEmpty options={activityIds}
+              onchange={(e) => { if (e.target.value) tile.activity = e.target.value; else delete tile.activity; }} />
+          </Field>
+          <!-- WHERE IT LEAVES YOU (v0.68.7). The action says WHAT to
+               fire; `navigate` says where the tap ENDS UP — usually the
+               now-playing controller. Two decisions, two fields, because
+               the same preset wants a different landing on a room page
+               than in a drawer. Blank = stay put. -->
+          <Field label="Navigate to"
+            hint={tile.activity ? "blank = its activity's page (the default landing)" : "where the tap leaves you — blank = stay on this page"}>
+            <Select value={tile.navigate ?? ""} options={[
+                { value: "", label: tile.activity ? "Its activity's page (default)" : "Stay on this page" },
+                ...presetNavOptions]}
+              onchange={(e) => { if (e.target.value) tile.navigate = e.target.value; else delete tile.navigate; }} />
+          </Field>
+        </div>
+        {#if tile.activity || tile.navigate}
+          <p class="m-0 text-[11px] text-dim">
+            {#if tile.activity}
+              This preset belongs to {app.draft?.activities?.[tile.activity]?.name || tile.activity} —
+              tapping it starts that activity if it isn't already running, then fires.
+            {/if}
+            {#if tile.navigate}
+              {tile.activity ? " " : ""}After the tap you land on
+              <b>{app.draft?.screens?.[tile.navigate]?.name || tile.navigate}</b>{#if tile.activity}, which overrides
+              the activity's own page{/if}.
+            {/if}
+          </p>
+        {/if}
+      {:else}
+        <!-- WHAT IT SHOWS: generators and raw widgets keep their voice -->
+        <div class="grid grid-cols-2 gap-3">
+          {#if tile.type === "apps"}
+            <Field label="Dialect" hint="blank = the activity's dialect ($context.dialect)">
+              <Select value={tile.dialect ?? tile.class ?? ""} allowEmpty
+                options={Object.entries(app.draft?.dialects || {})
+                  .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+                onchange={(e) => { delete tile.class;
+                  if (e.target.value) tile.dialect = e.target.value; else delete tile.dialect; }} />
+            </Field>
+            <div class="col-span-2">
+              <Field label="Apps offered (in order)" hint="filters the dialect's list — blank = everything it offers">
+                <Chips bind:items={() => tile.include ?? [], (v) => (tile.include = v)}
+                  suggestions={Object.keys(app.draft?.apps || {})} placeholder="add app…" />
+              </Field>
+            </div>
+          {:else if tile.type === "activity"}
+            <Field label="Activity"><Select bind:value={tile.activity} options={activityIds} allowEmpty /></Field>
+          {:else if tile.type === "devices"}
+            <Field label="Cast of activity" hint="generates one device tile per cast member — always in sync with Setup">
+              <Select bind:value={tile.activity} options={activityIds} allowEmpty />
+            </Field>
+            <div class="flex items-end pb-1.5">
+              <button
+                class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1.5 text-xs text-dim hover:border-accent/60 hover:text-accent"
+                title="Replace the generator with plain device tiles (a snapshot you then own — it no longer follows the cast)"
+                onclick={unlinkCast}>⛓ Unlink → baked tiles</button>
+            </div>
+          {:else if tile.type === "browse"}
+            <!-- THE MEDIA LIBRARY (v0.66). One setting here is a
+                 DECLARATION, not a control: which engine answers a
+                 search. There is one option today and it still shows,
+                 because otherwise the next person finds search working
+                 and no idea what is behind it. -->
+            <Field label="Search engine"
+              hint={tile.search?.engine
+                ? "the only engine today — Sonos itself cannot search streaming services"
+                : "no engine = no magnifier; the library still browses"}>
+              <Select value={tile.search?.engine ?? ""} allowEmpty
+                options={[{ value: "music_assistant", label: "Music Assistant" }]}
+                onchange={(e) => {
+                  const v = e.target.value;
+                  if (!v) { delete tile.search; return; }
+                  tile.search = Object.assign({ classes: SEARCH_CLASSES.slice() },
+                    tile.search || {}, { engine: v });
+                }} />
+            </Field>
+            {#if tile.search?.engine}
+              <Field label="Search player"
+                hint="the player that SEARCHES — results still play on this activity's own player wherever the id converts">
+                <EntityPicker domains={["media_player"]}
+                  value={tile.search.entity ?? ""}
+                  onchange={(e) => (tile.search.entity = e.target.value)} />
+              </Field>
+              <div class="col-span-2">
+                <Field label="Result kinds" hint="what the engine is ASKED for — leaving generated playlists, audiobooks and podcasts unasked is the point">
+                  <Chips bind:value={tile.search.classes}
+                    suggestions={SEARCH_CLASSES} placeholder="add kind…" />
+                </Field>
+              </div>
+              <!-- DEPTH (v0.67.3 — Suresh: "we get 18 result tiles…
+                   now tap Tracks and I get 5"). HA's generic search
+                   caps at five per kind and offers no dial. Music
+                   Assistant's own service has one, but it is addressed
+                   by CONFIG ENTRY rather than by player — so naming it
+                   here is exactly what buys the deeper well. -->
+              <Field label="Music Assistant entry"
+                hint="Settings → Devices & Services → Music Assistant → the id in the URL. Empty = the shallow standard search, 5 per kind.">
+                <input class="w-full rounded-[8px] border border-line bg-panel px-2 py-1.5 font-mono text-xs text-ink"
+                  placeholder="01ABC…"
+                  value={tile.search.config_entry ?? ""}
+                  oninput={(e) => {
+                    const v = e.target.value.trim();
+                    if (v) tile.search.config_entry = v;
+                    else delete tile.search.config_entry;
+                  }} />
+              </Field>
+              <Field label="Results per kind"
+                hint="needs the entry above — how deep to dig (default 25)">
+                <input type="number" min="5" max="100" placeholder="25"
+                  class="w-full rounded-[8px] border border-line bg-panel px-2 py-1.5 text-xs text-ink"
+                  value={tile.search.limit ?? ""}
+                  oninput={(e) => {
+                    const v = +e.target.value;
+                    if (v > 0) tile.search.limit = v;
+                    else delete tile.search.limit;
+                  }} />
+              </Field>
+            {/if}
+          {:else if ENTITY_TYPES.has(tile.type)}
+            <Field label="Entity"><EntityPicker bind:value={tile.entity} /></Field>
+            {@render presFields()}
+          {:else}
+            <p class="col-span-2 m-0 text-xs text-dim">
+              A {tile.type} widget — it draws itself from the page's context.
+              Its knobs live under Advanced.
+            </p>
+          {/if}
+        </div>
+      {/if}
+    {/if}
+
+    {#if tab === "styling"}
+      <div class="grid grid-cols-2 gap-3">
+        <Field label="Column span" hint="how many grid columns this item spans">
+          <Segmented value={+(tile.span ?? 1)} options={[1, 2, 3, 4]}
+            onchange={(v) => (tile.span = v)} />
+        </Field>
+        {#if tile.type === "nav"}
+          <Field label="Style" hint="how the nav card renders — the page behind it is the same either way">
+            <Select value={tile.style ?? "auto"}
+              onchange={(e) => { if (e.target.value === "auto") delete tile.style; else tile.style = e.target.value; }}
+              options={NAV_STYLES} />
+          </Field>
+          {#if (tile.style ?? "auto") === "image" || (tile.style ?? "auto") === "auto"}
+            <Field label="Image" hint="path under /local/ (HA www/) — auto style shows it when set">
+              <Input bind:value={tile.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
+            </Field>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+
+    {#if tab === "advanced"}
+      <div class="space-y-2 rounded-[9px] border border-line bg-glass p-3">
+        <div class="grid grid-cols-2 gap-3">
+          <Field label="Type" hint={tile.type === "device" ? "" : "device = the smart tile: everything infers from its entity"}>
+            <select
+              value={tile.type}
+              onchange={(e) => (tile.type = e.target.value)}
+              class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none focus:border-accent"
+            >
+              <option value="device">device — auto from its entity</option>
+              <option value="nav">nav card — opens another page</option>
+              <optgroup label="Content generators">
+                {#each CONTENT_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
+              </optgroup>
+              {#if app.advanced || RAW_TYPES.includes(tile.type)}
+                <optgroup label="Raw widgets (advanced)">
+                  {#each RAW_TYPES as ty (ty)}<option value={ty}>{ty}</option>{/each}
+                </optgroup>
+              {/if}
+            </select>
+          </Field>
+          <Field label="Tile id"><Input bind:value={tile.id} class="font-mono text-[12.5px]" /></Field>
+          {#if tile.type === "device"}
+            <Field label="Show attribute" hint="blank = smart summary (state · title · brightness…)">
+              <Input value={tile.attr ?? ""} placeholder="e.g. media_title" class="font-mono text-[12.5px]"
+                onchange={(e) => { if (e.target.value.trim()) tile.attr = e.target.value.trim(); else delete tile.attr; }} />
+            </Field>
+          {/if}
+        </div>
+        <p class="m-0 text-[11px] text-dim">
+          All fields — this tile exactly as it lives in the config. Edits apply verbatim.
+        </p>
+        <JsonArea value={$state.snapshot(tile)} onchange={(v) => (tiles[index] = v)} rows={8} />
+      </div>
+    {/if}
+  </div>
+</CardRow>
+</div>

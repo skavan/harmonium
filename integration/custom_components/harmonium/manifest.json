@@ -1,0 +1,17 @@
+{
+  "domain": "harmonium",
+  "name": "Harmonium",
+  "version": "0.82.0",
+  "documentation": "https://github.com/skavan/harmonium",
+  "codeowners": [
+    "@skavan"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "frontend"
+  ],
+  "iot_class": "calculated",
+  "integration_type": "service",
+  "issue_tracker": "https://github.com/skavan/harmonium/issues"
+}

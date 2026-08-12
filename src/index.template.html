@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>HA Remote — v0</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+<style>
+/*__STYLES__*/
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <button id="backBtn" class="hidden"><span class="material-symbols-outlined">arrow_back</span></button>
+    <button id="homeBtn" class="hidden"><span class="material-symbols-outlined">home</span></button>
+    <span id="ptIc" class="material-symbols-outlined hidden">sports_esports</span>
+    <span class="name" id="screenName">—</span>
+    <span id="perf" class="hidden"></span>
+    <button id="endBtn" class="hidden" title="End the running activity"><span class="material-symbols-outlined">power_settings_new</span></button>
+    <span id="info" class="material-symbols-outlined" title="tap: status · hold: key capture">info</span>
+    <span id="dot"></span>
+  </div>
+  <div id="dbg" class="hidden"></div>
+  <div id="banner" class="hidden"></div>
+  <div id="brbar"></div>
+  <div id="grid"></div>
+</div>
+
+<div id="auth" class="hidden">
+  <div id="authForm">
+    <h2>Connect to Home Assistant</h2>
+    <p>Pair from the Harmonium Studio — no typing on this screen — or
+       paste a long-lived token (HA Profile → Security). Stored only in
+       this browser.</p>
+    <input id="hostIn" placeholder="Host (e.g. 192.168.1.87:8123)">
+    <button id="pairBtn">Pair with Home Assistant</button>
+    <input id="tokenIn" placeholder="…or paste a long-lived token" autocomplete="off">
+    <button id="connectBtn" class="quiet">Connect with token</button>
+  </div>
+  <div id="pairWait" class="hidden">
+    <h2>Approve this remote</h2>
+    <p>Open the <b>Harmonium Studio</b> on a computer. When the same
+       code appears there, approve it.</p>
+    <div id="pairCode">···</div>
+    <p id="pairHint">Waiting for approval…</p>
+    <button id="pairCancel" class="quiet">Cancel</button>
+  </div>
+  <div class="err" id="authErr"></div>
+</div>
+
+<script>
+/*__SCRIPT__*/
+</script>
+</body>
+</html>

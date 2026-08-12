@@ -1,0 +1,35 @@
+id: music_library
+name: Music Library
+type: library
+# LIBRARY CONTROLLER (v0.47.5, same move as the apps drawer): ships in
+# config.controllers so the music player's library button works in
+# EVERY workspace. PURE $context — the calling activity wires
+# media_player.
+library: true
+parent: music
+# v0.52.1: rides the music-player faces (--font-m1/--font-m2)
+font_scope: music
+
+# THE STANDARD LIBRARY (v0.49 — Suresh: "We mustn't be hardcoded to
+# ma"): one browse tile speaks HA's universal contract —
+# media_player/browse_media — so the tree is whatever the CAST PLAYER
+# serves (Sonos favorites, Music Assistant, Plex, …), played back via
+# media_player.play_media. Categories (Playlists / Albums / Artists…)
+# are the tree's top level: tap in, ‹ backs out. The MA category
+# sensors (sensor.harmonium_music_*) still publish for anyone who
+# wants curated presets_from sections — the stock view no longer
+# depends on them.
+layout:
+  columns: 3
+  sections:
+    - label: Library
+      tiles:
+        # SETTINGS (v0.49.1, all optional — nothing hardcoded):
+        #   media_sources: true   — also show HA's media-source://
+        #                           entries at the root (camera, TTS,
+        #                           radio browser…); hidden by default
+        #   include: [Favorites, Music Library]
+        #                         — narrow the root to these titles;
+        #                           advisory (no match → full list)
+        - id: lib
+          type: browse

@@ -1,0 +1,98 @@
+/* trailing action: full-height touch zone on the tile's right edge */
+  .tile.has-trail { position: relative; padding-right: 76px; }
+  .trail {
+    position: absolute; top: 6px; right: 6px; bottom: 6px; width: 60px;
+    border: 2px solid transparent; border-radius: calc(var(--radius) - 4px);
+    background: var(--tile-hi); color: var(--dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font: inherit; padding: 0; overflow: hidden;
+  }
+  .trail > * { pointer-events: none; }
+  .trail .ic { width: auto; }
+  .trail .ic.material-symbols-outlined { font-size: 26px; }
+  .trail:active { background: var(--accent); color: #1a1400; }
+  .trail.focused {
+    border-color: var(--accent); color: var(--text);
+    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+  }
+  /* ACCENT TRAIL (v0.68.1 — Suresh, of the library button on Now
+     Playing: "inverting the library launch button, to make it more
+     prominent. And give it just a little more width"). INVERTED: the
+     accent is the button and the glyph is the hole in it. Opt-in via
+     `trailing.emphasis: "accent"`, because a trail is the same chassis
+     slot as every device tile's quiet ⚙ chevron — restyling the class
+     would shout everywhere. */
+  .tile.has-trail-acc { padding-right: calc(var(--trail-w-acc, 76px) + 16px); }
+  .trail.tracc {
+    width: var(--trail-w-acc, 76px);
+    background: var(--accent); color: var(--bg);
+  }
+  .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
+  .trail.tracc:active { background: var(--on); }
+  .trail.tracc.focused {
+    background: var(--accent); color: var(--bg); border-color: var(--text);
+  }
+  .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
+
+  /* touch buttons (dpad + volume) */
+  .dpbtn {
+    border: 0; color: var(--text); background: var(--tile-hi);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font: inherit; padding: 0;
+  }
+  .dpbtn:active { background: var(--accent); color: #1a1400; }
+  .dpbtn > * { pointer-events: none; }
+  .dpbtn { overflow: hidden; }
+  .dp-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 4px; }
+  .dp-side { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .dp-side .dpbtn { width: 46px; height: 58px; border-radius: 14px; }
+  .dp-cap { font-size: 10px; color: var(--dim); letter-spacing: .12em; }
+  .dp-mid { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1; }
+  .dp-corners { width: 100%; max-width: 240px; display: flex; justify-content: space-between; }
+  .dp-corners .dpbtn { width: 46px; height: 46px; border-radius: 50%; }
+  .dp-pad {
+    position: relative; width: 212px; height: 212px;
+    border-radius: 50%; background: #2a313b;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
+  }
+  .dp-pad .dpbtn {
+    position: absolute; width: 64px; height: 64px;
+    border-radius: 50%; background: transparent;
+  }
+  .dp-pad .dpbtn:active { background: rgba(255,255,255,.14); color: var(--text); }
+  .dp-pad .up { top: 4px; left: 50%; transform: translateX(-50%); }
+  .dp-pad .dn { bottom: 4px; left: 50%; transform: translateX(-50%); }
+  .dp-pad .lf { left: 4px; top: 50%; transform: translateY(-50%); }
+  .dp-pad .rt { right: 4px; top: 50%; transform: translateY(-50%); }
+  .dp-pad .ok {
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 76px; height: 76px;
+    background: var(--accent); color: #1a1400; font-weight: 800;
+  }
+  .dp-pad .ok:active { background: var(--on); }
+  .tile.wgt-dpad { min-height: 412px; }
+  .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
+  .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+
+  /* list-row variant (grid.columns = 1) — height rides the global
+     tile-height knob (6px slimmer than grid tiles, matching the 84/78
+     defaults); --tile-row-h overrides independently (Code tab) */
+  .tile.row {
+    display: flex; flex-direction: row; align-items: center; gap: var(--tile-gap);
+    min-height: var(--tile-row-h, calc(var(--tile-h) - 6px));
+    padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 16px);
+  }
+  .tile.row .icwrap {
+    flex: 0 0 auto; width: var(--icon-zone); height: var(--icon-zone);
+    border-radius: var(--icon-radius);
+    background: #262c35; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .tile.row .icwrap .material-symbols-outlined { font-size: calc(var(--icon-zone) * .52); }
+  .tile.row .icwrap .ic { width: auto; font-size: calc(var(--icon-zone) * .48); }
+  .tile.row .icwrap img { width: 100%; height: 100%; object-fit: cover; }
+  .tile.row .txt { flex: 1; min-width: 0; }
+  .tile.row .lbl { font-size: calc(var(--fs-1) + 2px); }   /* rides Primary (15→17 default) */
+  .tile.row .sub { margin-top: 3px; }

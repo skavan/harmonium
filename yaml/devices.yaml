@@ -1,0 +1,105 @@
+# DEVICE LIBRARY (v0.45 — the Device Round). House-wide, first-class
+# devices: ONE definition per physical device, referenced by id from
+# any room's activities. This is the HOUSE layer — entity ids belong
+# here (platform knowledge lives in dialects/app_classes; controllers
+# stay pure $context).
+#
+# SCHEMA
+#   <device_id>:
+#     name / icon            identity
+#     dialect                which platform dialect this device speaks
+#     roles:                 role → member entity CLAIMS — what this
+#                            device CAN do. An activity's wiring picks
+#                            which claimant actually fills each role.
+#     traits:                generation + guardrail knowledge:
+#       never_off            NEVER offered in power-off lists and never
+#                            emitted in a generated Stop Action
+#       wake                 entity for the best-effort turn_on step
+#       cold_start           extra HA steps run ONLY when `wake` (or
+#                            cold_start_when) reads "off" — WOL etc.
+#       wait_on / wait_timeout_s   wait_for_trigger to "on" after wake
+#       settle_s             delay after waking before source switching
+#       dpad_commands        per-device key overrides merged into
+#                            context when this device fills dpad
+#
+# A device may span multiple HA integrations (the projector is TWO HA
+# devices: androidtv_remote for state/nav + androidtv/ADB for the
+# system channel). The bundle is where that knowledge lives — HA has
+# no cross-integration concept of "same physical device".
+
+fire_tv:
+  name: Fire TV
+  icon: material:live_tv
+  dialect: firetv
+  roles:
+    media_player: media_player.fire_tv_family_192_168_1_65
+    dpad: remote.fire_tv_family_192_168_1_65
+    # androidtv (ADB) integration — its media_player is the entity
+    # androidtv.adb_command accepts, same pattern as the projector
+    commands: media_player.fire_tv_family_192_168_1_65
+  traits:
+    never_off: true          # Suresh: "we NEVER turn the fire tv off"
+    wake: media_player.fire_tv_family_192_168_1_65
+
+samsung_q90:
+  name: Samsung Q90
+  icon: material:tv
+  dialect: tizen
+  roles:
+    media_player: media_player.sts_samsung_q90_porch
+    dpad: remote.sts_samsung_q90_porch
+    power: media_player.sts_samsung_q90_porch
+    volume: media_player.sts_samsung_q90_porch
+    source_select: media_player.sts_samsung_q90_porch
+  traits:
+    # Samsung-specific key names, merged into context.dpad_commands
+    # whenever this device fills the dpad role (was hand-copied into
+    # watch_smart's context before v0.45)
+    dpad_commands:
+      up: KEY_UP
+      down: KEY_DOWN
+      left: KEY_LEFT
+      right: KEY_RIGHT
+      select: KEY_ENTER
+      back: KEY_RETURN
+      home: KEY_HOME
+      menu: KEY_MENU
+      info: KEY_INFO
+      ch_up: KEY_CHUP
+      ch_down: KEY_CHDOWN
+    wake: media_player.sts_samsung_q90_porch
+    cold_start:
+      - alias: Wake TV via wired WOL (reliable from standby)
+        action: button.press
+        continue_on_error: true
+        target: { entity_id: button.samsung_wired_wol_d4_9d_c0_2c_e5_bf }
+      - alias: Wake TV via remote entity (best effort)
+        action: remote.turn_on
+        continue_on_error: true
+        target: { entity_id: remote.sts_samsung_q90_porch }
+    wait_on: media_player.sts_samsung_q90_porch
+    wait_timeout_s: 6
+    settle_s: 1
+
+porch_soundbar:
+  name: Porch Soundbar
+  icon: material:speaker
+  roles:
+    volume: media_player.ma_soundbar_porch
+    volume_level: media_player.ma_soundbar_porch
+
+pergola_projector:
+  name: Pergola Projector
+  icon: material:video_projector
+  dialect: googletv
+  roles:
+    # androidtv_remote integration — instant push state + navigation
+    media_player: media_player.deck_hisense_projector
+    dpad: remote.deck_hisense_projector
+    power: media_player.deck_hisense_projector
+    volume: media_player.deck_hisense_projector
+    # androidtv (ADB) integration — the command channel: launches +
+    # system keys (docs/google tv/projector_reference.md)
+    commands: media_player.deck_hisense_projector_adb_192_168_1_64
+  traits:
+    wake: media_player.deck_hisense_projector

@@ -1,0 +1,47 @@
+id: music
+name: Music Media Player
+type: controller
+library: true
+parent: porch
+activities: [music]
+# v0.52.1: music surfaces can carry their own faces — the theme's
+# --font-m1/--font-m2 pair (follows the global fonts unless set)
+font_scope: music
+
+# PURE $context (v0.47.5 — same doctrine as the TV player): the
+# CALLING activity wires everything; no house defaults ship in a
+# library controller.
+
+control_target:
+  label: $activity.name
+  power: $context.power
+  volume: $context.volume
+
+buttons:
+  ch_up: { service: media_player.media_next_track, entity: $context.media_player }
+  ch_down: { service: media_player.media_previous_track, entity: $context.media_player }
+  menu_hold: { navigate: music_library }
+  # v0.54 (Suresh: dpad holds → RWD/FFWD): relative scrub — the
+  # engine computes live position and calls the standard media_seek
+  left_hold: { seek: -15, entity: $context.media_player }
+  right_hold: { seek: 15, entity: $context.media_player }
+
+layout:
+  tiles:
+    - id: m_np
+      type: media
+      art: true
+      entity: $context.media_player
+      icon: material:music_note
+      label: Now Playing
+      span: 2
+      trailing:
+        icon: material:library_music
+        action: { navigate: music_library }
+    - { id: m_tr, type: transport, entity: $context.media_player, label: Transport, span: 2 }
+    - { id: m_cmd, type: mediabtns, entity: $context.media_player, label: Modes, span: 2 }
+    - { id: m_vol, type: volume, entity: $context.volume, icon: material:volume_up, label: Volume, span: 2 }
+    # SOURCE tile (v0.36): role-governed — appears iff the activity
+    # wires source_select (the Sonos here); hide-unwired otherwise
+    - { id: m_src, type: sources, entity: $context.source_select,
+        icon: material:input, label: Source, span: 2 }

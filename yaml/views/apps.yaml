@@ -1,0 +1,37 @@
+id: apps
+name: Apps
+type: library
+# LIBRARY CONTROLLER (v0.47.4): the drawer belongs to the PLAYER, so
+# it ships in config.controllers and travels into every workspace —
+# as a content screen it existed only in main and the player's apps
+# button dead-ended everywhere else.
+library: true
+parent: tv
+
+# PURE $context (v0.46.1): the drawer inherits everything from the
+# calling activity — dialect included.
+
+# DRAWER RULE: on a drawer ALL navigation keys drive the UI — pick a
+# tile and it auto-returns; tap-Back escapes without picking. Only
+# Power passes through (it still means "the TV"). Arrows/select/back/
+# home stay app-side. (Field-settled 2026-07-20: full pass_through
+# here re-broke apps nav; device-back on a drawer is a silent trap.)
+control_target:
+  label: $activity.name
+  navigation: $context.dpad
+  power: $context.power
+  volume: $context.volume
+  pass_through: [power]
+
+# The grid is GENERATED from the house app registry (apps.yaml):
+# one tile per app launchable on this drawer's $context.media_player
+# (override first, else default source in the live source_list).
+layout:
+  columns: 3
+  sections:
+    - label: Apps
+      tiles:
+        - id: apps_grid
+          type: apps
+          # the DIALECT is the curation (v0.30): everything the
+          # context's dialect offers; include: [ids] narrows if wanted

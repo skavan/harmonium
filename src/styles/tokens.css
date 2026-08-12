@@ -1,0 +1,64 @@
+:root {
+    --bg: #0d0f12;
+    --tile: #1a1e24;
+    --tile-hi: #232932;
+    --text: #e8eaed;
+    --dim: #8a919c;
+    --accent: #ffb300;
+    --on: #ffd54f;
+    --wash: rgba(255,179,0,.10);
+    --danger: #e05252;
+    --radius: 12px;
+    /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
+    --tile-h: 84px;
+    --font-1: system-ui, Roboto, sans-serif;   /* primary: labels/titles */
+    --fs-1: 15px;
+    --fw-1: 600;
+    --font-2: var(--font-1);                   /* secondary: subs/hints */
+    --fs-2: 13px;
+    --fw-2: 400;
+    /* MUSIC-PLAYER TYPE (v0.52.1; v0.53 — Suresh: "you have the
+       fields right there — why not open them up"): full face·size·
+       weight pairs for screens declaring font_scope: music (music
+       controller, library, queue). Every knob FOLLOWS the global
+       pair unless the theme sets it — no derived opinions. */
+    --font-m1: var(--font-1);
+    --fs-m1: var(--fs-1);
+    --fw-m1: var(--fw-1);
+    --font-m2: var(--font-2);
+    --fs-m2: var(--fs-2);
+    --fw-m2: var(--fw-2);
+    --icon-zone: 52px;      /* row-tile icon disc */
+    --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
+    --tile-gap: 14px;       /* icon ↔ text */
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-1);
+    font-size: var(--fs-1); line-height: 1.35;
+    overflow: hidden; user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+  /* WIDE (v0.68): the wasted real estate was never really the column
+     count — it was this cap. A 1280-wide tablet rendered a 520px strip
+     with 760px of black either side. Both remotes are 480 wide, so the
+     cap has never once applied to them, and lifting it here cannot
+     reach them. */
+  html.wide #app { max-width: none; }
+  /* the music scope (navigate() toggles it from sc.font_scope);
+     icon glyphs keep their own family via .material-symbols-outlined */
+  #app.scr-music #grid, #app.scr-music #brbar, #app.scr-music #banner {
+    font-family: var(--font-m1); font-size: var(--fs-m1);
+  }
+  #app.scr-music .tile .lbl { font-weight: var(--fw-m1); }
+  #app.scr-music .tile.row .lbl,
+  #app.scr-music .tile.wgt-qrow .lbl,
+  #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
+  #app.scr-music .npt { font-weight: var(--fw-m1); }
+  #app.scr-music .tile .sub {
+    font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);
+  }
+  #app.scr-music .npa { font-family: var(--font-m2); font-size: calc(var(--fs-m2) + 1px); font-weight: var(--fw-m2); }
+  #app.scr-music .npb { font-family: var(--font-m2); font-size: calc(var(--fs-m2) - 1px); font-weight: var(--fw-m2); }
