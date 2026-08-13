@@ -465,22 +465,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # deploys it to www/harmonium/ so a HACS install needs no hand
     # copying — and the ownership stamp keeps this from ever reverting
     # a manual push-catrock-engine.bat (see packaging.py).
+    # THE VIRGIN-INSTALL BUG (v0.83.4 — found on the FIRST real HACS
+    # install, a fresh HA at .88: "Error setting up entry"): the
+    # engine write assumed www/harmonium/ existed. It always had, on
+    # every dev house — but a fresh HA has no www/ at all, and
+    # write_bytes into a missing directory is FileNotFoundError,
+    # which killed the whole entry. mkdir first; and the entire
+    # deploy block is now non-fatal — a remote UI that can't deploy
+    # is a logged error, not a dead integration.
     bundled_engine = Path(__file__).parent / "engine" / "index.html"
     deployed_engine = new_dir / "index.html"
-    b_fp = await hass.async_add_executor_job(_engine_fingerprint, bundled_engine)
-    d_fp = await hass.async_add_executor_job(_engine_fingerprint, deployed_engine)
-    s_fp = await hass.async_add_executor_job(read_stamp, new_dir)
-    if should_deploy(b_fp, d_fp, s_fp):
-        await hass.async_add_executor_job(
-            lambda: deployed_engine.write_bytes(bundled_engine.read_bytes()))
-        await hass.async_add_executor_job(write_stamp, new_dir, b_fp)
-        _LOGGER.info("Harmonium engine deployed to %s (bundle %s, was %s)",
-                     deployed_engine, b_fp, d_fp or "empty")
-    elif b_fp and b_fp != d_fp:
-        _LOGGER.info(
-            "Harmonium engine at %s differs from the bundle (%s vs %s) but "
-            "was not integration-deployed — leaving the manual push alone",
-            deployed_engine, d_fp, b_fp)
+    try:
+        b_fp = await hass.async_add_executor_job(_engine_fingerprint, bundled_engine)
+        d_fp = await hass.async_add_executor_job(_engine_fingerprint, deployed_engine)
+        s_fp = await hass.async_add_executor_job(read_stamp, new_dir)
+        if should_deploy(b_fp, d_fp, s_fp):
+            def _deploy_engine() -> None:
+                new_dir.mkdir(parents=True, exist_ok=True)
+                deployed_engine.write_bytes(bundled_engine.read_bytes())
+            await hass.async_add_executor_job(_deploy_engine)
+            await hass.async_add_executor_job(write_stamp, new_dir, b_fp)
+            _LOGGER.info("Harmonium engine deployed to %s (bundle %s, was %s)",
+                         deployed_engine, b_fp, d_fp or "empty")
+        elif b_fp and b_fp != d_fp:
+            _LOGGER.info(
+                "Harmonium engine at %s differs from the bundle (%s vs %s) but "
+                "was not integration-deployed — leaving the manual push alone",
+                deployed_engine, d_fp, b_fp)
+    except OSError as err:
+        _LOGGER.error(
+            "Harmonium could not deploy the engine to %s: %s — the "
+            "integration will still set up; fix permissions/space and "
+            "restart to deploy the remote UI", deployed_engine, err)
 
     # One-time shape migration: persist the wrapped form so every later
     # load is already v2.

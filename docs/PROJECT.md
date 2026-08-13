@@ -107,6 +107,16 @@ before the zip was ever considered.
 - Publishing flow now: make-release.bat → git add/commit/push →
   GitHub release with tag v<manifest version>. HACS installs
   custom_components/harmonium from the tag.
+- **THE VIRGIN-INSTALL BUG** (same day, first real HACS install on
+  the fresh .88 HA: "Error setting up entry" —
+  FileNotFoundError /config/www/harmonium/index.html): the engine
+  self-deploy wrote into www/harmonium/ without ever creating it.
+  Every dev house has had that directory for months; a fresh HA has
+  no www/ at all. Fixed: mkdir(parents=True) before the write, and
+  the whole deploy block is now NON-FATAL (OSError → logged error
+  with a fix-and-restart hint; the integration still sets up — a
+  remote UI that can't deploy must not kill the entry). manifest →
+  0.83.4; tag v0.83.4 is the first HACS-installable release.
 
 ## Current state (v0.83.3, 2026-08-13)
 
