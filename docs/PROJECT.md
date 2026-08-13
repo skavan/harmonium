@@ -79,6 +79,42 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.6, 2026-08-13)
+
+v0.83.6 — **THE BUNDLED SKIN** (fourth .88 field report: "No photo
+for astrion"). v0.83.5's starter seeded the astrion *profile*
+(keymap, capabilities) but the device-photo skin needs
+`www/harmonium/skins/astrion.png` — which a fresh box doesn't have,
+and the skin block wasn't in the starter either.
+
+- `custom_components/harmonium/skins/astrion.png` now ships in the
+  integration (the real 1.9MB 814×2600 export, copied repo-side from
+  skins/). Setup deploys every bundled skin to
+  `www/harmonium/skins/` — **only if absent, NEVER overwriting** (a
+  user's own photo of their own remote always wins); non-fatal
+  OSError doctrine, same as the engine deploy. Simulated: fresh
+  deploy ✓, idempotent re-run ✓, user-modified file survives ✓.
+- starter-config.json's astrion profile gained the full **skin
+  block** (SKIN_ASTRION verbatim from PreviewPane: image path,
+  viewport 349×581, screen 10.07/3.764/80.59/41.77 with the
+  field-trued y, all 23 buttons). PreviewPane derives the photo
+  straight from `profile.skin`, so a fresh install's Studio lands
+  previewing ON the photo with zero clicks. Probe
+  (tests/probe-starter-skin.mjs): boot with the seeded config →
+  device defaults to astrion, photo img present, engine renders
+  home in the aperture, status "loaded — 1 views", no errors;
+  starter still passes _validate clean.
+- **.88 note**: its store was seeded by v0.83.5 WITHOUT the skin,
+  and the seed (correctly) never reruns on a populated store. After
+  the v0.83.6 restart deploys the PNG, one click applies the skin
+  there: Preview as astrion → **🖼 device photo** (the preset) →
+  Save & Deploy. Fresh installs after v0.83.6 need nothing.
+- **Log-visibility lesson from the v0.83.5 verify**: the seed logs
+  at INFO and HA's Settings→Logs UI shows WARNING+ — "nothing in
+  logs" is the expected sight of a SUCCESSFUL seed. The real check
+  is `/local/harmonium/config.json` answering with JSON.
+- manifest → **0.83.6**.
+
 ## Current state (v0.83.5, 2026-08-13)
 
 v0.83.5 — **THE VIRGIN STUDIO** (the .88 stranger-path test keeps

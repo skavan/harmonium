@@ -498,6 +498,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "integration will still set up; fix permissions/space and "
             "restart to deploy the remote UI", deployed_engine, err)
 
+    # BUNDLED SKINS (v0.83.6 — .88 field report: "No photo for
+    # astrion"): the starter config's astrion profile references
+    # /local/harmonium/skins/astrion.png, so a fresh box must HAVE
+    # it. Deploy every bundled skin that isn't already deployed —
+    # and NEVER overwrite: a user's own photo of their own remote
+    # always wins over ours. Non-fatal, same doctrine as the engine.
+    bundled_skins = Path(__file__).parent / "skins"
+    try:
+        if bundled_skins.is_dir():
+            def _deploy_skins() -> list[str]:
+                copied = []
+                dest = new_dir / "skins"
+                dest.mkdir(parents=True, exist_ok=True)
+                for src in sorted(bundled_skins.iterdir()):
+                    if src.is_file() and not (dest / src.name).exists():
+                        (dest / src.name).write_bytes(src.read_bytes())
+                        copied.append(src.name)
+                return copied
+            deployed_skins = await hass.async_add_executor_job(_deploy_skins)
+            if deployed_skins:
+                _LOGGER.info("Harmonium deployed bundled skin(s) to %s: %s",
+                             new_dir / "skins", ", ".join(deployed_skins))
+    except OSError as err:
+        _LOGGER.warning(
+            "Harmonium could not deploy bundled skins: %s — device-photo "
+            "presets will miss their image until it is copied by hand", err)
+
     # One-time shape migration: persist the wrapped form so every later
     # load is already v2.
     raw = await hstore.store.async_load()
