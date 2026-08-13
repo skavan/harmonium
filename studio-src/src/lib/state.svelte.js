@@ -18,6 +18,7 @@ export const app = $state({
   authOpen: false,
   authErr: "",
   unsaved: false,   // draft differs from last saved copy
+  virgin: false,    // fresh install: store empty, editor holds the minted starter
   pvPulse: 0,       // bumps on every preview push (sync indicator)
   pvScreen: "",     // the screen the preview is showing (engine-reported)
   entities: [],       // live HA states for pickers: {entity_id, name, state}
@@ -317,7 +318,7 @@ function ensureStockControllers(cfg) {
 export function starterConfig() {
   const cur = $state.snapshot(app.draft) || {};
   const live = cur;
-  return ensureStockControllers({
+  const cfg = ensureStockControllers({
     version: 2,
     entity_options: cur.entity_options || {},
     theme: cur.theme || {},
@@ -356,6 +357,20 @@ export function starterConfig() {
           tiles: [{ id: "acts", type: "activities", room: "home" }] }] },
     },
   });
+  /* VIRGIN SWEEP (v0.83.9, the .88 fresh-install test): from an EMPTY
+     draft the stock drawers above are PLANTED, not copied — and a
+     planted drawer carries its stock parent (controller:tv /
+     controller:music) pointing at controllers this config doesn't
+     have. The integration's _validate rejects dangling parents, so
+     the very first Save & Deploy would 422. Drop any parent whose
+     target isn't in THIS config. */
+  const navigable = new Set([
+    ...Object.keys(cfg.screens || {}),
+    ...Object.keys(cfg.controllers || {}).map((c) => "controller:" + c),
+  ]);
+  for (const c of Object.values(cfg.controllers || {}))
+    if (c.parent && !navigable.has(c.parent)) delete c.parent;
+  return cfg;
 }
 
 /* NAV UNIFICATION (v0.25): group / room / plain-nav tiles are ONE
@@ -883,7 +898,7 @@ export function clearCurrent() {
    running?" question kept costing rounds: HA serves studio.html with
    hard cache headers, so a stale tab looks exactly like a bad fix).
    Bump alongside PROJECT.md when the Studio changes. */
-export const STUDIO_V = "0.83.8";
+export const STUDIO_V = "0.83.9";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 
@@ -1829,6 +1844,7 @@ export async function save() {
   if (!r.ok) { setStatus("save failed: HTTP " + r.status, "err"); return false; }
   app.saved = JSON.parse(JSON.stringify($state.snapshot(app.draft)));
   rebaseline();
+  app.virgin = false;   // the store exists now — no longer a fresh install
   setStatus("saved & deployed — remotes pick it up on next reload", "ok");
   return true;
 }
@@ -1905,8 +1921,15 @@ export async function boot() {
       app.sandbox = true;
       app.saved = await d.json();
     } catch (e) {
-      setStatus("no config found (API 404, /local fallback failed: " + e.message + ")", "err");
-      return;
+      /* VIRGIN INSTALL (v0.83.9, the first .88 HACS test): the API is
+         ALIVE (it answered the 404 itself) and /local has nothing —
+         that's a fresh install with an empty store, not a broken one.
+         Mint the starter into the editor; the first Save & Deploy
+         creates the store AND deploys config.json (a remote that
+         pairs before that will 404 until the first save). */
+      void e;
+      app.saved = starterConfig();
+      app.virgin = true;
     }
   } else if (!r.ok) {
     setStatus("load failed: HTTP " + r.status, "err");
@@ -1932,9 +1955,12 @@ export async function boot() {
   loadRegistry();
   loadServices();
   setStatus(
-    (app.sandbox ? "SANDBOX (integration not installed — Save disabled) — " : "loaded — ") +
-      Object.keys(app.draft.screens).length + " views, " +
-      Object.keys(app.draft.activities || {}).length + " activities",
+    app.virgin
+      ? "fresh install — starter workspace loaded (a draft). Look around, " +
+        "then Save & Deploy to create your config; remotes can load it after that"
+      : (app.sandbox ? "SANDBOX (integration not installed — Save disabled) — " : "loaded — ") +
+        Object.keys(app.draft.screens).length + " views, " +
+        Object.keys(app.draft.activities || {}).length + " activities",
     app.sandbox ? "err" : "ok",
   );
 }

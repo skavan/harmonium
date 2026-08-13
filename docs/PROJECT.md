@@ -79,6 +79,94 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.5, 2026-08-13)
+
+v0.83.5 — **THE VIRGIN STUDIO** (the .88 stranger-path test keeps
+earning its keep). v0.83.4 installed and the engine deployed — the
+pairing banner even lit up — but the Studio opened DEAD: red
+"no config found (API 404, /local fallback failed: HTTP 404)" and an
+empty editor. On a fresh install there is nothing stored and nothing
+deployed, so both doors 404 and boot() just returned. The README
+promises "look around the starter config"; the virgin path delivered
+an error banner instead.
+
+- **Virgin boot mints the starter** (state.svelte.js, s0.83.9): the
+  exact branch "API answered 404 AND /local fallback failed" is now
+  read as *fresh install, empty store* — not an error. boot() loads
+  `starterConfig()` into the editor as a draft, lands on the
+  workspace map, and the status pill says: "fresh install — starter
+  workspace loaded (a draft). Look around, then Save & Deploy to
+  create your config; remotes can load it after that." First Save &
+  Deploy POSTs main (the API creates main on POST), which writes the
+  store AND deploys config.json. `app.virgin` clears on save.
+- **THE SECOND LATENT BUG, caught before the field hit it**: from an
+  EMPTY draft, `starterConfig()`'s stock drawers are PLANTED by
+  ensureStockControllers (not copied from live) — and a planted
+  drawer carries its stock `parent` (`controller:tv` /
+  `controller:music`) pointing at controllers the blank config
+  doesn't have. The integration's `_validate` rejects dangling
+  parents, so the very first Save & Deploy would have 422'd. Fixed
+  with a navigable-set sweep at the end of starterConfig(): any
+  `parent` whose target isn't in THIS config is dropped. (Same class
+  as the "unknown parent" bug from the first live workspace-create —
+  this was its virgin-path twin.)
+- **Probe-verified end-to-end** (tests/probe-virgin.mjs, kept in the
+  repo): stubbed API (config 404, empty roster, /local 404) + real
+  engine in the preview → boots to the map with the fresh-install
+  status (no red), preview renders the starter's home hub, Save &
+  Deploy POSTs, and the posted config runs through the REAL
+  `_validate` (extracted verbatim) → **zero problems**. Full
+  smoke-studio re-run: identical results to the pre-change baseline
+  (six pre-existing selector-drift falses noted below — not
+  regressions).
+- **THE SERVER-SIDE STARTER SEED** (same release, Suresh's call:
+  "if there is no config, we should create one; if there is one, we
+  leave it alone"): the integration now bundles
+  `custom_components/harmonium/starter-config.json` and
+  async_setup_entry seeds it when the store is empty AND nothing is
+  deployed — saving the store, deploying config.json, and writing
+  the main/ stub in one setup pass. The three doors, in order: store
+  has workspaces → touched by NOTHING (updates never overwrite);
+  store empty + config.json deployed → the existing adopt-from-
+  deployed path; store empty + nothing deployed → bundled starter.
+  Non-fatal like the engine deploy (bad/missing starter = logged
+  warning, Studio's s0.83.9 virgin fallback still covers it; the
+  seed validates through `_validate` before it commits).
+- **What's IN the starter** (extracted from the fixture's system
+  layer, verified house-free): input policy, `default` + `astrion`
+  remote profiles with their full keymaps (34 keys), theme, the app
+  master list (13 apps) + all 3 dialects (firetv/tizen/googletv),
+  and the ENTIRE stock controller library — tv, music, apps,
+  music_library, climate, light, cover, fan, switch (all
+  $context-driven; only generic service names inside). tv/music's
+  `parent: porch` content edges stripped; apps→controller:tv and
+  music_library→controller:music survive (targets present). Content
+  zeroed: devices, entity_options, activities, sequences; screens =
+  one "New Room" home hub. This fixes what the Studio-side starter
+  couldn't: it has no STOCK_TV and ships `apps: {}` from an empty
+  draft — the bundled starter has the full library.
+- **Verified**: starter passes the real `_validate` (zero problems);
+  the real engine renders it headlessly (tests/probe-starter-engine.
+  mjs — screen=home, "New Room", no errors); the seed branch
+  simulated across all four cases (virgin → save+deploy; adoption →
+  starter stays out; populated store → untouched; starter file
+  missing → non-fatal warn). `_write_json` mkdirs parents, so the
+  seed survives a box with no www/ at all.
+- **Ordering truth for a fresh install**, now moot but documented: a
+  remote can PAIR before the first save (the broker is
+  config-independent) — and with the seed, it renders the starter
+  home hub immediately instead of 404ing. The Studio opens on a real
+  stored config; its virgin branch remains as the safety net.
+- manifest → **0.83.5**; STUDIO_V → **0.83.9**. Studio-only change:
+  machine steps are `cd studio-src && npm run build`, commit + push,
+  tag v0.83.5, HACS update on .88, hard-refresh the Studio (check
+  the `s0.83.9` stamp).
+- Backlog note: smoke-studio.mjs has six stale assertions
+  (activitiesOwned, startPicker, nameInput, added, draftBanner,
+  pageMade) — selector drift from the v0.83.x UI rounds, false on
+  the untouched baseline too. Needs a selector refresh pass, not a
+  code fix.
+
 ## Current state (v0.83.4, 2026-08-13)
 
 v0.83.4 — **THE HACS COMPLIANCE MOVE** (field failure on the first

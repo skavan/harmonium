@@ -642,6 +642,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.info("Seeded Harmonium main workspace from %s", deployed)
             except (OSError, ValueError) as err:
                 _LOGGER.warning("Could not seed from %s: %s", deployed, err)
+        else:
+            # VIRGIN INSTALL (v0.83.5 — the .88 stranger-path test):
+            # nothing stored AND nothing deployed = a fresh HACS
+            # install. Seed from the BUNDLED starter — the system
+            # layer only (input policy, default + astrion remote
+            # profiles with keymaps, theme, the app master list +
+            # dialects, the full stock controller library) plus one
+            # empty "New Room" home hub — and deploy it immediately,
+            # so a remote paired before the Studio is ever opened
+            # renders a real page instead of a 404. If a config
+            # exists through EITHER door it is left alone: updates
+            # never overwrite. NON-FATAL like the engine deploy — a
+            # seed that can't happen is a logged warning, and the
+            # Studio's own virgin fallback (s0.83.9) still covers it.
+            starter_path = Path(__file__).parent / "starter-config.json"
+            try:
+                starter = await hass.async_add_executor_job(_read_json, starter_path)
+                problems = _validate(starter)
+                if problems:
+                    _LOGGER.warning(
+                        "Harmonium bundled starter config is invalid (%s) — "
+                        "starting empty; the Studio can still create a "
+                        "config", "; ".join(problems))
+                else:
+                    data["workspaces"][MAIN] = starter
+                    data["base_main"] = starter
+                    data["meta"][MAIN] = {"name": "Main"}
+                    data["order"] = [MAIN]
+                    await hstore.save(data)
+                    deploy = await hstore.deploy(MAIN, starter)
+                    _LOGGER.info(
+                        "Harmonium fresh install: starter config created "
+                        "and deployed to %s", deploy)
+            except (OSError, ValueError) as err:
+                _LOGGER.warning(
+                    "Harmonium could not seed the bundled starter (%s): %s "
+                    "— starting empty; the Studio can still create a "
+                    "config", starter_path, err)
 
     # the MAIN entry stub (v0.48.3): make /local/harmonium/main/ real
     # NOW — canonical addresses shouldn't wait for the next save
