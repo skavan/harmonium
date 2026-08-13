@@ -79,6 +79,218 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.3, 2026-08-13)
+
+v0.83.3 — **DESLUG** (statusreview tweak, climate-detail screenshot:
+"Note the presets like wind_free. We need to intelligently strip the
+_ so it reads wind free"). Display-layer only:
+
+- `deslug()` joins `cap()` in widgets/helpers.js, and cap() now
+  deslugs before capitalizing — every cap() call site is a display
+  of an entity state/enum (audited: climate, cover, device×4, fan,
+  light, media×3), so fan_only reads "Fan only" and heat_cool "Heat
+  cool" everywhere at once.
+- Chip rows (hvac/fan/preset/source/effect/sound_mode) render
+  deslugged labels while `data-ch` keeps the RAW value — verified
+  in probe-deslug.mjs: the "wind free" chip still calls
+  set_preset_mode {preset_mode: "wind_free"}.
+- fan tile's preset sub-line deslugged.
+- ENGINE_V 0.83.3; battery 20/20 (one smoke-studio flake was the
+  dist server dying between suites — clean on re-run).
+- **The volume-kind stepper matches the volume row** (Suresh: "The
+  first is nice. The second needs fixing (Volume)"): steprow.vol —
+  58×46 buttons, 21px/600 value, 12px gap — so a stepper-styled zone
+  (the Receiver) and the wired volume read as the same control.
+  Other stepper kinds (brightness/setpoint/position) keep the big
+  display type: on a detail page they ARE the page.
+- **The photo-mode 1px seam was a WRONG APERTURE, not rounding**
+  (Suresh: "the LCD panel is one pixel off on both axis… grey/white
+  line"): SKIN_ASTRION.screen carried the alpha-scan of the ORIGINAL
+  1280×4084 Photoshop export, but the shipped 814×2600 PNG is a
+  slightly different crop — flood-filling its enclosed transparent
+  hole gives x 82..737, y 93..1178 = **10.07/3.58/80.59/41.77** (the
+  old 9.84/3.80/80.00/41.80 left ~6 unfilled source rows above the
+  iframe showing the page background). Preset corrected; the clip
+  also runs 1px proud of the rect with the iframe nudged back in
+  (black ring under the photo's anti-aliased rim — the 📷 bleed
+  trick, live). AND the deeper cause of "1 or two pixels off our
+  vertical position" (the follow-up screenshot's bottom line): the
+  iframe's height was DERIVED (width × viewport ratio), so any
+  rect-vs-viewport aspect mismatch left a hairline at the bottom —
+  and every hand-nudge of the rect moved it. The iframe now scales
+  X and Y INDEPENDENTLY to fill the rect edge-to-edge; the residual
+  anamorphic stretch is the aspect delta (~0.6% on the astrion),
+  invisible where a white line is not. Verified with red-background
+  leak tests: 0 leak pixels with the corrected rect AND with a
+  deliberately wrong-aspect rect (h=42.5). RE-APPLY the preset on
+  the device profile (footer → 🖼 device photo) to pick up the new
+  rect — stored configs carry the old numbers.
+- **The slider volume's middle is the %** (same round — Suresh, seeing
+  the wired-volume tile beside a stepper Receiver: "like the first
+  example in height but with the volume % instead of a duplicate
+  slider"): in slider mode the −/+ row's center shows the percentage
+  (21px, sized to the 46px button row — deliberately NOT the
+  stepper's 42px display type) instead of the mini-meter that
+  duplicated the fat track above it. Compact mode keeps the meter —
+  with no track, it IS the level. The % follows optimistic nudges
+  and the drag finger. Battery 20/20 re-run; probe-vol asserts
+  centerPct + miniMeterGone.
+
+## Current state (v0.83.2, 2026-08-13)
+
+v0.83.2 — **FOUR MORE, WITH A CAMERA** (statusreview follow-ups):
+
+- **Artwork is themeable** ("have the library artwork (including
+  tiles) set in the theme (for both music and tv)"): three new
+  engine tokens — `--br-art` 58px (library cards, music AND tv
+  browse grids), `--art-big` 84px (art-forward playlist cards; wide
+  screens add 16px via calc), `--app-art` 42px (app stamps on
+  presets/apps drawer). List rows already rode `--icon-zone`. Theme
+  editor grows Library art / Playlist art / App stamp knobs beside
+  the existing tile-h/icon-zone row.
+- **Export is a dropdown** ("this workspace, all workspaces" — asked
+  twice whether Export took everything; the answer now lives in the
+  control): This workspace = the old full-fidelity draft download;
+  All workspaces = a one-file bundle {harmonium_export:"workspaces",
+  order, workspaces:{id:{name,config}}} — the current world from the
+  live draft, the rest fetched fresh (?ws=). importConfig names the
+  bundle instead of half-loading it.
+- **Washes are toggleable** ("Just a simple toggle"): `washes on/off`
+  link in the soft-remote footer (both photo and grid modes), gating
+  every wash — tap, hold-latch, hotspots and soft keys alike.
+  Persisted per browser (hakr_studio_wash).
+- **📷 The preview screenshots itself** ("the screenshot should honor
+  alpha on the preview (this is what will build my gifs)"): camera
+  button beside the Showing row. The engine iframe's DOM renders to
+  canvas (html-to-image — NEW studio dependency, `npm i` before the
+  machine build), composited into the skin photo's aperture at the
+  photo's NATURAL resolution with a 2px bleed under the anti-aliased
+  rim, photo drawn over — everything outside the device is genuinely
+  transparent (verified: corner alphas 0, screen content composited,
+  814×2600 out of the 814px astrion asset). No skin → the bare
+  screen at 2×. THE FONT TRAP: html-to-image can't read a
+  cross-origin <link>'s cssRules and silently skips Google Fonts —
+  every icon renders as its ligature name; snapFontCSS() fetches the
+  stylesheet itself, inlines each url() as a data: URL, and passes
+  it as fontEmbedCSS. Files download as harmonium-<screen>.png.
+- Verified end-to-end in probe-nits2.mjs (wash 9→0→9, export bundle
+  carries both workspaces, PNG alpha checked with PIL, --br-art
+  reaches the engine); battery 20/20.
+
+## Current state (v0.83.1, 2026-08-13)
+
+v0.83.1 — **THE NITS AND NATS ROUND** (statusreview.md, four items +
+one question):
+
+- **Actions were already global in scope** (item 1): any page, preset
+  or activity in a workspace can reference any sequence — the room
+  stamp is filing, not scope (SequencesEditor has said so since the
+  groups pass). What they could not do was TRAVEL, so they now ride
+  the standard snippet grammar: **action snippets** — ⤴ Export
+  snippet on any Action card's ··· menu, ⤵ Import snippet… beside
+  ＋ Add action, across workspaces like every snippet. The room
+  stamp is dropped on export AND import (it names the source house's
+  rooms). Studio: SNIPPET_TYPES.action + actionSnippetSeq() +
+  SequencesEditor doors.
+- **Preview first-mount height** (item 2 — "wrong height unless I
+  click the photo mode on then off"): the plain frame's last-resort
+  viewport was the historical 320×537 guess, which only healed after
+  the photo dance wrote a measured viewport into the profile. Now a
+  profile without its own measurement borrows one from any profile
+  in the workspace, and the final fallback is the HA100 ground truth
+  349×581 — first mount now matches the post-dance size.
+  (PreviewPane plainVp chain.)
+- **Volume: fat by default + optimistic** (item 3): the slider
+  treatment is now the default volume style everywhere (generators'
+  dflt and the presShows path: "compact"→"slider"; the widget draws
+  the track unless slider:false — a generated compact choice still
+  says so explicitly). And +/- taps nudge the LOCAL volume_level by
+  0.05 immediately (renderStates before the HA round-trip; the next
+  diff overwrites with truth) — the "doesn't update quickly" was a
+  full round-trip plus device report latency before anything moved.
+  Slider drags now write optimistic state too, so "Vol n%" follows
+  the finger. Verified: probe-vol.mjs (34%→39% before any state
+  event arrives; volume_up still called).
+- **Browse list rows read like a list** (item 4, screenshot): browse
+  items are preset-TYPE tiles, and .wgt-preset's centered-card
+  styling (text-align:center, free wrap) leaked into .row mode —
+  big centered wrapping titles. Now .tile.brw.row is left-aligned,
+  drops the row +2px bump (base --fs-1 / --fs-m1, incl. a music-
+  scope override — the #app rule outranks the class chain), and
+  ellipsizes on one line. Plus the asked-for THIRD VIEW: the
+  category toggle cycles grid → list → **grid2** (two-wide cards —
+  half the density, double the label room; brCols:2 stamped by
+  gen-browse, honored by render.js's section host the same way the
+  list narrows to one column). Old localStorage view values stay
+  valid. Verified: probe-libui-look.mjs (left/15px/nowrap rows;
+  2-column host; toggle title cycles).
+- Answered: **Export downloads the current workspace only** (the
+  tooltip says so); snippets are the cross-workspace carrier. A
+  whole-house export-all remains an easy ⋯-menu add if wanted.
+- ENGINE_V 0.83.1. Battery 20/20 green post-change; new probes
+  probe-vol.mjs, probe-nits.mjs (plain-frame first-mount 349×581 +
+  action-snippet round trip: 5→6 sequences), probe-libui-look.mjs.
+- Studio src changes (state.svelte.js, SequencesEditor.svelte,
+  PreviewPane.svelte) need the machine build + push-studio.bat;
+  engine needs push-engine.bat + Fully cache clear.
+
+## Current state (v0.83, 2026-08-12)
+
+v0.83 — **THE SHOP WINDOW** (P0-3, beta-gaps §5 — Suresh: "The main
+readme needs to sell our work and get the user excited… We get one
+chance to make an impression"). The outsider docs, complete:
+
+- **README.md rewritten product-first.** Hero GIF (real engine
+  booting + D-pad walk + music controller, composited into the
+  astrion device render at the true 349×581 viewport), four engine
+  stills, a Studio tour GIF, the map-keys and pairing shots, a
+  3-step HACS quick start, cookbook table, and the architecture
+  moved below the fold (linked, not leading). Old README's technical
+  content survives in ARCHITECTURE/CONTRIBUTING links.
+- **All media generated from the REAL engine/Studio headlessly**
+  (`tests/shoot-engine.mjs`, `tests/shoot-studio.mjs` — Playwright
+  against the dist fixture with stubbed WS states; Material Symbols
+  served locally because the sandbox can't reach Google Fonts — the
+  same class rule Google's css2 ships had to be stubbed too, or every
+  icon renders as its ligature name). 12 assets in `docs/media/`,
+  2.2MB total.
+- **docs/GETTING-STARTED.md rewritten for the HACS era**: zero →
+  paired remote with no file shares and no copied tokens; links Brad
+  Sanders' community sideloading guide for the Astrion hardware prep
+  instead of duplicating it; honest fresh-install story (empty store
+  → build one page → Save & Deploy → then pair).
+- **docs/cookbook/** — seven task-shaped pages (first-screen,
+  activities, presets, device-photo-skin, hardware-keys, workspaces,
+  theming), each ending in one outcome; the old `docs/cookbook.md`
+  stays as the deeper config-recipe collection, cross-linked.
+- **CONTRIBUTING.md** gains the fork setup (houses\default.txt +
+  wrapper scripts) and a "what makes a good PR" section; battery
+  count corrected to twenty; push examples use the new script names.
+- **SECURITY.md** (new): trust model, the pairing ceremony +
+  guardrails, engine self-deploy stamp, forker token hygiene,
+  vulnerability reporting.
+- **LICENSE: GPL-3.0** (Suresh: "I would prefer if someone didn't
+  take the code and make a commercial product" — GPL's
+  keep-derivatives-open obligation kills closed commercial forks
+  while staying real open source; Polyform NC was the alternative
+  and was declined for community friction). README/CONTRIBUTING
+  carry the license note.
+- Media shoot states are PLAUSIBLE FICTION (album "Golden Hour" by
+  The Analog Hours is generated art) — no real house data in any
+  screenshot beyond the CT fixture's entity names.
+- Earlier same day: **repo history reset for beta** — full history
+  (which carried a real LLAT in `.env.local`, since revoked, plus
+  ~250MB of scratch) archived to private `skavan/harmonium-alpha`
+  via GitHub rename; public `skavan/harmonium` restarted at a
+  single clean baseline commit; `.gitattributes` line-ending
+  contract added (`.bat`/`.cmd` = CRLF on every checkout — four
+  committed bats were LF-blobbed and would mis-parse for
+  autocrlf=false forkers); `.md4h/` editor scratch untracked.
+
+Still open for beta launch: make-release.bat run + v0.82 tag with
+zip, the community-post announcement, and the video (storyboard
+offered, GIFs shipped first).
+
 ## Current state (v0.82.1, 2026-08-12)
 
 v0.82.1 — **THE FORK-READY SWEEP** (Suresh: "We have a whole bunch

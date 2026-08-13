@@ -321,6 +321,9 @@ function navigate(screenId, isBack) {
        so the section gets its own single-column host, leaving every
        other section's layout untouched. */
     const brList = vis.some(x => x.brRow);
+    /* grid2 (v0.83.1): browse tiles may ask for a TWO-wide host —
+       the list's one-column narrowing trick, one notch looser */
+    const brCols = !brList && ((vis.find(x => x.brCols) || {}).brCols || 0);
     let anchorEl = null;
     if (sec.title) {
       const h = document.createElement("div");
@@ -336,11 +339,11 @@ function navigate(screenId, isBack) {
     const secRow = rowOf(sec.tile_style || (sec.columns ? null :
       (sc.grid && sc.grid.tile_style)), secDecl);
     let host = grid;
-    if (sec.columns || brList) {
+    if (sec.columns || brList || brCols) {
       host = document.createElement("div");
       host.className = "secgrid";
       host.style.gridTemplateColumns =
-        `repeat(${brList ? 1 : secCols}, minmax(0, 1fr))`;
+        `repeat(${brList ? 1 : brCols || secCols}, minmax(0, 1fr))`;
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }

@@ -70,6 +70,10 @@
   .tile.wgt-power { min-height: 0; background: transparent; }
   .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
   .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
+  /* volume-kind stepper rides the volume widget's proportions (v0.83.3) */
+  .steprow.vol { gap: 12px; }
+  .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
+  .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
@@ -103,7 +107,7 @@
   .tile.wgt-preset { min-height: 78px; padding: 10px 6px; text-align: center; }
   .tile.wgt-preset .top { display: block; }
   .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
-  .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
+  .tile.wgt-preset .top img { width: var(--app-art); height: var(--app-art); border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
   /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
@@ -113,13 +117,13 @@
      because the apps drawer carries images too and wants the stamp. */
   .tile.wgt-preset.art { min-height: 118px; }
   .tile.wgt-preset.art .top img {
-    width: 84px; height: 84px; border-radius: 12px; margin-bottom: 8px;
+    width: var(--art-big); height: var(--art-big); border-radius: 12px; margin-bottom: 8px;
   }
   .tile.wgt-preset.art .lbl { font-size: 12.5px; }
   /* the fallback glyph stands in the ART's shoes, not the label's */
   .tile.wgt-preset.art .top .ic { font-size: 52px; margin-bottom: 8px; }
   html.wide .tile.wgt-preset.art { min-height: 138px; }
-  html.wide .tile.wgt-preset.art .top img { width: 100px; height: 100px; }
+  html.wide .tile.wgt-preset.art .top img { width: calc(var(--art-big) + 16px); height: calc(var(--art-big) + 16px); }
   html.wide .tile.wgt-preset.art .top .ic { font-size: 62px; }
 
   /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of

@@ -75,6 +75,13 @@
   .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
   .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+  /* slider mode's center readout (v0.83.3) — same row height as the
+     meter it replaced; sized to the 46px button row, not the
+     stepper's 42px display type */
+  .volrow .volpct {
+    flex: 1; text-align: center; font-size: 21px; font-weight: 600;
+    font-variant-numeric: tabular-nums; color: var(--text);
+  }
 
   /* list-row variant (grid.columns = 1) — height rides the global
      tile-height knob (6px slimmer than grid tiles, matching the 84/78

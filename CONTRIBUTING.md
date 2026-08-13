@@ -1,9 +1,51 @@
 # Contributing to Harmonium
 
-This file is the house style — the rules that keep a zero-dependency,
+PRs are welcome. This file is two things: how to get set up as a
+fork, and the house style — the rules that keep a zero-dependency,
 single-file engine honest across years of changes and more than one
-house. Most of them were paid for with real debugging time; the
+house. Most of the rules were paid for with real debugging time; the
 history behind each lives in `docs/PROJECT.md`.
+
+## Getting set up as a fork
+
+```sh
+git clone https://github.com/<you>/harmonium
+node build-engine.mjs                # engine → dist/index.html
+cd studio-src && npm i && npm run build   # Studio → integration/.../studio/studio.html
+```
+
+To deploy to your own Home Assistant, create a house profile once:
+
+1. Copy `houses\example.cmd` → `houses\<yourhouse>.cmd` and fill in
+   `HOUSE_ID`, `HOUSE_NAME`, `HA_URL`, `DST` (your HA's share path).
+2. Put your house id in `houses\default.txt` (one line).
+3. Use the wrappers: `build-push.bat` (build + push engine),
+   `push-engine.bat`, `push-studio.bat`, `push-all.bat`,
+   `pull-my-config.bat`. They all read `houses\default.txt`.
+
+Your house profile, `default.txt`, pulled configs and `.env.local`
+are gitignored — nothing personal leaves your machine. Full details
+and the multi-house model: `houses/README.md`.
+
+## What makes a good PR
+
+- **Run the battery** (`tests/` — see below) before and after; every
+  suite's `errs` must stay empty. New behaviour ships with a suite
+  case; the PR description says which suite proves it.
+- **Small and single-purpose beats broad.** One concern per PR, like
+  one concern per file.
+- **Keep the decision log.** If you change behaviour, add the
+  narrative comment (see Style) and a line to `docs/PROJECT.md`'s
+  changelog explaining what changed and why.
+- **Don't regress the doctrines** (below) — a PR that trades one of
+  them for convenience will be declined kindly.
+- Config-schema changes need a migration story (the store migrates
+  on load; stock controllers migrate by generation stamp).
+- By contributing you agree your work lands under the project's
+  license (GPL-3.0).
+
+Not sure a direction fits? Open an issue first — cheaper for both of
+us than a finished PR that fights the architecture.
 
 ## The prime directives
 
@@ -12,7 +54,7 @@ history behind each lives in `docs/PROJECT.md`.
    house marker; `dist/config.json` is a **test fixture** (the CT
    config the smoke battery was written against). If half the battery
    goes red, check the fixture before debugging anything.
-2. **The battery gates everything.** Nineteen Playwright suites
+2. **The battery gates everything.** Twenty Playwright suites
    (`tests/`) drive the real engine. Run them before and after your
    change; `errs` must stay empty. A behaviour worth building is a
    behaviour worth a suite case.
@@ -74,7 +116,7 @@ history behind each lives in `docs/PROJECT.md`.
 ```sh
 node build-engine.mjs        # the ONLY engine build in this clone
 cd studio-src && npm run build   # Studio: on a machine, never a sandbox
-push <house> [engine|studio|integration|all]
+build-push.bat               # or push-engine / push-studio / push-all
 ```
 
 `build.mjs` recompiles the config fixture from the legacy `yaml/`

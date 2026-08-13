@@ -79,6 +79,13 @@
         {@render knob("icon-zone", "Icon zone", "52px", "the row-tile icon disc — glyphs scale with it, images fill it")}
         {@render knob("icon-radius", "Icon shape", "50%", "50% = circle · 14px = squircle (the Fire TV look) · 0 = square")}
         {@render knob("tile-gap", "Icon–text gap", "14px", "space between the icon zone and the text block")}
+        <!-- ARTWORK (v0.83.2 — Suresh: "have the library artwork
+             (including tiles) set in the theme (for both music and
+             tv)"): one knob per artwork role, engine tokens
+             --br-art / --art-big / --app-art -->
+        {@render knob("br-art", "Library art", "58px", "cover art on library cards (grid/tile views) — music AND tv browse; list rows use the icon zone above")}
+        {@render knob("art-big", "Playlist art", "84px", "the art-forward cards where the cover IS the pick (Bar playlists) · wide screens add 16px")}
+        {@render knob("app-art", "App stamp", "42px", "app logos on presets and the apps drawer")}
         {@render knob("tile-pad-x", "Padding ↔", "16px", "inside the tile, left/right — shifts icon + text toward or away from the edges")}
         {@render knob("tile-pad-y", "Padding ↕", "12px", "inside the tile, top/bottom")}
       </div>

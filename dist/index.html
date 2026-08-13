@@ -36,6 +36,15 @@
     --font-m2: var(--font-2);
     --fs-m2: var(--fs-2);
     --fw-m2: var(--fw-2);
+    /* ARTWORK (v0.83.2 — theme-tunable, statusreview: "have the
+       library artwork (including tiles) set in the theme (for both
+       music and tv)"): one knob per artwork role. Library cards
+       (music library AND the TV/browse grids) read --br-art;
+       art-forward playlist cards read --art-big; app stamps (apps
+       drawer, presets with logos) read --app-art. */
+    --br-art: 58px;         /* library card artwork (grid/tile views) */
+    --art-big: 84px;        /* art-forward preset cards (covers) */
+    --app-art: 42px;        /* app/preset stamp artwork */
     --icon-zone: 52px;      /* row-tile icon disc */
     --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
     --tile-gap: 14px;       /* icon ↔ text */
@@ -64,6 +73,9 @@
   #app.scr-music .tile.row .lbl,
   #app.scr-music .tile.wgt-qrow .lbl,
   #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
+  /* browse list rows skip the +2 bump (v0.83.1) — density is the
+     point of the list */
+  #app.scr-music .tile.brw.row .lbl { font-size: var(--fs-m1); }
   #app.scr-music .npt { font-weight: var(--fw-m1); }
   #app.scr-music .tile .sub {
     font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);
@@ -250,6 +262,10 @@
   .tile.wgt-power { min-height: 0; background: transparent; }
   .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
   .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
+  /* volume-kind stepper rides the volume widget's proportions (v0.83.3) */
+  .steprow.vol { gap: 12px; }
+  .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
+  .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
@@ -283,7 +299,7 @@
   .tile.wgt-preset { min-height: 78px; padding: 10px 6px; text-align: center; }
   .tile.wgt-preset .top { display: block; }
   .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
-  .tile.wgt-preset .top img { width: 42px; height: 42px; border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
+  .tile.wgt-preset .top img { width: var(--app-art); height: var(--app-art); border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
   .tile.wgt-preset .lbl { font-size: 11px; display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
   /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
@@ -293,13 +309,13 @@
      because the apps drawer carries images too and wants the stamp. */
   .tile.wgt-preset.art { min-height: 118px; }
   .tile.wgt-preset.art .top img {
-    width: 84px; height: 84px; border-radius: 12px; margin-bottom: 8px;
+    width: var(--art-big); height: var(--art-big); border-radius: 12px; margin-bottom: 8px;
   }
   .tile.wgt-preset.art .lbl { font-size: 12.5px; }
   /* the fallback glyph stands in the ART's shoes, not the label's */
   .tile.wgt-preset.art .top .ic { font-size: 52px; margin-bottom: 8px; }
   html.wide .tile.wgt-preset.art { min-height: 138px; }
-  html.wide .tile.wgt-preset.art .top img { width: 100px; height: 100px; }
+  html.wide .tile.wgt-preset.art .top img { width: calc(var(--art-big) + 16px); height: calc(var(--art-big) + 16px); }
   html.wide .tile.wgt-preset.art .top .ic { font-size: 62px; }
 
   /* KSLOT (v0.56 — the remote-creation screen's key face): one slot of
@@ -625,11 +641,22 @@
   .brksp { grid-column: 1 / 9; text-transform: none; letter-spacing: .1em; }
   .brkbs { grid-column: 9 / -1; text-transform: none; }
   /* browse ITEM tiles: art-forward, centered column */
+  /* LIST ROWS read like a list (v0.83.1 — statusreview: "Titles
+     should be left aligned, and a little smaller font - with
+     ellipses"): the browse items are preset-type tiles, and
+     .wgt-preset's centered-card styling leaked into .row mode —
+     big, centered, wrapping titles. Rows align left, drop the +2px
+     row bump, and ellipsize on one line. */
+  .tile.brw.row { text-align: left; }
+  .tile.brw.row .lbl {
+    font-size: var(--fs-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .tile.brw:not(.row) { text-align: center; }
   .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
-  .tile.brw:not(.row) .top > img { width: 58px; height: 58px; border-radius: 10px; }
+  .tile.brw:not(.row) .top > img { width: var(--br-art); height: var(--br-art); border-radius: 10px; }
   .tile.brw:not(.row) .top .lbl { width: 100%; }
-  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: 34px; width: auto; height: 58px; display: inline-flex; align-items: center; }
+  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: calc(var(--br-art) * .59); width: auto; height: var(--br-art); display: inline-flex; align-items: center; }
   .tile.brw .sub { display: none; }
   /* KIND BADGE (v0.62): only the mixed "All" grid sets one, where the
      chip above no longer tells you what a thing is. Top LEFT, so it
@@ -793,6 +820,13 @@
   .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
   .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+  /* slider mode's center readout (v0.83.3) — same row height as the
+     meter it replaced; sized to the 46px button row, not the
+     stepper's 42px display type */
+  .volrow .volpct {
+    flex: 1; text-align: center; font-size: 21px; font-weight: 600;
+    font-variant-numeric: tabular-nums; color: var(--text);
+  }
 
   /* list-row variant (grid.columns = 1) — height rides the global
      tile-height knob (6px slimmer than grid tiles, matching the 84/78
@@ -1742,7 +1776,10 @@ function expandTile(t) {
     /* a device inside a group is drawn on the GROUP's page, not here */
     const grouped = groupedDeviceIds(act);
     const dopts = act.device_options || {};
-    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "compact";
+    /* fat by default (v0.83.1 — statusreview: "default should be fat"):
+       the slider treatment is the default volume everywhere; compact
+       and stepper remain one declaration away */
+    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -2065,7 +2102,7 @@ function groupChildTile(did, shows, idPrefix, pres) {
       brRow: false,
       level_entity: roles.volume_level || ent,
       slider: ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact") === "slider" }),
+        ((CONFIG.global || {}).style || {}).volume || "slider") === "slider" }),
       pres, ent);
   if (shows === "stepper")
     return presApply(Object.assign(base, { type: "stepper", kind: "volume",
@@ -2272,6 +2309,9 @@ function genBrowse(t) {
          source often doesn't have. Chassis row mode does the work;
          the section render narrows to one column when it sees rows. */
       const listv = brView() === "list";
+      /* grid2 (v0.83.1): same cards, TWO columns — brCols narrows the
+         section host (render.js) without touching the screen's grid */
+      const g2 = brView() === "grid2";
       if (node.error)
         out.push({ type: "preset", id: t.id + "_err", span: 2, brw: true,
           icon: "material:error_outline", label: node.error, action: {} });
@@ -2287,7 +2327,7 @@ function genBrowse(t) {
         const play = playOf(c, via, route);
         out.push({
           type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
-          ...(listv ? { brRow: true } : {}),
+          ...(listv ? { brRow: true } : g2 ? { brCols: 2 } : {}),
           icon: BROWSE_ICON[c.media_class] || "material:library_music",
           /* the badge is set only where the kind ISN'T implied by the
              chip you're standing on — i.e. the All grid */
@@ -3377,10 +3417,18 @@ function brViews() {
   }
   return B.views;
 }
-function brView() { return brViews()[brViewKey()] === "list" ? "list" : "grid"; }
+/* three views (v0.83.1 — statusreview: "maybe a third mode, with
+   2 x 2 tiles so we can see more text"): grid (the screen's own
+   columns) → list (dense one-column rows) → grid2 (two-wide cards —
+   half the density, double the label room). Unknown stored values
+   fall back to grid, so old localStorage entries stay valid. */
+function brView() {
+  const v = brViews()[brViewKey()];
+  return v === "list" || v === "grid2" ? v : "grid";
+}
 function brViewToggle() {
   const v = brViews();
-  v[brViewKey()] = brView() === "grid" ? "list" : "grid";
+  v[brViewKey()] = { grid: "list", list: "grid2", grid2: "grid" }[brView()];
   try { localStorage.setItem("hakr_views_" + (S.deviceName || "default"),
     JSON.stringify(v)); } catch (e) { /* storage full/blocked: session-only */ }
   navigate(S.screen, true);
@@ -3715,9 +3763,9 @@ function browseBar() {
        the thing it controls (unlike scope, which must never cycle).
        The icon names where the tap TAKES you. */
     html += `<button class="brchip brchipv" data-brv="1" title="${
-      brView() === "grid" ? "List view" : "Grid view"}">` +
+      { grid: "List view", list: "Two-wide grid", grid2: "Grid view" }[brView()]}">` +
       `<span class="material-symbols-outlined">${
-        brView() === "grid" ? "view_list" : "grid_view"}</span></button>`;
+        { grid: "view_list", list: "grid_view", grid2: "apps" }[brView()]}</span></button>`;
     html += (UI.cats || []).map((c, i) =>
       `<button class="brchip${onChip(c) ? " on" : ""}" data-brc="${i}"${
         c.disabled ? " disabled" : ""}>${c.title}</button>`
@@ -4687,7 +4735,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.80.5";
+const ENGINE_V = "0.83.3";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5111,7 +5159,7 @@ WIDGETS.fan = {
   sub: e => {
     const s = st(e), p = s.a.percentage;
     return cap(s.s) + (s.s === "on" && p ? " · " + p + "%"
-      : s.a.preset_mode ? " · " + s.a.preset_mode : "");
+      : s.a.preset_mode ? " · " + deslug(s.a.preset_mode) : "");
   },
   isOn: e => st(e).s === "on",
   meter: e => { const p = st(e).a.percentage; return (p != null ? p : 0) / 100; },
@@ -5589,17 +5637,45 @@ WIDGETS.volume = {
     },
     /* SLIDER TREATMENT (v0.57): the same fat .sldr track the stepper
        draws, so a screen full of zone volumes reads as ONE control
-       repeated rather than two unrelated widgets. Opt in per tile
-       (slider: true) or house-wide via global.style.volume. */
-    body: t => (t && t.slider ? `<div class="sldr"><i></i></div>` : "") +
-      `<div class="volrow">
+       repeated rather than two unrelated widgets. DEFAULT since
+       v0.83.1 (statusreview: "I think default should be fat") —
+       generated tiles say slider:false when a compact style was
+       chosen; a bare hand-authored volume tile now draws the track. */
+    /* v0.83.3 (Suresh, seeing the slider tile beside a stepper: "like
+       the first example in height but with the volume % instead of a
+       duplicate slider"): in slider mode the row's middle is the
+       PERCENTAGE — the fat track two lines up already draws the
+       level, and the mini-meter just duplicated it. Compact mode
+       (slider:false) keeps the meter: with no track above, it IS the
+       level. Row height unchanged either way. */
+    body: t => {
+      const sl = t && t.slider !== false;
+      return (sl ? `<div class="sldr"><i></i></div>` : "") +
+        `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
-      <div class="meter"><i></i></div>
+      ${sl ? `<div class="volpct">–</div>` : `<div class="meter"><i></i></div>`}
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
-    </div>`,
+    </div>`;
+    },
     wire: (el, t) => {
-      wireTaps(el, "vol", d =>
-        callService("media_player", "volume_" + d, null, resolveEntity(t.entity)));
+      /* OPTIMISTIC NUDGE (v0.83.1 — statusreview: "Doesn't update
+         quickly"): +/- used to wait a full HA round-trip (plus the
+         device's own report latency) before the meter moved. Bump
+         the LOCAL state by a nominal step immediately and re-render;
+         the next diff from HA overwrites with truth. */
+      const nudge = (d) => {
+        const le = resolveEntity(t && t.level_entity) || resolveEntity(t.entity);
+        const cur = S.states.get(le);
+        if (cur && cur.a && cur.a.volume_level != null) {
+          cur.a.volume_level = Math.max(0, Math.min(1,
+            cur.a.volume_level + (d === "up" ? 0.05 : -0.05)));
+          renderStates();
+        }
+      };
+      wireTaps(el, "vol", d => {
+        nudge(d);
+        callService("media_player", "volume_" + d, null, resolveEntity(t.entity));
+      });
       const sl = el.querySelector(".sldr");
       if (!sl) return;
       /* drag/tap → volume_set on the COMMAND entity (never level_entity:
@@ -5611,9 +5687,19 @@ WIDGETS.volume = {
         let f = (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
         sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        /* the drag is optimistic in STATE too (v0.83.1): the "Vol n%"
+           title line and any sibling meter follow the finger, not the
+           round-trip */
+        const le = resolveEntity(t && t.level_entity) || resolveEntity(t.entity);
+        const cur = S.states.get(le);
+        if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
+        /* the center % follows the finger */
+        const pc = el.querySelector(".volpct");
+        if (pc) pc.textContent = Math.round(f * 100) + "%";
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && f !== sl._lastF) {
           sl._t = now; sl._lastF = f;
+          renderStates();
           callService("media_player", "volume_set",
             { volume_level: Math.round(f * 100) / 100 }, resolveEntity(t.entity));
         }
@@ -5631,9 +5717,12 @@ WIDGETS.volume = {
     },
     /* keep the track in step with HA while not dragging */
     render: (el, e, t) => {
-      const sl = el.querySelector(".sldr");
-      if (!sl || sl._drag || !e) return;
+      if (!e) return;
       const l = st(lvlEnt(e, t)).a.volume_level;
+      const pc = el.querySelector(".volpct");
+      if (pc) pc.textContent = l != null ? pct(l) : "–";
+      const sl = el.querySelector(".sldr");
+      if (!sl || sl._drag) return;
       sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
     }
   };
@@ -5726,7 +5815,13 @@ WIDGETS.stepper = {
       const k = STEP_KINDS[t.kind] || {};
       const sl = k.slider
         ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      return sl + `<div class="steprow">
+      /* the VOLUME kind matches the volume widget's row (v0.83.3 —
+         Suresh, wired-volume beside a stepper Receiver: "The first
+         is nice. The second needs fixing"): 58×46 buttons + 21px
+         value, so a stepper-styled zone and the wired volume read
+         as the same control. Other kinds (brightness, setpoint,
+         position) keep the big display type — they ARE the page. */
+      return sl + `<div class="steprow${t.kind === "volume" ? " vol" : ""}">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
@@ -5808,8 +5903,10 @@ WIDGETS.chips = {
       const sig = JSON.stringify(opts);
       if (row.dataset.sig !== sig) {
         row.dataset.sig = sig;
+        /* label deslugged (wind_free → "wind free"); data-ch keeps
+           the RAW value — that's what the service call needs */
         row.innerHTML = opts.map(o =>
-          `<button class="chip" data-ch="${o}">${o}</button>`).join("");
+          `<button class="chip" data-ch="${o}">${deslug(o)}</button>`).join("");
         wireTaps(row, "ch", v => k.set(resolveEntity(t.entity), v));
       }
       const cur = k.current(e);
@@ -6069,7 +6166,14 @@ function chipOptions(e, kind) {
 /* Shared widget helpers — remote-command resolution (DPAD_DEFAULT <
    tile commands < activity dpad_commands), icon map, nudge steppers
    for light/climate. */
-const cap = s => (s || "").charAt(0).toUpperCase() + (s || "").slice(1);
+/* display-caps + DESLUG (v0.83.3 — statusreview tweak: "presets like
+   wind_free. We need to intelligently strip the _ so it reads wind
+   free"): every cap() call site is a DISPLAY of an entity state or
+   enum, so underscores become spaces here once — fan_only → "Fan
+   only", heat_cool → "Heat cool". Raw values still go to HA
+   untouched (deslug is display-layer only, like entOpt). */
+const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
+const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
 /* command resolution: default < tile "commands" < activity context "dpad_commands" */
@@ -6623,6 +6727,9 @@ function navigate(screenId, isBack) {
        so the section gets its own single-column host, leaving every
        other section's layout untouched. */
     const brList = vis.some(x => x.brRow);
+    /* grid2 (v0.83.1): browse tiles may ask for a TWO-wide host —
+       the list's one-column narrowing trick, one notch looser */
+    const brCols = !brList && ((vis.find(x => x.brCols) || {}).brCols || 0);
     let anchorEl = null;
     if (sec.title) {
       const h = document.createElement("div");
@@ -6638,11 +6745,11 @@ function navigate(screenId, isBack) {
     const secRow = rowOf(sec.tile_style || (sec.columns ? null :
       (sc.grid && sc.grid.tile_style)), secDecl);
     let host = grid;
-    if (sec.columns || brList) {
+    if (sec.columns || brList || brCols) {
       host = document.createElement("div");
       host.className = "secgrid";
       host.style.gridTemplateColumns =
-        `repeat(${brList ? 1 : secCols}, minmax(0, 1fr))`;
+        `repeat(${brList ? 1 : brCols || secCols}, minmax(0, 1fr))`;
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }

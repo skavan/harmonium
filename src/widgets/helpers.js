@@ -38,7 +38,14 @@ function chipOptions(e, kind) {
 /* Shared widget helpers — remote-command resolution (DPAD_DEFAULT <
    tile commands < activity dpad_commands), icon map, nudge steppers
    for light/climate. */
-const cap = s => (s || "").charAt(0).toUpperCase() + (s || "").slice(1);
+/* display-caps + DESLUG (v0.83.3 — statusreview tweak: "presets like
+   wind_free. We need to intelligently strip the _ so it reads wind
+   free"): every cap() call site is a DISPLAY of an entity state or
+   enum, so underscores become spaces here once — fan_only → "Fan
+   only", heat_cool → "Heat cool". Raw values still go to HA
+   untouched (deslug is display-layer only, like entOpt). */
+const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
+const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
 /* command resolution: default < tile "commands" < activity context "dpad_commands" */

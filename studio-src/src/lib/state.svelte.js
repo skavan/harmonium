@@ -820,9 +820,43 @@ export function exportConfig() {
   setStatus("exported " + app.workspace + " config (full fidelity)", "ok");
 }
 
+/* EXPORT ALL (v0.83.2 — statusreview follow-up: "does Export export
+   all workspaces or just current?" — it was just-current, invisibly).
+   One JSON bundle: every workspace's CURRENT truth — the live draft
+   for the workspace you're standing in, the stored config for the
+   rest (fetched fresh; nobody holds other worlds client-side). */
+export async function exportAllConfigs() {
+  const order = app.wsOrder.filter((w) => app.workspaces[w]);
+  const out = { harmonium_export: "workspaces",
+    exported: new Date().toISOString().slice(0, 10),
+    order, workspaces: {} };
+  for (const id of order) {
+    let config;
+    if (id === app.workspace) config = JSON.parse(JSON.stringify($state.snapshot(app.draft)));
+    else {
+      const r = await api("GET", null, "?ws=" + encodeURIComponent(id));
+      config = await r.json();
+    }
+    out.workspaces[id] = { name: app.workspaces[id].name, config };
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "harmonium-all-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("exported " + order.length + " workspace" + (order.length === 1 ? "" : "s"), "ok");
+}
+
 export async function importConfig(file) {
   try {
+    /* a whole-house bundle is not a workspace config — name the
+       mismatch instead of half-loading it (v0.83.2) */
     const cfg = JSON.parse(await file.text());
+    if (cfg.harmonium_export === "workspaces")
+      throw new Error("that's a whole-house export (all workspaces) — " +
+        "open it and import one workspace's `config` object, or ask for " +
+        "a restore-all door if you need one");
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
     /* the FULL normalize chain (v0.75): import used to hand-roll a
        subset and skip ensureStockControllers — so an older export kept
@@ -844,6 +878,12 @@ export function clearCurrent() {
   pushPreview();
   setStatus("cleared " + app.workspace + " draft to a clean start (nothing saved yet)", "ok");
 }
+
+/* the Studio's OWN build stamp (v0.83.3 — the "is my push actually
+   running?" question kept costing rounds: HA serves studio.html with
+   hard cache headers, so a stale tab looks exactly like a bad fix).
+   Bump alongside PROJECT.md when the Studio changes. */
+export const STUDIO_V = "0.83.8";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 
@@ -1448,7 +1488,23 @@ export const SNIPPET_TYPES = {
      insertable on any page's Presets fold or any activity's Presets
      tab — across workspaces, like every snippet. */
   preset: "Presets — one-touch shortcuts",
+  /* v0.83.1 — statusreview: "Should actions be global in scope (or
+     copy to snippets if not)". They ARE global within a workspace
+     (any page/preset/activity may reference any sequence; the room
+     stamp is filing, not scope) — what they could not do was TRAVEL.
+     Now a sequence exports whole and reinserts in any workspace. */
+  action: "Actions — HA-side sequences",
 };
+/* a fresh sequence from a saved action snippet (null if it isn't
+   one) — the room stamp is dropped on the way out AND in: it names
+   the source house's rooms, which mean nothing at the destination */
+export function actionSnippetSeq(sid) {
+  const sn = snips.items[sid];
+  if (!sn || sn.type !== "action") return null;
+  const d = JSON.parse(JSON.stringify(sn.data));
+  delete d.room;
+  return d;
+}
 /* a fresh preset tile from a saved snippet (null if it isn't one) —
    the ONE inserter both doors share, so id-minting never forks */
 export function presetSnippetTile(sid) {

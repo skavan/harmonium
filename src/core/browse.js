@@ -62,10 +62,18 @@ function brViews() {
   }
   return B.views;
 }
-function brView() { return brViews()[brViewKey()] === "list" ? "list" : "grid"; }
+/* three views (v0.83.1 — statusreview: "maybe a third mode, with
+   2 x 2 tiles so we can see more text"): grid (the screen's own
+   columns) → list (dense one-column rows) → grid2 (two-wide cards —
+   half the density, double the label room). Unknown stored values
+   fall back to grid, so old localStorage entries stay valid. */
+function brView() {
+  const v = brViews()[brViewKey()];
+  return v === "list" || v === "grid2" ? v : "grid";
+}
 function brViewToggle() {
   const v = brViews();
-  v[brViewKey()] = brView() === "grid" ? "list" : "grid";
+  v[brViewKey()] = { grid: "list", list: "grid2", grid2: "grid" }[brView()];
   try { localStorage.setItem("hakr_views_" + (S.deviceName || "default"),
     JSON.stringify(v)); } catch (e) { /* storage full/blocked: session-only */ }
   navigate(S.screen, true);
@@ -400,9 +408,9 @@ function browseBar() {
        the thing it controls (unlike scope, which must never cycle).
        The icon names where the tap TAKES you. */
     html += `<button class="brchip brchipv" data-brv="1" title="${
-      brView() === "grid" ? "List view" : "Grid view"}">` +
+      { grid: "List view", list: "Two-wide grid", grid2: "Grid view" }[brView()]}">` +
       `<span class="material-symbols-outlined">${
-        brView() === "grid" ? "view_list" : "grid_view"}</span></button>`;
+        { grid: "view_list", list: "grid_view", grid2: "apps" }[brView()]}</span></button>`;
     html += (UI.cats || []).map((c, i) =>
       `<button class="brchip${onChip(c) ? " on" : ""}" data-brc="${i}"${
         c.disabled ? " disabled" : ""}>${c.title}</button>`

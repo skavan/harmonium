@@ -23,7 +23,13 @@ WIDGETS.stepper = {
       const k = STEP_KINDS[t.kind] || {};
       const sl = k.slider
         ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      return sl + `<div class="steprow">
+      /* the VOLUME kind matches the volume widget's row (v0.83.3 —
+         Suresh, wired-volume beside a stepper Receiver: "The first
+         is nice. The second needs fixing"): 58×46 buttons + 21px
+         value, so a stepper-styled zone and the wired volume read
+         as the same control. Other kinds (brightness, setpoint,
+         position) keep the big display type — they ARE the page. */
+      return sl + `<div class="steprow${t.kind === "volume" ? " vol" : ""}">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>

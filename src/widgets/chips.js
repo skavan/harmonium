@@ -26,8 +26,10 @@ WIDGETS.chips = {
       const sig = JSON.stringify(opts);
       if (row.dataset.sig !== sig) {
         row.dataset.sig = sig;
+        /* label deslugged (wind_free → "wind free"); data-ch keeps
+           the RAW value — that's what the service call needs */
         row.innerHTML = opts.map(o =>
-          `<button class="chip" data-ch="${o}">${o}</button>`).join("");
+          `<button class="chip" data-ch="${o}">${deslug(o)}</button>`).join("");
         wireTaps(row, "ch", v => k.set(resolveEntity(t.entity), v));
       }
       const cur = k.current(e);

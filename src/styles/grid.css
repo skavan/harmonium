@@ -298,11 +298,22 @@
   .brksp { grid-column: 1 / 9; text-transform: none; letter-spacing: .1em; }
   .brkbs { grid-column: 9 / -1; text-transform: none; }
   /* browse ITEM tiles: art-forward, centered column */
+  /* LIST ROWS read like a list (v0.83.1 — statusreview: "Titles
+     should be left aligned, and a little smaller font - with
+     ellipses"): the browse items are preset-type tiles, and
+     .wgt-preset's centered-card styling leaked into .row mode —
+     big, centered, wrapping titles. Rows align left, drop the +2px
+     row bump, and ellipsize on one line. */
+  .tile.brw.row { text-align: left; }
+  .tile.brw.row .lbl {
+    font-size: var(--fs-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .tile.brw:not(.row) { text-align: center; }
   .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
-  .tile.brw:not(.row) .top > img { width: 58px; height: 58px; border-radius: 10px; }
+  .tile.brw:not(.row) .top > img { width: var(--br-art); height: var(--br-art); border-radius: 10px; }
   .tile.brw:not(.row) .top .lbl { width: 100%; }
-  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: 34px; width: auto; height: 58px; display: inline-flex; align-items: center; }
+  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: calc(var(--br-art) * .59); width: auto; height: var(--br-art); display: inline-flex; align-items: center; }
   .tile.brw .sub { display: none; }
   /* KIND BADGE (v0.62): only the mixed "All" grid sets one, where the
      chip above no longer tells you what a thing is. Top LEFT, so it

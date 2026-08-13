@@ -1,6 +1,6 @@
 <script>
   import { app, boot, revert, save, saveAndReload, connectToken, schedulePreview,
-    switchWorkspace, exportConfig, importConfig, clearCurrent,
+    switchWorkspace, exportConfig, exportAllConfigs, importConfig, clearCurrent,
     undoToast, dismissToast, pairs, approvePair, denyPair, version } from "./lib/state.svelte.js";
   import Button from "./lib/components/Button.svelte";
   import NavPane from "./lib/NavPane.svelte";
@@ -28,11 +28,21 @@
   });
   let fileIn;
   let moreOpen = $state(false);
+  let expOpen = $state(false);
 
   boot();
 </script>
 
-<svelte:window onclick={(e) => { if (moreOpen && !e.target.closest("#moreMenu,#moreBtn")) moreOpen = false; }} />
+<!-- the LEAVE GUARD (v0.83.6): closing the tab with a dirty draft
+     asks first. Browser-truth caveat: the native dialog fires for
+     top-level closes/navigations; switching HA sidebar panels swaps
+     the iframe without one — the glowing Save button is the guard
+     there. -->
+<svelte:window onclick={(e) => {
+  if (moreOpen && !e.target.closest("#moreMenu,#moreBtn")) moreOpen = false;
+  if (expOpen && !e.target.closest("#expMenu,#exportBtn")) expOpen = false; }}
+  onbeforeunload={(e) => { if (app.unsaved) { e.preventDefault();
+    e.returnValue = "You have unsaved changes."; return "You have unsaved changes."; } }} />
 
 <div class="flex h-full flex-col">
   <header class="flex h-[52px] shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
@@ -65,8 +75,27 @@
           (app.status.cls === "err" ? "err text-danger" : app.status.cls === "ok" ? "ok text-dim" : "text-dim")}
       >{app.status.msg}</div>
     </div>
-    <Button size="sm" variant="ghost" id="exportBtn" onclick={exportConfig}
-      title="Download this workspace's draft as JSON (full fidelity)">Export</Button>
+    <!-- EXPORT is a two-door dropdown (v0.83.2 — Suresh asked twice
+         whether Export took everything; the answer belongs in the
+         control, not the docs): this workspace's draft, or every
+         workspace bundled. -->
+    <div class="relative shrink-0">
+      <Button size="sm" variant="ghost" id="exportBtn" onclick={() => (expOpen = !expOpen)}
+        title="Download config as JSON — this workspace or all of them">Export ▾</Button>
+      {#if expOpen}
+        <div id="expMenu"
+          class="absolute right-0 z-20 mt-1 w-[232px] rounded-[9px] border border-line-strong bg-surface p-[5px] [box-shadow:var(--shadow-float)]">
+          <button
+            class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[9px] text-left font-[inherit] text-xs font-medium text-ink hover:bg-sunk"
+            onclick={() => { expOpen = false; exportConfig(); }}
+            title="This workspace's draft as JSON (full fidelity)">This workspace ({app.workspaces[app.workspace]?.name || app.workspace})</button>
+          <button
+            class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[9px] text-left font-[inherit] text-xs font-medium text-ink hover:bg-sunk"
+            onclick={() => { expOpen = false; exportAllConfigs(); }}
+            title="Every workspace's current config, one JSON bundle — the whole-house backup">All workspaces</button>
+        </div>
+      {/if}
+    </div>
     <Button size="sm" variant="ghost" onclick={() => fileIn.click()}
       title="Load a config JSON into this workspace's draft">Import</Button>
     <input bind:this={fileIn} type="file" accept=".json,application/json" class="hidden"
@@ -77,9 +106,16 @@
       onclick={() => (theme = theme === "light" ? "dark" : "light")}
     >{theme === "light" ? "☾" : "☀"}</Button>
     <Button size="sm" onclick={revert} title="Reload the saved config, discarding draft edits">Revert</Button>
+    <!-- UNSAVED reads LOUD (v0.83.6 — Suresh: "I often forget I need
+         to save because the dot next to Save and Deploy is easy to
+         miss"): dirty = a ring + glow on the button and a pulsing
+         dot; clean = the plain primary button. -->
     <Button id="saveBtn" variant="primary" disabled={app.sandbox} onclick={save}
-      title={app.sandbox ? "Sandbox mode — install the Harmonium integration to save" : "Validate, store, and deploy to the remotes"}
-    >{app.unsaved ? "● " : ""}Save &amp; Deploy</Button>
+      class={app.unsaved ? "ring-2 ring-accent/70 [box-shadow:0_0_14px_rgba(255,179,0,.45)]" : ""}
+      title={app.sandbox ? "Sandbox mode — install the Harmonium integration to save"
+        : app.unsaved ? "You have UNSAVED changes — validate, store, and deploy to the remotes"
+        : "Validate, store, and deploy to the remotes"}
+    >{#if app.unsaved}<span class="mr-1 inline-block animate-pulse">●</span>{/if}Save &amp; Deploy</Button>
     <div class="relative shrink-0">
       <Button id="moreBtn" size="icon" class="h-[34px] w-[34px]" aria-label="More actions"
         title="More actions" onclick={() => (moreOpen = !moreOpen)}>···</Button>

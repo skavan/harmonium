@@ -28,6 +28,15 @@
     --font-m2: var(--font-2);
     --fs-m2: var(--fs-2);
     --fw-m2: var(--fw-2);
+    /* ARTWORK (v0.83.2 — theme-tunable, statusreview: "have the
+       library artwork (including tiles) set in the theme (for both
+       music and tv)"): one knob per artwork role. Library cards
+       (music library AND the TV/browse grids) read --br-art;
+       art-forward playlist cards read --art-big; app stamps (apps
+       drawer, presets with logos) read --app-art. */
+    --br-art: 58px;         /* library card artwork (grid/tile views) */
+    --art-big: 84px;        /* art-forward preset cards (covers) */
+    --app-art: 42px;        /* app/preset stamp artwork */
     --icon-zone: 52px;      /* row-tile icon disc */
     --icon-radius: 50%;     /* 50% = circle · 14px = squircle · 0 = square */
     --tile-gap: 14px;       /* icon ↔ text */
@@ -56,6 +65,9 @@
   #app.scr-music .tile.row .lbl,
   #app.scr-music .tile.wgt-qrow .lbl,
   #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
+  /* browse list rows skip the +2 bump (v0.83.1) — density is the
+     point of the list */
+  #app.scr-music .tile.brw.row .lbl { font-size: var(--fs-m1); }
   #app.scr-music .npt { font-weight: var(--fw-m1); }
   #app.scr-music .tile .sub {
     font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);

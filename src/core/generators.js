@@ -229,7 +229,10 @@ function expandTile(t) {
     /* a device inside a group is drawn on the GROUP's page, not here */
     const grouped = groupedDeviceIds(act);
     const dopts = act.device_options || {};
-    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "compact";
+    /* fat by default (v0.83.1 — statusreview: "default should be fat"):
+       the slider treatment is the default volume everywhere; compact
+       and stepper remain one declaration away */
+    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -552,7 +555,7 @@ function groupChildTile(did, shows, idPrefix, pres) {
       brRow: false,
       level_entity: roles.volume_level || ent,
       slider: ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact") === "slider" }),
+        ((CONFIG.global || {}).style || {}).volume || "slider") === "slider" }),
       pres, ent);
   if (shows === "stepper")
     return presApply(Object.assign(base, { type: "stepper", kind: "volume",

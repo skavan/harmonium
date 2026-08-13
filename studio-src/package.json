@@ -20,6 +20,7 @@
     "vite-plugin-singlefile": "^2.0.0"
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "material-symbols": "^0.45.10"
   }
 }

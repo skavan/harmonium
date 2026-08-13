@@ -3,7 +3,8 @@
      Harmonium config and executed HA-side by harmonium.run.
      Typed rows for the common steps; JSON for anything exotic. */
   import { app, roomIds, testSequence, setStatus, selectSlice,
-    confirmSeqDraft, discardSeqDraft } from "../state.svelte.js";
+    confirmSeqDraft, discardSeqDraft, saveSnippet, snippetsOf,
+    actionSnippetSeq, schedulePreview } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
@@ -104,6 +105,27 @@
     app.draft.sequences[id] = { name: "New Sequence", room: rooms[0] || undefined, actions: [] };
     lastAdded = id;
   }
+  /* ⤴/⤵ the standard snippet grammar (v0.83.1): a sequence travels
+     whole — steps, name, group — minus the room stamp (source-house
+     filing, meaningless at the destination) */
+  function snippetizeSeq(id) {
+    const d = JSON.parse(JSON.stringify($state.snapshot(seqs[id])));
+    delete d.room;
+    saveSnippet("action", d.name || id, d);
+    setStatus("Saved '" + (d.name || id) + "' to snippets", "ok");
+  }
+  function importSeqSnippet(sid) {
+    const d = actionSnippetSeq(sid);
+    if (!d) return;
+    if (!app.draft.sequences) app.draft.sequences = {};
+    const base = (d.name || "action").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "action";
+    let id = base, n = 2;
+    while (app.draft.sequences[id]) id = base + "_" + n++;
+    app.draft.sequences[id] = d;
+    lastAdded = id;
+    schedulePreview();
+  }
   const usedBy = (id) =>
     Object.entries(app.draft?.activities || {})
       .filter(([, a]) => a.start === "sequence:" + id || a.stop === "sequence:" + id)
@@ -158,6 +180,7 @@
           " · " + (seq.actions?.length ?? 0) + " actions"}
         open={id === lastAdded}
         onduplicate={() => dupSeq(id)}
+        menu={[{ label: "Export snippet", action: () => snippetizeSeq(id) }]}
         ondelete={() => {
           /* ✕ on an in-flight draft = Discard (same contract) */
           if (app.pending?.seqId === id) { discardSeqDraft(); return; }
@@ -296,6 +319,22 @@
       </CardRow>
     {/each}
     {/each}
-    <Button onclick={addSequence}>＋ Add action</Button>
+    <div class="flex items-center gap-2">
+      <Button onclick={addSequence}>＋ Add action</Button>
+      {#if snippetsOf("action").length}
+        <div class="relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk">
+          <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 4v11m0 0-4-4m4 4 4-4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+          </svg> Import snippet…
+          <select value="" title="Import a saved action snippet"
+            onchange={(e) => { importSeqSnippet(e.target.value); e.target.value = ""; }}
+            class="absolute inset-0 w-full cursor-pointer opacity-0 outline-none">
+            <option value=""></option>
+            {#each snippetsOf("action") as [sid, sn] (sid)}<option value={sid}>{sn.name}</option>{/each}
+          </select>
+        </div>
+      {/if}
+    </div>
   </div>
 {/if}

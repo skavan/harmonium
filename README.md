@@ -1,199 +1,182 @@
 # Harmonium
 
-A lightweight, **instant-on remote-control frontend for Home Assistant**,
-built for low-power Android hardware remotes (Sanytron Astrion, Haptique
-RS90 and similar) while running equally well in any browser or tablet —
-plus the **Harmonium Studio**, a live visual editor that runs as an HA
-panel.
+**Instant-on remote control dashboards for Home Assistant.** Aimed
+at low-power Android hardware remotes (Sanytron Astrion, Haptique RS90 and
+similar), while running equally well in any browser, on tablets, and on
+embedded Linux (WPE WebKit/Cog). Long-term: a product other HA users can
+adopt — not just a personal fix.
 
-## Why it exists
+<p align="center">
+  <img src="docs/media/astrion-tour.gif" width="280"
+    alt="Harmonium running on a hardware remote (astrion)" />
+</p>
 
-The bottleneck on weak remote hardware is not the webview — it is the
-stock HA frontend: a multi-megabyte bundle plus a websocket firehose of
-every entity in the instance. Harmonium subscribes to **only the
-entities on the current screen** (`subscribe_entities` + `entity_ids`,
-compact diffs — ~20 messages instead of thousands) and renders them
-with a dependency-free engine that ships as **one HTML file**.
+<p align="center">
+  <img src="docs/media/engine-porch.png" width="24%" alt="A room hub: activities, presets, devices" />
+  <img src="docs/media/engine-music.png" width="24%" alt="The music controller with live album art" />
+  <img src="docs/media/engine-comfort.png" width="24%" alt="Climate, lights and covers" />
+  <img src="docs/media/engine-pair.png" width="24%" alt="Bluetooth-style pairing: match the code, tap approve" />
+</p>
 
-## The pieces
+## Why
+
+I miss the simplicity of the Logitech Harmony, activity + device control through a dedicated handheld remote. Home Assistant takes our control powers to a whole new level.
+
+The new generation of physical remotes (Astrion, Haptique, UnfoldedCircle) have tremendous potential but, by nature, they have modest hardware that struggles with the massive load of HA UI. Each tries to work around that by providing custom cards to talk to HA. In some cases they use both the remote hardware AND bridges to HA to do their work. But development is slow. Community leverage is weak and as a result, all the products show promise, but none IMO, sufficiently solves real world use cases.
+
+<img src="docs/media/remotes.jpg" align="right" width="200" alt="A pile of remotes" />
+
+For me, the goal is not to replace my complex tablet and browser based dashboards that manage every aspect of my "smart home". I have that already. And a tablet/browser is the right form factor to interface with it. For me, it started the way it probably started for you: a coffee table full of remotes.
+
+I want an AV first replacement - and thus was born **Harmonium**.
+
+<br clear="both" />
+
+The bottleneck on remote hardware is not the webview — it is the
+stock HA frontend: a multi-megabyte bundle plus a websocket firehose
+of every entity in your instance. Harmonium subscribes to **only the
+entities on the current screen** (~20 messages instead of thousands)
+and renders them with a dependency-free engine that ships as **one
+auditable HTML file**. The result on a Sanytron Astrion or Haptique
+RS90: the screen is live before your thumb reaches the D-pad.
+
+- **Instant on.** Fast cold boot on vendor-frozen Chromium 75
+  webviews. No framework, no bundle, no loading spinner.
+- **Buttons are first-class.** Full D-pad / spatial-focus operation.
+  During an activity, the physical D-pad *is* the device's D-pad
+  (Harmony-style passthrough); touch always drives the UI.
+- **Activities live in HA, not the remote.** Start "Watch Fire TV"
+  and the TV, soundbar and input switching run HA-side; the remote is
+  a dumb, fast 2-way window onto them. Every remote in the house agrees
+  about what's running.
+- **Pairing, not tokens.** A new remote shows a short code; you
+  approve it in the Studio. No copying long-lived tokens onto a
+  kiosk device.
+- **A real editor.** The Studio runs as an HA panel. Its live preview
+  IS the engine — rendered inside a photo of your remote, with every
+  physical button mapped and washed live as bindings change.
+- **Opinionated, but highly configurable**. The Studio generated pages are "opinionated". The height of a tile, the fonts, the border-radius and so on. But almost all of these are configurable and as I learn more, I (and the community) can do more.
+
+## The Studio
+
+Edit screens, activities, presets and key bindings visually; the
+preview renders the real engine inside your device's photo and
+follows every change live. It should be possible, to build a working Activities page, with connected controllers in 30 minutes or less.
+
+<p align="center">
+  <img src="docs/media/studio-tour.gif" width="830"
+    alt="The Studio touring the preview through the hub, music controller, comfort page and diagnostics" />
+</p>
+
+Map your remote's physical buttons by dragging hotspots straight onto
+its photo — the preview then shows which keys do what on every page,
+with tooltips spelling out each binding:
+
+<p align="center">
+  <img src="docs/media/studio-map.png" width="830"
+    alt="The map-keys editor: hotspots dragged over the device photo" />
+</p>
+
+When a new remote asks to join, the Studio shows the same code the
+remote does. One click mints it a named, revocable token:
+
+<p align="center">
+  <img src="docs/media/studio-pair.png" width="830"
+    alt="The pairing banner: Remote asks to pair, code FIG-482, Approve / Deny" />
+</p>
+
+## Quick start
+
+1. **Install the integration** — add this repo as a
+   [custom repository in HACS](https://hacs.xyz/docs/faq/custom_repositories)
+   (`skavan/harmonium`, type *Integration*), install **Harmonium**,
+   restart HA, then add the integration under *Settings →
+   Devices & services*. It deploys the engine to
+   `/local/harmonium/` by itself.
+2. **Open the Studio** — it appears in HA's sidebar. Build your first
+   page, or just look around the starter config.
+3. **Point a device at it** — open
+   `http://<your-ha>:8123/local/harmonium/index.html` in any browser,
+   tablet or remote webview. Tap **Pair with Home Assistant**, then
+   approve the code in the Studio. Done.
+
+The full walk-through (including hardware remotes) is in
+**[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)**.
+
+### Putting it on a hardware remote
+
+For the Sanytron Astrion / HA100-class remotes, Brad Sanders'
+excellent community guide covers the hardware prep — sideloading
+Fully Kiosk, installing KeyMapper, remapping buttons:
+**[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,
+button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**.
+Once Fully Kiosk is running, point it at the URL above and pick up at
+[our hardware-keys cookbook](docs/cookbook/hardware-keys.md).
+
+## Cookbook
+
+Task-shaped guides, one outcome each — start here after install:
+
+| Guide | You end up with |
+|---|---|
+| [Your first screen](docs/cookbook/first-screen.md) | A room page with live tiles |
+| [Activities](docs/cookbook/activities.md) | "Watch TV" that turns everything on, in order |
+| [Presets](docs/cookbook/presets.md) | One-tap Netflix / scene / favorite buttons |
+| [The device photo](docs/cookbook/device-photo-skin.md) | The Studio preview inside a photo of *your* remote |
+| [Hardware keys](docs/cookbook/hardware-keys.md) | Physical buttons doing the right thing on every page |
+| [Workspaces](docs/cookbook/workspaces.md) | A second remote with a different world |
+| [Theming](docs/cookbook/theming.md) | Your accent, your radius, per-device fonts |
+
+The older [config recipe collection](docs/cookbook.md) goes deeper
+into hand-edited config for things the Studio doesn't surface yet.
+
+## How it's built
 
 | Piece | What it is | Ships as |
 |---|---|---|
-| **Engine** | The remote UI: screens, tiles, activities, D-pad focus, passthrough, library + search | `dist/index.html` (single file, zero deps) |
-| **Config** | Pure data: screens, tiles, activities, keymaps, theme — **owned per house by its HA** | `www/harmonium/config.json` on each house |
-| **Integration** | HA custom component: config store + validate→store→deploy API, `harmonium.*` services, minted activity `select`s, favourites sensors | `integration/custom_components/harmonium/` |
-| **Studio** | Visual editor as an HA panel — the live preview IS the real engine | `studio-src/` (Svelte 5) → single `studio.html` |
+| **Engine** | The remote UI: screens, tiles, activities, D-pad focus, passthrough, media library + search | `dist/index.html` — one file, zero deps |
+| **Integration** | HA custom component: config store, validate→store→deploy API, `harmonium.*` services, pairing broker, engine self-deploy | `integration/custom_components/harmonium/` |
+| **Studio** | The visual editor, hosted as an HA panel — the live preview is the real engine | `studio-src/` (Svelte 5) → single `studio.html` |
+| **Config** | Pure data: screens, tiles, activities, keymaps, theme — owned per house by its HA | `www/harmonium/config.json` on each house |
+
+The engine targets **ES2019 / Chromium 75**, because cheap remotes
+ship vendor-frozen webviews and that floor is the normal case. A
+20-suite Playwright battery drives the real engine against stubbed
+websockets on every change.
+
+Architecture, doctrines and the full decision log:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+[docs/PROJECT.md](docs/PROJECT.md)
 
 > **`dist/config.json` is a test fixture, not a deployable.** Code is
-> shared across houses; config belongs to each house's Home Assistant
-> and is never pushed from the repo. `push.bat` enforces this with a
-> house marker on the target share. See `houses/README.md` for the
-> n-house model, the golden-master rule, and why `harmonium.reseed`
-> is retired.
+> shared; config belongs to each house's Home Assistant and is never
+> pushed from the repo. See `houses/README.md` for the multi-house
+> model.
 
-## Core doctrine
-
-Full details in `docs/ARCHITECTURE.md`; the short version:
-
-- **Engine is dumb, HA is the brain.** Activities run HA-side
-  (`harmonium.run` sequences / scripts); activity state is a minted
-  `select.harmonium_<room>_activity` the integration owns; anything
-  smart is a template sensor or automation on the HA side.
-- **Config is pure data.** Screens, sections, tiles, activities,
-  context bindings, keymaps, theme tokens — all in `config.json`.
-  `$context.<slot>` is the only substitution in the system.
-- **Buttons are first-class.** Full D-pad/spatial-focus operation;
-  Harmony-style passthrough (during an activity, the physical D-pad IS
-  the device's D-pad); touch always drives the UI.
-- **The cast player decides.** Every playable id is routed against the
-  cast player — `native` / `bridged` / `fallback` / `none`. Fallbacks
-  (which evict the speaker's queue) are marked and two-press
-  confirmed; unplayables are never offered. Provenance is visible:
-  each library tile wears a system badge (SO/MA/HA) and, when
-  knowable, a service badge (spotify/deezer/…).
-- **Silence is a bug.** A failed service call flashes HA's own error in
-  the bar; an in-flight play says "Queuing …" on the hero; truncated
-  lists say they truncated. Nothing fails, loads, or clips silently.
-- **No capability sniffing, ever.** Measured on real hardware: Sonos
-  and Music Assistant both advertise `SEARCH_MEDIA` while behaving
-  completely differently, and Sonos browse nodes report
-  `can_search: false` on a player that answers 521 results. Behaviour
-  is keyed on declarations and provenance (entity registry), never on
-  feature flags.
-- **Registries generate UI.** Activities, an activity's device cast,
-  its volumes and groups, apps/presets, and the controller library all
-  render from generators — edit the model once, every surface follows.
-- **Controllers are a shared library** with **generation-stamped
-  stocks**: every stock shape carries `gen`, and the Studio heals any
-  non-variant copy whose generation is behind — so a config authored
-  three versions ago grows the tiles new generators emit. Custom
-  copies (`variant_of`) are never touched.
-- **Device detail pages are generated, not authored** — composed per
-  domain from power/stepper/chips primitives, per-device overridable.
-
-## Repository layout
-
-```
-harmonium/
-├─ build.mjs                 # full build (legacy: also recompiles config from yaml/)
-├─ build-engine.mjs          # ENGINE-ONLY build → dist/index.html — use this one
-├─ push.bat                  # push CODE to a house (never config; checks house marker)
-├─ push-catrock-*.bat        # double-click wrappers (engine / studio / all)
-├─ src/                      # ENGINE source (vanilla JS, one concern per file)
-│  ├─ index.template.html    #   HTML shell with style/script insertion points
-│  ├─ styles/                #   CSS by concern (tokens, chrome, widgets, grid, …)
-│  ├─ core/                  #   the engine's brain, one file per concern:
-│  │   header.js             #     architecture prologue + TIMING tunables
-│  │   config.js  socket.js  #     CONFIG/theme · websocket + pending-play stamp
-│  │   context.js            #     activity scope + $context resolution
-│  │   generators.js         #     expandTile: apps/keys/devices/volumes/presets/groups
-│  │   gen-browse.js         #     the browse generator (library surface)
-│  │   gen-browse-amalgam.js #     ★ Favorites merge + ♫ de-mirrored library
-│  │   gen-browse-search.js  #     the search grid (results, chips, states)
-│  │   subscribe.js          #     entitiesFor → subscribe_entities → applyDiff
-│  │   activities.js         #     lifecycle, presets, the action grammar (+confirm)
-│  │   routing.js            #     brRoute + provenance badges (pure functions)
-│  │   browse.js             #     browse state, tree fetch, the bar (bands 1+2)
-│  │   sonos-index.js        #     local index: crawl, cache, forgiving matching
-│  │   search.js             #     query line, engines (index/MA/generic), keyboard
-│  │   queue.js  keycap.js  details.js
-│  ├─ widgets/               #   ONE FILE PER WIDGET (self-registering adapters)
-│  └─ ui/                    #   tiles (chassis) · render · focus · input · boot
-├─ integration/              # HA custom component (store, API, services, sensors, Studio host)
-├─ studio-src/               # STUDIO source (Svelte 5 + Vite → single studio.html)
-├─ houses/                   # per-house profiles + preserved configs (see its README)
-├─ dist/                     # built engine + the CT config AS A TEST FIXTURE
-├─ tests/                    # Playwright smoke battery (19 suites — see tests/README.md)
-├─ docs/                     # architecture, guides, design docs, decision log
-└─ yaml/                     # LEGACY authoring model (pre-Studio) — do not run build.mjs here
-```
-
-The widget catalog is the extensibility surface: each file in
-`src/widgets/` registers one adapter on the shared tile chassis
-(`sub`/`isOn`/`meter`/`select`/`capture`/`keys`/`body`/`wire`/`hold`).
-Adding a widget = adding a file + one line in `build.mjs`'s list.
-
-## Build
+## Developing & contributing
 
 ```sh
 node build-engine.mjs            # engine → dist/index.html (no npm, no bundler)
 cd studio-src && npm run build   # Studio → integration/.../studio/studio.html
-```
-
-Use **`build-engine.mjs`**, not `build.mjs`: this clone carries the
-legacy `yaml/` authoring model, and `build.mjs` would recompile
-`dist/config.json` from it — overwriting the test fixture. The
-engine-only build parses its file lists out of `build.mjs`, so the two
-can never drift.
-
-The engine targets **ES2019 / Chromium 75** — cheap Android remotes
-ship vendor-frozen webviews, so that floor is the normal case
-(`styles/compat.css` carries the flexbox-gap fallback behind a boot
-probe). The build is deliberately zero-dependency: the artifact must
-stay a single auditable file. Build the Studio on a machine with its
-own `node_modules` — never in a sandbox with a different tree.
-
-## Test
-
-```sh
 cd dist && python3 -m http.server 8482 &
-cd tests && for t in smoke-*.mjs; do node "$t"; done
+cd tests && for t in smoke-*.mjs; do node "$t"; done   # errs must stay empty
 ```
 
-Nineteen Playwright suites drive the **real engine** against stubbed
-websockets and real DOM — navigation, keys, devices, sliders, details,
-music, search, routing (`smoke-routing`), the library amalgam
-(`smoke-amalgam`), the Sonos index (`smoke-index`), the library UI
-(`smoke-libui`), the preview protocol, and a full Studio walkthrough
-where the preview iframe is the engine itself. Every suite prints a
-JSON object; **`errs` must stay empty**. See `tests/README.md`.
+Fork setup, deploy scripts (`build-push.bat` and friends, driven by
+`houses\default.txt`), the house style, and what makes a good PR:
+**[CONTRIBUTING.md](CONTRIBUTING.md)**. Security model and how to
+report issues: **[SECURITY.md](SECURITY.md)**.
 
-## Deploy
+## Status
 
-```sh
-push catrock engine     # or double-click push-catrock-engine.bat
-```
+Beta. Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully
+Kiosk) across two houses. Recent: code-match pairing, HACS packaging
+with engine self-deploy, device-photo skins with button mapping, the
+on-device diagnostics page, media library routing ("the cast player
+decides"), and the engine-side Sonos index. Roadmap and open items:
+[docs/PROJECT.md](docs/PROJECT.md).
 
-`push.bat <house> [engine|studio|integration|all]` copies **code only**
-to that house's HA share and refuses if the share's house marker
-disagrees — a stale drive mapping cannot push to the wrong house.
-Config is authored in the Studio (Save & Deploy validates server-side,
-stores, republishes). Rules of thumb: engine change → push + remote
-cache-clear/reload; Studio change → machine build + push + hard
-refresh; integration `.py` change → push + HA restart. **Never run
-`harmonium.reseed`** — it predates the multi-house model and would
-merge the test fixture into a live house.
+## License
 
-Kiosk provisioning (dev only): open
-`.../index.html#host=<ha:port>&token=<LLAT>&device=astrion` once —
-credentials are trimmed, stored in localStorage, and stripped from the
-URL. See `ha/README.md` for the HA-as-clipboard provisioning script
-that avoids pasting tokens anywhere near the device.
-
-## Documentation
-
-- `docs/ARCHITECTURE.md` — how the pieces fit: data flow, doctrines,
-  the tile chassis, the controller library.
-- `docs/GETTING-STARTED.md` — clean install, end to end.
-- `docs/config-guide.md` — page-by-page: what config makes what screen.
-- `docs/cookbook.md` — recipes for common edits.
-- `docs/screen-schema.md` — the config contract (working design doc).
-- `docs/design-search-sources.md` — the search design (phases 1–3 built).
-- `docs/design-library-ui.md` — the library surface + the routing model.
-- `docs/PROJECT.md` — intent, thesis, full decision log, changelog.
-- `docs/HANDOFF.md` — where the last session stopped and what is open.
-- `houses/README.md` — the n-house model and the golden-master rule.
-- `tests/README.md` — the smoke battery: how it works, how to add one.
-
-## Status & roadmap
-
-Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully Kiosk),
-two houses (one frozen pending an in-person visit). Recent: the
-routing model ("the cast player decides"), the library amalgam, the
-engine-side Sonos index with forgiving search, generation-stamped
-stock controllers, error surfacing and queuing feedback. Next (see
-`docs/PROJECT.md` / `docs/HANDOFF.md`): voice input via the IME trick,
-index drill-in, per-surface search switch in the Studio, minimal APK
-shell.
-
-License: not yet chosen — all rights reserved until one lands.
+[GPL-3.0](LICENSE). Use it, fork it, improve it — but derivatives you
+distribute must stay open source under the same terms.

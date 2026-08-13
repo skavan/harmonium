@@ -1,5 +1,6 @@
 <script>
-  import { app, bindPreview, pushPreview, sendKey, previewGoto } from "./state.svelte.js";
+  import { app, bindPreview, pushPreview, sendKey, previewGoto, setStatus, STUDIO_V } from "./state.svelte.js";
+  import { toCanvas } from "html-to-image";
   let iframe = $state(null);
   $effect(() => { if (iframe) bindPreview(iframe.contentWindow); });
   const devices = $derived(Object.keys(app.draft?.remotes || { default: 1 }));
@@ -81,7 +82,22 @@
        percent. Tap ⓘ on any device to get this number for its skin.
        Configurable per skin; absent = 320×533.33. */
     viewport: { w: 349, h: 581 },
-    screen: { x: 9.84, y: 3.8, w: 80, h: 41.8 },
+    /* v0.83.3 — RE-MEASURED ON THE SHIPPED ASSET (Suresh: "In photo
+       mode the LCD panel is one pixel off on both axis… grey/white
+       line"): the old rect (9.84/3.80/80.00/41.80) was alpha-scanned
+       on the ORIGINAL 1280×4084 Photoshop export, but the shipped
+       814×2600 PNG is a slightly different crop — its enclosed
+       transparent hole flood-fills to x 82..737, y 93..1178. The
+       few-pixel gap between the two rects showed the page background
+       through the unfilled rows above the iframe. If you edit the
+       asset, re-measure: the hole is the truth, not these numbers. */
+    /* y FIELD-TRUED to 3.764 (v0.83.6 — Suresh, after nudging with
+       the 1px arrows: "y was at 3.54 -- nudging to 3.764 fixed it…
+       can we set that as default?"). The alpha-scan said 3.58; the
+       actual rendered truth on the authoring display wanted ~2px
+       lower. The eye on the real preview beats the scan. Units:
+       percentages of the photo. */
+    screen: { x: 10.07, y: 3.764, w: 80.59, h: 41.77 },
     buttons: [
       { btn: "back", x: 9.84, y: 52.2, w: 20.3, h: 5.3 },
       { btn: "home", x: 30.14, y: 52.2, w: 39.1, h: 5.3 },
@@ -200,19 +216,27 @@
       b.y = +Math.max(0, Math.min(100 - b.h, b.y + dy)).toFixed(2);
     }
   }
-  /* arrow keys nudge the SELECTED rect (shift = resize) */
+  /* arrow keys nudge the SELECTED rect by EXACTLY ONE DISPLAY PIXEL
+     (v0.83.5 — Suresh: "moving the rectangle by dragging is very
+     imprecise… when the rectangle is selected the arrow keys should
+     move one pixel"). The old 0.1% step was ~1px vertically but a
+     third of a pixel horizontally — precise-feeling on one axis,
+     mushy on the other. Now the step is computed from the rendered
+     image size per axis; shift = resize by the same pixel. */
   function mapKeydown(ev) {
     if (!mapping || (!selScreen && selHot < 0)) return;
     const o = selScreen ? skin.screen : skin.buttons[selHot];
     if (!o) return;
-    const step = 0.1;
-    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0],
-      ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
+    const r = skinEl?.getBoundingClientRect();
+    const sx = r && r.width ? 100 / r.width : 0.1;    /* 1px in % */
+    const sy = r && r.height ? 100 / r.height : 0.1;
+    const d = { ArrowLeft: [-sx, 0], ArrowRight: [sx, 0],
+      ArrowUp: [0, -sy], ArrowDown: [0, sy] }[ev.key];
     if (!d) return;
-    if (ev.shiftKey) { o.w = +Math.max(1, o.w + d[0]).toFixed(2);
-      o.h = +Math.max(0.4, o.h + d[1]).toFixed(2); }
-    else { o.x = +Math.max(0, o.x + d[0]).toFixed(2);
-      o.y = +Math.max(0, o.y + d[1]).toFixed(2); }
+    if (ev.shiftKey) { o.w = +Math.max(0.5, o.w + d[0]).toFixed(3);
+      o.h = +Math.max(0.2, o.h + d[1]).toFixed(3); }
+    else { o.x = +Math.max(0, o.x + d[0]).toFixed(3);
+      o.y = +Math.max(0, o.y + d[1]).toFixed(3); }
     ev.preventDefault();
   }
   /* the LCD truth meter: the aperture's PIXEL ratio vs 480×800 */
@@ -276,8 +300,8 @@
     return out;
   });
   /* tap mode: the button itself is answered · hold latch: its _hold is */
-  const washed = (btn) => !holdLatch && activeKeys.has(btn);
-  const holdWashed = (btn) => holdLatch && activeKeys.has(btn + "_hold");
+  const washed = (btn) => washOn && !holdLatch && activeKeys.has(btn);
+  const holdWashed = (btn) => washOn && holdLatch && activeKeys.has(btn + "_hold");
 
   /* WHAT A KEY DOES, IN WORDS (v0.80.7 — Suresh: "a hover over a key
      told me what it did in a tooltip in both modes"): the same
@@ -324,11 +348,133 @@
   /* the PLAIN frame honours the device's true viewport too (v0.80.7 —
      Suresh: "The no device photo one is too short"): skin.viewport if
      a skin is on, else a profile-level viewport (removeSkin hoists the
-     skin's up so the truth survives "no photo"), else the old 320×537. */
-  const plainVp = $derived(profile?.skin?.viewport || profile?.viewport ||
-    { w: 320, h: 537 });
+     skin's up so the truth survives "no photo").
+     v0.83.1 (statusreview: "the preview window is wrong height unless
+     I click the photo mode on then off"): the old last-resort 320×537
+     only healed AFTER the photo dance wrote a viewport into the
+     profile. Now a profile without its own measurement BORROWS one
+     from any profile in the workspace that has it, and the final
+     fallback is the HA100 ground truth (349×581) instead of the
+     historical guess — first mount matches the post-dance size. */
+  const plainVp = $derived.by(() => {
+    if (profile?.skin?.viewport) return profile.skin.viewport;
+    if (profile?.viewport) return profile.viewport;
+    for (const p2 of Object.values(app.draft?.remotes || {})) {
+      const v = p2?.skin?.viewport || p2?.viewport;
+      if (v) return v;
+    }
+    return { ...SKIN_ASTRION.viewport };
+  });
 
   let holdLatch = $state(false);
+
+  /* WASH TOGGLE (v0.83.2 — statusreview: "Lets have the highlight
+     keys (in preview) be toggleable. Just a simple toggle."): one
+     switch gates every wash — photo hotspots and the soft grid,
+     tap and hold alike. Persisted per browser like the theme. */
+  let washOn = $state(localStorage.getItem("hakr_studio_wash") !== "0");
+  function toggleWash() {
+    washOn = !washOn;
+    localStorage.setItem("hakr_studio_wash", washOn ? "1" : "0");
+  }
+
+  /* SCREENSHOT (v0.83.2 — statusreview: "the screenshot should honor
+     alpha on the preview (this is what will build my gifs)"). The
+     engine's DOM is rendered to a canvas (html-to-image — same
+     origin, so the iframe document is ours to read), composited into
+     the skin photo's aperture at the photo's NATURAL resolution, and
+     the photo drawn over it — everything outside the device stays
+     TRANSPARENT, because the output canvas starts transparent and
+     only the photo's own alpha lands on it. No skin → the bare
+     screen at 2×. Downloads as PNG, named after the screen. */
+  let snapping = $state(false);
+  /* html-to-image can't read a cross-origin <link>'s cssRules (the
+     engine's Material Symbols come from Google Fonts) and silently
+     skips it — every icon would render as its ligature name. So we
+     build the font CSS ourselves: fetch the stylesheet, swap each
+     url(...) for a data: URL, and hand it over as fontEmbedCSS. */
+  async function snapFontCSS(doc) {
+    try {
+      const link = doc.querySelector('link[rel=stylesheet][href*="fonts.googleapis"]');
+      if (!link) return undefined;
+      let css = await (await fetch(link.href)).text();
+      const urls = [...new Set([...css.matchAll(/url\(([^)]+)\)/g)]
+        .map((m) => m[1].replace(/["']/g, "")))];
+      for (const u of urls) {
+        const abs = new URL(u, link.href).href;
+        const blob = await (await fetch(abs)).blob();
+        const data = await new Promise((res, rej) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result); fr.onerror = rej;
+          fr.readAsDataURL(blob); });
+        css = css.split(u).join(data);
+      }
+      return css;
+    } catch { return undefined; }   /* fall back to the library's walk */
+  }
+  async function snapPreview() {
+    if (snapping) return;
+    snapping = true;
+    /* SCROLL SURVIVES THE SNAP (v0.83.8 — Suresh: "When I take a pic
+       with the screen scrolled… the capture is of the original
+       unscrolled screen"): html-to-image renders a CLONE, and scroll
+       offsets are live state — clones reset to 0. So each scrolled
+       container's offset becomes an equivalent transform on its
+       children for the duration of the capture (visually identical
+       live, and inline transforms DO survive cloning), then reverts. */
+    const undoScroll = [];
+    try {
+      const pv = document.getElementById("pv");
+      const doc = pv.contentDocument;
+      const vw = pv.contentWindow.innerWidth, vh = pv.contentWindow.innerHeight;
+      for (const el of doc.querySelectorAll("*")) {
+        const st = el.scrollTop, sl = el.scrollLeft;
+        if (!st && !sl) continue;
+        const kids = [...el.children];
+        const prev = kids.map((k) => k.style.transform);
+        kids.forEach((k) => { k.style.transform =
+          `translate(${-sl}px, ${-st}px)` + (k.style.transform ? " " + k.style.transform : ""); });
+        el.scrollTop = 0; el.scrollLeft = 0;
+        undoScroll.push(() => {
+          kids.forEach((k, i) => (k.style.transform = prev[i]));
+          el.scrollTop = st; el.scrollLeft = sl;
+        });
+      }
+      const bg = getComputedStyle(doc.body).backgroundColor;
+      const screenCv = await toCanvas(doc.documentElement, {
+        width: vw, height: vh, canvasWidth: vw * 2, canvasHeight: vh * 2,
+        fontEmbedCSS: await snapFontCSS(doc),
+        backgroundColor: bg && bg !== "rgba(0, 0, 0, 0)" ? bg : "#0d0f12" });
+      let out = screenCv;
+      if (skin?.image) {
+        const img = new Image();
+        await new Promise((res, rej) => {
+          img.onload = res; img.onerror = () => rej(new Error("photo failed to load"));
+          img.src = skin.image; });
+        out = document.createElement("canvas");
+        out.width = img.naturalWidth; out.height = img.naturalHeight;
+        const cx = out.getContext("2d");
+        const sr = skin.screen;
+        /* 2px bleed under the photo's aperture edge — its anti-aliased
+           rim is semi-transparent, and screen pixels must sit beneath
+           it or the seam shows through as background */
+        const bl = 2;
+        cx.drawImage(screenCv, sr.x / 100 * out.width - bl, sr.y / 100 * out.height - bl,
+          sr.w / 100 * out.width + bl * 2, sr.h / 100 * out.height + bl * 2);
+        cx.drawImage(img, 0, 0, out.width, out.height);
+      }
+      const a = document.createElement("a");
+      a.download = "harmonium-" +
+        (app.pvScreen || "preview").replace(/[^a-z0-9_-]+/gi, "_") + ".png";
+      a.href = out.toDataURL("image/png");
+      a.click();
+      setStatus("screenshot saved" + (skin?.image ? " (transparent outside the device)" : ""), "ok");
+    } catch (e) {
+      setStatus("screenshot failed: " + (e?.message || e), "err");
+    }
+    undoScroll.forEach((f) => f());
+    snapping = false;
+  }
   function softPress(btn) {
     const hk = holdKeyFor(btn);
     if (holdLatch && hk) { sendKey(hk); holdLatch = false; return; }
@@ -405,7 +551,7 @@
        controllers. Context still steers too: selecting a page
        follows it, an open activity card offers Controller/Room page,
        a row's ⋯ menu offers "Preview it". -->
-  <div class="mb-2.5 flex max-w-[352px] items-center gap-1.5">
+  <div class="mb-2.5 flex w-full max-w-[352px] items-center gap-1.5">
     <span class="shrink-0 text-xs text-dim">Showing</span>
     <div class="relative min-w-0 flex-1">
       <select value="" onchange={(e) => { if (e.target.value) previewGoto(e.target.value); e.target.value = ""; }}
@@ -435,6 +581,20 @@
         </optgroup>
       </select>
     </div>
+    <!-- 📷 (v0.83.2): the preview as a PNG — with the photo skin on,
+         the file keeps the photo's alpha (transparent outside the
+         device), which is exactly what GIF/marketing compositing
+         wants. -->
+    <button id="pvSnap" onclick={snapPreview} disabled={snapping}
+      title={skin ? "Screenshot: photo + live screen, transparent outside the device (PNG)"
+        : "Screenshot the preview screen (PNG)"}
+      class="flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-0 bg-tile-hi text-dim hover:text-ink disabled:opacity-50">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </button>
   </div>
   {#if newOpen}
     <div class="mb-2.5 flex items-center gap-1.5">
@@ -463,12 +623,47 @@
            device's true 320×533.33 and the whole frame scales down
            to fit the aperture — a faithful miniature, same as the
            old phone frame. 340 = the skin's display width. -->
+      <!-- the clip runs 1px PROUD of the aperture on every side, with
+           the iframe nudged back in by 1px (v0.83.3 — Suresh: "In
+           photo mode the LCD panel is one pixel off on both axis…
+           grey/white line"): percentage rounding left a hairline
+           where the Studio's light background showed through the
+           photo's anti-aliased rim. The ring is black, buried under
+           the photo's opaque edge — same bleed trick as the 📷
+           snapshot compositor. -->
+      <!-- INDEPENDENT X/Y SCALE (v0.83.3 — Suresh: "we're 1 or two
+           pixels off our vertical position!"): the height used to be
+           DERIVED (width × viewport ratio), so unless the mapped
+           rect's aspect exactly matched the viewport's, the content
+           fell a hairline short of the aperture bottom (or spilled
+           past it) — and every hand-nudge of the rect moved the
+           line. Scaling each axis to ITS aperture dimension fills
+           the rect edge-to-edge always; the residual anamorphic
+           stretch is the rect-vs-viewport aspect delta (~0.6% on
+           the astrion) — invisible, unlike a white line. -->
+      <!-- OVERSCAN (v0.83.4 — the line survived s0.83.3 on the real
+           machine): the content is deliberately scaled to the
+           EXPANDED clip (rect + 1px on every side), so even when a
+           browser rounds the scaled iframe's bottom edge a device
+           pixel short at fractional zoom, the shortfall lands inside
+           painted content, never on background. The 1px ring hides
+           under the photo's opaque rim; center error is ±1px. -->
+      <!-- SCROLL-PINNED (v0.83.7 — Suresh: "When I click presets or
+           devices… it clips the hero and the viewport"): the engine's
+           hero-jump chips call scrollIntoView, which propagates to
+           ancestor scrollers ACROSS the iframe boundary — and an
+           overflow:hidden clip is still programmatically scrollable,
+           with plenty of room because the iframe's LAYOUT size is the
+           full viewport (transforms don't shrink layout). The chip
+           click was scrolling the clip itself. Any scroll here resets
+           to 0 immediately. -->
       <div class="absolute z-0 overflow-hidden"
-        style="left:{skin.screen.x}%; top:{skin.screen.y}%; width:{skin.screen.w}%; height:{skin.screen.h}%">
+        onscroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}
+        style="background:#000; left:calc({skin.screen.x}% - 1px); top:calc({skin.screen.y}% - 1px); width:calc({skin.screen.w}% + 2px); height:calc({skin.screen.h}% + 2px)">
         <iframe id="pv" bind:this={iframe} title="Live preview"
           src="/local/harmonium/index.html#preview=1"
           class="border-0 bg-bg"
-          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(skin.screen.w / 100 * 340) / (skin.viewport?.w || 320)}); transform-origin:0 0"></iframe>
+          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(skin.screen.w / 100 * 340 + 2) / (skin.viewport?.w || 320)}, {(skin.screen.h / 100 * 340 * (imgNat.h / imgNat.w) + 2) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
       </div>
       <img src={skin.image} alt="" draggable="false"
         onload={(e) => (imgNat = { w: e.target.naturalWidth, h: e.target.naturalHeight })}
@@ -533,16 +728,36 @@
           <button onclick={() => delHot(selHot)} title="Delete this hotspot"
             class="cursor-pointer rounded-[6px] border border-line-strong bg-surface px-2 py-1 text-[11px] text-danger">✕</button>
         {:else}
-          <span class="text-[10.5px] text-dim">drag = new key · click to name/move · arrows nudge (⇧ resize)</span>
+          <span class="text-[10.5px] text-dim">drag = new key · click to name/move · arrows nudge 1px (⇧ resize)</span>
+        {/if}
+        {#if selScreen || selHot >= 0}
+          {@const sel = selScreen ? skin.screen : skin.buttons[selHot]}
+          <!-- THE NUMBERS THEMSELVES (v0.83.5): the rect as editable
+               percentages of the image — the same values stored at
+               remotes.<id>.skin in the config. Type exact values or
+               spin; the px readout translates to source pixels. -->
+          <span class="flex items-center gap-1">
+            {#each [["x", "x"], ["y", "y"], ["w", "w"], ["h", "h"]] as [lbl, k] (k)}
+              <label class="flex items-center gap-0.5 text-[9px] text-dim">{lbl}
+                <input type="number" step="0.01" value={sel[k]}
+                  onchange={(e) => { const v = parseFloat(e.target.value);
+                    if (!isNaN(v)) sel[k] = +Math.max(0, Math.min(100, v)).toFixed(3); }}
+                  class="h-7 w-[58px] rounded-[5px] border border-line bg-field px-1 font-mono text-[10.5px] text-ink outline-none" /></label>
+            {/each}
+            <span class="text-[9px] text-faint" title="source pixels on this image">
+              ≈{Math.round(sel.x / 100 * imgNat.w)},{Math.round(sel.y / 100 * imgNat.h)}
+              {Math.round(sel.w / 100 * imgNat.w)}×{Math.round(sel.h / 100 * imgNat.h)}px</span>
+            <span class="text-[9.5px] font-medium text-ink-2">⌨ arrows = 1px · ⇧ = resize</span>
+          </span>
         {/if}
         <span class="flex-1"></span>
         <button id="skinMapDone" onclick={() => { mapping = false; selHot = -1; selScreen = false; }}
           class="cursor-pointer rounded-[6px] border-0 bg-accent px-3 py-1 text-[11px] font-bold text-accent-ink">Done</button>
         <div class="flex w-full items-center gap-1">
-          <span class="text-[10px] text-dim" title="Shift EVERY key hotspot together — for a whole map that sits a pixel off">⌖ all</span>
+          <span class="text-[11px] font-semibold text-ink-2" title="Shift EVERY key hotspot together — for a whole map that sits a pixel off. The selected rect alone moves with the keyboard arrows.">⌖ nudge all</span>
           {#each [["◀", -0.1, 0], ["▶", 0.1, 0], ["▲", 0, -0.1], ["▼", 0, 0.1]] as [g, dx, dy] (g)}
             <button onclick={() => nudgeAll(dx, dy)} title={"nudge every key " + g}
-              class="h-6 w-6 cursor-pointer rounded-[5px] border border-line-strong bg-surface p-0 text-[10px] text-ink-2 hover:bg-sunk">{g}</button>
+              class="h-7 w-7 cursor-pointer rounded-[6px] border border-line-strong bg-surface p-0 text-[11px] text-ink-2 hover:bg-sunk">{g}</button>
           {/each}
           <span class="flex-1"></span>
           <span class={"text-[10px] " + (Math.abs(scrRatio() - 0.6) < 0.006 ? "text-ok" : "text-danger")}
@@ -636,6 +851,11 @@
   {/if}
   <div class="mt-2 flex items-center gap-1.5 px-3.5 text-center text-[11px] text-dim">
     <span>Soft remote sends the '{app.device}' profile's real keys.</span>
+    <span class="text-[10px] text-faint" title="Studio build — if a fix seems missing, hard-refresh (Ctrl+Shift+R): HA caches studio.html">s{STUDIO_V}</span>
+    <button id="washTgl" onclick={toggleWash}
+      title="Wash keys that do something on the current page (hold variants glow stronger)"
+      class={"cursor-pointer border-0 bg-transparent p-0 text-[11px] hover:underline " +
+        (washOn ? "text-accent" : "text-dim")}>{washOn ? "washes on" : "washes off"}</button>
     {#if skin}
       {#if !mapping}
         <button id="skinMap" onclick={() => { mapping = true; selHot = -1; }}

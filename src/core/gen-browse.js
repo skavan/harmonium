@@ -163,6 +163,9 @@ function genBrowse(t) {
          source often doesn't have. Chassis row mode does the work;
          the section render narrows to one column when it sees rows. */
       const listv = brView() === "list";
+      /* grid2 (v0.83.1): same cards, TWO columns — brCols narrows the
+         section host (render.js) without touching the screen's grid */
+      const g2 = brView() === "grid2";
       if (node.error)
         out.push({ type: "preset", id: t.id + "_err", span: 2, brw: true,
           icon: "material:error_outline", label: node.error, action: {} });
@@ -178,7 +181,7 @@ function genBrowse(t) {
         const play = playOf(c, via, route);
         out.push({
           type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
-          ...(listv ? { brRow: true } : {}),
+          ...(listv ? { brRow: true } : g2 ? { brCols: 2 } : {}),
           icon: BROWSE_ICON[c.media_class] || "material:library_music",
           /* the badge is set only where the kind ISN'T implied by the
              chip you're standing on — i.e. the All grid */
