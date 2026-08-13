@@ -77,7 +77,7 @@ goto :done
 
 :studio
 echo  --- studio: studio.html only, no Python, no restart ---
-robocopy "%REPO%integration\custom_components\harmonium\studio" "%DST%custom_components\harmonium\studio" studio.html /NJH /NJS /NDL
+robocopy "%REPO%custom_components\harmonium\studio" "%DST%custom_components\harmonium\studio" studio.html /NJH /NJS /NDL
 if ERRORLEVEL 8 goto :copyfail
 goto :done
 
@@ -85,14 +85,14 @@ goto :done
 rem  LIST-ONLY probe: /L makes robocopy report what it WOULD do
 rem  and copy nothing. Exit code 1..7 means at least one .py is
 rem  new or different, which is the only thing a restart fixes.
-robocopy "%REPO%integration\custom_components\harmonium" "%DST%custom_components\harmonium" *.py /S /L /NJH /NJS /NDL /NC /NS >nul
+robocopy "%REPO%custom_components\harmonium" "%DST%custom_components\harmonium" *.py /S /L /NJH /NJS /NDL /NC /NS >nul
 if ERRORLEVEL 8 goto :copyfail
 if ERRORLEVEL 1 set "NEEDRESTART=1"
 goto :integration
 
 :integration
 echo  --- integration: custom_components\harmonium, incl. studio.html ---
-robocopy "%REPO%integration\custom_components\harmonium" "%DST%custom_components\harmonium" /MIR /XD __pycache__ /NJH /NJS /NDL
+robocopy "%REPO%custom_components\harmonium" "%DST%custom_components\harmonium" /MIR /XD __pycache__ /NJH /NJS /NDL
 if ERRORLEVEL 8 goto :copyfail
 goto :done
 

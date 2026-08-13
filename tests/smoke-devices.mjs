@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
    Consumes strip, and generation (never-guess-power doctrine). */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const studio = readFileSync(
-  join(ROOT, 'integration', 'custom_components', 'harmonium', 'studio', 'studio.html'), 'utf8');
+  join(ROOT, 'custom_components', 'harmonium', 'studio', 'studio.html'), 'utf8');
 const engine = readFileSync(join(ROOT, 'dist', 'index.html'), 'utf8');
 
 /* a PRE-v0.45 config: hardware profiles under `devices`, one legacy

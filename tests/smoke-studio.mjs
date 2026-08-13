@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const engine = readFileSync(join(ROOT, 'dist', 'index.html'), 'utf8');
 const studio = readFileSync(
-  join(ROOT, 'integration', 'custom_components', 'harmonium', 'studio', 'studio.html'), 'utf8');
+  join(ROOT, 'custom_components', 'harmonium', 'studio', 'studio.html'), 'utf8');
 const config = JSON.parse(readFileSync(join(ROOT, 'dist', 'config.json'), 'utf8'));
 
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

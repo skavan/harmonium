@@ -16,7 +16,7 @@ its API, so this step is done by hand (Samba/SSH/File editor add-on):
 
 1. Copy the whole folder
 
-       integration/custom_components/harmonium/
+       custom_components/harmonium/
 
    into your HA config directory so it becomes
 

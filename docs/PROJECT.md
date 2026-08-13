@@ -79,6 +79,35 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.4, 2026-08-13)
+
+v0.83.4 — **THE HACS COMPLIANCE MOVE** (field failure on the first
+real install attempt: HACS refused with "Repository structure for
+v0.83.3 is not compliant"). The lesson: HACS validates the GIT TREE
+of the tagged version and requires the integration at
+`custom_components/<domain>/` in the REPO ROOT — `zip_release` only
+changes the download source, not the structure check, so our
+`integration/custom_components/harmonium/` layout failed validation
+before the zip was ever considered.
+
+- `git mv integration/custom_components custom_components` (history
+  preserved); `integration/README.md` → `custom_components/README.md`;
+  the empty `integration/` shell moved to `_to_delete/`.
+- **zip_release RETIRED** (hacs.json now just name/render_readme/
+  homeassistant): with the tree compliant anyway, tree-install is
+  strictly simpler — a release is now commit + tag, with NO asset to
+  attach or forget. The bundled `engine/index.html` and
+  `studio/studio.html` are committed build artifacts, same doctrine
+  as `dist/index.html`.
+- make-release.bat rewritten for the tree story (3 steps, prints the
+  commit+tag instructions; the zip step is gone); paths patched in
+  push.bat (all modes), finish.mjs (studio build destination),
+  smoke-devices/smoke-studio (both re-run green), README's How-it's-
+  built table, ARCHITECTURE.md, custom_components/README.md.
+- Publishing flow now: make-release.bat → git add/commit/push →
+  GitHub release with tag v<manifest version>. HACS installs
+  custom_components/harmonium from the tag.
+
 ## Current state (v0.83.3, 2026-08-13)
 
 v0.83.3 — **DESLUG** (statusreview tweak, climate-detail screenshot:

@@ -137,7 +137,7 @@ into hand-edited config for things the Studio doesn't surface yet.
 | Piece | What it is | Ships as |
 |---|---|---|
 | **Engine** | The remote UI: screens, tiles, activities, D-pad focus, passthrough, media library + search | `dist/index.html` — one file, zero deps |
-| **Integration** | HA custom component: config store, validate→store→deploy API, `harmonium.*` services, pairing broker, engine self-deploy | `integration/custom_components/harmonium/` |
+| **Integration** | HA custom component: config store, validate→store→deploy API, `harmonium.*` services, pairing broker, engine self-deploy | `custom_components/harmonium/` |
 | **Studio** | The visual editor, hosted as an HA panel — the live preview is the real engine | `studio-src/` (Svelte 5) → single `studio.html` |
 | **Config** | Pure data: screens, tiles, activities, keymaps, theme — owned per house by its HA | `www/harmonium/config.json` on each house |
 

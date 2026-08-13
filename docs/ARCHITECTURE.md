@@ -147,7 +147,7 @@ one device's generated detail page.
 - `validate()` walks every reference (navigation targets, sequence
   refs, tile ids, nav targets) and refuses to emit a broken config.
 
-## The integration (`integration/custom_components/harmonium/`)
+## The integration (`custom_components/harmonium/`)
 
 - **Store**: the deployed config, seeded from `dist/config.json` by
   `harmonium.reseed`.
