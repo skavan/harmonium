@@ -87,6 +87,8 @@ remote does. One click mints it a named, revocable token:
 
 ## Quick start
 
+#### This is an early release. It is running on 2 HA instances that I have, but YMMV. Please provide feedback so I can make it more robust, as needed.
+
 1. **Install the integration** — add this repo as a
    [custom repository in HACS](https://hacs.xyz/docs/faq/custom_repositories)
    (`skavan/harmonium`, type *Integration*), install **Harmonium**,
