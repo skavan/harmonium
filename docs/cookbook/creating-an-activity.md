@@ -454,9 +454,13 @@ auto-scrolls when it overflows — for controllers where music is
 background), *Art hero — side panel* (the artwork rides the right
 edge at full strength and fades toward the text; the library jump
 is a full-height fade-in zone over the art; this is the default
-hero), or *Art wash — full-bleed* (the original: dimmed artwork
-under the whole card, a small cover thumb beside the text). On the
-stock music controller Auto shows the side panel. The rows:
+hero), or *Poster — big art + progress* (the phone-player shape:
+big centered artwork, the track under it, a real progress bar with
+elapsed/total times, and a full-width bar to the library beneath —
+no transport or volume inside, those stay their own bands). On the
+stock music controller Auto shows the side panel. (An older
+*Art wash — full-bleed* renderer still works for configs that
+chose it, but it's no longer offered fresh.) The rows:
 Now Playing, Transport, Modes, the Volume band
 (with this activity's default volume style — per-tile and per-member
 settings still win), **Speakers** (the grouping card: link players

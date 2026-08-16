@@ -39,6 +39,12 @@ export const app = $state({
   workspace: "main",  // current workspace id
   workspaces: {},     // id → {name, file} from the server roster
   wsOrder: [],
+  /* IMPORT ASKS FIRST (v0.83.8 follow-up — Suresh: "When I import a
+     workspace it overrites main. It should give the choice."). A
+     parsed import parks here and the dialog decides where it lands:
+     { kind: "single", config, stamp, fname } or
+     { kind: "bundle", order, workspaces: {id: {name, config}} } */
+  importAsk: null,
   prevKey: null,      // last slice before the current one (Back on model pages)
   pending: null,      // in-flight ＋-minted action draft {seqId, kind, activityId, originKey}
   focusActivity: null, // activity card to re-open after returning from a draft
@@ -74,7 +80,7 @@ const wsStash = {};
    in every workspace so Navigate-to always offers a controller. */
 export const GENERIC_MEDIA_CONTROLLER = {
   name: "Media Player",
-  gen: 1,
+  gen: 2,   /* gen 2 (v0.83.8): the Apps section went 2-up */
   class: "activity", view_kind: "controller", type: "controller",
   control_target: {
     label: "$activity.name", navigation: "$context.dpad",
@@ -109,7 +115,9 @@ export const GENERIC_MEDIA_CONTROLLER = {
        sections self-hide when the active dialect declares nothing. */
     { columns: 2, title: "Device keys", hero_label: "Device keys", role: "keys",
       tiles: [{ id: "keys", type: "keys" }] },
-    { columns: 3, title: "Apps", hero_label: "Apps", role: "apps",
+    /* 2-up since v0.83.8 (Suresh: "lets make this grid 2 x 2 (bigger
+       tiles, text)") — the engine sizes app tiles up via cls "app" */
+    { columns: 2, title: "Apps", hero_label: "Apps", role: "apps",
       tiles: [{ id: "apps", type: "apps" }] },
     { columns: 1, title: "Devices", hero_label: "Devices", role: "devices",
       tiles: [{ id: "cast", type: "devices" }] },
@@ -144,12 +152,14 @@ export const DOMAIN_STOCKS = {
    mirrors the compiler's views/apps.yaml output exactly */
 export const STOCK_APPS_DRAWER = {
   name: "Apps",
-  gen: 1, class: "group", view_kind: "library", type: "library",
+  /* gen 2 (v0.83.8 — Suresh: "lets make this grid 2 x 2"): two
+     columns; the engine's cls "app" stamp does the bigger-tile half */
+  gen: 2, class: "group", view_kind: "library", type: "library",
   parent: "controller:tv",
   control_target: { label: "$activity.name", navigation: "$context.dpad",
     power: "$context.power", volume: "$context.volume", pass_through: ["power"] },
   drawer: true,
-  grid: { columns: 3 },
+  grid: { columns: 2 },
   sections: [{ tiles: [{ id: "apps_grid", type: "apps" }], hero_label: "Apps" }],
 };
 
@@ -855,7 +865,15 @@ export async function deleteWorkspace(id) {
 }
 
 export function exportConfig() {
-  const blob = new Blob([JSON.stringify($state.snapshot(app.draft), null, 2)],
+  /* the export KNOWS which workspace it is (v0.83.8 follow-up —
+     Suresh: "We don't actually store the workspace name in the
+     json, which is a mistake"): a `_workspace` stamp rides along so
+     a later import can offer the right destination. Stripped on
+     import; the engine never sees it. */
+  const out = $state.snapshot(app.draft);
+  out._workspace = { id: app.workspace,
+    name: app.workspaces[app.workspace]?.name || app.workspace };
+  const blob = new Blob([JSON.stringify(out, null, 2)],
     { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -893,29 +911,118 @@ export async function exportAllConfigs() {
   setStatus("exported " + order.length + " workspace" + (order.length === 1 ? "" : "s"), "ok");
 }
 
+/* IMPORT, REWORKED (v0.83.8 follow-up — Suresh: "When I import a
+   workspace it overrites main. It should give the choice. … and we
+   don't allow the import of the full workspace (it should, and which
+   workspaces to import)"). importConfig now only PARSES and parks
+   the result on app.importAsk; the dialog picks the destination and
+   resolveImport() does the landing:
+   - single config → this workspace's draft (safe, Save & Deploy to
+     keep) · REPLACE another workspace (stored + deployed, now) ·
+     a NEW workspace;
+   - a whole-house bundle → tick which workspaces to import; existing
+     ids are replaced, missing ids created. */
 export async function importConfig(file) {
   try {
-    /* a whole-house bundle is not a workspace config — name the
-       mismatch instead of half-loading it (v0.83.2) */
     const cfg = JSON.parse(await file.text());
-    if (cfg.harmonium_export === "workspaces")
-      throw new Error("that's a whole-house export (all workspaces) — " +
-        "open it and import one workspace's `config` object, or ask for " +
-        "a restore-all door if you need one");
+    if (cfg.harmonium_export === "workspaces") {
+      const order = (cfg.order || Object.keys(cfg.workspaces || {}))
+        .filter((id) => cfg.workspaces?.[id]?.config?.screens);
+      if (!order.length)
+        throw new Error("bundle holds no importable workspaces");
+      app.importAsk = { kind: "bundle", fname: file.name, order,
+        workspaces: cfg.workspaces };
+      return;
+    }
+    const stamp = cfg._workspace || null;   /* older exports have none */
+    delete cfg._workspace;
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
-    /* the FULL normalize chain (v0.75): import used to hand-roll a
-       subset and skip ensureStockControllers — so an older export kept
-       stale stock surfaces (no generation heal) until the next boot.
-       One config door, one normalizer. */
-    app.draft = normalizeConfig(cfg);
-    const rooms = roomIds();
-    selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
-    pushPreview();
-    setStatus("imported into " + app.workspace + " (draft — Save & Deploy to keep)", "ok");
+    app.importAsk = { kind: "single", fname: file.name, config: cfg, stamp };
   } catch (e) {
     setStatus("import failed: " + e.message, "err");
   }
 }
+
+/* land an import into THIS workspace's draft — the v0.75 rule holds:
+   one config door, one normalizer (ensureStockControllers, heals) */
+function importIntoDraft(cfg) {
+  app.draft = normalizeConfig(JSON.parse(JSON.stringify(cfg)));
+  const rooms = roomIds();
+  selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
+  pushPreview();
+  setStatus("imported into " + app.workspace + " (draft — Save & Deploy to keep)", "ok");
+}
+
+/* REPLACE a workspace's stored config outright (validate + store +
+   deploy server-side). The current workspace refreshes in place;
+   any stale stash of the target is dropped. */
+async function importReplaceWs(ws, cfg) {
+  const r = await api("POST", cfg, "?ws=" + encodeURIComponent(ws));
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.problems?.join("; ") || out.message || "HTTP " + r.status);
+  delete wsStash[ws];
+  if (ws === app.workspace) {
+    app.saved = normalizeConfig(JSON.parse(JSON.stringify(cfg)));
+    app.draft = JSON.parse(JSON.stringify(app.saved));
+    rebaseline();
+    selectSlice("map");
+    pushPreview();
+  }
+}
+
+export async function resolveImport(opt) {
+  const ask = app.importAsk;
+  if (!ask) return;
+  try {
+    if (ask.kind === "single") {
+      if (opt.dest === "draft") {
+        importIntoDraft(ask.config);
+      } else if (opt.dest === "replace") {
+        if (!opt.ws) throw new Error("pick a workspace to replace");
+        await importReplaceWs(opt.ws, ask.config);
+        setStatus("replaced workspace '" + (app.workspaces[opt.ws]?.name || opt.ws) +
+          "' (stored + deployed)", "ok");
+      } else if (opt.dest === "new") {
+        const name = (opt.name || "").trim();
+        if (!name) throw new Error("name the new workspace");
+        const out = await wsAction({ action: "create", name,
+          /* keep the stamped id when it's free (a restore keeps its
+             address); a taken id lets the server slug the name */
+          ...(ask.stamp?.id && ask.stamp.id !== "main" &&
+            !app.workspaces[ask.stamp.id] ? { id: ask.stamp.id } : {}),
+          config: JSON.parse(JSON.stringify(ask.config)),
+          from: ask.stamp?.id || app.workspace });
+        await loadWorkspaces();
+        setStatus("workspace '" + name + "' created from the import", "ok");
+        await switchWorkspace(out.workspace);
+      }
+    } else {
+      /* bundle: each ticked workspace lands where its id says */
+      const picked = ask.order.filter((id) => opt.ticks?.[id]);
+      if (!picked.length) throw new Error("nothing ticked");
+      let replaced = 0, created = 0;
+      for (const id of picked) {
+        const entry = ask.workspaces[id];
+        if (app.workspaces[id]) {
+          await importReplaceWs(id, entry.config);
+          replaced++;
+        } else {
+          await wsAction({ action: "create", name: entry.name || id, id,
+            config: JSON.parse(JSON.stringify(entry.config)), from: "main" });
+          created++;
+        }
+      }
+      await loadWorkspaces();
+      setStatus("bundle imported — " + replaced + " replaced, " + created +
+        " created (stored + deployed)", "ok");
+    }
+    app.importAsk = null;
+  } catch (e) {
+    setStatus("import failed: " + e.message, "err");
+  }
+}
+
+export function cancelImport() { app.importAsk = null; }
 
 export function clearCurrent() {
   app.draft = starterConfig();
@@ -927,10 +1034,47 @@ export function clearCurrent() {
 /* the Studio's OWN build stamp (v0.83.3 — the "is my push actually
    running?" question kept costing rounds: HA serves studio.html with
    hard cache headers, so a stale tab looks exactly like a bad fix).
-   Bump alongside PROJECT.md when the Studio changes. */
-export const STUDIO_V = "0.83.26";
+   Bump on EVERY Studio build. Format since v0.83.8 (Suresh: "Why is
+   it 0.83.30 when my release seems to want to be 0.83.8?"):
+   "<release> b<build>" — the release the build belongs to, then a
+   build counter that never resets (b30 continues the old 0.83.NN
+   line, so history stays ordered). The footer reads s0.83.8 b30:
+   release first, fingerprint after. */
+export const STUDIO_V = "0.83.8 b31";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
+
+/* STUDIO IMAGE UPLOAD (v0.83.8 — beta-gaps P1 #7, the .88 stranger
+   test: "install Samba just to get a hero picture onto the box").
+   POST a picture to the integration; heroes land in the house's own
+   www/images/ (OUTSIDE the wipeable harmonium tree — his call:
+   "Are you sure we want our uploaded hero images inside
+   harmonium?"), skins in www/harmonium/skins/; the /local/… path
+   comes back, ready for the field. A 409 means a file of that
+   name already exists — the caller confirms, then retries with
+   overwrite. Never silently stomps a user's picture. */
+export async function uploadImage(file, kind = "image", overwrite = false) {
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  fd.append("kind", kind);
+  if (overwrite) fd.append("overwrite", "1");
+  const r = await fetch("/api/harmonium/upload", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token() },
+    body: fd,
+  });
+  if (r.status === 401) {
+    app.authOpen = true;
+    app.authErr = "Token rejected — paste a fresh one.";
+    throw new Error("unauthorized");
+  }
+  let j = null;
+  try { j = await r.json(); } catch { /* error bodies may be text */ }
+  if (r.status === 409) return { exists: true, path: (j && j.path) || "" };
+  if (!r.ok || !j || !j.ok)
+    throw new Error((j && (j.message || j.error)) || "upload failed (" + r.status + ")");
+  return j;   /* { ok: true, path: "/local/harmonium/images/…" } */
+}
 
 /* column toggles (s0.83.10) — flip + persist */
 export function toggleNav() {

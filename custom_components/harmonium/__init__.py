@@ -189,6 +189,102 @@ class HarmoniumEngineVersionView(HomeAssistantView):
         )
 
 
+# ---- Studio image upload (v0.83.8 — beta-gaps P1 #7: "a stranger
+# never needs filesystem access to finish a good-looking page") ------
+UPLOAD_MAX = 8 * 1024 * 1024
+UPLOAD_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+# PNG / JPEG / GIF / RIFF(WEBP) signatures — with the extension
+# whitelist this keeps "renamed a .zip to .png" out of www/
+UPLOAD_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"RIFF")
+
+
+class HarmoniumUploadView(HomeAssistantView):
+    """POST /api/harmonium/upload — a picture for the deployed tree.
+
+    Multipart form: `file` (the image), `kind` ("image" | "skin"),
+    `overwrite` ("1" to replace an existing name). Returns the
+    /local/… path ready for a Studio field. Without overwrite an
+    existing name answers 409 so the Studio can ask first — a user's
+    picture is never silently replaced. Authenticated: only a
+    logged-in Studio writes; size and type are whitelisted.
+
+    WHERE THINGS LAND (v0.83.8 follow-up — Suresh: "Are you sure we
+    want our uploaded hero images inside harmonium?" — he was right):
+    hero/banner pictures go to www/images/ (/local/images/…), the
+    house's own picture folder, OUTSIDE the integration's deploy
+    tree — a wipe-and-reinstall deletes www/harmonium/ wholesale and
+    must never eat family photos. Device-photo SKINS stay at
+    www/harmonium/skins/ because they are Harmonium furniture (the
+    bundled-skin deploy already manages that folder); the wipe doc
+    says to re-upload them after a wipe.
+    """
+
+    url = "/api/harmonium/upload"
+    name = "api:harmonium:upload"
+    requires_auth = True
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def post(self, request: web.Request) -> web.Response:
+        try:
+            form = await request.post()
+        except ValueError:
+            return self.json_message("body is not multipart form data",
+                                     status_code=400)
+        f = form.get("file")
+        if f is None or not getattr(f, "filename", None):
+            return self.json_message("no file field in the form",
+                                     status_code=400)
+        skin = form.get("kind") == "skin"
+        overwrite = str(form.get("overwrite") or "") in ("1", "true", "yes")
+        src = Path(str(f.filename))
+        ext = src.suffix.lower()
+        if ext == ".jpeg":
+            ext = ".jpg"
+        if ext not in UPLOAD_EXT:
+            return self.json_message(
+                f"unsupported type '{ext or 'none'}' — png/jpg/webp/gif only",
+                status_code=415)
+        base = slugify(src.stem) or "upload"
+        data = await self.hass.async_add_executor_job(
+            f.file.read, UPLOAD_MAX + 1)
+        if len(data) > UPLOAD_MAX:
+            return self.json_message("file too large (8 MB max)",
+                                     status_code=413)
+        if not data.startswith(UPLOAD_MAGIC):
+            return self.json_message("that file does not look like an image",
+                                     status_code=415)
+        if skin:
+            target = Path(self.hass.config.path(DEPLOY_DIR)) / "skins" / (base + ext)
+            local = f"/local/harmonium/skins/{base}{ext}"
+        else:
+            target = Path(self.hass.config.path("www/images")) / (base + ext)
+            local = f"/local/images/{base}{ext}"
+
+        def _write() -> bool:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists() and not overwrite:
+                return False
+            # tmp + rename: a remote fetching mid-upload never sees
+            # a half-written picture
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            tmp.write_bytes(data)
+            tmp.replace(target)
+            return True
+
+        try:
+            wrote = await self.hass.async_add_executor_job(_write)
+        except OSError as err:
+            return self.json_message(f"could not write the file: {err}",
+                                     status_code=500)
+        if not wrote:
+            return self.json({"ok": False, "exists": True, "path": local},
+                             status_code=409)
+        _LOGGER.info("Harmonium upload: %s (%d bytes)", target, len(data))
+        return self.json({"ok": True, "path": local, "file": base + ext})
+
+
 class HarmoniumConfigView(HomeAssistantView):
     """Authenticated runtime-config endpoint for the Studio.
 
@@ -731,6 +827,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.http.register_view(HarmoniumConfigView(hass, hstore, mint))
     hass.http.register_view(HarmoniumWorkspacesView(hass, hstore, mint))
+    hass.http.register_view(HarmoniumUploadView(hass))   # v0.83.8
     # the integration's own version, read once from its manifest —
     # the Studio surfaces it and checks GitHub for a newer release
     def _manifest_version() -> str:

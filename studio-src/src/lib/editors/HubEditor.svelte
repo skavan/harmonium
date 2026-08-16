@@ -16,6 +16,7 @@
   import EntityPicker from "../components/EntityPicker.svelte";
   import ActivityCard from "../components/ActivityCard.svelte";
   import SectionFold from "../components/SectionFold.svelte";
+  import UploadBtn from "../components/UploadBtn.svelte";
   import SectionHeader from "../components/SectionHeader.svelte";
   import Segmented from "../components/Segmented.svelte";
   import SourceChip from "../components/SourceChip.svelte";
@@ -576,8 +577,14 @@
           <Field label="Title override" hint="blank = the hub's name">
             <Input bind:value={scr.banner.title} placeholder={scr.name || screenId} />
           </Field>
-          <Field label="Image" hint="path under /local/ (HA www/)">
-            <Input bind:value={scr.banner.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
+          <Field label="Image" hint="path under /local/ (HA www/) — or upload one">
+            <div class="flex items-center gap-1.5">
+              <Input bind:value={scr.banner.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
+              <!-- v0.83.8 (beta-gaps P1 #7): pick or drop a picture;
+                   it uploads to www/harmonium/images/ and the path
+                   lands here — no Samba, no file editor -->
+              <UploadBtn onDone={(p) => { scr.banner.image = p; edit(); }} />
+            </div>
           </Field>
           <Field label="Image opacity">
             <Input type="number" min="0" max="1" step="0.05" bind:value={scr.banner.image_opacity} />

@@ -15,6 +15,8 @@ outcome on your remote.
 | [Hardware keys](hardware-keys.md) | Physical buttons doing the right thing on every page |
 | [Workspaces](workspaces.md) | A second remote with a different world |
 | [Theming](theming.md) | Your accent, your radius, per-device fonts |
+| [Wipe & reinstall](wipe-and-reinstall.md) | A box with zero trace of Harmonium — the virgin-install test |
+| [Cutting a release](releasing.md) | make-release → commit → tag matching the manifest → rollout |
 
 Deeper, config-level recipes (hand-edited JSON for things the Studio
 doesn't surface yet — entity quirks, per-device tiles, app links) live

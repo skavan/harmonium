@@ -271,9 +271,71 @@
   .npa { font-family: var(--font-2); font-size: calc(var(--fs-2) + 1px); font-weight: var(--fw-2); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
   .npb { font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px); font-weight: var(--fw-2); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
+  /* now-playing POSTER (v0.83.8 — Suresh's found screenshot: "I think
+     we build this. With a Bar underneath for the Library"): stacked —
+     big centered art, track text, progress + times, Library bar.
+     Same child slots as the heroes; only the geometry differs. */
+  .tile.wgt-media.poster .top, .tile.wgt-media.poster .sub { display: none; }
+  .tile.wgt-media.poster { display: flex; flex-direction: column; }
+  /* the chassis trailing becomes the bottom bar — cancel its
+     right-edge reservation and geometry outright */
+  .tile.wgt-media.poster.has-trail,
+  .tile.wgt-media.poster.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  .npposter { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0 0; }
+  /* ~12px SHORTER than the first cut (v0.83.8 follow-up — Suresh:
+     "the Poster panel was too big, pushing the transport down so it
+     got clipped. The Poster needs to be 8-12px shorter"): pad 4→2,
+     art/progress margins 12→8, trail 12→10. The artwork itself is
+     untouched, and an artless card simply shrinks — that was always
+     fine. */
+  .npposter .npimg {
+    width: min(72%, 300px); height: auto; aspect-ratio: 1 / 1;
+    border-radius: 14px; object-fit: cover; margin: 2px auto 8px;
+  }
+  .npposter .npt { font-size: calc(var(--fs-1) + 3px); max-width: 100%; text-align: center; }
+  .npposter .npa { max-width: 100%; text-align: center; }
+  .npposter .npb { max-width: 100%; text-align: center; }
+  .npposter .npprog { width: 100%; margin-top: 8px; }
+  .npposter .nptimes {
+    display: flex; justify-content: space-between; width: 100%;
+    font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px);
+    font-weight: var(--fw-2); color: var(--dim); margin-top: 5px;
+  }
+  .tile.wgt-media.poster .trail,
+  .tile.wgt-media.poster .trail.tracc {
+    position: static; width: 100%; height: 46px; margin-top: 10px;
+    border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; gap: 9px;
+    background: var(--tile-hi); color: var(--text);
+  }
+  .tile.wgt-media.poster .trail .trlbl {
+    font-weight: var(--fw-1); font-size: var(--fs-2); letter-spacing: .02em;
+  }
+  .tile.wgt-media.poster .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
+  .tile.wgt-media.poster .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined { color: inherit; }
+  .tile.wgt-media.poster .trail.focused {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  }
+
+  /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
+     (bigger tiles, text) and get the alignment right"): the apps
+     generator stamps cls "app"; the drawer stock went to 2 columns.
+     Bigger glyph/art, bigger label, everything centered on one axis. */
+  .tile.wgt-preset.app { min-height: 96px; padding: 14px 8px 12px; }
+  .tile.wgt-preset.app .top .ic { font-size: 38px; margin: 0 auto 8px; }
+  .tile.wgt-preset.app .top img {
+    width: calc(var(--app-art) + 10px); height: calc(var(--app-art) + 10px);
+    margin: 0 auto 8px;
+  }
+  .tile.wgt-preset.app .lbl { font-size: calc(var(--fs-2) + 1px); }
+
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
-  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; }
+  /* flex: none — the oval-play insurance (v0.83.8, P1 #9): if spacing
+     ever over-counts again (a wrong nogap doubled it), the row may
+     overflow but the circle stays a circle */
+  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
   .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
   .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }
@@ -1812,6 +1874,11 @@ function expandTile(t) {
       const image = ov.image || meta.image;
       return action && {
         type: "preset", id: t.id + "_" + aid,
+        /* cls "app" (v0.83.8 — "bigger tiles, text"): app launchers
+           earn their own CSS size class via the chassis passthrough,
+           so the drawer can grow without touching preset tiles at
+           large (presets band, device keys) */
+        cls: "app",
         icon: ov.icon || meta.icon || "material:apps",
         ...(image ? { icon_image: image } : {}),
         label: ov.name || meta.name || aid,
@@ -5113,7 +5180,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.83.7";
+const ENGINE_V = "0.83.8";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5920,9 +5987,14 @@ WIDGETS.climate = {
     }
   };
 
-/* MEDIA tile — now-playing card; tap play/pauses. THREE renderers
+/* MEDIA tile — now-playing card; tap play/pauses. FOUR renderers
    (v0.83.7 — Suresh: "lets come up with 3 renderers"): default card,
-   style:"slim" one-liner, style:"art" hero (legacy art:true). */
+   style:"slim" one-liner, style:"art" hero (legacy art:true), and
+   style:"poster" (v0.83.8 — his found-in-the-wild screenshot: "I
+   think we build this. With a Bar underneath for the Library"):
+   big centered artwork, track text under it, a real progress bar
+   with elapsed/total times, and the chassis trailing restyled as a
+   full-width bar — NO transport and NO volume, those are bands. */
 /* style resolution (v0.83.7 follow-up — Suresh: "Hero tile seems the
    same as Standard": on the stock MUSIC controller the surface tile
    says art:true, so "Standard" WAS the hero). "plain" exists to say
@@ -5964,6 +6036,19 @@ WIDGETS.media = {
     select: e => callService("media_player", "media_play_pause", null, e),
     body: t => {
       const m = npMode(t);
+      /* poster: same data slots as the heroes (npt/npa/npb/npimg/
+         npprog — render() below is shared verbatim), stacked instead
+         of side-by-side, plus the elapsed/total readout under the
+         meter. The Library bar is the chassis TRAILING, restyled
+         full-width in CSS — no second navigation grammar. */
+      if (m === "poster") return `<div class="npposter">
+      <img class="npimg hidden" alt="">
+      <div class="npt"></div>
+      <div class="npa"></div>
+      <div class="npb"></div>
+      <div class="meter npprog hidden"><i></i></div>
+      <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>
+    </div>`;
       if (m === "art" || m === "wash") return `<div class="npwrap">
       <img class="npimg hidden" alt="">
       <div class="npmeta">
@@ -5982,8 +6067,8 @@ WIDGETS.media = {
     wire: (el, t) => {
       const m = npMode(t);
       if (m === "slim") { el.classList.add("slim"); return; }
-      if (m !== "art" && m !== "wash") return;
-      el.classList.add(m === "wash" ? "wash" : "art");
+      if (m !== "art" && m !== "wash" && m !== "poster") return;
+      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster" : "art");
       const img = el.querySelector(".npimg");
       img.addEventListener("error", () => img.classList.add("hidden"));
     },
@@ -6018,9 +6103,23 @@ WIDGETS.media = {
         }
         return;
       }
-      if (npMode(t) !== "art" && npMode(t) !== "wash") return;
+      const mm = npMode(t);
+      if (mm !== "art" && mm !== "wash" && mm !== "poster") return;
       const s = st(e);
       el.dataset.eid = e || "";
+      /* the poster's Library bar wants a WORD next to the trailing's
+         icon — named after where it actually goes (the music
+         library, the apps drawer…), read from the target screen */
+      if (mm === "poster") {
+        const trb = el.querySelector(".trail");
+        if (trb && !trb.querySelector(".trlbl")) {
+          const trg = trailingOf(t);
+          const nav = trg && trg.action && trg.action.navigate;
+          const tsc = nav && typeof nav === "string" ? screenOf(nav) : null;
+          trb.insertAdjacentHTML("beforeend",
+            `<span class="trlbl">${(tsc && tsc.name) || "Library"}</span>`);
+        }
+      }
       /* QUEUING (v0.73.3): a play is in flight — say so, pulsing,
          instead of sitting on "Idle" while the playlist arrives */
       const pend = npPending(e, s);
@@ -6081,20 +6180,40 @@ function npPending(e, s) {
   return p;
 }
 
+/* m:ss under an hour, h:mm:ss over — the shape every player uses */
+function npClock(x) {
+  x = Math.max(0, Math.round(x));
+  const h = Math.floor(x / 3600), m = Math.floor(x % 3600 / 60), s = x % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : String(m)) +
+    ":" + String(s).padStart(2, "0");
+}
 function npProgress(el, s) {
   const bar = el.querySelector(".npprog");
   if (!bar) return;
+  const tm = el.querySelector(".nptimes");
   const d = s.a.media_duration;
-  if (!d) { bar.classList.add("hidden"); return; }
+  if (!d) {
+    bar.classList.add("hidden");
+    if (tm) tm.classList.add("hidden");
+    return;
+  }
   let p = s.a.media_position || 0;
   if (s.s === "playing" && s.a.media_position_updated_at)
     p += (Date.now() - Date.parse(s.a.media_position_updated_at)) / 1000;
   bar.classList.remove("hidden");
   bar.firstElementChild.style.width =
     Math.max(0, Math.min(100, Math.round(p / d * 100))) + "%";
+  /* the poster's 0:36 / 4:19 readout, riding the same interpolation */
+  if (tm) {
+    tm.classList.remove("hidden");
+    tm.querySelector(".npel").textContent = npClock(Math.min(p, d));
+    tm.querySelector(".npdu").textContent = npClock(d);
+  }
 }
 setInterval(() => {
-  document.querySelectorAll(".tile.wgt-media.art, .tile.wgt-media.wash").forEach(el => {
+  document.querySelectorAll(
+    ".tile.wgt-media.art, .tile.wgt-media.wash, .tile.wgt-media.poster"
+  ).forEach(el => {
     const s = st(el.dataset.eid);
     if (s.s === "playing") npProgress(el, s);
   });
@@ -8366,20 +8485,49 @@ document.addEventListener("keyup", e => {
    under html.nogap, so a modern engine (Astrion, Haptique, desktop)
    never matches a single one of them and renders exactly as before.
    Deliberately ES5 — this must run on the oldest webview we support. */
+/* THE OVAL PLAY BUTTON, SOLVED (v0.83.8 — P1 #9, Suresh's DevTools
+   dig: "html.nogap .trow > * + * { margin-left: 26px }" live on a
+   modern Chrome). The old probe measured two ZERO-height divs with
+   row-gap:1px and read scrollHeight===1 as "supported". But an
+   iframe inside a display:none subtree gets NO LAYOUT AT ALL —
+   scrollHeight 0 — which is exactly where the Studio's preview
+   engine boots on a hard refresh (the pane starts hidden). 0 ≠ 1 →
+   "unsupported" → nogap forever → margin fallbacks stacked ON TOP
+   of the working gap → the transport row overflowed and the play
+   circle squashed (71×84, no flex-shrink guard). A preview ↻
+   reloads with the pane visible, the probe reads 1, and the oval
+   "fixes itself" — the whole two-week ghost. Now the divs have real
+   heights so the three states are distinguishable: 3 = gap works ·
+   2 = gap ignored (genuine old webview) · 0 = no layout yet — in
+   which case we RETRY until layout exists instead of guessing wrong
+   once and forever. */
 (function () {
-  try {
-    var p = document.createElement("div");
-    /* NB: no height:0 — it clamps scrollHeight to 0 and the probe then
-       reports "unsupported" on every engine, including modern ones. */
-    p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
-                      "position:absolute;visibility:hidden;top:-9999px";
-    p.appendChild(document.createElement("div"));
-    p.appendChild(document.createElement("div"));
-    (document.body || document.documentElement).appendChild(p);
-    var supported = p.scrollHeight === 1;
-    p.parentNode.removeChild(p);
-    if (!supported) document.documentElement.classList.add("nogap");
-  } catch (e) { /* probe must never break boot */ }
+  function measure() {
+    try {
+      var p = document.createElement("div");
+      p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
+                        "position:absolute;visibility:hidden;top:-9999px";
+      var a = document.createElement("div");
+      var b = document.createElement("div");
+      a.style.height = "1px";
+      b.style.height = "1px";
+      p.appendChild(a);
+      p.appendChild(b);
+      (document.body || document.documentElement).appendChild(p);
+      var h = p.scrollHeight;
+      p.parentNode.removeChild(p);
+      return h;
+    } catch (e) { return 3; }   /* probe must never break boot */
+  }
+  var tries = 0;
+  (function run() {
+    var h = measure();
+    if (h === 0) {              /* hidden — no layout to measure yet */
+      if (tries++ < 600) setTimeout(run, 100);
+      return;                   /* give up silently = modern default */
+    }
+    if (h < 3) document.documentElement.classList.add("nogap");
+  })();
 })();
 
 /* ================================================================

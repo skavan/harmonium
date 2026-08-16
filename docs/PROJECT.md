@@ -79,7 +79,142 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.83.7 READY TO TAG, 2026-08-16 — KeyMapper landed, release prepped)
+## Current state (v0.83.8 pending, 2026-08-16 — image upload + the Poster + apps 2-up + import chooser, s0.83.30)
+
+- **IMPORT ASKS WHERE (his: "When I import a workspace it overrites
+  main. It should give the choice … we don't allow the import of the
+  full workspace (it should, and which workspaces to import)")**:
+  Import now parses the file and opens a DESTINATION dialog instead
+  of stomping the current draft. Single config → into this
+  workspace's draft (safe default; Save & Deploy to keep) · replace
+  another workspace (stored + deployed immediately, labeled in red)
+  · a new workspace. Whole-house bundles (the "All workspaces"
+  export) are now importable: a tick-list per workspace — existing
+  ids replaced, missing ids created (server create-with-config;
+  freed stamped ids keep their address). Single exports now carry a
+  **`_workspace: {id, name}` stamp** (his "we don't actually store
+  the workspace name in the json, which is a mistake") — stripped on
+  import, used to preselect the right destination ("this file is
+  deck" → replace deck). ImportDialog.svelte NEW; probe-import.mjs
+  NEW (unstamped single → dialog + create · stamped single →
+  replace-deck preselected · bundle → 1 replaced + 1 created ·
+  export stamp). workspaces.md documents the doors.
+
+- **UPLOADS MOVED OUT OF THE WIPE ZONE (his call: "Are you sure we
+  want our uploaded hero images inside harmonium?")**: hero/banner
+  uploads now land in **www/images/ (/local/images/…)** — the
+  house's own picture folder, outside the integration's deploy tree,
+  which the wipe doc deletes wholesale. Device-photo skins stay at
+  www/harmonium/skins/ (Harmonium furniture; re-upload after a
+  wipe — wipe doc updated to say both halves out loud). .py changed
+  again — same restart covers it.
+- **POSTER: ~12px SHORTER** (corrected read — his clarification:
+  "the Poster panel was too big, pushing the transport down so it
+  got clipped. The Poster needs to be 8-12px shorter"; the artless
+  shrink was always fine): pad 4→2, art/progress margins 12→8,
+  trail 12→10 — with-art card 505→493px, transport fits above the
+  fold; artwork itself untouched; an artless card shrinks naturally
+  (the briefly-built placeholder/constant-size machinery is
+  REVERTED — misread). probe-np-poster asserts trimmed ≤496 + bare
+  shrinks + no placeholder.
+- **STAMP CONVENTION** (his: "Why is it 0.83.30 when my release
+  seems to want to be 0.83.8?"): STUDIO_V is now
+  `"<release> b<n>"` — the footer reads **s0.83.8 b31**, release
+  first, per-build fingerprint after (the counter continues the old
+  line and never resets). releasing.md documents it.
+- STUDIO_V → **0.83.8 b31**; battery 20/20; smoke-studio 106/0;
+  probe-nogap / probe-apps-grid / probe-upload-studio /
+  probe-import green.
+
+
+v0.83.7 tagged and live on .88 (virgin install passed); this round
+opens 0.83.8 (manifest + ENGINE_V bumped). **The .py changed — the
+deploy needs an HA restart.**
+
+- **STUDIO IMAGE UPLOAD (beta-gaps P1 #7 — SHIPPED)**: authenticated
+  `POST /api/harmonium/upload` in the integration (multipart; kind
+  image|skin; 8 MB cap; png/jpg/webp/gif whitelist + magic-byte
+  sniff; slugified name; tmp+rename write; **409 on an existing name
+  unless overwrite** — a user's picture is never silently replaced)
+  lands files under www/harmonium/images/ (skins/) and returns the
+  /local/… path. Studio: UploadBtn.svelte — a 📤 button that is also
+  a DROP TARGET — on the Hero banner Image field (fills the field,
+  marks the draft) and in the skin map toolbar ("photo…", repoints
+  skin.image). The 409 path confirms then retries with overwrite.
+  probe-upload-studio.mjs drives the real drop → 409 → confirm →
+  overwrite → field filled.
+- **NOW PLAYING "POSTER" (his found-in-the-wild screenshot: "I think
+  we build this. With a Bar underneath for the Library")**:
+  np_style "poster" — stacked big centered artwork (72%, square,
+  rounded), title/artist/album centered under it, a REAL progress
+  bar with the 0:36 / 4:19 clock (new npClock; the shared 1s ticker
+  now walks .poster too), and the chassis trailing restyled as a
+  FULL-WIDTH bar named after its destination (trlbl reads the
+  target screen's name — "Music Library", "Apps"). No transport, no
+  volume — those are bands. Same render() slots as the heroes, only
+  the geometry differs. probe-np-poster.mjs green (incl. the
+  ticking clock).
+- **"Art wash" HIDDEN from the NP select** ("I think we can hide
+  the Art Wash option") — the engine still honors wash and a config
+  already on it shows "Art wash — full-bleed (legacy)" so the
+  select never lies; it's just not offered fresh.
+- **APPS GRID 2-UP** ("lets make this grid 2 x 2 (bigger tiles,
+  text) and get the alignment right"): STOCK_APPS_DRAWER →
+  grid.columns 2, **gen 2** (healStockGen upgrades house copies on
+  next Studio load); GENERIC_MEDIA_CONTROLLER's Apps section
+  likewise (gen 2); starter-config.json patched. The apps generator
+  stamps cls "app" so ONLY app launchers grow: 38px glyph / +10px
+  art, 14px label, min-height 96, centered. probe-apps-grid.mjs
+  asserts the true 2×2.
+- **THE STRETCH, ROUND 3 (it recurred ON s0.83.26)**: the live
+  imgW measure fixed X but Y was still COMPUTED (imgW × natural
+  aspect — imgNat is one more stale-able input). Now the iframe
+  scales each axis to the CLIP BOX'S OWN measured size
+  (bind:clientWidth/Height on the aperture div) — the transform
+  can no longer disagree with the layout it lives in. Plus the P1
+  #9 capture protocol automated: any >2% anamorphic skew
+  console.warns every input (sx/sy/clip/imgNat/rect/viewport).
+- **P1 #9 SOLVED — THE OVAL WAS `html.nogap` ALL ALONG** (his
+  DevTools dig: `html.nogap .trow > * + * { margin-left: 26px }`
+  live on modern Chrome; play button 84×84 in CSS, 71×84 drawn;
+  killing either the margin or the gap cured it). Chain: the
+  flex-gap compat probe (boot.js) measured two zero-height divs and
+  read `scrollHeight === 1` as "supported" — but an iframe inside a
+  display:none subtree gets NO LAYOUT, scrollHeight 0, so the
+  engine booting behind a hidden preview pane (hard-refresh path)
+  concluded "no flex gap" and latched `nogap` forever. compat.css
+  margins then stacked ON TOP of the working gap, the transport row
+  overflowed, and the un-guarded circle squashed. ↻ reloads with
+  the pane visible → probe reads right → "fixes itself". Why the
+  Studio transform was always exonerated-then-suspected: the skew
+  really was 0 — the stretch lived INSIDE the engine. Fix: the
+  probe's divs get real heights so the states are distinguishable
+  (3 = gap works · 2 = genuinely ignored · 0 = no layout yet →
+  RETRY until layout exists, never guess); insurance: `.trow
+  .dpbtn/.trbig { flex: 0 0 auto }` — a wrong nogap may overflow
+  the row but can never make the circle oval. probe-nogap.mjs NEW
+  (direct boot · hidden-boot-then-reveal · forced-nogap circle
+  guard); battery 20/20. The skew strip stays as a tripwire.
+- **THE SKEW STRIP (s0.83.28 — "Still oval. No warnings in log")**:
+  he confirmed s0.83.27 AND the oval after a hard refresh (↻ cures
+  it), console clean — so the diagnostic moved ON SCREEN. A red
+  strip renders under the photo whenever the engine's scale is >2%
+  anamorphic, from TWO independent measurements: "bound" (the
+  clipW/clipH the transform uses) and "drawn" (the iframe's real
+  getBoundingClientRect box, sampled 1/s — catches a lie from ANY
+  input). Oval WITH the strip → the numbers on it name the guilty
+  input. Oval WITHOUT the strip → the transform is uniform and the
+  stretch lives upstream (photo/pane/compositor), a different hunt.
+  Headless sanity: silent at the true rect (0.77% — the known
+  rect-vs-viewport delta), loud on a rigged aperture (40.1%, both
+  measurements agreeing). Also learned: probes measuring preview
+  geometry must LEAVE the Workspace-map slice first — the pane is
+  display:none there and every rect reads 0.
+- STUDIO_V → **0.83.28**; battery 20/20, smoke-studio 106/0,
+  probe-np-poster / probe-apps-grid / probe-upload-studio NEW,
+  regression probes at baseline.
+
+## Current state (v0.83.7 TAGGED, 2026-08-16 — KeyMapper landed, release prepped)
 
 - **KeyMapper scripts, battle-tested on his machine**: three field
   bugs found and fixed in one sitting — (a) the empty-arg dot test

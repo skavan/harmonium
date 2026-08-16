@@ -79,9 +79,71 @@
   .npa { font-family: var(--font-2); font-size: calc(var(--fs-2) + 1px); font-weight: var(--fw-2); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
   .npb { font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px); font-weight: var(--fw-2); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
+  /* now-playing POSTER (v0.83.8 — Suresh's found screenshot: "I think
+     we build this. With a Bar underneath for the Library"): stacked —
+     big centered art, track text, progress + times, Library bar.
+     Same child slots as the heroes; only the geometry differs. */
+  .tile.wgt-media.poster .top, .tile.wgt-media.poster .sub { display: none; }
+  .tile.wgt-media.poster { display: flex; flex-direction: column; }
+  /* the chassis trailing becomes the bottom bar — cancel its
+     right-edge reservation and geometry outright */
+  .tile.wgt-media.poster.has-trail,
+  .tile.wgt-media.poster.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  .npposter { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0 0; }
+  /* ~12px SHORTER than the first cut (v0.83.8 follow-up — Suresh:
+     "the Poster panel was too big, pushing the transport down so it
+     got clipped. The Poster needs to be 8-12px shorter"): pad 4→2,
+     art/progress margins 12→8, trail 12→10. The artwork itself is
+     untouched, and an artless card simply shrinks — that was always
+     fine. */
+  .npposter .npimg {
+    width: min(72%, 300px); height: auto; aspect-ratio: 1 / 1;
+    border-radius: 14px; object-fit: cover; margin: 2px auto 8px;
+  }
+  .npposter .npt { font-size: calc(var(--fs-1) + 3px); max-width: 100%; text-align: center; }
+  .npposter .npa { max-width: 100%; text-align: center; }
+  .npposter .npb { max-width: 100%; text-align: center; }
+  .npposter .npprog { width: 100%; margin-top: 8px; }
+  .npposter .nptimes {
+    display: flex; justify-content: space-between; width: 100%;
+    font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px);
+    font-weight: var(--fw-2); color: var(--dim); margin-top: 5px;
+  }
+  .tile.wgt-media.poster .trail,
+  .tile.wgt-media.poster .trail.tracc {
+    position: static; width: 100%; height: 46px; margin-top: 10px;
+    border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; gap: 9px;
+    background: var(--tile-hi); color: var(--text);
+  }
+  .tile.wgt-media.poster .trail .trlbl {
+    font-weight: var(--fw-1); font-size: var(--fs-2); letter-spacing: .02em;
+  }
+  .tile.wgt-media.poster .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
+  .tile.wgt-media.poster .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined { color: inherit; }
+  .tile.wgt-media.poster .trail.focused {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  }
+
+  /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
+     (bigger tiles, text) and get the alignment right"): the apps
+     generator stamps cls "app"; the drawer stock went to 2 columns.
+     Bigger glyph/art, bigger label, everything centered on one axis. */
+  .tile.wgt-preset.app { min-height: 96px; padding: 14px 8px 12px; }
+  .tile.wgt-preset.app .top .ic { font-size: 38px; margin: 0 auto 8px; }
+  .tile.wgt-preset.app .top img {
+    width: calc(var(--app-art) + 10px); height: calc(var(--app-art) + 10px);
+    margin: 0 auto 8px;
+  }
+  .tile.wgt-preset.app .lbl { font-size: calc(var(--fs-2) + 1px); }
+
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
-  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; }
+  /* flex: none — the oval-play insurance (v0.83.8, P1 #9): if spacing
+     ever over-counts again (a wrong nogap doubled it), the row may
+     overflow but the circle stays a circle */
+  .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
   .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
   .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }

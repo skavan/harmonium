@@ -7,6 +7,7 @@
   import NavPane from "./lib/NavPane.svelte";
   import CenterPane from "./lib/CenterPane.svelte";
   import PreviewPane from "./lib/PreviewPane.svelte";
+  import ImportDialog from "./lib/components/ImportDialog.svelte";
 
   let tok = $state("");
 
@@ -120,7 +121,7 @@
       {/if}
     </div>
     <Button size="sm" variant="ghost" onclick={() => fileIn.click()}
-      title="Load a config JSON into this workspace's draft">Import</Button>
+      title="Load a config JSON — one workspace or a whole-house bundle; you pick where it lands">Import</Button>
     <input bind:this={fileIn} type="file" accept=".json,application/json" class="hidden"
       onchange={(e) => { if (e.target.files[0]) importConfig(e.target.files[0]); e.target.value = ""; }} />
     <span class="h-5 w-px shrink-0 bg-line"></span>
@@ -236,6 +237,13 @@
   <Button id="tokBtn" variant="primary" onclick={() => tok.trim() && connectToken(tok)}>Connect</Button>
   <p class="text-danger">{app.authErr}</p>
 </div>
+
+<!-- IMPORT DESTINATION (v0.83.8 follow-up — "It should give the
+     choice"): mounted fresh per parsed file, so its state never
+     leaks between imports -->
+{#if app.importAsk}
+  <ImportDialog />
+{/if}
 
 <!-- UNDO TOAST (redesign §7.1): 10 seconds of regret for any Remove -->
 {#if app.toast}

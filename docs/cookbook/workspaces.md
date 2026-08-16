@@ -41,8 +41,17 @@ Minted activity selects are prefixed per workspace
 existing automations never break. The engine build, the integration,
 and pairing are house-wide.
 
-Move things between workspaces with **snippets** (⤴ export on the
-piece, ⤵ import in the other workspace — see
+Whole configs travel through **Export / Import** in the header.
+Export offers this workspace (the JSON carries a `_workspace` stamp
+naming where it came from) or every workspace as one bundle — the
+whole-house backup. Import never lands silently: a dialog asks where
+— this workspace's draft (review, then Save & Deploy), replacing
+another workspace outright (stored + deployed immediately), or a new
+workspace. A bundle shows a tick-list of its workspaces; existing
+ids are replaced, missing ones created.
+
+Move smaller things between workspaces with **snippets** (⤴ export on
+the piece, ⤵ import in the other workspace — see
 [presets](presets.md#2-reuse-them-snippets)).
 
 ## Notes

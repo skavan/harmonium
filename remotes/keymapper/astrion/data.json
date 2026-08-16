@@ -1,0 +1,400 @@
+{
+	"keymap_db_version": 22,
+	"app_version": 247,
+	"keymap_list": [
+		{
+			"actionList": [
+				{
+					"data": "io.github.sds100.keymapper",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "3bd1f4cf-ebf4-4318-9bb4-75244ca3f913"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 1,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 141,
+						"scanCode": 87,
+						"uid": "53f9ce92-3c65-4e04-bc88-312a4c38571c"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "dd2a62e8-345b-431b-861e-013798d77f2e"
+		},
+		{
+			"actionList": [
+				{
+					"data": "io.homeassistant.companion.android.minimal",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "4534cb54-cdbb-4808-90cd-e15f43704444"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 2,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 138,
+						"scanCode": 66,
+						"uid": "6bae794d-c2d5-43f5-b30c-6edfc5c8c544"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "b9693f48-ef85-44f7-a78d-42a548bc6d67"
+		},
+		{
+			"actionList": [
+				{
+					"data": "de.ozerov.fully",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "e29660fc-914e-4470-914e-b50856fb35f2"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 3,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 139,
+						"scanCode": 67,
+						"uid": "bd6096d6-622a-432c-856c-c02dca2afe66"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "713f1fa6-0e48-4683-81e6-e17836d71bdc"
+		},
+		{
+			"actionList": [
+				{
+					"data": "com.aiks.HaRemote",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "cd8bc91f-f4b2-443f-b7ba-d4a81abd6660"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 4,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 140,
+						"scanCode": 68,
+						"uid": "9fc430b6-8bcd-4f3c-8022-3ce0b851792e"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "f0719700-8e8f-4984-99e5-aba75f7a4efb"
+		},
+		{
+			"actionList": [
+				{ "data": "81", "extras": [], "flags": 4, "type": "KEY_EVENT", "uid": "13cd4d0d-acf0-460f-9773-18415900d051" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 5,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 24,
+						"scanCode": 115,
+						"uid": "7910dfce-ffaa-4926-ae15-0df3e67ebfab"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "5e16624e-015b-4236-9c5d-c05863f02ce9"
+		},
+		{
+			"actionList": [
+				{ "data": "69", "extras": [], "flags": 4, "type": "KEY_EVENT", "uid": "2e184cb2-e5f0-4056-a9c9-64e2134a068c" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 6,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 25,
+						"scanCode": 114,
+						"uid": "19720cb8-6e8b-4160-af44-bdc0a0f6a127"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "23897af0-f50a-439f-971e-f5de7d1af349"
+		},
+		{
+			"actionList": [
+				{
+					"data": "com.android.browser",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "03991ffa-62b4-471e-bcae-c1fa52bada08"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 8,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 137,
+						"scanCode": 65,
+						"uid": "4945ca98-316b-4d8a-b0f4-3dc5cffca4eb"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "a6b2c7ed-012a-40b9-b4d2-5a1c554881b4"
+		},
+		{
+			"actionList": [
+				{ "data": "68", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "e728f7de-0cdb-43d0-9e0b-ab38ec1e8461" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 9,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 164,
+						"scanCode": 113,
+						"uid": "75fdb104-f457-4acc-9295-3848382d2879"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "cc7cfc6f-daa4-434e-8c93-fa22db495389"
+		},
+		{
+			"actionList": [
+				{ "data": "18", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "72ea5428-0dc0-49d0-9914-d2d84f291b05" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 10,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 82,
+						"scanCode": 139,
+						"uid": "5b495e88-2cb3-40a8-9b9c-c98d038716e4"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "1a7aaf21-5fb1-4a59-a7f5-6e7a26e4b15d"
+		},
+		{
+			"actionList": [
+				{ "data": "71", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "614d47c6-9d2b-453f-80d5-450e2aab486d" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 11,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 0,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 4,
+						"scanCode": 158,
+						"uid": "acd612af-45dc-4c41-ae7d-471907ef19e0"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "8bfcca0d-8f69-4e56-8f12-6a3285e6710b"
+		},
+		{
+			"actionList": [
+				{ "data": "72", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "fa5d65f8-f1f6-4f75-8ee6-d98e703b03ae" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 12,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 1,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 4,
+						"scanCode": 158,
+						"uid": "8c59b5cb-90ee-4460-85f1-ece0b3c29d3d"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "1867676b-f626-44a4-94e8-334bc598718f"
+		},
+		{
+			"actionList": [
+				{ "data": "74", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "b2aca482-d50a-4590-85b2-703901fcd0f6" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 13,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 1,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 131,
+						"scanCode": 59,
+						"uid": "3c98708f-2f1f-4b00-a20b-7afd32323aa0"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "d0654936-67f9-4b1a-882e-ff2e19f25bf6"
+		},
+		{
+			"actionList": [
+				{ "data": "70", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "c788bc60-09de-412f-b544-43611910059a" }
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"group_uid": "cd541400-ca76-4db5-99f4-06a8abeae430",
+			"id": 16,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 1,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 132,
+						"scanCode": 60,
+						"uid": "bb1648cb-bfab-4927-8da5-6b24c9d7c37e"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "7665744b-0b60-4bb2-8605-1fb5358efd9c"
+		}
+	],
+	"default_long_press_delay": 600,
+	"default_double_press_delay": 500,
+	"groups": [
+		{
+			"constraints": [],
+			"constraint_mode": 1,
+			"last_opened_date": 1784579708344,
+			"name": "HACompanion",
+			"uid": "cd541400-ca76-4db5-99f4-06a8abeae430"
+		},
+		{
+			"constraints": [],
+			"constraint_mode": 1,
+			"last_opened_date": 1784579097228,
+			"name": "Untitled group",
+			"uid": "badb84bf-7def-4823-b76e-1d749cffd43d"
+		}
+	]
+}

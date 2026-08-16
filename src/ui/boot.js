@@ -7,20 +7,49 @@
    under html.nogap, so a modern engine (Astrion, Haptique, desktop)
    never matches a single one of them and renders exactly as before.
    Deliberately ES5 — this must run on the oldest webview we support. */
+/* THE OVAL PLAY BUTTON, SOLVED (v0.83.8 — P1 #9, Suresh's DevTools
+   dig: "html.nogap .trow > * + * { margin-left: 26px }" live on a
+   modern Chrome). The old probe measured two ZERO-height divs with
+   row-gap:1px and read scrollHeight===1 as "supported". But an
+   iframe inside a display:none subtree gets NO LAYOUT AT ALL —
+   scrollHeight 0 — which is exactly where the Studio's preview
+   engine boots on a hard refresh (the pane starts hidden). 0 ≠ 1 →
+   "unsupported" → nogap forever → margin fallbacks stacked ON TOP
+   of the working gap → the transport row overflowed and the play
+   circle squashed (71×84, no flex-shrink guard). A preview ↻
+   reloads with the pane visible, the probe reads 1, and the oval
+   "fixes itself" — the whole two-week ghost. Now the divs have real
+   heights so the three states are distinguishable: 3 = gap works ·
+   2 = gap ignored (genuine old webview) · 0 = no layout yet — in
+   which case we RETRY until layout exists instead of guessing wrong
+   once and forever. */
 (function () {
-  try {
-    var p = document.createElement("div");
-    /* NB: no height:0 — it clamps scrollHeight to 0 and the probe then
-       reports "unsupported" on every engine, including modern ones. */
-    p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
-                      "position:absolute;visibility:hidden;top:-9999px";
-    p.appendChild(document.createElement("div"));
-    p.appendChild(document.createElement("div"));
-    (document.body || document.documentElement).appendChild(p);
-    var supported = p.scrollHeight === 1;
-    p.parentNode.removeChild(p);
-    if (!supported) document.documentElement.classList.add("nogap");
-  } catch (e) { /* probe must never break boot */ }
+  function measure() {
+    try {
+      var p = document.createElement("div");
+      p.style.cssText = "display:flex;flex-direction:column;row-gap:1px;" +
+                        "position:absolute;visibility:hidden;top:-9999px";
+      var a = document.createElement("div");
+      var b = document.createElement("div");
+      a.style.height = "1px";
+      b.style.height = "1px";
+      p.appendChild(a);
+      p.appendChild(b);
+      (document.body || document.documentElement).appendChild(p);
+      var h = p.scrollHeight;
+      p.parentNode.removeChild(p);
+      return h;
+    } catch (e) { return 3; }   /* probe must never break boot */
+  }
+  var tries = 0;
+  (function run() {
+    var h = measure();
+    if (h === 0) {              /* hidden — no layout to measure yet */
+      if (tries++ < 600) setTimeout(run, 100);
+      return;                   /* give up silently = modern default */
+    }
+    if (h < 3) document.documentElement.classList.add("nogap");
+  })();
 })();
 
 /* ================================================================

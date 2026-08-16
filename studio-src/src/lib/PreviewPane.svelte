@@ -1,5 +1,6 @@
 <script>
   import { app, bindPreview, pushPreview, sendKey, previewGoto, setStatus, STUDIO_V } from "./state.svelte.js";
+  import UploadBtn from "./components/UploadBtn.svelte";
   import { toCanvas } from "html-to-image";
   let iframe = $state(null);
   $effect(() => { if (iframe) bindPreview(iframe.contentWindow); });
@@ -156,6 +157,60 @@
      A browser refresh restored the default width, which is why it
      always "fixed itself". Measure the photo's REAL width instead. */
   let imgW = $state(0);
+  /* THE STRETCH, ROUND 2 (v0.83.8 — it recurred ON s0.83.26): the
+     live width fixed X, but Y was still COMPUTED — rendered photo
+     height inferred from imgW × the natural aspect, where imgNat is
+     yet another input that can be stale (cached-image onload timing,
+     a swapped asset). Any skew between computed and rendered = an
+     oval. So stop inferring: measure the CLIP BOX ITSELF — the exact
+     rectangle the engine must fill — and scale each axis to it. The
+     transform can no longer disagree with the layout it lives in,
+     whatever produced that layout. Fallbacks keep first paint sane
+     until the observer delivers real numbers. */
+  let clipW = $state(0);
+  let clipH = $state(0);
+  /* if the two axes' scales ever part ways by >2% again, say so out
+     loud with every input — the P1 #9 capture protocol, automated.
+     v0.83.8 round 2 ("Still oval. No warnings in log"): a console
+     line is too easy to lose behind HA's own iframe soup, so the
+     skew now also renders as a RED STRIP right under the photo —
+     if the oval is the transform, the strip appears with the
+     guilty numbers; an oval WITHOUT the strip means the transform
+     is uniform and the squish comes from somewhere upstream
+     (a stale studio.html being the classic — check the s-stamp). */
+  const pvSkew = $derived.by(() => {
+    if (!skin || !clipW || !clipH) return 0;
+    const sx = clipW / (skin.viewport?.w || 320);
+    const sy = clipH / (skin.viewport?.h || 533.33);
+    return sx / sy - 1;
+  });
+  /* AND the ground truth: the iframe's RENDERED box (post-transform,
+     straight from getBoundingClientRect, once a second). Whatever
+     input lied — bindings, imgNat, layout, zoom — an oval can only
+     exist if this box's aspect ≠ the viewport's. If drawnSkew is
+     clean while the play button is visibly oval, the stretch is not
+     in the Studio's transform at all. */
+  let drawnSkew = $state(0);
+  $effect(() => {
+    if (!skin) { drawnSkew = 0; return; }
+    const vw = skin.viewport?.w || 320, vh = skin.viewport?.h || 533.33;
+    const t = setInterval(() => {
+      const pv = document.getElementById("pv");
+      if (!pv) return;
+      const r = pv.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      drawnSkew = (r.width / vw) / (r.height / vh) - 1;
+    }, 1000);
+    return () => clearInterval(t);
+  });
+  $effect(() => {
+    if (!skin || !clipW || !clipH) return;
+    if (Math.abs(pvSkew) > 0.02)
+      console.warn("[harmonium studio] preview scale anamorphic:",
+        JSON.stringify({ skew: +pvSkew.toFixed(4),
+          clipW, clipH, imgW, imgNat: { ...imgNat },
+          rect: { ...skin.screen }, viewport: { ...(skin.viewport || {}) } }));
+  });
   let drag = $state(null);      /* in-flight NEW rect {x0,y0,x1,y1} */
   let hotDrag = null;           /* in-flight MOVE {kind,i,dx,dy} */
   let rsz = null;               /* in-flight RESIZE {kind,i} (corner handle) */
@@ -678,13 +733,20 @@
            full viewport (transforms don't shrink layout). The chip
            click was scrolling the clip itself. Any scroll here resets
            to 0 immediately. -->
+      <!-- SCALE TO THE MEASURED CLIP (v0.83.8 — the oval came back on
+           s0.83.26): both axes now scale to the clip box's OWN
+           rendered size (bind:clientWidth/Height), so the engine
+           always fills exactly the rectangle the browser actually
+           laid out — no more inferring Y from natural aspect. The
+           formula fallbacks only carry the first frame. -->
       <div class="absolute z-0 overflow-hidden"
+        bind:clientWidth={clipW} bind:clientHeight={clipH}
         onscroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}
         style="background:#000; left:calc({skin.screen.x}% - 1px); top:calc({skin.screen.y}% - 1px); width:calc({skin.screen.w}% + 2px); height:calc({skin.screen.h}% + 2px)">
         <iframe id="pv" bind:this={iframe} title="Live preview"
           src="/local/harmonium/index.html#preview=1"
           class="border-0 bg-bg"
-          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(skin.screen.w / 100 * (imgW || 340) + 2) / (skin.viewport?.w || 320)}, {(skin.screen.h / 100 * (imgW || 340) * (imgNat.h / imgNat.w) + 2) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
+          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(clipW || (skin.screen.w / 100 * (imgW || 340) + 2)) / (skin.viewport?.w || 320)}, {(clipH || (skin.screen.h / 100 * (imgW || 340) * (imgNat.h / imgNat.w) + 2)) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
       </div>
       <img src={skin.image} alt="" draggable="false"
         onload={(e) => (imgNat = { w: e.target.naturalWidth, h: e.target.naturalHeight })}
@@ -738,6 +800,19 @@
           style="left:{Math.min(drag.x0, drag.x1)}%; top:{Math.min(drag.y0, drag.y1)}%; width:{Math.abs(drag.x1 - drag.x0)}%; height:{Math.abs(drag.y1 - drag.y0)}%"></div>
       {/if}
     </div>
+    {#if Math.abs(pvSkew) > 0.02 || Math.abs(drawnSkew) > 0.02}
+      <!-- THE SKEW STRIP (v0.83.8 — P1 #9): the engine is being
+           scaled differently per axis. These numbers ARE the bug
+           report — photograph this strip. drawn = the iframe's
+           real on-screen box; clip = what the bindings measured. -->
+      <div id="pvSkew" class="mt-1.5 w-[340px] rounded-[6px] border border-danger px-2 py-1 font-mono text-[10px] leading-[1.5] text-danger">
+        ⚠ preview skew — drawn {(drawnSkew * 100).toFixed(1)}% ·
+        bound {(pvSkew * 100).toFixed(1)}% ·
+        clip {clipW}×{clipH} · vp {skin.viewport?.w || 320}×{skin.viewport?.h || 533.33} ·
+        img w{imgW} nat {imgNat.w}×{imgNat.h} ·
+        rect {skin.screen.w}%×{skin.screen.h}%
+      </div>
+    {/if}
     {#if mapping}
       <div class="mt-2 flex w-[340px] flex-wrap items-center gap-1.5">
         {#if selHot >= 0 && skin.buttons[selHot]}
@@ -773,6 +848,11 @@
           </span>
         {/if}
         <span class="flex-1"></span>
+        <!-- v0.83.8 (beta-gaps P1 #7): swap the device photo without
+             touching the filesystem — uploads to www/harmonium/skins/
+             and points this skin at it -->
+        <UploadBtn kind="skin" label="photo…"
+          onDone={(p) => { if (skin) skin.image = p; }} />
         <button id="skinMapDone" onclick={() => { mapping = false; selHot = -1; selScreen = false; }}
           class="cursor-pointer rounded-[6px] border-0 bg-accent px-3 py-1 text-[11px] font-bold text-accent-ink">Done</button>
         <div class="flex w-full items-center gap-1">

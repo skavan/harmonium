@@ -47,6 +47,11 @@ function expandTile(t) {
       const image = ov.image || meta.image;
       return action && {
         type: "preset", id: t.id + "_" + aid,
+        /* cls "app" (v0.83.8 — "bigger tiles, text"): app launchers
+           earn their own CSS size class via the chassis passthrough,
+           so the drawer can grow without touching preset tiles at
+           large (presets band, device keys) */
+        cls: "app",
         icon: ov.icon || meta.icon || "material:apps",
         ...(image ? { icon_image: image } : {}),
         label: ov.name || meta.name || aid,

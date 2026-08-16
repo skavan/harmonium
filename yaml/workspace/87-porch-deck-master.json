@@ -1,6 +1,4 @@
 {
-	"name": "Deck",
-	"config": {
 		"version": 2,
 		"entity_options": {
 			"cover.maestroscreen_04_fr": {
@@ -1228,4 +1226,3 @@
 			}
 		}
 	}
-}

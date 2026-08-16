@@ -2301,14 +2301,22 @@
                       onchange={(e) => setSpeakersMode(e.target.value)} />
                   {/if}
                   {#if bd.key === "np" && bandOn("np")}
+                    <!-- "wash" is retired from the menu (v0.83.8 —
+                         Suresh: "I think we can hide the Art Wash
+                         option") but the engine still honors it, so a
+                         config that already says wash keeps showing
+                         its truth here instead of silently lying -->
                     <Select value={a.surface?.np_style ?? ""} class="max-w-36"
-                      title="how Now Playing draws for this activity — standard card, slim one-liner, or the artwork hero"
+                      title="how Now Playing draws for this activity — standard card, slim one-liner, the artwork hero, or the big-art poster"
                       options={[
                         { value: "", label: "Auto" },
                         { value: "plain", label: "Standard card" },
                         { value: "slim", label: "Slim row" },
                         { value: "art", label: "Art hero — side panel" },
-                        { value: "wash", label: "Art wash — full-bleed" },
+                        { value: "poster", label: "Poster — big art + progress" },
+                        ...(a.surface?.np_style === "wash"
+                          ? [{ value: "wash", label: "Art wash — full-bleed (legacy)" }]
+                          : []),
                       ]}
                       onchange={(e) => setNpStyle(e.target.value)} />
                   {/if}

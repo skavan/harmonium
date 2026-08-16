@@ -1,0 +1,1294 @@
+{
+        "version": 2,
+        "entity_options": {
+          "cover.maestroscreen_04_fr": {
+            "invert_position": true
+          }
+        },
+        "theme": {
+          "accent": "#ffb300",
+          "bg": "#0d0f12",
+          "tile": "#1a1e24",
+          "radius": "12px",
+          "wash": "rgba(255,179,0,.10)",
+          "tile-h": "100px",
+          "fs-1": "20px",
+          "fw-1": "300",
+          "fs-2": "15px"
+        },
+        "remotes": {
+          "default": {
+            "capabilities": [
+              "touch",
+              "pointer"
+            ],
+            "keymap": {
+              "ArrowUp": "up",
+              "ArrowDown": "down",
+              "Tab": "down",
+              "ArrowLeft": "left",
+              "ArrowRight": "right",
+              "Enter": "select",
+              " ": "select",
+              "+": "vol_up",
+              "=": "vol_up",
+              "-": "vol_down",
+              "PageUp": "ch_up",
+              "PageDown": "ch_down",
+              "m": "mute",
+              "M": "mute",
+              "`": "mute",
+              "AudioVolumeMute": "mute",
+              "[": "back",
+              "Escape": "back",
+              "Backspace": "back",
+              "]": "home",
+              ";": "home",
+              "F1": "home",
+              "BrowserHome": "home",
+              "{": "back_hold",
+              "}": "home_hold",
+              "#": "menu",
+              "@": "menu_hold",
+              "F2": "power",
+              "p": "power",
+              "P": "power",
+              "o": "power_hold",
+              "O": "power_hold",
+              ",": "left_hold",
+              ".": "right_hold"
+            }
+          },
+          "astrion": {
+            "fully": true,
+            "capabilities": [
+              "physical_dpad",
+              "physical_volume",
+              "touch"
+            ],
+            "keymap": {
+              "ArrowUp": "up",
+              "ArrowDown": "down",
+              "Tab": "down",
+              "ArrowLeft": "left",
+              "ArrowRight": "right",
+              "Enter": "select",
+              " ": "select",
+              "+": "vol_up",
+              "=": "power_hold",
+              "-": "vol_down",
+              "PageUp": "ch_up",
+              "PageDown": "ch_down",
+              "m": "mute",
+              "M": "mute",
+              "`": "mute",
+              "AudioVolumeMute": "mute",
+              "[": "back",
+              "Escape": "back",
+              "Backspace": "back",
+              "]": "back_hold",
+              ";": "home_hold",
+              "F1": "home",
+              "BrowserHome": "home",
+              "{": "back_hold",
+              "}": "home_hold",
+              "#": "menu",
+              "@": "menu_hold",
+              "F2": "power",
+              "p": "power",
+              "P": "power",
+              "o": "power_hold",
+              "O": "power_hold",
+              ",": "left_hold",
+              ".": "right_hold"
+            },
+            "soft_layout": [
+              [
+                "back",
+                "home",
+                "power"
+              ],
+              [
+                "vol_up",
+                "up",
+                "ch_up"
+              ],
+              [
+                "left",
+                "select",
+                "right"
+              ],
+              [
+                "vol_down",
+                "down",
+                "ch_down"
+              ],
+              [
+                "mute",
+                null,
+                "menu"
+              ]
+            ]
+          }
+        },
+        "devices": {
+          "fire_tv": {
+            "name": "Fire TV",
+            "icon": "material:live_tv",
+            "dialect": "firetv",
+            "roles": {
+              "media_player": "media_player.fire_tv_family_192_168_1_65",
+              "dpad": "remote.fire_tv_family_192_168_1_65",
+              "commands": "media_player.fire_tv_family_192_168_1_65"
+            },
+            "traits": {
+              "never_off": true,
+              "wake": "media_player.fire_tv_family_192_168_1_65"
+            }
+          },
+          "samsung_q90": {
+            "name": "Samsung Q90",
+            "icon": "material:tv",
+            "dialect": "tizen",
+            "roles": {
+              "media_player": "media_player.sts_samsung_q90_porch",
+              "dpad": "remote.sts_samsung_q90_porch",
+              "power": "media_player.sts_samsung_q90_porch",
+              "volume": "media_player.sts_samsung_q90_porch",
+              "source_select": "media_player.sts_samsung_q90_porch"
+            },
+            "traits": {
+              "dpad_commands": {
+                "up": "KEY_UP",
+                "down": "KEY_DOWN",
+                "left": "KEY_LEFT",
+                "right": "KEY_RIGHT",
+                "select": "KEY_ENTER",
+                "back": "KEY_RETURN",
+                "home": "KEY_HOME",
+                "menu": "KEY_MENU",
+                "info": "KEY_INFO",
+                "ch_up": "KEY_CHUP",
+                "ch_down": "KEY_CHDOWN"
+              },
+              "wake": "media_player.sts_samsung_q90_porch",
+              "cold_start": [
+                {
+                  "alias": "Wake TV via wired WOL (reliable from standby)",
+                  "action": "button.press",
+                  "continue_on_error": true,
+                  "target": {
+                    "entity_id": "button.samsung_wired_wol_d4_9d_c0_2c_e5_bf"
+                  }
+                },
+                {
+                  "alias": "Wake TV via remote entity (best effort)",
+                  "action": "remote.turn_on",
+                  "continue_on_error": true,
+                  "target": {
+                    "entity_id": "remote.sts_samsung_q90_porch"
+                  }
+                }
+              ],
+              "wait_on": "media_player.sts_samsung_q90_porch",
+              "wait_timeout_s": 6,
+              "settle_s": 1
+            }
+          },
+          "porch_soundbar": {
+            "name": "Porch Soundbar",
+            "icon": "material:speaker",
+            "roles": {
+              "volume": "media_player.ma_soundbar_porch",
+              "volume_level": "media_player.ma_soundbar_porch"
+            }
+          },
+          "pergola_projector": {
+            "name": "Pergola Projector",
+            "icon": "material:video_projector",
+            "dialect": "googletv",
+            "roles": {
+              "media_player": "media_player.deck_hisense_projector",
+              "dpad": "remote.deck_hisense_projector",
+              "power": "media_player.deck_hisense_projector",
+              "volume": "media_player.deck_hisense_projector",
+              "commands": "media_player.deck_hisense_projector_adb_192_168_1_64"
+            },
+            "traits": {
+              "wake": "media_player.deck_hisense_projector"
+            }
+          },
+          "sonos_basement": {
+            "name": "Sonos Basement",
+            "icon": "material:tv",
+            "roles": {
+              "media_player": "media_player.sonos_basement",
+              "power": "media_player.sonos_basement",
+              "volume": "media_player.sonos_basement",
+              "volume_level": "media_player.sonos_basement",
+              "source_select": "media_player.sonos_basement",
+              "commands": "media_player.sonos_basement",
+              "search": "media_player.ma_sonos_basement"
+            }
+          },
+          "onkyo_avr_basement": {
+            "name": "Onkyo Avr Basement",
+            "icon": "material:tv",
+            "roles": {
+              "media_player": "media_player.onkyo_avr_basement",
+              "power": "media_player.onkyo_avr_basement",
+              "volume": "media_player.onkyo_avr_basement",
+              "volume_level": "media_player.onkyo_avr_basement",
+              "source_select": "media_player.onkyo_avr_basement",
+              "commands": "media_player.onkyo_avr_basement"
+            }
+          }
+        },
+        "keymap": {
+          "ArrowUp": "up",
+          "ArrowDown": "down",
+          "Tab": "down",
+          "ArrowLeft": "left",
+          "ArrowRight": "right",
+          "Enter": "select",
+          " ": "select",
+          "+": "vol_up",
+          "=": "vol_up",
+          "-": "vol_down",
+          "PageUp": "ch_up",
+          "PageDown": "ch_down",
+          "m": "mute",
+          "M": "mute",
+          "`": "mute",
+          "AudioVolumeMute": "mute",
+          "[": "back",
+          "Escape": "back",
+          "Backspace": "back",
+          "]": "home",
+          ";": "home",
+          "F1": "home",
+          "BrowserHome": "home",
+          "{": "back_hold",
+          "}": "home_hold",
+          "#": "menu",
+          "@": "menu_hold",
+          "F2": "power",
+          "p": "power",
+          "P": "power",
+          "o": "power_hold",
+          "O": "power_hold",
+          ",": "left_hold",
+          ".": "right_hold"
+        },
+        "home_screen": "porch",
+        "screen_order": [
+          "porch"
+        ],
+        "global": {
+          "room": "Porch",
+          "confirm_switch": true,
+          "debug": false,
+          "activity_select": "select.harmonium_scratch_porch_activity"
+        },
+        "controllers": {
+          "apps": {
+            "name": "Apps",
+            "gen": 1,
+            "class": "group",
+            "view_kind": "library",
+            "type": "library",
+            "control_target": {
+              "label": "$activity.name",
+              "navigation": "$context.dpad",
+              "power": "$context.power",
+              "volume": "$context.volume",
+              "pass_through": [
+                "power"
+              ]
+            },
+            "drawer": true,
+            "grid": {
+              "columns": 3
+            },
+            "sections": [
+              {
+                "tiles": [
+                  {
+                    "id": "apps_grid",
+                    "type": "apps"
+                  }
+                ],
+                "hero_label": "Apps"
+              }
+            ]
+          },
+          "music": {
+            "name": "Music Media Player",
+            "gen": 1,
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller",
+            "buttons": {
+              "ch_up": {
+                "service": "media_player.media_next_track",
+                "entity": "$context.media_player"
+              },
+              "ch_down": {
+                "service": "media_player.media_previous_track",
+                "entity": "$context.media_player"
+              },
+              "menu_hold": {
+                "navigate": "music_library"
+              },
+              "left_hold": {
+                "seek": -15,
+                "entity": "$context.media_player"
+              },
+              "right_hold": {
+                "seek": 15,
+                "entity": "$context.media_player"
+              }
+            },
+            "control_target": {
+              "label": "$activity.name",
+              "power": "$context.power",
+              "volume": "$context.volume"
+            },
+            "font_scope": "music",
+            "sections": [
+              {
+                "tiles": [
+                  {
+                    "id": "m_np",
+                    "type": "media",
+                    "art": true,
+                    "entity": "$context.media_player",
+                    "icon": "material:music_note",
+                    "label": "Now Playing",
+                    "span": 2,
+                    "trailing": {
+                      "icon": "material:library_music",
+                      "action": {
+                        "navigate": "music_library"
+                      },
+                      "emphasis": "accent"
+                    }
+                  },
+                  {
+                    "id": "m_tr",
+                    "type": "transport",
+                    "entity": "$context.media_player",
+                    "label": "Transport",
+                    "span": 2
+                  },
+                  {
+                    "id": "m_cmd",
+                    "type": "mediabtns",
+                    "entity": "$context.media_player",
+                    "label": "Modes",
+                    "span": 2
+                  },
+                  {
+                    "id": "vol",
+                    "type": "volumes"
+                  },
+                  {
+                    "id": "grp",
+                    "type": "groups"
+                  },
+                  {
+                    "id": "m_src",
+                    "type": "sources",
+                    "entity": "$context.source_select",
+                    "icon": "material:input",
+                    "label": "Source",
+                    "span": 2
+                  }
+                ]
+              },
+              {
+                "columns": 2,
+                "title": "Presets",
+                "hero_label": "Presets",
+                "role": "presets",
+                "tiles": [
+                  {
+                    "id": "acts_presets",
+                    "type": "presets"
+                  }
+                ]
+              },
+              {
+                "columns": 1,
+                "title": "Devices",
+                "tiles": [
+                  {
+                    "id": "cast",
+                    "type": "devices"
+                  }
+                ]
+              }
+            ],
+            "grid": {
+              "max_width": 760
+            }
+          },
+          "music_library": {
+            "name": "Music Library",
+            "gen": 1,
+            "class": "group",
+            "view_kind": "library",
+            "type": "library",
+            "font_scope": "music",
+            "drawer": true,
+            "grid": {
+              "columns": 3
+            },
+            "sections": [
+              {
+                "tiles": [
+                  {
+                    "id": "lib",
+                    "type": "browse"
+                  }
+                ],
+                "hero_label": "Library"
+              }
+            ]
+          },
+          "tv": {
+            "name": "TV Media Player",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller",
+            "buttons": {
+              "left_hold": {
+                "service": "remote.send_command",
+                "entity": "$context.dpad",
+                "data": {
+                  "command": "REWIND"
+                }
+              },
+              "right_hold": {
+                "service": "remote.send_command",
+                "entity": "$context.dpad",
+                "data": {
+                  "command": "FAST_FORWARD"
+                }
+              }
+            },
+            "control_target": {
+              "label": "$activity.name",
+              "navigation": "$context.dpad",
+              "power": "$context.power",
+              "volume": "$context.volume",
+              "pass_through": [
+                "up",
+                "down",
+                "left",
+                "right",
+                "select",
+                "back",
+                "home",
+                "power"
+              ]
+            },
+            "dpad_passthrough": "$context.dpad",
+            "sections": [
+              {
+                "tiles": [
+                  {
+                    "id": "t_np",
+                    "type": "media",
+                    "entity": "$context.media_player",
+                    "icon": "material:smart_display",
+                    "label": "Now Playing",
+                    "span": 2,
+                    "trailing": {
+                      "icon": "material:apps",
+                      "action": {
+                        "navigate": "apps"
+                      }
+                    }
+                  },
+                  {
+                    "id": "t_tr",
+                    "type": "transport",
+                    "entity": "$context.media_player",
+                    "label": "Transport",
+                    "span": 2
+                  },
+                  {
+                    "id": "t_btns",
+                    "type": "buttons",
+                    "entity": "$context.dpad",
+                    "label": "On-screen device buttons",
+                    "span": 2,
+                    "only": "physical_dpad",
+                    "buttons": [
+                      "back",
+                      "home"
+                    ]
+                  },
+                  {
+                    "id": "t_pad",
+                    "type": "dpad",
+                    "entity": "$context.dpad",
+                    "icon": "material:gamepad",
+                    "label": "Remote",
+                    "span": 2,
+                    "unless": "physical_dpad"
+                  },
+                  {
+                    "id": "t_btns2",
+                    "type": "buttons",
+                    "entity": "$context.dpad",
+                    "label": "",
+                    "span": 2,
+                    "unless": "physical_dpad",
+                    "buttons": [
+                      "back",
+                      "home",
+                      "power"
+                    ]
+                  },
+                  {
+                    "id": "t_vol",
+                    "type": "volume",
+                    "entity": "$context.volume",
+                    "level_entity": "$context.volume_level",
+                    "icon": "material:volume_up",
+                    "label": "Volume",
+                    "span": 2
+                  },
+                  {
+                    "id": "t_src",
+                    "type": "sources",
+                    "entity": "$context.source_select",
+                    "icon": "material:input",
+                    "label": "Source",
+                    "span": 2
+                  }
+                ]
+              },
+              {
+                "columns": 2,
+                "tiles": [
+                  {
+                    "id": "keys",
+                    "type": "keys"
+                  }
+                ],
+                "title": "Device keys"
+              },
+              {
+                "columns": 1,
+                "tiles": [
+                  {
+                    "id": "cast",
+                    "type": "devices"
+                  }
+                ],
+                "title": "Devices"
+              }
+            ]
+          },
+          "climate": {
+            "name": "Climate",
+            "gen": 1,
+            "tiles": [
+              {
+                "id": "dp",
+                "type": "power",
+                "entity": "$device",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "ds",
+                "type": "stepper",
+                "kind": "temperature",
+                "entity": "$device",
+                "icon": "material:thermostat",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "dm",
+                "type": "chips",
+                "kind": "hvac_mode",
+                "entity": "$device",
+                "icon": "material:hvac",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "df",
+                "type": "chips",
+                "kind": "fan_mode",
+                "entity": "$device",
+                "icon": "material:mode_fan",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "dpr",
+                "type": "chips",
+                "kind": "preset",
+                "entity": "$device",
+                "icon": "material:tune",
+                "label": "",
+                "span": 2
+              }
+            ],
+            "domain": "climate",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller"
+          },
+          "light": {
+            "name": "Light",
+            "gen": 1,
+            "tiles": [
+              {
+                "id": "dp",
+                "type": "power",
+                "entity": "$device",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "ds",
+                "type": "stepper",
+                "kind": "brightness",
+                "entity": "$device",
+                "icon": "material:light_mode",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "de",
+                "type": "chips",
+                "kind": "effect",
+                "entity": "$device",
+                "icon": "material:auto_awesome",
+                "label": "",
+                "span": 2
+              }
+            ],
+            "domain": "light",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller"
+          },
+          "cover": {
+            "name": "Cover",
+            "gen": 1,
+            "tiles": [
+              {
+                "id": "dc",
+                "type": "coverbtns",
+                "entity": "$device",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "ds",
+                "type": "stepper",
+                "kind": "position",
+                "entity": "$device",
+                "icon": "material:height",
+                "label": "",
+                "span": 2
+              }
+            ],
+            "domain": "cover",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller"
+          },
+          "fan": {
+            "name": "Fan",
+            "gen": 1,
+            "tiles": [
+              {
+                "id": "dp",
+                "type": "power",
+                "entity": "$device",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "ds",
+                "type": "stepper",
+                "kind": "percentage",
+                "entity": "$device",
+                "icon": "material:mode_fan",
+                "label": "",
+                "span": 2
+              },
+              {
+                "id": "dpr",
+                "type": "chips",
+                "kind": "preset",
+                "entity": "$device",
+                "icon": "material:tune",
+                "label": "",
+                "span": 2
+              }
+            ],
+            "domain": "fan",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller"
+          },
+          "switch": {
+            "name": "Switch",
+            "gen": 1,
+            "tiles": [
+              {
+                "id": "dp",
+                "type": "power",
+                "entity": "$device",
+                "label": "",
+                "span": 2
+              }
+            ],
+            "domain": "switch",
+            "class": "activity",
+            "view_kind": "controller",
+            "type": "controller"
+          }
+        },
+        "input": {
+          "physical_buttons": {
+            "short_press": "app",
+            "hold": {
+              "back": "control_target",
+              "home": "control_target",
+              "power": "all_off"
+            },
+            "hold_ms": {
+              "navigation": 500,
+              "power": 1200
+            }
+          },
+          "confirm_activity_switch": true,
+          "debug": false,
+          "global_buttons": {
+            "vol_up": {
+              "service": "media_player.volume_up",
+              "entity": "$context.volume"
+            },
+            "vol_down": {
+              "service": "media_player.volume_down",
+              "entity": "$context.volume"
+            },
+            "menu_hold": {
+              "navigate": "apps"
+            }
+          }
+        },
+        "activities": {
+          "porch_listen_to_ma": {
+            "name": "Listen to MA",
+            "icon": "material:music_note_2",
+            "color": "#e89b17",
+            "start": "",
+            "context": {
+              "media_player": "media_player.ma_sonos_basement",
+              "volume": "media_player.ma_sonos_basement",
+              "source_select": "media_player.ma_sonos_basement",
+              "power": "media_player.ma_sonos_basement",
+              "search": "media_player.ma_sonos_basement"
+            },
+            "screen": "controller:music",
+            "confirm_end": true,
+            "room_view": "porch",
+            "cast": [],
+            "devices": [
+              "media_player.ma_sonos_basement",
+              "media_player.onkyo_avr_basement",
+              "button.ma_sonos_basement_favorite"
+            ],
+            "extra_devices": [
+              "media_player.ma_sonos_basement",
+              "media_player.onkyo_avr_basement",
+              "button.ma_sonos_basement_favorite"
+            ],
+            "kind": "listen",
+            "wiring": {
+              "media_player": "media_player.ma_sonos_basement",
+              "volume": "media_player.ma_sonos_basement",
+              "source_select": "media_player.ma_sonos_basement",
+              "power": "media_player.ma_sonos_basement",
+              "search": "media_player.ma_sonos_basement"
+            },
+            "device_options": {
+              "media_player.ma_sonos_basement": {
+                "tile": false
+              }
+            },
+            "present": {
+              "media_player.onkyo_avr_basement": {
+                "name": "Receiver",
+                "shows": "volume",
+                "where": "controls",
+                "sub": "",
+                "icon": "material:18mp"
+              },
+              "button.ma_sonos_basement_favorite": {
+                "name": "favorite",
+                "icon": "material:favorite",
+                "where": "controls",
+                "sub": "{friendly_name}"
+              }
+            }
+          }
+        },
+        "sequences": {},
+        "apps": {
+          "netflix": {
+            "name": "Netflix",
+            "icon": "material:movie"
+          },
+          "prime": {
+            "name": "Prime Video",
+            "icon": "material:play_circle"
+          },
+          "youtube": {
+            "name": "YouTube",
+            "icon": "material:smart_display"
+          },
+          "youtubetv": {
+            "name": "YouTube TV",
+            "icon": "material:live_tv"
+          },
+          "peacock": {
+            "name": "Peacock",
+            "icon": "material:theaters"
+          },
+          "paramount": {
+            "name": "Paramount+",
+            "icon": "material:star"
+          },
+          "max": {
+            "name": "Max",
+            "icon": "material:local_movies"
+          },
+          "appletv": {
+            "name": "Apple TV",
+            "icon": "material:tv_gen"
+          },
+          "hulu": {
+            "name": "Hulu",
+            "icon": "material:video_library"
+          },
+          "disney": {
+            "name": "Disney+",
+            "icon": "material:castle"
+          },
+          "fubo": {
+            "name": "Fubo TV",
+            "icon": "material:sports_football"
+          },
+          "espn": {
+            "name": "ESPN",
+            "icon": "material:sports_basketball"
+          },
+          "britbox": {
+            "name": "BritBox",
+            "icon": "material:tv_gen"
+          }
+        },
+        "dialects": {
+          "firetv": {
+            "name": "Fire TV",
+            "channels": {
+              "commands": {
+                "integration": "androidtv",
+                "domain": "media_player",
+                "label": "ADB channel"
+              }
+            },
+            "apps": {
+              "netflix": {
+                "source": "com.netflix.ninja"
+              },
+              "prime": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.media_player",
+                "data": {
+                  "command": "am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity"
+                }
+              },
+              "youtube": {
+                "source": "com.amazon.firetv.youtube"
+              },
+              "youtubetv": {
+                "source": "com.amazon.firetv.youtube.tv"
+              },
+              "peacock": {
+                "source": "com.peacock.peacockfiretv"
+              },
+              "paramount": {
+                "source": "com.cbs.ott"
+              },
+              "max": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.media_player",
+                "data": {
+                  "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
+                }
+              },
+              "appletv": {
+                "source": "com.apple.atve.amazon.appletv"
+              }
+            }
+          },
+          "tizen": {
+            "name": "Samsung Tizen",
+            "apps": {
+              "netflix": {
+                "source": "Netflix"
+              },
+              "prime": {
+                "source": "Prime Video"
+              },
+              "youtube": {
+                "source": "YouTube"
+              },
+              "youtubetv": {
+                "source": "YouTube TV"
+              },
+              "hulu": {
+                "source": "Hulu"
+              },
+              "disney": {
+                "source": "Disney+"
+              },
+              "appletv": {
+                "source": "Apple TV"
+              },
+              "max": {
+                "source": "Max"
+              },
+              "peacock": {
+                "source": "Peacock TV"
+              },
+              "paramount": {
+                "source": "Paramount+"
+              }
+            }
+          },
+          "googletv": {
+            "name": "Google TV",
+            "channels": {
+              "commands": {
+                "integration": "androidtv",
+                "domain": "media_player",
+                "label": "ADB channel"
+              }
+            },
+            "keys": {
+              "settings": {
+                "name": "Settings",
+                "icon": "material:settings",
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell input keyevent 176"
+                }
+              },
+              "search": {
+                "name": "Search",
+                "icon": "material:search",
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell input keyevent 117"
+                }
+              },
+              "allapps": {
+                "name": "All apps",
+                "icon": "material:apps",
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell input keyevent 284"
+                }
+              },
+              "quicksettings": {
+                "name": "Quick settings",
+                "icon": "material:tune",
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell input keyevent 83"
+                }
+              },
+              "livetv": {
+                "name": "Live TV",
+                "icon": "material:live_tv",
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell input keyevent 170"
+                }
+              }
+            },
+            "forbidden": [
+              {
+                "name": "SEARCH",
+                "code": 84,
+                "why": "voice search — activates the microphone"
+              },
+              {
+                "name": "MUTE",
+                "code": 91,
+                "why": "mutes the MICROPHONE (use VOLUME_MUTE 164)"
+              },
+              {
+                "name": "POWER",
+                "code": 26,
+                "why": "powers the device off"
+              },
+              {
+                "name": "TV_POWER",
+                "code": 177,
+                "why": "powers the device off"
+              },
+              {
+                "name": "SLEEP",
+                "code": 223,
+                "why": "powers the device off"
+              },
+              {
+                "name": "SOFT_SLEEP",
+                "code": 276,
+                "why": "powers the device off"
+              },
+              {
+                "name": "TV_INPUT",
+                "code": 178,
+                "why": "kills the picture"
+              },
+              {
+                "name": "TV_INPUT_HDMI_1",
+                "code": 243,
+                "why": "kills the picture"
+              },
+              {
+                "name": "TV_INPUT_HDMI_2",
+                "code": 244,
+                "why": "kills the picture"
+              },
+              {
+                "name": "TV_INPUT_HDMI_3",
+                "code": 245,
+                "why": "kills the picture"
+              },
+              {
+                "name": "TV_INPUT_HDMI_4",
+                "code": 246,
+                "why": "kills the picture"
+              },
+              {
+                "name": "PAIRING",
+                "code": 225,
+                "why": "drops into Bluetooth pairing"
+              },
+              {
+                "name": "PROFILE_SWITCH",
+                "code": 288,
+                "why": "changes the Google TV profile"
+              },
+              {
+                "name": "STB_POWER",
+                "code": 179,
+                "why": "power-cycles OTHER devices over CEC"
+              },
+              {
+                "name": "AVR_POWER",
+                "code": 181,
+                "why": "power-cycles OTHER devices over CEC"
+              }
+            ],
+            "apps": {
+              "netflix": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.netflix.ninja/.MainActivity"
+                }
+              },
+              "prime": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity"
+                }
+              },
+              "youtube": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity"
+                }
+              },
+              "youtubetv": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity"
+                }
+              },
+              "peacock": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity"
+                }
+              },
+              "paramount": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity"
+                }
+              },
+              "max": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.wbd.stream/com.wbd.beam.BeamActivity"
+                }
+              },
+              "appletv": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.apple.atve.androidtv.appletv/.MainActivity"
+                }
+              },
+              "hulu": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.hulu.livingroomplus/.WKFactivity"
+                }
+              },
+              "disney": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity"
+                }
+              },
+              "fubo": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity"
+                }
+              },
+              "espn": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity"
+                }
+              },
+              "britbox": {
+                "action": "androidtv.adb_command",
+                "entity": "$context.commands",
+                "data": {
+                  "command": "adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity"
+                }
+              }
+            }
+          }
+        },
+        "screens": {
+          "porch": {
+            "name": "Porch",
+            "class": "room",
+            "type": "hub",
+            "room": true,
+            "banner": {
+              "image": "",
+              "image_opacity": 0.5,
+              "height": "230px",
+              "min_height": "150px",
+              "show_time": true
+            },
+            "view_kind": "room hub",
+            "grid": {
+              "columns": 1
+            },
+            "sections": [
+              {
+                "role": "activities",
+                "hero_label": "Activities",
+                "tiles": [
+                  {
+                    "id": "acts",
+                    "type": "activities",
+                    "room": "porch"
+                  }
+                ]
+              },
+              {
+                "role": "presets",
+                "hero_label": "Presets",
+                "tiles": [
+                  {
+                    "type": "preset",
+                    "id": "tile_9zw9",
+                    "label": "Daily Mix 1",
+                    "icon": "material:play_circle",
+                    "action": {
+                      "entity": "media_player.ma_sonos_basement",
+                      "data": {
+                        "media_id": "library://playlist/49"
+                      },
+                      "service": "music_assistant.play_media"
+                    }
+                  },
+                  {
+                    "type": "preset",
+                    "id": "tile_9zw9_copy",
+                    "label": "Discover Weekly",
+                    "icon": "material:play_circle",
+                    "action": {
+                      "entity": "media_player.ma_sonos_basement",
+                      "data": {
+                        "media_id": "library://playlist/41"
+                      },
+                      "service": "music_assistant.play_media"
+                    },
+                    "activity": "porch_listen_to_ma"
+                  }
+                ],
+                "columns": 2,
+                "title": "Presets"
+              },
+              {
+                "role": "devices",
+                "hero_label": "Devices",
+                "tiles": [
+                  {
+                    "type": "device",
+                    "id": "tile_j71k",
+                    "label": "Onkyo Test",
+                    "icon": "material:speaker",
+                    "entity": "media_player.onkyo_avr_basement",
+                    "span": 2
+                  }
+                ],
+                "title": "Devices"
+              }
+            ]
+          }
+        }
+      }

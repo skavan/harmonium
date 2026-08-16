@@ -1,6 +1,11 @@
-/* MEDIA tile — now-playing card; tap play/pauses. THREE renderers
+/* MEDIA tile — now-playing card; tap play/pauses. FOUR renderers
    (v0.83.7 — Suresh: "lets come up with 3 renderers"): default card,
-   style:"slim" one-liner, style:"art" hero (legacy art:true). */
+   style:"slim" one-liner, style:"art" hero (legacy art:true), and
+   style:"poster" (v0.83.8 — his found-in-the-wild screenshot: "I
+   think we build this. With a Bar underneath for the Library"):
+   big centered artwork, track text under it, a real progress bar
+   with elapsed/total times, and the chassis trailing restyled as a
+   full-width bar — NO transport and NO volume, those are bands. */
 /* style resolution (v0.83.7 follow-up — Suresh: "Hero tile seems the
    same as Standard": on the stock MUSIC controller the surface tile
    says art:true, so "Standard" WAS the hero). "plain" exists to say
@@ -42,6 +47,19 @@ WIDGETS.media = {
     select: e => callService("media_player", "media_play_pause", null, e),
     body: t => {
       const m = npMode(t);
+      /* poster: same data slots as the heroes (npt/npa/npb/npimg/
+         npprog — render() below is shared verbatim), stacked instead
+         of side-by-side, plus the elapsed/total readout under the
+         meter. The Library bar is the chassis TRAILING, restyled
+         full-width in CSS — no second navigation grammar. */
+      if (m === "poster") return `<div class="npposter">
+      <img class="npimg hidden" alt="">
+      <div class="npt"></div>
+      <div class="npa"></div>
+      <div class="npb"></div>
+      <div class="meter npprog hidden"><i></i></div>
+      <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>
+    </div>`;
       if (m === "art" || m === "wash") return `<div class="npwrap">
       <img class="npimg hidden" alt="">
       <div class="npmeta">
@@ -60,8 +78,8 @@ WIDGETS.media = {
     wire: (el, t) => {
       const m = npMode(t);
       if (m === "slim") { el.classList.add("slim"); return; }
-      if (m !== "art" && m !== "wash") return;
-      el.classList.add(m === "wash" ? "wash" : "art");
+      if (m !== "art" && m !== "wash" && m !== "poster") return;
+      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster" : "art");
       const img = el.querySelector(".npimg");
       img.addEventListener("error", () => img.classList.add("hidden"));
     },
@@ -96,9 +114,23 @@ WIDGETS.media = {
         }
         return;
       }
-      if (npMode(t) !== "art" && npMode(t) !== "wash") return;
+      const mm = npMode(t);
+      if (mm !== "art" && mm !== "wash" && mm !== "poster") return;
       const s = st(e);
       el.dataset.eid = e || "";
+      /* the poster's Library bar wants a WORD next to the trailing's
+         icon — named after where it actually goes (the music
+         library, the apps drawer…), read from the target screen */
+      if (mm === "poster") {
+        const trb = el.querySelector(".trail");
+        if (trb && !trb.querySelector(".trlbl")) {
+          const trg = trailingOf(t);
+          const nav = trg && trg.action && trg.action.navigate;
+          const tsc = nav && typeof nav === "string" ? screenOf(nav) : null;
+          trb.insertAdjacentHTML("beforeend",
+            `<span class="trlbl">${(tsc && tsc.name) || "Library"}</span>`);
+        }
+      }
       /* QUEUING (v0.73.3): a play is in flight — say so, pulsing,
          instead of sitting on "Idle" while the playlist arrives */
       const pend = npPending(e, s);
@@ -159,20 +191,40 @@ function npPending(e, s) {
   return p;
 }
 
+/* m:ss under an hour, h:mm:ss over — the shape every player uses */
+function npClock(x) {
+  x = Math.max(0, Math.round(x));
+  const h = Math.floor(x / 3600), m = Math.floor(x % 3600 / 60), s = x % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : String(m)) +
+    ":" + String(s).padStart(2, "0");
+}
 function npProgress(el, s) {
   const bar = el.querySelector(".npprog");
   if (!bar) return;
+  const tm = el.querySelector(".nptimes");
   const d = s.a.media_duration;
-  if (!d) { bar.classList.add("hidden"); return; }
+  if (!d) {
+    bar.classList.add("hidden");
+    if (tm) tm.classList.add("hidden");
+    return;
+  }
   let p = s.a.media_position || 0;
   if (s.s === "playing" && s.a.media_position_updated_at)
     p += (Date.now() - Date.parse(s.a.media_position_updated_at)) / 1000;
   bar.classList.remove("hidden");
   bar.firstElementChild.style.width =
     Math.max(0, Math.min(100, Math.round(p / d * 100))) + "%";
+  /* the poster's 0:36 / 4:19 readout, riding the same interpolation */
+  if (tm) {
+    tm.classList.remove("hidden");
+    tm.querySelector(".npel").textContent = npClock(Math.min(p, d));
+    tm.querySelector(".npdu").textContent = npClock(d);
+  }
 }
 setInterval(() => {
-  document.querySelectorAll(".tile.wgt-media.art, .tile.wgt-media.wash").forEach(el => {
+  document.querySelectorAll(
+    ".tile.wgt-media.art, .tile.wgt-media.wash, .tile.wgt-media.poster"
+  ).forEach(el => {
     const s = st(el.dataset.eid);
     if (s.s === "playing") npProgress(el, s);
   });

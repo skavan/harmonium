@@ -247,7 +247,13 @@ thesis; formalizing capability flags buys generality we don't need.
 5. `volume_step` trait (§4.1) and the UNAVAILABLE contract test
    (§4.2).
 6. Volume/mute hardware-key overlay (§2, astrion).
-7. **Studio image upload** (2026-08-13, the .88 stranger test): a
+7. ~~**Studio image upload**~~ — **SHIPPED v0.83.8 (2026-08-16)**:
+   authenticated POST /api/harmonium/upload (8 MB cap, image-type
+   whitelist + magic sniff, 409-before-overwrite) + UploadBtn
+   (button/drop target) on the Hero banner field and the skin map
+   toolbar. Heroes land in www/images/ (OUTSIDE the wipeable
+   harmonium tree — Suresh's call), skins in www/harmonium/skins/.
+   probe-upload-studio.mjs. Original note: a
    drag-and-drop / file-picker upload in the banner editor (and the
    skin picker) that POSTs to the integration and saves under
    `www/harmonium/images/` (skins under `www/harmonium/skins/`),
@@ -272,7 +278,15 @@ thesis; formalizing capability flags buys generality we don't need.
      would be a separate, config-driven feature; confirm before
      building.)
 
-9. **The stretched first-load preview** (2026-08-14 status review
+9. ~~**The stretched first-load preview**~~ — **SOLVED v0.83.8
+   (2026-08-16)**: `html.nogap` misdetection — the flex-gap boot
+   probe read "no layout" (engine booting behind the hidden preview
+   pane) as "no gap support" and latched compat margins on top of
+   the working gap; the transport row overflowed and the play circle
+   squashed. Probe now distinguishes no-layout (retries) from
+   genuinely-ignored gap; `.trow` children carry flex:0 0 auto
+   insurance; probe-nogap.mjs guards it. Suresh's DevTools dig found
+   it. History of the hunt below, kept for the method: (2026-08-14 status review
    #3, OPEN — needs a live repro): controller page in the photo
    preview renders stretched on first load; toggling the
    Controller↔Room-page chip fixes it. Headless repro FAILED
@@ -300,6 +314,15 @@ thesis; formalizing capability flags buys generality we don't need.
    differently. NEXT OCCURRENCE: tap ↻ first — squish surviving ↻
    but dying on browser refresh pins it to stale transform inputs
    (imgNat/viewport state), and we log those values.
+   2026-08-16 ROUND 3 — it recurred ON s0.83.26 (oval again): the
+   live imgW measure fixed X but Y was still COMPUTED from imgNat's
+   natural aspect — one more stale-able input. s0.83.27 scales each
+   axis to the CLIP BOX'S OWN measured size (bind:clientWidth/Height
+   on the aperture div), so the transform cannot disagree with the
+   rendered layout, whatever produced it; and the capture protocol
+   is AUTOMATED — >2% anamorphic skew console.warns sx/sy/clip/
+   imgNat/rect/viewport. If an oval survives THIS, the warn line in
+   the browser console names the guilty input.
 
 **Design conversation — multi-activity rooms (2026-08-14)**
 Suresh: "a room can run MORE than one activity at a time. Listen to
