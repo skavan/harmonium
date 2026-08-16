@@ -79,7 +79,52 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.83.8 pending, 2026-08-16 — image upload + the Poster + apps 2-up + import chooser, s0.83.30)
+## Current state (v0.83.9 pending, 2026-08-16 — dialect WAKE, s0.83.9 b33)
+
+v0.83.8 TAGGED and released; this opens 0.83.9 (manifest + ENGINE_V
+bumped; his call via the version question).
+
+- **DIALECT WAKE BEFORE APP LAUNCH** (his: FireTV app presets while
+  the box dozes — "it actually does the app change but screen
+  remains blank or screen saver. I find the back button works"):
+  a dialect may declare `wake` — `"key:<id>"` borrows an entry from
+  its OWN keys catalog (his case: `wake: "key:back"`), anything else
+  rides the classLaunch grammar — plus optional `wake_delay` ms
+  (default 600, TIMING.wakeDelay). The apps generator stamps the
+  resolved action on every launcher tile; firePreset gates on the
+  player's REPORTED state at tap time (off/idle/standby/unavailable/
+  unknown) → fire wake, wait the gap, then launch. An awake player
+  is never poked (a stray Back could back out of a running app);
+  a dialect without wake behaves byte-for-byte as before. Studio:
+  the dialect card grew "Wake before launch" + "Wake → launch gap"
+  fields (JSON accepted for arbitrary actions). probe-wake.mjs NEW:
+  asleep → BACK then Netflix 401ms later · playing → launch only ·
+  wake-less dialect → launch only.
+- To USE it on CT: Model → Apps & dialects → your firetv dialect →
+  Wake before launch = `key:back` (its keys catalog already has
+  back) → Save & Deploy. **Engine + .py untouched-restart: engine
+  push only — no HA restart for this round so far.**
+
+## Current state (v0.83.8 SHIPPED, 2026-08-16 — image upload + the Poster + apps 2-up + import chooser, s0.83.8 b32)
+
+- **PREVIEW TOOLTIPS NAME THE PHYSICAL KEY** (his: "On Astrion
+  hover, show Physical Key info -- i.e. F1, F11 where applicable"):
+  every soft key / photo hotspot title now carries `key ‹F1›` from
+  the reverse-keymap lookup, and the hold variant names its key too
+  (‹› quoting because the Astrion's back/home keys ARE "[" and "]").
+- **THE CREATE-GROUP DOOR GOT ITS RETURN TRIP** (his: "I don't get
+  the return to Activity option"): Model → Speaker Groups now shows
+  the same "← back to <page>" chip the Actions door has, whenever
+  you arrived from a room page — one tap back to the activity card.
+- Console noise triage (his paste): the "BT UI: … is loaded use the
+  other" flood and the button-card double-define DOMException are
+  OTHER HACS frontend cards (better-thermostat-ui-card ×
+  universal-remote-card, button-card) — HA loads every Lovelace
+  resource on every panel including ours, so they appear under
+  harmonium-studio:1. Not ours; nothing to fix in Harmonium.
+- OPEN (design agreed pending his answer): app-launch WAKE — a
+  dialect-level `wake` entry the engine fires before an app launch
+  when the context player reports off/idle/standby.
 
 - **IMPORT ASKS WHERE (his: "When I import a workspace it overrites
   main. It should give the choice … we don't allow the import of the

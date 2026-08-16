@@ -402,9 +402,19 @@
       parts.push("hold: " + d.input.physical_buttons.hold[btn]);
     return parts.join(" · ");
   };
+  /* PHYSICAL KEY IN THE TOOLTIP (v0.83.8 follow-up — Suresh: "On
+     Astrion hover, show Physical Key info -- i.e. F1, F11 where
+     applicable"): the reverse-keymap lookup already knows which raw
+     key this profile emits — say it. Hold variants name theirs too. */
   const keyTitle = (btn) => {
-    const base = defFor(btn).l + " — " + (keyDesc(btn) || "nothing on this page");
-    return keyFor(btn) ? base
+    const k = keyFor(btn);
+    const hk = holdKeyFor(btn);
+    /* ‹›, not brackets — the Astrion's back/home keys ARE "[" and
+       "]", and "[key: []" reads like a typo */
+    const base = defFor(btn).l + (k ? " · key ‹" + k + "›" : "") +
+      " — " + (keyDesc(btn) || "nothing on this page") +
+      (hk ? " · hold key ‹" + hk + "›" : "");
+    return k ? base
       : base + " · no key in the '" + app.device + "' keymap emits " + btn;
   };
 

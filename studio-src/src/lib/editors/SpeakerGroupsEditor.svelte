@@ -11,7 +11,7 @@
      remote offers THOSE players — as a slim launcher ("5 available ·
      2 linked" → the group's own page with per-player trim sliders)
      or as the full card inline. */
-  import { app, schedulePreview } from "../state.svelte.js";
+  import { app, schedulePreview, selectSlice } from "../state.svelte.js";
   import CardRow from "../components/CardRow.svelte";
   import Field from "../components/Field.svelte";
   import Input from "../components/Input.svelte";
@@ -20,6 +20,19 @@
   import NoteStrip from "../components/NoteStrip.svelte";
 
   const groups = $derived(app.draft?.speaker_groups || {});
+  /* THE RETURN TRIP (v0.83.8 follow-up — Suresh: "When I create a
+     speaker group from the controllers tab, I don't get the return
+     to Activity option"): the ＋ Create group… door arrives here
+     from a room page's activity card; the same back chip the
+     Actions door earned takes you home. */
+  const backKey = $derived(
+    app.prevKey && app.prevKey !== "spkgroups" &&
+    (app.prevKey.startsWith("view.") || app.prevKey.startsWith("screens.")) ? app.prevKey : null);
+  const backLabel = $derived.by(() => {
+    if (!backKey) return "";
+    const sid = backKey.startsWith("view.") ? backKey.slice(5) : backKey.slice(8);
+    return app.draft?.screens?.[sid]?.name || sid;
+  });
   let openId = $state(null);
   let adding = $state("");   /* entity being typed per open group */
 
@@ -85,6 +98,10 @@
 </script>
 
 <div class="space-y-3">
+  {#if backKey}
+    <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+      onclick={() => selectSlice(backKey)}>← back to {backLabel}</button>
+  {/if}
   <NoteStrip>
     A speaker group is a <b>named set of joinable players</b> — "Outdoor
     Music Players" — independent of any activity's cast. Point an

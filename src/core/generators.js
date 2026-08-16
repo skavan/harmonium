@@ -38,6 +38,19 @@ function expandTile(t) {
     if (!cls) return [];
     const reg = CONFIG.apps || {};
     const entries = cls.apps || {};
+    /* WAKE (v0.83.9 — Suresh: launching a FireTV app while the box
+       is off/idle "actually does the app change but screen remains
+       blank or screen saver. I find the back button works"): the
+       DIALECT may declare a `wake` — "key:<id>" borrows an entry
+       from its own keys catalog, anything else rides the classLaunch
+       grammar. firePreset checks the player's state at TAP time and
+       fires this first (then waits wake_delay ms, default 600)
+       before the launch. No wake declared = exactly today. */
+    let wkE = cls.wake;
+    if (typeof wkE === "string" && wkE.startsWith("key:"))
+      wkE = (cls.keys || {})[wkE.slice(4)];
+    const wake = wkE != null ? classLaunch(wkE) : null;
+    const wakeDelay = +cls.wake_delay > 0 ? +cls.wake_delay : 0;
     const ids = Array.isArray(t.include)
       ? t.include.filter((x) => entries[x] != null) : Object.keys(entries);
     return ids.map((aid) => {
@@ -52,6 +65,7 @@ function expandTile(t) {
            so the drawer can grow without touching preset tiles at
            large (presets band, device keys) */
         cls: "app",
+        ...(wake ? { wake, ...(wakeDelay ? { wakeDelay } : {}) } : {}),
         icon: ov.icon || meta.icon || "material:apps",
         ...(image ? { icon_image: image } : {}),
         label: ov.name || meta.name || aid,

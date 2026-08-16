@@ -164,24 +164,44 @@ function firePreset(t) {
   const ref = a.target || a.entity;
   const target = resolveEntity(ref);
   const run = () => {
-    /* A PRESET MAY NAME A SEQUENCE (v0.63): the same action grammar
-       everything else already speaks. Orchestration belongs HA-side —
-       a preset that joins two speakers is a sequence, not a service
-       call, and it shouldn't have to spell out harmonium.run by hand.
-       Warm-start still applies: the activity comes up first, then
-       this runs. */
-    if (a.sequence) { runActionRef("sequence:" + a.sequence); return; }
-    if (parts.length !== 2) return;
-    /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
-       playlist: no music activity on the deck meant no player wired,
-       and the tap just shrugged) */
-    if (ref && !target) {
-      flashBar("No player wired — start an activity that casts one");
-      return;
+    const fire = () => {
+      /* A PRESET MAY NAME A SEQUENCE (v0.63): the same action grammar
+         everything else already speaks. Orchestration belongs HA-side —
+         a preset that joins two speakers is a sequence, not a service
+         call, and it shouldn't have to spell out harmonium.run by hand.
+         Warm-start still applies: the activity comes up first, then
+         this runs. */
+      if (a.sequence) { runActionRef("sequence:" + a.sequence); return; }
+      if (parts.length !== 2) return;
+      /* unresolved $context → SAY SO (v0.48.2 — Suresh's silent
+         playlist: no music activity on the deck meant no player wired,
+         and the tap just shrugged) */
+      if (ref && !target) {
+        flashBar("No player wired — start an activity that casts one");
+        return;
+      }
+      /* the pending-play stamp gets the tile's NAME (v0.73.3) */
+      if (a.service === "media_player.play_media") S._playLabel = t.label || "";
+      callService(parts[0], parts[1], a.data, target);
+    };
+    /* WAKE THE SCREEN FIRST (v0.83.9 — Suresh: a FireTV app launch
+       while the box dozes "actually does the app change but screen
+       remains blank or screen saver. I find the back button works").
+       The apps generator stamps the dialect's `wake` action on every
+       launcher tile; when the player REPORTS asleep, fire it, give
+       the panel a beat to light up, then launch. An awake player is
+       never poked — the state gate keeps a stray Back from backing
+       out of a running app. */
+    if (t.wake) {
+      const we = target || resolveEntity("$context.media_player");
+      const ws = we ? st(we).s : "";
+      if (["off", "idle", "standby", "unavailable", "unknown"].includes(ws)) {
+        runAction(t.wake);
+        setTimeout(fire, t.wakeDelay || TIMING.wakeDelay);
+        return;
+      }
     }
-    /* the pending-play stamp gets the tile's NAME (v0.73.3) */
-    if (a.service === "media_player.play_media") S._playLabel = t.label || "";
-    callService(parts[0], parts[1], a.data, target);
+    fire();
   };
   if (t.activity && !isActivityActive(t.activity)) {
     if (!startActivity(t.activity)) return false;   // switch-confirm pending

@@ -151,6 +151,30 @@
             {/if}
           </div>
         </div>
+        <!-- WAKE (v0.83.9 — Suresh: a FireTV app launch while the box
+             dozes leaves "screen remains blank or screen saver. I find
+             the back button works"): fired before ANY app launch when
+             the player reports off/idle/standby. "key:<id>" borrows
+             this dialect's own key catalog; JSON = any HA action. -->
+        <div class="grid grid-cols-3 gap-3">
+          <Field label="Wake before launch"
+            hint={'fires when the player is asleep — "key:back" uses this dialect\'s keys, {…} = JSON action, blank = off'}>
+            <Input value={typeof c.wake === "string" ? c.wake : c.wake ? JSON.stringify(c.wake) : ""}
+              placeholder="key:back" class="font-mono text-[12px]"
+              onchange={(e2) => { const v = e2.target.value.trim();
+                if (!v) delete c.wake;
+                else if (v.startsWith("{")) { try { c.wake = JSON.parse(v); } catch { return; } }
+                else c.wake = v;
+                edit(); }} />
+          </Field>
+          <Field label="Wake → launch gap (ms)" hint="how long the screen gets to light up — blank = 600">
+            <Input type="number" min="100" step="100"
+              value={c.wake_delay ?? ""} placeholder="600"
+              onchange={(e2) => { const n = parseInt(e2.target.value);
+                if (n > 0) c.wake_delay = n; else delete c.wake_delay;
+                edit(); }} />
+          </Field>
+        </div>
         <div class="space-y-2">
           {#each Object.entries(c.apps || {}) as [aid, e] (aid)}
             <div class="rounded-[8px] bg-inset p-2">

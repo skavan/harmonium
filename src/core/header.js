@@ -34,5 +34,6 @@ const TIMING = {
   hold: 450,          // select held this long = hold gesture
   powerHold: 600,     // power held this long = All Off
   confirm: 5000,      // two-press confirm window (tile + status bar)
-  presetPoll: 300     // ensure-activity: poll interval for state flip
+  presetPoll: 300,    // ensure-activity: poll interval for state flip
+  wakeDelay: 600      // dialect wake → app launch gap (v0.83.9)
 };
