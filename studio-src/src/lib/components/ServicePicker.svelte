@@ -6,16 +6,22 @@
      no overflow-hidden ancestor can clip it (the EntityPicker trick). */
   import { app } from "../state.svelte.js";
   let { value = $bindable(""), placeholder = "domain.service — type to search",
-    onchange = null } = $props();
+    onchange = null, prefer = null } = $props();
   let open = $state(false);
   let inputEl = $state(null);
   let rect = $state(null);
   const place = () => { rect = inputEl?.getBoundingClientRect() || null; };
   const q = $derived((value || "").toLowerCase().trim());
-  const hits = $derived(app.services
-    .filter((s) => !q || s.id.includes(q) ||
-      (s.name || "").toLowerCase().includes(q))
-    .slice(0, 40));
+  const hits = $derived.by(() => {
+    const m = app.services.filter((s) => !q || s.id.includes(q) ||
+      (s.name || "").toLowerCase().includes(q));
+    /* PREFERRED DOMAIN FIRST (v0.83.7 — Suresh: "media_player
+       services at the top"): stable within each half */
+    if (prefer) m.sort((a2, b2) =>
+      (a2.id.startsWith(prefer + ".") ? 0 : 1) -
+      (b2.id.startsWith(prefer + ".") ? 0 : 1));
+    return m.slice(0, 40);
+  });
   function pick(id) {
     value = id;
     open = false;

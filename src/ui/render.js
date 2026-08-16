@@ -313,7 +313,7 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = secTiles.flatMap(expandTile).filter(visibleTile);
+    const vis = surfOrderTiles(secTiles).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
        tiles (the browse view toggle does). Rows want ONE column —
@@ -325,9 +325,27 @@ function navigate(screenId, isBack) {
        the list's one-column narrowing trick, one notch looser */
     const brCols = !brList && ((vis.find(x => x.brCols) || {}).brCols || 0);
     let anchorEl = null;
-    if (sec.title) {
+    /* SECTION-HEADING BANDS (v0.83.7 — "Presets should also have a
+       label field (PRESETS) as should DEVICES"): those two bands ARE
+       their section headings, so the Controller tab's label override
+       lands on the heading — typed text renames it, "" removes it. */
+    let secTitle = sec.title;
+    {
+      const scB = screenOf(S.screen);
+      if (scB && (scB.class === "activity" || scB.type === "controller")) {
+        const curB = renderActivityId();
+        const actB = curB && (CONFIG.activities || {})[curB];
+        const blB = actB && actB.surface && actB.surface.band_labels;
+        if (blB) {
+          const bandB = secTiles.some(x => x.type === "presets") ? "presets"
+            : secTiles.some(x => x.type === "devices") ? "devices" : null;
+          if (bandB && typeof blB[bandB] === "string") secTitle = blB[bandB];
+        }
+      }
+    }
+    if (secTitle) {
       const h = document.createElement("div");
-      h.className = "shead"; h.textContent = sec.title;
+      h.className = "shead"; h.textContent = secTitle;
       grid.appendChild(h);
       anchorEl = h;
     }

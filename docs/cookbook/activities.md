@@ -4,6 +4,10 @@
 switches inputs, hands the D-pad to the Fire TV — and shows as *On*
 on every remote in the house.
 
+*(This is the quick version. Every tab, every knob, and the concepts
+behind them — with screenshots — live in
+[Creating an Activity — the deep dive](creating-an-activity.md).)*
+
 ## The idea (read this once)
 
 An activity is Harmony's best idea done HA-side. The remote never

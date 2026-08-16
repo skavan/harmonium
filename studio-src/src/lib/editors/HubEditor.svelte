@@ -273,6 +273,21 @@
     if (!hasGen && !hasRefs)
       sec.tiles.push({ id: "acts", type: "activities", room: screenId });
   }
+  /* the page's collective cast (v0.83.7): every owned activity's
+     entities, for the preset pickers' preferred list */
+  const pageCastEnts = $derived.by(() => {
+    const out = [];
+    for (const aid of owned) {
+      const a = d.activities?.[aid] || {};
+      (Array.isArray(a.devices) ? a.devices : []).forEach((e) => {
+        if (typeof e === "string" && e.includes(".") && !out.includes(e)) out.push(e);
+      });
+      Object.values(a.context || {}).forEach((v) => {
+        if (typeof v === "string" && v.includes(".") && !out.includes(v)) out.push(v);
+      });
+    }
+    return out;
+  });
   function addActivity() {
     /* the first activity makes this page a HOST — sticky (the minted
        select lives as long as the page; no toggle, no ceremony) */
@@ -665,7 +680,7 @@
         {@const rs = roleSection("presets")}
         <div class={"space-y-2 " + (secEnabled(rs.s) ? "" : "opacity-50")}>
           {#each rs.s.tiles as tile, ti (ti)}
-            <TileRow {tile} ownerScreen={screenId} tiles={rs.s.tiles} index={ti} />
+            <TileRow {tile} ownerScreen={screenId} tiles={rs.s.tiles} index={ti} castEnts={pageCastEnts} />
           {:else}
             <p class="m-0 text-xs text-dim">No presets yet — a preset is a one-touch shortcut (Netflix, a playlist, lights at 30%).</p>
           {/each}
@@ -691,7 +706,7 @@
         {@const ds = roleSection("devices")}
         <div class={"space-y-2 " + (secEnabled(ds.s) ? "" : "opacity-50")}>
           {#each ds.s.tiles as tile, ti (ti)}
-            <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} />
+            <TileRow {tile} ownerScreen={screenId} tiles={ds.s.tiles} index={ti} castEnts={pageCastEnts} />
           {:else}
             <p class="m-0 text-xs text-dim">No devices yet — a device card controls one thing you own; a nav card opens another page (or another workspace).</p>
           {/each}
@@ -722,7 +737,7 @@
         {/if}
         <div class={"space-y-2 " + (secEnabled(s) ? "" : "opacity-50")}>
           {#each s.tiles as tile, ti (ti)}
-            <TileRow {tile} ownerScreen={screenId} tiles={s.tiles} index={ti} />
+            <TileRow {tile} ownerScreen={screenId} tiles={s.tiles} index={ti} castEnts={pageCastEnts} />
           {/each}
         </div>
       </SectionHeader>
@@ -735,7 +750,7 @@
         bind:collapsed={() => secFold.flat ?? false, (v) => (secFold.flat = v)}>
         <div class="space-y-2">
           {#each scr.tiles as tile, ti (ti)}
-            <TileRow {tile} ownerScreen={screenId} tiles={scr.tiles} index={ti} />
+            <TileRow {tile} ownerScreen={screenId} tiles={scr.tiles} index={ti} castEnts={pageCastEnts} />
           {/each}
         </div>
       </SectionHeader>

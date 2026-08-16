@@ -19,6 +19,13 @@ export const app = $state({
   authErr: "",
   unsaved: false,   // draft differs from last saved copy
   virgin: false,    // fresh install: store empty, editor holds the minted starter
+  /* COLLAPSIBLE COLUMNS (s0.83.10 — Suresh: "hide/collapse columns…
+     optimize workspace"): the nav and preview columns fold away so
+     the editor gets the width. Header toggles, remembered per
+     browser. The preview is HIDDEN, never unmounted — the engine
+     iframe keeps its state. */
+  navHide: localStorage.getItem("hakr_studio_nav_hide") === "1",
+  pvHide: localStorage.getItem("hakr_studio_pv_hide") === "1",
   pvPulse: 0,       // bumps on every preview push (sync indicator)
   pvScreen: "",     // the screen the preview is showing (engine-reported)
   entities: [],       // live HA states for pickers: {entity_id, name, state}
@@ -184,7 +191,10 @@ export const STOCK_MUSIC_LIBRARY =
    preserved by the gen healer. */
 export const STOCK_MUSIC = {
   name: "Music Media Player",
-  gen: 1,
+  /* gen 2 (v0.83.7): the SPEAKERS grouping card joined the band —
+     renders only when the running activity casts 2+ players, so the
+     shared surface stays quiet for single-speaker rooms */
+  gen: 2,
   class: "activity", view_kind: "controller", type: "controller",
   buttons: {
     ch_up: { service: "media_player.media_next_track", entity: "$context.media_player" },
@@ -207,6 +217,7 @@ export const STOCK_MUSIC = {
       { id: "m_cmd", type: "mediabtns", entity: "$context.media_player",
         label: "Modes", span: 2 },
       { id: "vol", type: "volumes" },
+      { id: "spk", type: "speakers" },
       { id: "grp", type: "groups" },
       { id: "m_src", type: "sources", entity: "$context.source_select",
         icon: "material:input", label: "Source", span: 2 },
@@ -477,10 +488,13 @@ export const isCastGroup = (m) => !!m && typeof m === "object" && !!m.group;
 export const SHOWS_KINDS = [
   { value: "device", label: "Launcher tile", role: null,
     hint: "opens the device's own controller — always available" },
+  /* ONE volume entry (v0.83.7 — Suresh: "we have Volume Control and
+     Volume Stepper in DRAWS AS. And we have Volume Style with
+     overlapping choices"): Draws-as picks the CONTROL, the Volume
+     style select beside it picks the SHAPE. The legacy "stepper"
+     value is swept to volume + style: stepper on load. */
   { value: "volume", label: "Volume control", role: "volume",
-    hint: "a level readout with − / + (or a slider, per the theme)" },
-  { value: "stepper", label: "Volume − / +", role: "volume",
-    hint: "the compact two-button stepper" },
+    hint: "level + − / + — the Volume style select picks its shape" },
   { value: "power", label: "Power button", role: "power",
     hint: "toggles the device itself" },
   { value: "media", label: "Now Playing", role: "media_player",
@@ -687,8 +701,24 @@ function normalizeSectionOrder(cfg) {
   return cfg;
 }
 
+/* v0.83.7 — the Draws-as unification: shows "stepper" was a second
+   volume entry overlapping the Volume style select; it becomes
+   volume + style: stepper (the engine keeps honouring the legacy
+   value on already-deployed configs). */
+function normalizePresentShows(cfg) {
+  for (const a of Object.values(cfg?.activities || {})) {
+    for (const p of Object.values(a?.present || {})) {
+      if (p && p.shows === "stepper") {
+        p.shows = "volume";
+        if (!p.style) p.style = "stepper";
+      }
+    }
+  }
+}
+
 function normalizeConfig(cfg) {
   ensureStockControllers(cfg);
+  normalizePresentShows(cfg);
   normalizeNavTiles(cfg);
   normalizeHosts(cfg);
   normalizeOffActivity(cfg);
@@ -898,9 +928,19 @@ export function clearCurrent() {
    running?" question kept costing rounds: HA serves studio.html with
    hard cache headers, so a stale tab looks exactly like a bad fix).
    Bump alongside PROJECT.md when the Studio changes. */
-export const STUDIO_V = "0.83.9";
+export const STUDIO_V = "0.83.26";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
+
+/* column toggles (s0.83.10) — flip + persist */
+export function toggleNav() {
+  app.navHide = !app.navHide;
+  localStorage.setItem("hakr_studio_nav_hide", app.navHide ? "1" : "0");
+}
+export function togglePv() {
+  app.pvHide = !app.pvHide;
+  localStorage.setItem("hakr_studio_pv_hide", app.pvHide ? "1" : "0");
+}
 
 export function setStatus(msg, cls = "") {
   app.status = { msg, cls };
@@ -1077,6 +1117,8 @@ export function slices() {
     sub: Object.keys(d.activities || {}).length + " across rooms", group: "Model" });
   s.push({ key: "devices", label: "Pre-wired Devices",
     sub: Object.keys(d.devices || {}).length + " defined", group: "Model" });
+  s.push({ key: "spkgroups", label: "Speaker Groups",
+    sub: Object.keys(d.speaker_groups || {}).length + " groups", group: "Model" });
   s.push({ key: "input", label: "Input policy", sub: "tap/hold ownership", group: "System" });
   s.push({ key: "remotes", label: "Remotes & keymaps", sub: "profiles", group: "System" });
   s.push({ key: "theme", label: "Theme", sub: "colors · layout · type", group: "System" });
@@ -1089,7 +1131,7 @@ export function slices() {
 export const hasVisual = (key) =>
   (key || "").startsWith("view.") || key === "activities" || key === "sequences" ||
   key === "apps" || key === "theme" || key === "snippets" || key === "workspaces" ||
-  key === "map" || key === "devices" ||
+  key === "map" || key === "devices" || key === "spkgroups" ||
   (key || "").startsWith("screens.") || (key || "").startsWith("controller.");
 
 export function getSlice(key) {

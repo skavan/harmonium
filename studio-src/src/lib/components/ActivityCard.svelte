@@ -43,6 +43,145 @@
     return { cid, c, isStock: !c.variant_of };
   });
   const devicesOn = () => a.surface?.devices !== false;
+  /* THE CONTROLLER TAB (v0.83.7 — Suresh: "Should we have a
+     controller tab, where we turn knobs and settings for a given
+     controller?"). Per-activity band switches on the SHARED surface,
+     stored on a.surface (surface.devices pioneered the shape in
+     v0.48). Absent = Auto = today's behavior; false = off. The rows
+     are derived from what the target controller ACTUALLY renders. */
+  const BAND_DEFS = [
+    { key: "np", label: "Now Playing", types: ["media"],
+      hint: "art, title, play state" },
+    { key: "transport", label: "Transport", types: ["transport"],
+      hint: "play / pause / skip" },
+    { key: "modes", label: "Modes", types: ["mediabtns"],
+      hint: "shuffle / repeat / queue" },
+    { key: "volume", label: "Volume band", types: ["volume", "volumes"],
+      hint: "the cast's volume controls" },
+    { key: "speakers", label: "Speakers (grouping)", types: ["speakers"],
+      hint: "Auto = appears when this activity has 2+ players" },
+    { key: "groups", label: "Cast-group cards", types: ["groups"],
+      hint: "the nav cards for groups made with ⊞ Add group in the cast" },
+    { key: "sources", label: "Source picker", types: ["sources"],
+      hint: "the input list" },
+    { key: "presets", label: "Presets band", types: ["presets"],
+      hint: "the shortcuts below — hiding the band keeps them saved" },
+    { key: "devices", label: "Devices section", types: ["devices"],
+      hint: "the cast lists itself at the bottom of the controller" },
+  ];
+  const ctrlTileTypes = $derived.by(() => {
+    const c = navCtrl?.c;
+    const tt = new Set();
+    if (c) [...(c.tiles || []), ...((c.sections || []).flatMap((x) => x.tiles || []))]
+      .forEach((x) => { if (x && x.type) tt.add(x.type); });
+    return tt;
+  });
+  const bandsRaw = $derived(BAND_DEFS.filter((b) => b.types.some((x) => ctrlTileTypes.has(x))));
+  /* rows display in the activity's own order (v0.83.7 — "move up
+     and move down"); unlisted bands trail in natural order */
+  const bands = $derived.by(() => {
+    const order = a?.surface?.band_order;
+    if (!Array.isArray(order) || !order.length) return bandsRaw;
+    return [...bandsRaw].sort((x, y) => {
+      const rx = order.indexOf(x.key), ry = order.indexOf(y.key);
+      return (rx < 0 ? 900 : rx) - (ry < 0 ? 900 : ry);
+    });
+  });
+  function moveBand(key, dir) {
+    const cur = bands.map((b) => b.key);
+    const i = cur.indexOf(key), j = i + dir;
+    if (j < 0 || j >= cur.length) return;
+    [cur[i], cur[j]] = [cur[j], cur[i]];
+    a.surface = { ...(a.surface || {}), band_order: cur };
+    schedulePreview();
+  }
+  const bandOn = (k) => a.surface?.[k] !== false;
+  function setBand(k, v) {
+    if (v) {
+      if (a.surface) {
+        delete a.surface[k];
+        if (!Object.keys(a.surface).length) delete a.surface;
+      }
+    } else a.surface = { ...(a.surface || {}), [k]: false };
+    schedulePreview();
+  }
+  function setSurfKey(key, v) {
+    if (v) a.surface = { ...(a.surface || {}), [key]: v };
+    else if (a.surface) {
+      delete a.surface[key];
+      if (!Object.keys(a.surface).length) delete a.surface;
+    }
+    schedulePreview();
+  }
+  /* Speaker Groups (v0.83.7): which players the Speakers band offers,
+     and how the card presents — see Model → Speaker Groups */
+  const setSpeakersGroup = (v) => setSurfKey("speakers_group", v);
+  const setSpeakersMode = (v) => setSurfKey("speakers_mode", v);
+  /* BAND LABEL SLOTS (v0.83.7 — "would be cool is a label slot, so we
+     can override labels ... No text means no label!"): overrides the
+     band's tile label on the remote, for THIS activity. Absent =
+     default; "" = no label at all. Only single-tile bands take one —
+     per-item bands (the volumes cast, presets, devices) keep their
+     own names. */
+  const LABELABLE = new Set(["np", "transport", "modes", "volume", "sources", "speakers", "presets", "devices"]);
+  /* the placeholder tells the truth (v0.83.7 — "Volume Band. label is
+     Blank but actually its ..."): what the band ACTUALLY says today,
+     so the empty slot reads as "currently: X", not as "no label" */
+  function defaultBandLabel(key) {
+    const c = navCtrl?.c;
+    const allTiles = c ? [...(c.tiles || []),
+      ...((c.sections || []).flatMap((x) => x.tiles || []))] : [];
+    const byType = (ty) => allTiles.find((x) => x.type === ty);
+    if (key === "np") return byType("media")?.label ?? "Now Playing";
+    if (key === "transport") return byType("transport")?.label ?? "(hidden)";
+    if (key === "modes") return byType("mediabtns")?.label ?? "(hidden)";
+    if (key === "sources") return byType("sources")?.label ?? "Inputs";
+    if (key === "volume") {
+      const wired = a?.context?.volume;
+      const dev = Object.entries(app.draft?.devices || {}).find(
+        ([, d]) => Object.values(d.roles || {}).includes(wired) && d.roles?.volume === wired);
+      if (dev) return dev[1].name || dev[0];
+      /* LOOSE wiring (tidy-ups: 'We show "Volume" ... It's MA
+         Basement'): the wired entity's own name is the truth */
+      const rec = app.entities.find((x) => x.entity_id === wired);
+      if (rec?.name) return rec.name;
+      if (typeof wired === "string" && wired.includes("."))
+        return wired.split(".").pop().replace(/_/g, " ");
+      return byType("volume")?.label ?? "Volume";
+    }
+    if (key === "speakers") {
+      const gid = a?.surface?.speakers_group;
+      return gid ? (app.draft?.speaker_groups?.[gid]?.name || gid) : "Speakers";
+    }
+    if (key === "presets" || key === "devices") {
+      const sec = (c?.sections || []).find((x) =>
+        (x.tiles || []).some((tt) => tt.type === key));
+      return sec?.title ?? (key === "presets" ? "Presets" : "Devices");
+    }
+    return "";
+  }
+  const bandLabel = (k) => a.surface?.band_labels?.[k];
+  function setBandLabel(k, v) {
+    a.surface = { ...(a.surface || {}),
+      band_labels: { ...(a.surface?.band_labels || {}), [k]: v } };
+    schedulePreview();
+  }
+  function clearBandLabel(k) {
+    if (!a.surface?.band_labels) return;
+    delete a.surface.band_labels[k];
+    if (!Object.keys(a.surface.band_labels).length) delete a.surface.band_labels;
+    if (!Object.keys(a.surface).length) delete a.surface;
+    schedulePreview();
+  }
+  const setNpStyle = (v) => setSurfKey("np_style", v);
+  function setVolStyle(v) {
+    if (v) a.surface = { ...(a.surface || {}), volume_style: v };
+    else if (a.surface) {
+      delete a.surface.volume_style;
+      if (!Object.keys(a.surface).length) delete a.surface;
+    }
+    schedulePreview();
+  }
   function toggleDevices(v) {
     if (v) {
       if (a.surface) {
@@ -693,11 +832,23 @@
      device that's OFF often hides its list, and the question must
      still be answerable (typed source). Keys: device id for cast
      devices, entity id for a direct entity. */
+  /* WHICH entity answers a device's input question. Priority: the
+     source_select claim, the media_player claim — and, NEW
+     (v0.83.7, .88 status review: "Why is the soundbar not showing
+     in the input sources?"), ANY claimed media_player entity. A
+     soundbar cast only for volume_level still points that claim at
+     a media_player with a real source list (HDMI/optical/BT) — the
+     old filter read the role KEYS and never saw it. */
+  const inputEnt = (c) => {
+    const r = devLib[c]?.roles || {};
+    return r.source_select || r.media_player ||
+      Object.values(r).find((e) =>
+        typeof e === "string" && e.startsWith("media_player."));
+  };
   const inputTargets = $derived.by(() => [
     ...cast
-      .filter((c) => devLib[c]?.roles?.source_select || devLib[c]?.roles?.media_player)
-      .map((c) => ({ key: c, name: devLib[c]?.name || c,
-        ent: devLib[c].roles.source_select || devLib[c].roles.media_player })),
+      .filter((c) => inputEnt(c))
+      .map((c) => ({ key: c, name: devLib[c]?.name || c, ent: inputEnt(c) })),
     ...(a?.extra_devices || [])
       .filter((e) => e.startsWith("media_player."))
       .map((e) => ({ key: e, name: e, ent: e })),
@@ -747,8 +898,8 @@
     }
     for (const [devId, src] of Object.entries(a.inputs || {})) {
       if (src == null) continue;                     /* none / ignore */
-      const ent = devLib[devId]?.roles?.source_select ||
-        devLib[devId]?.roles?.media_player ||
+      /* same entity the Inputs tab asked about (v0.83.7) */
+      const ent = inputEnt(devId) ||
         (devId.includes(".") ? devId : null);        /* direct entity key */
       if (!ent) continue;
       steps.push({
@@ -762,8 +913,29 @@
     return steps;
   }
   function buildStopActions() {
-    const steps = [{ alias: "Set activity state",
-      action: "harmonium.set_activity", data: { activity: "off" } }];
+    /* THE STOP ENDS THIS ACTIVITY, NOT THE ROOM (v0.83.7 — Suresh:
+       "a room can run MORE than one activity at a time. Listen to
+       Music and Watch TV. If I long press Watch TV, I want Watch TV
+       turned off. Not the whole room."). The room's select is the
+       FOCUS — who owns the controller, the keys, the context — and
+       it holds one activity; device truth (state rules / implied
+       state) is what makes several activities read as running at
+       once. So a generated Stop: turns off ITS checked devices, and
+       clears the room's routing ONLY if this activity still holds
+       it — if Music took the room meanwhile, ending Watch TV leaves
+       Music's routing alone. (The original bug here was worse: a
+       bare set_activity off is ALL-OFF, every room in the
+       workspace.) The select id is the minted pattern —
+       workspace-prefixed except main; duplication retargets it. */
+    const selEnt = "select.harmonium_" +
+      (app.workspace === "main" ? "" : app.workspace + "_") +
+      (a.room_view || "") + "_activity";
+    const steps = [{
+      alias: "Clear the room's routing — ONLY if this activity still owns it",
+      if: [{ condition: "state", entity_id: selEnt, state: id }],
+      then: [{ action: "harmonium.set_activity",
+        data: { activity: "off",
+          ...(a.room_view ? { room: a.room_view } : {}) } }] }];
     for (const devId of a.stop_off || []) {
       const d = devLib[devId];
       if (!d || d.traits?.never_off) continue;       /* the untouchables */
@@ -1200,7 +1372,9 @@
           { k: "roles", label: "Roles", dot: dotRoles },
           { k: "inputs", label: "Inputs", dot: dotInputs },
           { k: "actions", label: "Actions", dot: dotActions },
-          { k: "presets", label: "Presets", dot: presetCount() > 0, n: presetCount() || null },
+          { k: "controller", label: "Controller",
+            dot: !!(a?.surface && Object.keys(a.surface).length) || presetCount() > 0,
+            n: presetCount() || null },
           { k: "state", label: "State", dot: stateCount() > 0, n: stateCount() },
         ] as t (t.k)}
           <!-- FIRST-CLASS TABS (v0.48; v0.48.1 — Suresh: "the active
@@ -1294,37 +1468,10 @@
           </Field></div>
         </div>
         {#if navCtrl}
-          <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
-            {#if navCtrl.isStock}
-              <div class="flex flex-wrap items-center gap-4">
-                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · stock</span>
-                <Switch checked={devicesOn()} label="Auto-populate devices (this activity's cast)"
-                  onCheckedChange={toggleDevices} />
-                <button
-                  class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1 text-xs text-dim hover:border-accent/60 hover:text-accent"
-                  title="Copy the stock surface as this activity's own editable controller"
-                  onclick={() => { const iid = instantiateController(navCtrl.cid, id); if (iid) selectSlice("controller." + iid); }}
-                >⧉ Create custom copy</button>
-              </div>
-              <p class="mt-1 mb-0 text-[11px] text-dim">
-                The switch controls the <b>Devices</b> section at the bottom of this
-                controller: on, the cast lists itself there (watch the preview);
-                off, the section disappears. Shared stock surface — editing the
-                controller itself changes every activity that uses it; a custom
-                copy is yours alone.
-              </p>
-            {:else}
-              <div class="flex flex-wrap items-center gap-4">
-                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · custom copy</span>
-                <span class="text-xs text-ink">{navCtrl.c.name}</span>
-                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
-                  onclick={() => selectSlice("controller." + navCtrl.cid)}>edit →</button>
-                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-danger hover:underline"
-                  title="Point this activity back at the stock controller (removes the copy if nothing else uses it)"
-                  onclick={() => revertToStock(id)}>↺ use stock</button>
-              </div>
-            {/if}
-          </div>
+          <p class="m-0 text-xs text-dim">
+            Band switches, presets and the custom-copy door live on the
+            <b>Controller</b> tab.
+          </p>
         {:else}
           <p class="m-0 text-xs text-dim">
             {a.screen
@@ -1598,8 +1745,94 @@
           {#each castRaw as member (typeof member === "string" ? "d:" + member : "g:" + member.group)}
             {#if typeof member === "string"}
               {#if !groupOf(member)}{@render castRow(member, null)}{/if}
-            {:else}
-              {@const g = member}
+            {/if}
+          {/each}
+          {#if !cast.length && !(a.extra_devices || []).length && !legacyEnts.length}
+            <p class="m-0 text-xs text-dim">
+              No devices cast yet — search below. Devices you pick are
+              added to your library automatically.
+            </p>
+          {/if}
+          <!-- LEGACY rows (v0.53): entities wired straight into roles
+               by yaml-era activities — visible again, promotable -->
+          {#each legacyEnts as ent (ent)}
+            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
+              <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
+              {#each rolesOf(ent) as role (role)}
+                <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
+              {/each}
+              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
+                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
+                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
+              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                title="Unwire — clears every role pointing at this entity"
+                aria-label="Remove entity" onclick={() => removeLegacyEnt(ent)}>✕</button>
+            </div>
+          {/each}
+          <!-- entities cast DIRECTLY (no pre-wiring, no "loose" — v0.48:
+               a pre-wired device is a convenience, not a requirement) -->
+          {#each (a.extra_devices || []).filter((e) => !groupOf(e)) as ent (ent)}
+            <!-- quiet rows (v0.48.1 — "too many things competing for
+                 eye"): bg punched down to the page, hairline border -->
+            <div class="rounded-[8px] border border-line bg-bg px-2 py-1.5">
+              <!-- flex-WRAP (v0.76.4 — Suresh: "screen is corrupted at
+                   smaller widths"): the name was the only shrinkable
+                   thing in a no-wrap row, so chips squeezed it to
+                   nothing and pushed the ★ out of the box. Now the
+                   controls flow to a second line (his blessing: "OK to
+                   create an extra line") and the name keeps a floor. -->
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span class="min-w-[140px] flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
+                <!-- SAY THE ROLES IT HOLDS (v0.76.1 — Suresh: "keeps the
+                     existing entity but demotes it and throws away the
+                     roles!"). It never lost them — the wiring is intact
+                     underneath — but only the LEGACY row template drew
+                     the chips, so an adopted entity looked stripped the
+                     moment it moved into this shape. Same chips, same
+                     voice, every home. -->
+                {#each rolesOf(ent) as role (role)}
+                  <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
+                {/each}
+                <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
+                  title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
+                  onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
+                <label class="inline-flex shrink-0 cursor-pointer items-center gap-1.5">
+                  <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
+                  <span class="text-[10px] text-dim">on controller</span>
+                </label>
+                <!-- PRIMARY LIVES HERE TOO (v0.76.3 — Suresh: "if we're
+                     building a music controller, then a media player
+                     needs to [be] primary… it should have a star").
+                     For loose entities the media_player WIRING is what
+                     primary means: the holder wears ★; any other
+                     media_player offers ☆ (rewires the role); other
+                     domains show a quiet disabled ☆. -->
+                {#if (wiring.media_player || a.context?.media_player) === ent}
+                  <span class="shrink-0 text-[11px] font-medium text-accent-text"
+                    title="Holds the media_player role — the activity plays through this">★ primary</span>
+                {:else if ent.startsWith("media_player.")}
+                  <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
+                    title="Make this the media player — rewires the media_player role here"
+                    onclick={() => setRole("media_player", ent)}>☆ make primary</button>
+                {:else}
+                  <span class="shrink-0 text-[11px] text-faint opacity-60"
+                    title="Only a media player can lead this activity">☆</span>
+                {/if}
+                <button class={"shrink-0 cursor-pointer border-0 bg-transparent p-1 " +
+                    (a.present?.[ent] && openPres !== ent ? "text-accent" : "text-dim hover:text-accent")}
+                  title="Presentation — display name, icon, what it draws as, what a tap does"
+                  onclick={() => editPres(ent)}>⚙</button>
+                <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                  aria-label="Remove entity" onclick={() => removeExtraEnt(ent)}>✕</button>
+              </div>
+              {@render presPanel(ent, true, false)}
+            </div>
+          {/each}
+          <!-- GROUP CARDS render BELOW the cast rows (v0.83.7 tidy-ups:
+               "I dont think it should sit above the primary role
+               devices") — curation after the raw cast -->
+          {#each groups as g (g.group)}
+            {#if true}
               {@const kind = SHOWS_KINDS.find((k) => k.value === (g.shows || "device"))}
               <div class="rounded-[8px] border border-line-strong bg-inset px-2.5 py-2">
                 <div class="flex flex-wrap items-center gap-2">
@@ -1661,7 +1894,7 @@
                     {#if !(g.members || []).length}<b> Tick the devices it holds.</b>{/if}
                   </p>
                   <div class="flex flex-wrap gap-x-4 gap-y-1">
-                    {#each cast as cid (cid)}
+                    {#each [...cast, ...(a.extra_devices || [])] as cid (cid)}
                       {@const other = groupOf(cid)}
                       {@const mine = other?.group === g.group}
                       <label class={"inline-flex items-center gap-1.5 " +
@@ -1669,7 +1902,8 @@
                         title={other && !mine ? "already in " + (other.name || other.group) : ""}>
                         <input type="checkbox" checked={mine} disabled={!!other && !mine} class="h-3 w-3"
                           onchange={() => setDeviceGroup(cid, mine ? "" : g.group)} />
-                        <span class="text-[11.5px] text-ink-2">{devLib[cid]?.name || cid}</span>
+                        <span class="text-[11.5px] text-ink-2">{devLib[cid]?.name ||
+                          app.entities.find((x) => x.entity_id === cid)?.name || cid}</span>
                       </label>
                     {:else}
                       <span class="text-[11px] text-dim italic">nothing cast yet — add devices below, then tick them here</span>
@@ -1678,92 +1912,22 @@
                 {/if}
                 {#if (g.members || []).length}
                   <div class="mt-2 space-y-1.5 border-l-2 border-line pl-2.5">
-                    {#each g.members as mid (mid)}{@render castRow(mid, g)}{/each}
+                    {#each g.members as mid (mid)}
+                      {#if devLib[mid]}{@render castRow(mid, g)}
+                      {:else}
+                        <!-- a LOOSE entity member -->
+                        <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
+                          <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={mid}>{mid}</span>
+                          <button class="cursor-pointer border-0 bg-transparent p-1 text-[11px] text-dim hover:text-danger"
+                            title="Take it out of the group — it returns to the cast rows"
+                            onclick={() => setDeviceGroup(mid, "")}>✕</button>
+                        </div>
+                      {/if}
+                    {/each}
                   </div>
                 {/if}
               </div>
             {/if}
-          {/each}
-          {#if !cast.length && !(a.extra_devices || []).length && !legacyEnts.length}
-            <p class="m-0 text-xs text-dim">
-              No devices cast yet — search below. Devices you pick are
-              added to your library automatically.
-            </p>
-          {/if}
-          <!-- LEGACY rows (v0.53): entities wired straight into roles
-               by yaml-era activities — visible again, promotable -->
-          {#each legacyEnts as ent (ent)}
-            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
-              <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
-              {#each rolesOf(ent) as role (role)}
-                <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
-              {/each}
-              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
-                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
-                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
-              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                title="Unwire — clears every role pointing at this entity"
-                aria-label="Remove entity" onclick={() => removeLegacyEnt(ent)}>✕</button>
-            </div>
-          {/each}
-          <!-- entities cast DIRECTLY (no pre-wiring, no "loose" — v0.48:
-               a pre-wired device is a convenience, not a requirement) -->
-          {#each a.extra_devices || [] as ent (ent)}
-            <!-- quiet rows (v0.48.1 — "too many things competing for
-                 eye"): bg punched down to the page, hairline border -->
-            <div class="rounded-[8px] border border-line bg-bg px-2 py-1.5">
-              <!-- flex-WRAP (v0.76.4 — Suresh: "screen is corrupted at
-                   smaller widths"): the name was the only shrinkable
-                   thing in a no-wrap row, so chips squeezed it to
-                   nothing and pushed the ★ out of the box. Now the
-                   controls flow to a second line (his blessing: "OK to
-                   create an extra line") and the name keeps a floor. -->
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span class="min-w-[140px] flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
-                <!-- SAY THE ROLES IT HOLDS (v0.76.1 — Suresh: "keeps the
-                     existing entity but demotes it and throws away the
-                     roles!"). It never lost them — the wiring is intact
-                     underneath — but only the LEGACY row template drew
-                     the chips, so an adopted entity looked stripped the
-                     moment it moved into this shape. Same chips, same
-                     voice, every home. -->
-                {#each rolesOf(ent) as role (role)}
-                  <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
-                {/each}
-                <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
-                  title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
-                  onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
-                <label class="inline-flex shrink-0 cursor-pointer items-center gap-1.5">
-                  <input type="checkbox" checked={tileOn(ent)} onchange={() => toggleTile(ent)} class="h-3 w-3" />
-                  <span class="text-[10px] text-dim">on controller</span>
-                </label>
-                <!-- PRIMARY LIVES HERE TOO (v0.76.3 — Suresh: "if we're
-                     building a music controller, then a media player
-                     needs to [be] primary… it should have a star").
-                     For loose entities the media_player WIRING is what
-                     primary means: the holder wears ★; any other
-                     media_player offers ☆ (rewires the role); other
-                     domains show a quiet disabled ☆. -->
-                {#if (wiring.media_player || a.context?.media_player) === ent}
-                  <span class="shrink-0 text-[11px] font-medium text-accent-text"
-                    title="Holds the media_player role — the activity plays through this">★ primary</span>
-                {:else if ent.startsWith("media_player.")}
-                  <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-[11px] text-dim hover:text-accent"
-                    title="Make this the media player — rewires the media_player role here"
-                    onclick={() => setRole("media_player", ent)}>☆ make primary</button>
-                {:else}
-                  <span class="shrink-0 text-[11px] text-faint opacity-60"
-                    title="Only a media player can lead this activity">☆</span>
-                {/if}
-                <button class={"shrink-0 cursor-pointer border-0 bg-transparent p-1 " +
-                    (a.present?.[ent] && openPres !== ent ? "text-accent" : "text-dim hover:text-accent")}
-                  title="Presentation — display name, icon, what it draws as, what a tap does"
-                  onclick={() => editPres(ent)}>⚙</button>
-                <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                  aria-label="Remove entity" onclick={() => removeExtraEnt(ent)}>✕</button>
-              </div>
-              {@render presPanel(ent, true, false)}
-            </div>
           {/each}
           <!-- THE UNIFIED PICKER (v0.48: BELOW the whole cast — new
                members append at the end, so the input sits where they
@@ -2014,8 +2178,158 @@
       </div>
       {/if}
 
-      {#if tab === "presets"}
-      <!-- PRESETS — one-touch shortcuts that belong to THIS activity
+      {#if tab === "controller"}
+      <div class="space-y-3">
+        <!-- THE CONTROLLER TAB (v0.83.7). The Harmony question the
+             card never asked: WHAT DOES THE SCREEN SHOW while this
+             runs? The strip (moved from Setup), one switch per band
+             the surface renders, and the activity's presets — the
+             surface stays shared; the preferences travel with the
+             activity. -->
+        {#if navCtrl}
+          <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
+            {#if navCtrl.isStock}
+              <div class="flex flex-wrap items-center gap-4">
+                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · stock</span>
+                <span class="text-xs text-ink">{navCtrl.c.name}</span>
+                <button
+                  class="cursor-pointer rounded-[8px] border border-dashed border-line bg-transparent px-2.5 py-1 text-xs text-dim hover:border-accent/60 hover:text-accent"
+                  title="Copy the stock surface as this activity's own editable controller — for STRUCTURAL changes; the switches below don't need one"
+                  onclick={() => { const iid = instantiateController(navCtrl.cid, id); if (iid) selectSlice("controller." + iid); }}
+                >⧉ Create custom copy</button>
+              </div>
+              <p class="mt-1 mb-0 text-[11px] text-dim">
+                A shared stock surface — editing the controller itself changes
+                every activity that uses it. The switches below are <b>this
+                activity's alone</b>: they hide or show bands without touching
+                the surface. Absent switch = Auto = the band's own rules.
+              </p>
+            {:else}
+              <div class="flex flex-wrap items-center gap-4">
+                <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Controller · custom copy</span>
+                <span class="text-xs text-ink">{navCtrl.c.name}</span>
+                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-accent hover:underline"
+                  onclick={() => selectSlice("controller." + navCtrl.cid)}>edit →</button>
+                <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-danger hover:underline"
+                  title="Point this activity back at the stock controller (removes the copy if nothing else uses it)"
+                  onclick={() => revertToStock(id)}>↺ use stock</button>
+              </div>
+            {/if}
+          </div>
+          <div class="rounded-[10px] border border-line bg-tile p-3">
+            <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">What this screen shows — for this activity</span>
+            <div class="mt-2 space-y-1.5">
+              {#each bands as bd (bd.key)}
+                <div class="flex flex-wrap items-center gap-2.5" title={bd.hint}>
+                  <span class="flex w-[24px] shrink-0 flex-col leading-none">
+                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-faint hover:text-ink"
+                      aria-label={"Move " + bd.label + " up"} onclick={() => moveBand(bd.key, -1)}>↑</button>
+                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-faint hover:text-ink"
+                      aria-label={"Move " + bd.label + " down"} onclick={() => moveBand(bd.key, 1)}>↓</button>
+                  </span>
+                  <span class="w-[186px] shrink-0 text-[12.5px] text-ink-2">{bd.label}</span>
+                  <!-- COLUMN DISCIPLINE (v0.83.7 — "Lets have all the
+                       labels align and the other stuff follow"): the
+                       switch and the label slot live in fixed-width
+                       columns, so every row's controls line up -->
+                  <span class="flex w-[88px] shrink-0 items-center">
+                    <Switch checked={bandOn(bd.key)}
+                      label={bandOn(bd.key) ? "Auto" : "Off"}
+                      onCheckedChange={(v) => setBand(bd.key, v)} />
+                  </span>
+                  {#if LABELABLE.has(bd.key)}
+                    <span class="flex w-[158px] shrink-0 items-center gap-1">
+                      <input class="h-[28px] w-[136px] rounded-[8px] border border-line bg-sunk px-2 text-[12px] text-ink placeholder:text-faint"
+                        placeholder={defaultBandLabel(bd.key)}
+                        title={"overrides this band's label on the remote, for this activity — empty text = NO label · ↺ restores the default"}
+                        value={bandLabel(bd.key) ?? ""}
+                        oninput={(e) => setBandLabel(bd.key, e.target.value)} />
+                      {#if bandLabel(bd.key) !== undefined}
+                        <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-ink"
+                          title="Restore the default label"
+                          onclick={() => clearBandLabel(bd.key)}>↺</button>
+                      {/if}
+                    </span>
+                  {:else}
+                    <span class="w-[158px] shrink-0"></span>
+                  {/if}
+                  {#if bd.key === "volume" && bandOn("volume")}
+                    <Select value={a.surface?.volume_style ?? ""} class="max-w-44"
+                      title="this activity's default volume treatment — per-tile and per-member settings still win"
+                      options={[
+                        { value: "", label: "Theme default" },
+                        { value: "compact", label: "Compact" },
+                        { value: "slider", label: "Slider — the fat one" },
+                        { value: "stepper", label: "Stepper − / +" },
+                      ]}
+                      onchange={(e) => setVolStyle(e.target.value)} />
+                  {/if}
+                  {#if bd.key === "groups"}
+                    <span class="text-[11px] text-dim italic">
+                      {groups.length
+                        ? groups.map((g) => g.name || g.group).join(" · ")
+                        : "none yet — ⊞ Add group in the cast"}
+                    </span>
+                  {/if}
+                  {#if bd.key === "speakers" && bandOn("speakers")}
+                    <Select value={a.surface?.speakers_group ?? ""} class="max-w-44"
+                      title="which players the card offers — the cast's, or a named Speaker Group (Model → Speaker Groups)"
+                      options={[
+                        { value: "", label: "This activity's cast" },
+                        ...Object.entries(app.draft?.speaker_groups || {}).map(
+                          ([gid, g]) => ({ value: gid, label: g.name || gid })),
+                        { value: "__new", label: "＋ Create group…" },
+                      ]}
+                      onchange={(e) => {
+                        /* the door to Model → Speaker Groups (v0.83.7 —
+                           "add an create group option that takes us to
+                           groups...like we do with actions and stuff") */
+                        if (e.target.value === "__new") {
+                          e.target.value = a.surface?.speakers_group ?? "";
+                          selectSlice("spkgroups");
+                          return;
+                        }
+                        setSpeakersGroup(e.target.value);
+                      }} />
+                    <Select value={a.surface?.speakers_mode ?? ""} class="max-w-36"
+                      title="launcher = a slim count tile opening the group's page (per-player sliders); inline = the full card right on the controller"
+                      options={[
+                        { value: "", label: a.surface?.speakers_group ? "Launcher (auto)" : "Inline (auto)" },
+                        { value: "launcher", label: "Launcher tile" },
+                        { value: "inline", label: "Inline card" },
+                      ]}
+                      onchange={(e) => setSpeakersMode(e.target.value)} />
+                  {/if}
+                  {#if bd.key === "np" && bandOn("np")}
+                    <Select value={a.surface?.np_style ?? ""} class="max-w-36"
+                      title="how Now Playing draws for this activity — standard card, slim one-liner, or the artwork hero"
+                      options={[
+                        { value: "", label: "Auto" },
+                        { value: "plain", label: "Standard card" },
+                        { value: "slim", label: "Slim row" },
+                        { value: "art", label: "Art hero — side panel" },
+                        { value: "wash", label: "Art wash — full-bleed" },
+                      ]}
+                      onchange={(e) => setNpStyle(e.target.value)} />
+                  {/if}
+
+                </div>
+              {/each}
+            </div>
+            <p class="mt-2 mb-0 text-[10.5px] text-dim italic">
+              Auto = the band's own rules (a band with nothing to show hides
+              itself anyway). Off = never, for this activity. Other activities
+              on the same surface keep their own answers.
+            </p>
+          </div>
+        {:else}
+          <p class="m-0 text-xs text-dim">
+            No controller yet — pick a <b>Navigate to</b> on the Setup tab, or
+            ＋ mint a control page there. The switches for its bands appear
+            here once it exists.
+          </p>
+        {/if}
+        <!-- PRESETS — one-touch shortcuts that belong to THIS activity
            (v0.64). The controller carries a `presets` generator and
            names none of them, so a shared surface stays shared while
            every room's shortcuts are its own. -->
@@ -2060,7 +2374,7 @@
         </p>
         <div class="space-y-2">
           {#each a.presets || [] as tile, ti (ti)}
-            <TileRow {tile} tiles={a.presets} index={ti} />
+            <TileRow {tile} tiles={a.presets} index={ti} castEnts={deviceList()} />
           {:else}
             <p class="m-0 text-xs text-dim">
               No presets yet. Here they'd be things like “Coffee House”
@@ -2069,6 +2383,8 @@
             </p>
           {/each}
         </div>
+      </div>
+      
       </div>
       {/if}
 

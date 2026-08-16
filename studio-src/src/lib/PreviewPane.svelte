@@ -148,6 +148,14 @@
   let selScreen = $state(false);   /* the LCD rect is editable too (v0.80.1) */
   let skinEl = $state(null);
   let imgNat = $state({ w: 1280, h: 4084 });   /* natural px, for the aspect readout */
+  /* THE STRETCH, CAUGHT (v0.83.7 — P1 #9, his screenshot of the oval
+     play button): the iframe transform assumed a 340px photo width,
+     but the photo and the clip aperture size in PERCENT of the pane —
+     collapse a Studio column (◧/◨) and the pane widens, the aperture
+     grows with it, and the engine stays scaled for 340px: squish.
+     A browser refresh restored the default width, which is why it
+     always "fixed itself". Measure the photo's REAL width instead. */
+  let imgW = $state(0);
   let drag = $state(null);      /* in-flight NEW rect {x0,y0,x1,y1} */
   let hotDrag = null;           /* in-flight MOVE {kind,i,dx,dy} */
   let rsz = null;               /* in-flight RESIZE {kind,i} (corner handle) */
@@ -585,6 +593,19 @@
          the file keeps the photo's alpha (transparent outside the
          device), which is exactly what GIF/marketing compositing
          wants. -->
+    <!-- ↻ (v0.83.7 — "Still getting stretched transport bar ... put a
+         refresh icon next to the camera icon"): reloads the ENGINE
+         iframe only — the one-tap cure for a stretched first paint,
+         without losing the Studio session. -->
+    <button id="pvReload" title="Reload the preview engine (cures a stretched first paint)"
+      onclick={() => { try { iframe?.contentWindow?.location.reload(); } catch { if (iframe) iframe.src = iframe.src; } }}
+      class="flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-0 bg-tile-hi text-dim hover:text-ink">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+        <polyline points="21 3 21 9 15 9"/>
+      </svg>
+    </button>
     <button id="pvSnap" onclick={snapPreview} disabled={snapping}
       title={skin ? "Screenshot: photo + live screen, transparent outside the device (PNG)"
         : "Screenshot the preview screen (PNG)"}
@@ -663,10 +684,11 @@
         <iframe id="pv" bind:this={iframe} title="Live preview"
           src="/local/harmonium/index.html#preview=1"
           class="border-0 bg-bg"
-          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(skin.screen.w / 100 * 340 + 2) / (skin.viewport?.w || 320)}, {(skin.screen.h / 100 * 340 * (imgNat.h / imgNat.w) + 2) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
+          style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(skin.screen.w / 100 * (imgW || 340) + 2) / (skin.viewport?.w || 320)}, {(skin.screen.h / 100 * (imgW || 340) * (imgNat.h / imgNat.w) + 2) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
       </div>
       <img src={skin.image} alt="" draggable="false"
         onload={(e) => (imgNat = { w: e.target.naturalWidth, h: e.target.naturalHeight })}
+        bind:clientWidth={imgW}
         class="pointer-events-none relative z-10 w-full" />
       {#if mapping}
         <!-- the LCD rect is a first-class map object (v0.80.1 — "the

@@ -227,13 +227,102 @@ thesis; formalizing capability flags buys generality we don't need.
 3. Outsider docs: README / INSTALL / quickstart / SECURITY (§5).
 
 **P1 — first features after the gates**
-4. Grouping card + proportional group volume (§3).
+4. ~~Grouping card + proportional group volume (§3)~~ — **SHIPPED
+   v0.83.7** (WIDGETS.grouping + `speakers` generator + STOCK_MUSIC
+   gen 2; probe-grouping.mjs / probe-stock-heal.mjs). 2026-08-15:
+   loose-entity collection + per-member VOLUME LINK toggle shipped
+   (join ≠ ride the group slider — his "a separate toggle should be
+   to link their volume"). Remaining §3 nicety superseded by ↓.
+4b. ~~SPEAKER GROUPS building block~~ — **SHIPPED v0.83.7
+   (2026-08-15 PM, "OK - do the grouping work")**: top-level
+   `speaker_groups` block; speakers band takes group + mode
+   (launcher/inline; group-fed defaults launcher); generated
+   `spkgrp:<id>` screen with per-player trim sliders; master =
+   activity's player, else coordinator→playing→first fallback;
+   volume link stays per-device (his question — answered). Studio:
+   Model → Speaker Groups editor + Controller-tab Players/Card
+   selects. probe-speaker-groups / probe-stepper-vol /
+   probe-spkgroups-studio. Stepper volume style re-shaped in the
+   same round (Compact's layout + fat in-row track — his design).
 5. `volume_step` trait (§4.1) and the UNAVAILABLE contract test
    (§4.2).
 6. Volume/mute hardware-key overlay (§2, astrion).
+7. **Studio image upload** (2026-08-13, the .88 stranger test): a
+   drag-and-drop / file-picker upload in the banner editor (and the
+   skin picker) that POSTs to the integration and saves under
+   `www/harmonium/images/` (skins under `www/harmonium/skins/`),
+   returning the `/local/...` path straight into the field. Kills
+   the "install Samba just to get a hero picture onto the box" edge
+   — the same rough edge the bundled astrion skin papered over for
+   one device. Server side is small (authenticated view, size/type
+   whitelist, never overwrite without confirm); the win is that a
+   stranger never needs filesystem access to finish a
+   good-looking page.
+8. **Collapsible Studio real estate** (2026-08-13, Suresh:
+   "optimize workspace"). Two halves:
+   - **Columns — SHIPPED s0.83.10**: header toggles (◧ nav / ◨
+     preview) fold the 252px nav and 372px preview columns away;
+     the editor takes the width. Persisted per browser
+     (hakr_studio_nav_hide / _pv_hide); panes are hidden, never
+     unmounted (⌘K search and the engine iframe stay alive).
+   - **Section cards — open**: the visual editor's section cards
+     collapse to a one-line header (name + tile count + role chip);
+     remember open/closed per section, collapse-all/expand-all at
+     the top. (Engine-side folding sections on the remote itself
+     would be a separate, config-driven feature; confirm before
+     building.)
+
+9. **The stretched first-load preview** (2026-08-14 status review
+   #3, OPEN — needs a live repro): controller page in the photo
+   preview renders stretched on first load; toggling the
+   Controller↔Room-page chip fixes it. Headless repro FAILED
+   (tests/probe-stretch.mjs: iframe layout + transform identical
+   before/after toggle). Next occurrence, capture two facts before
+   toggling: (a) press 📷 — a stretched PNG = engine/viewport
+   problem, a clean PNG = Studio compositing; (b) the footer
+   s-stamp, to rule out a stale cached studio.html. Suspects:
+   slow LAN asset load (imgNat defaults to the old 1280×4084
+   aspect — 0.1% off, shouldn't be visible), engine reflow timing
+   on first photo mount. 2026-08-15: recurred ("Still getting
+   stretched transport bar"). HEDGED, not solved: (a) engine
+   boot.js re-renders once on document.fonts.ready — covers the
+   measured-before-fonts-settled class (a refresh cures it, which
+   smells like exactly that); (b) ↻ button beside 📷 reloads the
+   engine iframe alone — the one-tap cure. If it recurs on
+   s0.83.21+, the fonts theory is dead: 📷 it and note the stamp.
+   2026-08-16 CAPTURED: his 814×2600 shot shows the transport's
+   84×84 play circle rendered as an OVAL — only a NON-UNIFORM
+   transform can do that, and the skinned preview's iframe scale is
+   the sole one in the system → Studio compositing, engine
+   exonerated (fonts theory dead). A browser refresh resets it; the
+   scale math also assumed a 340px photo width, now measured live
+   (bind:clientWidth, s0.83.26) in case the pane ever sizes
+   differently. NEXT OCCURRENCE: tap ↻ first — squish surviving ↻
+   but dying on browser refresh pins it to stale transform inputs
+   (imgNat/viewport state), and we log those values.
+
+**Design conversation — multi-activity rooms (2026-08-14)**
+Suresh: "a room can run MORE than one activity at a time. Listen to
+Music and Watch TV." True today at the TRUTH level (state rules /
+implied state light both tiles) while the room's minted select
+holds only ONE activity — the FOCUS: who owns the controller, the
+keys, the context. v0.83.7's conditional generated Stop respects
+this (ending Watch TV never stomps Music's routing). The open
+question is whether concurrent activities should become
+first-class: per-activity state entities, select demoted to pure
+focus, volume/power routing when two activities share a room. Big
+change — needs its own design doc before any code.
 
 **P2 — polish that can trail the beta**
 7. Idle/burn-in view for always-on kiosks; transport auto-collapse.
+7b. **Auto-derive Watched entities** (2026-08-14, Suresh: "What's
+   the point of watched entities when we have rules below?"): in
+   the device-rules State modes, the watched list could be derived
+   from the rule entities automatically (it's the engine's
+   subscription list; today it's authored). Keep it visible-but-
+   auto, with manual extras allowed; it stays load-bearing for the
+   "primary entity in any of…" mode, where entities[0] IS the
+   operand.
 8. `device_class` Studio smarts (§4.4); dialect naming conventions
    doc (§4.3).
 9. i18n, TTS, mic — demand-driven.

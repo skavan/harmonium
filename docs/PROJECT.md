@@ -79,6 +79,622 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.7 READY TO TAG, 2026-08-16 — KeyMapper landed, release prepped)
+
+- **KeyMapper scripts, battle-tested on his machine**: three field
+  bugs found and fixed in one sitting — (a) the empty-arg dot test
+  (`echo %~1` prints "ECHO is on." — WITH A DOT — sending the bare
+  run hunting a blank :5555); (b) `for /f ('command')` cannot launch
+  a space-quoted adb path ("The system cannot find the path
+  specified") → temp-file listing + Windows-side findstr; (c) the
+  filter said "keymapper" but the real export is **key_mapper.zip**
+  → loose *key*·*.zip match. Final shape: USB-FIRST (bare run uses
+  the plugged-in device; IP only for adb-over-wifi), adb ships in
+  the repo (tools/adb, three files, committed), push verifies the
+  zip landed. hardware-keys.md §Backing up KeyMapper rewritten.
+- **docs/release-notes-v0.83.7.md** written — paste into the GitHub
+  release. make-release.bat confirmed current (studio build → engine
+  build → engine bundled into the integration; publish = commit +
+  tag matching manifest, no assets).
+- Release steps handed to Suresh (see the chat / HANDOFF): pull
+  KeyMapper zip + commit → make-release.bat → commit/push → GitHub
+  release tag v0.83.7 → HACS update on .88 + restart + virgin
+  sanity (volume keys!) → .87 restart for the .py changes.
+
+## Current state (v0.83.7 pending, 2026-08-16 — the stretch pinned + KeyMapper portability, s0.83.26)
+
+- **THE STRETCH, CAUGHT ON CAMERA (P1 #9)**: his 814×2600 shot shows
+  the transport's 84×84 play circle as an OVAL — only a non-uniform
+  transform can do that, and the skinned preview's iframe scale is
+  the only one in the system. Engine exonerated; fonts theory dead.
+  The scale math assumed a hard 340px photo width while the photo +
+  aperture size in percent of the pane — now measured live
+  (bind:clientWidth → imgW, both scale terms). Next occurrence
+  protocol in beta-gaps: tap ↻ FIRST — survives ↻ + dies on browser
+  refresh = stale transform inputs.
+- **KEYMAPPER TRAVELS WITH THE REPO** ("Is there a way to pull
+  them?"): pull-keymapper.bat <ip> [name] pulls every KeyMapper
+  backup zip from /sdcard/Download into remotes/keymapper/<name>/
+  (one-time manual step per export: Back up all → save via the
+  Files target — the share sheet's Bluetooth lead is a decoy; no
+  headless export intent exists, root would be needed for the data
+  dir) + bonus adb backup attempt; push-keymapper.bat <ip> [zip]
+  pushes the newest committed zip to a NEW remote and opens
+  KeyMapper for the two-tap Restore. hardware-keys.md §Backing up
+  KeyMapper documents the flow.
+- STUDIO_V → **0.83.26**; ctrltab/nits2/smoke-studio green.
+
+## Current state (v0.83.7 pending, 2026-08-16 — last tidy-ups, s0.83.25)
+
+His five on s0.83.24.
+
+- **#1 NP plain card**: the source gets its own line under the state
+  ("Playing" / "Music Assistant Queue") — sub returns state + "\n" +
+  source, .tile.wgt-media .sub is white-space: pre-line.
+- **#2 volume placeholder for LOOSE wiring**: defaultBandLabel falls
+  back to the wired entity's friendly name (then deslugged id) when
+  no device claims it — "MA Basement", not "Volume".
+- **#3 launcher counts moved to the SUB line** (grouplaunch dropped
+  inlineSub) — the title no longer clips against "3 available · 0
+  linked".
+- **#4a Cast-group cards row** shows a summary — the cast's group
+  names, or "none yet — ⊞ Add group in the cast".
+- **#4b BUG**: Cast-group cards Off was hiding PROMOTED
+  where:"controls" tiles — they merely share the groups generator.
+  The band switch now gates the NAV CARDS only (groupsOff scopes
+  castGroups, the promoted pass always runs).
+- **#5 LOOSE ENTITIES CAN GROUP**: engine groupChildTile renders
+  entity members (control per ⚙, device row otherwise); grouped
+  loose entities LEAVE the Devices section (groupedIds filter);
+  the Studio group ticks now offer extra_devices entities (live
+  names), grouped extras nest under the group card (with ✕ untick
+  rows), and GROUP CARDS render BELOW the cast rows ("I dont think
+  it should sit above the primary role devices").
+- **Verified**: probe-group-loose.mjs NEW (entity-member nav card +
+  group page rows · grouped light leaves Devices · band Off keeps
+  the promoted Deck Amp), full battery 20/20, smoke-studio 106/0.
+  STUDIO_V → **0.83.25**.
+
+## Current state (v0.83.7 pending, 2026-08-16 — hero round 2 + the aligned tab, s0.83.24)
+
+His verdict on the panel hero: "It's pretty good. We lost the
+original display, bring it back! But this new one should be the
+default! ... replacing the icon with the same right side library we
+had in the original artwork....but this time, make the background
+the dark wash ... Even better if we can fade in that grey."
+
+- **"wash" style — the original hero returns**: dimmed full-bleed
+  artwork + the 64px thumb, as its own np_style value ("Art wash —
+  full-bleed" in the Studio select). The PANEL stays the default
+  for art:true / "art". media.js: npMode knows "wash"; wire adds
+  .wash; render splits image treatment (panel src vs bg-wash+thumb);
+  the 1s progress ticker walks .art AND .wash.
+- **The panel's library trail is the full-height right zone
+  again** — original ergonomics — but drawn as a FADE-IN of the
+  card's dark wash over the art's edge (gradient 0 → .82), accent
+  glyph riding it, 92px wide, :active accent, focus = inset ring
+  (border dropped entirely — the transparent 2px border painted a
+  hairline seam at the fade's left edge over the masked art, found
+  in the probe screenshot).
+- **Column discipline on the Controller tab** (his tidy-up note:
+  "Lets have all the labels align and the other stuff follow"):
+  fixed-width columns — arrows 24px · band name 186px · switch
+  88px · label slot 158px (empty spacer where a band has no slot) —
+  then the row's selects follow; the label input moved BEFORE the
+  selects; the NP Auto option shortened to fit its select.
+- **Verified**: probe-np-styles wash stage (class, bg-wash set,
+  thumb static) + all stages green; battery 20/20; both heroes
+  screenshot-checked; ctrltab + smoke-studio 106/0 after the
+  realign. STUDIO_V → **0.83.24**. Docs §8 updated.
+
+## Current state (v0.83.7 pending, 2026-08-16 — ART HERO v2, engine-only)
+
+His mini-media-player screenshot: "we wanted a tile that allowed the
+Track data to have space. With an album on one side and a library
+selector on the other, there's not much space left."
+
+- **The art is a RIGHT PANEL now**: npimg absolutely positioned,
+  full height, ~58% width, full opacity at the right edge and
+  CSS-masked to fade into the tile toward the text — the old
+  dimmed full-tile wash + 64px thumb are gone, so the words sit on
+  clean background at the SAME font sizes (npt/npa/npb untouched).
+  npwrap padding trimmed (2px/4px). Progress bar unchanged.
+- **The library click survives as a floating glass button**: the
+  chassis trailing (the stock music NP tile's accent library jump)
+  restyled ON the hero only — bottom-right over the art,
+  rgba-glass, z-index above the panel; the full-height right
+  column (which was eating the art's best half) is gone on art
+  tiles. :active/focus states kept.
+- Verified: probe-np-styles still green (hero title/artist/
+  progress), full battery 20/20, visual shot (/tmp render) sent.
+  Engine-only — STUDIO_V stays 0.83.22.
+
+## Current state (v0.83.7 pending, 2026-08-16 — the truth round, s0.83.22)
+
+His five on s0.83.21 plus the dead volume keys.
+
+- **DEAD VOLUME KEYS (the big one)**: nav→FireTV, volume→Samsung,
+  and neither hardware nor soft VOL did anything. Root cause: VOL
+  routing lived ONLY in `global.buttons` config — the fixture has
+  the bindings, the STARTER CONFIG never did, so fresh installs
+  ship dead volume keys. Fixed at the ENGINE level (doctrine: VOL
+  is always audio): unbound vol_up/vol_down now default to
+  media_player.volume_up/down on `$context.volume` — the mute
+  pattern; a config binding still wins. Starter config also gained
+  the explicit bindings. input.js + starter-config.json.
+- **#3 VOLUME BAND = THE VOLUME ROLE** (his definition, agreed):
+  the band-label override applies ONLY to the tile whose entity is
+  the activity's wired volume; every other volume tile is
+  per-device — volumes-cast rows (bandGen unless ve ===
+  context.volume), PROMOTED controls (groupChildTile/looseShowTile
+  now stamp bandGen — typing a band label had renamed his promoted
+  Receiver), loose shows-tiles. Deselecting in the cast remains the
+  way to remove a promoted control.
+- **#2 "Hero seems the same as Standard"**: it WAS — the stock
+  music controller's surface tile says art:true, so Auto/Standard
+  already drew the hero. np_style gained **"plain"** (Standard
+  card, suppresses art:true) and the Studio select is honest:
+  Auto — the surface's choice / Standard card / Slim row / Art
+  hero.
+- **#1 slim autoscroll**: overflowing "Title — Artist" marquees
+  end-to-end and back (CSS alternate loop, distance measured into
+  --npshift; re-measured only when the line changes).
+- **#4 truthful placeholders**: each label slot's placeholder shows
+  what the band ACTUALLY says today (defaultBandLabel: authored
+  tile label / wired-volume device name / speaker-group name /
+  section title), so "blank" no longer lies.
+- **#5 Presets + Devices slots**: those bands are their SECTION
+  HEADINGS — band_labels.presets/devices override sec.title in
+  render.js ("" = no heading).
+- **Verified**: probe-np-styles extended (plain-beats-art, marquee
+  class + shift, promoted-Receiver exemption, wired-volume-only
+  label, heading override + removal), probe-ctrltab (placeholder
+  selector). Battery 20/20, all probes green, smoke-studio 106/0.
+  STUDIO_V → **0.83.22**. Docs: creating-an-activity §8 label-slot
+  paragraph rewritten; hardware-keys.md notes the VOL default.
+
+## Current state (v0.83.7 pending, 2026-08-15 late — dressing round, s0.83.21)
+
+His three on s0.83.20: the stretch again, the Controller-tab hints,
+and "3 renderers" for Now Playing.
+
+- **#1 stretch (P1 #9, still no repro)**: hedged twice — engine
+  boot.js forces ONE re-render on document.fonts.ready (a refresh
+  cures the stretch, which smells like layout measured before fonts
+  settle), and the preview toolbar gained **↻** beside 📷 (reloads
+  the ENGINE iframe only — the one-tap cure). If it recurs on
+  s0.83.21+ the fonts theory is dead → 📷 + stamp.
+- **#2 band-label slots**: the italic hint text is gone (hover
+  keeps it — row title attr). Single-tile bands (np, transport,
+  modes, volume, sources, speakers) each carry a small label input:
+  `surface.band_labels.<band>` — typed text renames the band's tile
+  on the remote for THIS activity, **empty = NO label** (.lbl:empty
+  collapses), ↺ restores the default. Engine: `surfDressTile()`
+  (context.js) applied in BOTH derivations (render pipeline +
+  tilesOf — renderStates re-derives there; an undressed twin fed
+  sub()/render() the wrong tile, caught by probe). Per-item bands
+  (volumes cast, presets, devices) keep their own names — the
+  volumes generator stamps `bandGen` and the pass skips it.
+- **#3 THREE NOW-PLAYING RENDERERS**: media tile `style` —
+  *Standard* (the card), **slim** (one-liner: graphic_eq indicator,
+  accent while playing, "Title — Artist", chassis trailing/library
+  jump intact, queueing message rides the line), **art** (the
+  existing art:true hero — background art, npt/npa/npb at the same
+  font sizes, live progress, no transport/volume — style:"art" is
+  now its first-class name). Ladder: tile.style → surface.np_style
+  (a Select on the Controller tab's Now Playing row) → default.
+- **Verified**: probe-np-styles.mjs NEW (three shapes + band_labels
+  override + ""-collapse + volumes-cast names untouched),
+  probe-ctrltab extended (hints gone, label input + Slim select →
+  POSTed band_labels/np_style). Battery 20/20, all probes green,
+  smoke-studio 106/0. STUDIO_V → **0.83.21**.
+
+## Current state (v0.83.7 pending, 2026-08-15 night — the volume-row round, s0.83.20)
+
+His five on the deployed s0.83.19 (screenshots from .87).
+
+- **#1 stepper gap**: the −/track/+ row sat tight under the title —
+  `.steprow.vol { padding-top: 6px }`, the same breath the fat
+  slider's track takes.
+- **#2 + #3 THE VOLUME ROW**: every grouping-card member row now
+  carries `[−] [fat track with the % INSIDE it] [+]` under the name
+  line (rslrow / rslpct; −/+ = optimistic nudge + volume_up/down at
+  the member; slider = direct volume_set). Always out on the
+  spkgrp: screen (the old thin trim track and the loose name-row %
+  are gone — alignment tidies itself); on the INLINE card his
+  choice (2): tap the player's NAME to reveal/hide its row —
+  per-member, session-local (GRP_EXPANDED), collapsed rows keep the
+  little % beside joined names.
+- **#4**: the Controller-tab Players select gained **＋ Create
+  group…** → jumps to Model → Speaker Groups (selectSlice, the
+  actions-door pattern), surface untouched.
+- **#5 Cast-group cards**: walked through in chat (⊞ Add group in
+  the cast → named sub-set of cast DEVICES → nav card on the
+  controller → generated group: page; vs Speaker Groups =
+  workspace-wide join targets for the running stream).
+- **Verified**: probe-speaker-groups (volrow: % in track, −/+ at
+  the member), probe-grouping (inline expand: hidden at rest → tap
+  shows row → slider sets only that member → tap hides),
+  probe-spkgroups-studio (the __new door renders the editor, saved
+  config unchanged). Battery 20/20, smoke-studio 106/0.
+  STUDIO_V → **0.83.20**.
+
+## Current state (v0.83.7 pending, 2026-08-15 evening — first-sight fixes, s0.83.19)
+
+His screenshots of the new spkgrp screen, minutes after the deploy.
+
+- **#1 the big left icon**: the spkgrp screen's card rendered in ROW
+  mode (columns-1 screen), hanging the icon in a full-height left
+  column. `brRow: false` on the generated tile → the card chassis:
+  icon on the title line, sub inline. probe-speaker-groups asserts
+  notRow / iconInTop / subInline.
+- **#3 Draws-as vs Volume style overlap**: "Volume − / +" was a
+  second volume entry in Draws-as while Volume style offered
+  stepper too — and shows:volume + style:stepper was silently
+  IGNORED by groupChildTile/looseShowTile (compact drawn instead).
+  Unified: ONE Draws-as entry (*Volume control*), the style select
+  picks the shape — groupChildTile/looseShowTile now route
+  style:stepper to the stepper tile; legacy `shows:"stepper"`
+  stays honoured engine-side and the Studio sweeps it to
+  volume+style:stepper on load (normalizePresentShows). The
+  "slightly squashed" fat bar: .sldr.inrow height now 46px,
+  matching the −/+ buttons exactly. probe-volstyle-unify.mjs NEW
+  (stepper shape / slider shape / legacy alias);
+  probe-spkgroups-studio now seeds a legacy entry and asserts the
+  sweep lands volume+stepper in the POST. Battery 20/20,
+  smoke-studio 106/0. STUDIO_V → **0.83.19**.
+- His **#2 arrived truncated** ("On the inline,") — asked.
+
+## Current state (v0.83.7 pending, 2026-08-15 afternoon — SPEAKER GROUPS + the stepper shape)
+
+"OK - do the grouping work" — the building block from his morning
+proposal, plus the unanswered half of his #4 (Slider vs Stepper
+"pretty much identical... Maybe Volume Stepper is like Compact
+except a fat slider bar").
+
+- **SPEAKER GROUPS**: `CONFIG.speaker_groups.<id> = { name,
+  entities }` — named, workspace-level joinable-player sets,
+  deliberately independent of any cast (cast = "what the activity
+  uses"; group = "what is joinable" — the amplifier-receiver stays
+  out, the MA players outside the cast get in). The speakers band
+  points at one via the tile's `group:` or the activity's
+  `surface.speakers_group` (Controller-tab select), with
+  `mode`/`surface.speakers_mode`: **launcher** (slim grouplaunch
+  tile, "5 available · 2 linked", lit when linked; select →
+  generated `spkgrp:<id>` screen) or **inline** (the full card in
+  place). Group-fed defaults to launcher, cast-fed stays inline —
+  deployed configs render unchanged.
+- **The spkgrp: screen** (details.js, VIRTUAL_PREFIX member): the
+  grouping card with `sliders: true` — a fat trim track per player
+  (direct volume_set, join state irrelevant — trim BEFORE linking),
+  levels always visible, master row shown as the anchor
+  (join/vlink hidden, accent name). Master resolution: the
+  (presumed) activity's player resolved at screen build — NOT left
+  as `$context` (an unwired $context hides the tile in
+  visibleTile) — else the card's new `grpMaster()` fallback:
+  coordinating member → playing member → first listed; the
+  gmaster anchor un-sticks if the master changes as states arrive.
+- **Volume link scope**: stays PER-DEVICE (his question) — the
+  whole point is the bedroom speaker holding its own level while
+  the patio pair rides; a global toggle would re-create the
+  slam-everything behavior the delta math exists to avoid.
+- **STEPPER VOLUME = ITS OWN SHAPE** (his design): "Vol n%" on the
+  title line (inline sub — wgt-stepper CSS now hides only the
+  block sub), the fat track IN the − / + row (`.sldr.inrow`,
+  flex:1), no second track, no big numeral; muted → "Muted" +
+  dimmed track; −/+ still step; other stepper kinds untouched.
+  Four volume styles, four shapes.
+- **Studio (s0.83.18)**: Model → **Speaker Groups** editor (slice +
+  CenterPane route + SpeakerGroupsEditor.svelte: add/rename-slug/
+  delete with dangling-reference sweep, EntityPicker player rows
+  media_player-filtered, used-by subtitle); Controller tab Speakers
+  row gained the **Players** (cast / named groups) and **Card**
+  (Launcher/Inline, auto label follows the group choice) selects
+  via setSurfKey.
+- **Verified**: probe-speaker-groups.mjs NEW (launcher + counts
+  live via mutable-STATES mock, spkgrp screen rows/trims, join at
+  the ACTIVITY's master from outside the group, trim hits one
+  member, inline mode, no-activity fallback master = coordinator),
+  probe-stepper-vol.mjs NEW (shape/drag/step/mute; brightness kind
+  keeps the big numeral), probe-spkgroups-studio.mjs NEW (editor
+  mints group + typed players; Controller selects; Save & Deploy
+  POST carries speaker_groups + surface.speakers_group — the guard
+  against a future normalize sweep eating the new top-level key).
+  Full battery 20/20, all 17 probes green, smoke-studio 106/0.
+- Ship: same pending v0.83.7 — make-release.bat → push-all.bat →
+  hard-refresh (s0.83.18).
+
+## Current state (v0.83.7 pending, 2026-08-15 — controller-tab feedback round)
+
+His five (six) notes on the fresh Controller tab, plus a follow-up
+mid-round: "In grouped media players, one can link the player(s) and
+a separate toggle should be to link their volume."
+
+- **#1 Band reordering**: each band row on the Controller tab has
+  ↑↓ move buttons; the order is stored as
+  `a.surface.band_order` (array of band keys). Engine:
+  `surfOrderTiles()` in context.js permutes the BAND tiles within
+  their section pre-expansion (render.js) — non-band tiles keep
+  their exact slots, generators keep identity, <2 band tiles = no-op,
+  unlisted bands trail in source order. Per-activity, like every
+  surface preference.
+- **#4 Volume % said twice**: slider-mode volume tiles showed
+  "Vol 76%" on the title line AND "76%" center. The center readout
+  owns the number now — slider-mode `sub` returns "" (muted included:
+  the glyph + dimmed track carry it). Compact mode keeps "Vol n%" /
+  "Muted" titles — its meter has no numeral.
+- **#5 Preset pickers**: the preset Service field is a searchable
+  dropdown (new ServicePicker `prefer` prop — media_player.* services
+  rank first), and Target Entity prefers the cast's entities
+  (ActivityCard passes deviceList(); HubEditor derives
+  `pageCastEnts` from its owned activities for page presets).
+- **#3 "Group cards" row** meant the nav cards for cast groups made
+  with ⊞ Add group — relabeled **"Cast-group cards"** to kill the
+  collision with his proposed Speaker Groups block.
+- **VOLUME LINK (the follow-up)**: joined rows on the grouping card
+  carry a second toggle — volume link. Default linked; unlinked
+  members keep playing in the group but the group-volume slider
+  skips them (and the track averages only the linked set). Client-
+  side session state (like a pre-link trim), sticky across
+  unjoin/rejoin. Master always linked (its level is the volume band).
+- **Verified**: probe-band-order.mjs NEW (default order · flipped
+  per band_order with a wedged non-band tile holding its slot ·
+  single-band no-op), probe-ctrltab.mjs extended (↑↓ writes
+  band_order into the POST; row selectors updated for the arrow
+  column), probe-grouping.mjs extended (vlink toggle only on joined
+  rows · unlinked member skipped by the slider · relink rides
+  again), probe-mute.mjs extended (slider-mode sub "" + compact
+  "Muted"/"Vol n%"). Battery 20/20; smoke-studio 106/0; all feature
+  probes green. STUDIO_V → **0.83.17**.
+- **Docs**: creating-an-activity.md §8 — arrows paragraph,
+  Cast-group cards, the volume-link sentence;
+  activity-controller.png re-shot (arrow column visible).
+- **#2 Speaker Groups building block**: design discussion open (his
+  proposal: named groups like "Outdoor Music Players", launcher tile
+  "5 available · 0 linked" → group card, or inline mode) — no code
+  yet, proposal sent back.
+- Ship: same pending v0.83.7 — make-release.bat → push-all.bat →
+  restart HA → hard-refresh (s0.83.17).
+
+## Current state (v0.83.7 pending, 2026-08-14 evening — THE CONTROLLER TAB)
+
+Suresh: "I think our entire paradigm needs an important change. What
+if I don't want to control multiple players. What if I do. Should we
+have a controller tab, (in activities) where we turn knobs and
+settings for a given controller?" Yes — and it's the missing Harmony
+question ("what does the screen show while this runs?"), built as
+per-activity preferences on the SHARED surface. Presets folded in
+(his sub-question: yes — tab count stays even).
+
+- **The mechanism**: `a.surface` — the per-activity home
+  surface.devices pioneered in v0.48 — now carries a switch per
+  band: np, transport, modes, volume (+volume_style), speakers,
+  groups, sources, presets, devices. Absent = Auto = the band's own
+  rules (zero migration, zero first-run change); false = off, for
+  THIS activity only. The stock surface stays shared and healable;
+  the preference exports/duplicates with the activity. Custom
+  copies remain for structural surgery — the tab says so.
+- **Engine**: generator bands (volumes/speakers/groups/presets/
+  devices) gate pre-expansion in generators.js (srfOff); fixed
+  singletons (media→np, transport, mediabtns→modes, sources,
+  volume incl. stepper-volume) gate in visibleTile on
+  controller-class screens only — room pages unaffected. The
+  volume-style ladder gained the activity rung: tile → member ⚙ →
+  device_options → ACTIVITY surface.volume_style → theme/global.
+- **Studio**: the Presets tab became the **Controller** tab (same
+  slot, keeps the preset count badge). Contents: the controller
+  strip (moved OUT of Setup — Setup is back to identity + cast +
+  navigate-to with a one-line signpost), band rows derived from
+  what the target controller ACTUALLY renders (walk its tiles;
+  only present bands get a row), Auto/Off switch each + the volume
+  style select, and the whole presets editor folded beneath. Tab
+  dot = any override present or presets exist.
+- **ALSO: the grouping card reads loose entities now** (same
+  evening, his screenshot: two raw media_players cast, no
+  pre-wired devices, no card): the speakers generator collects the
+  wired context.media_player + extra_devices + legacy a.devices
+  media_player.* entries too, and rows without a baked name pick
+  up live friendly_name on first state (probe-grouping-loose.mjs —
+  his exact shape).
+- **Verified**: probe-ctrl-bands.mjs (engine: off hides
+  transport/volume/speakers while Now Playing stays; Auto returns
+  all), probe-ctrltab.mjs (Studio: tab in place, strip moved, all
+  9 rows on the gen-2 music stock, toggle → POSTed
+  a.surface.{band}:false, presets folded, Setup strip gone).
+  Battery 20/20; all 10 probes green; smoke-studio 106/0.
+  STUDIO_V → **0.83.16**.
+- **Docs**: creating-an-activity.md §8 rewritten as "Controller —
+  what the screen shows" (strip / band switches / presets), tab
+  list + Setup section updated; full screenshot set re-shot
+  (activity-controller.png new, activity-presets.png retired).
+- Ship: same pending v0.83.7 — make-release.bat → push-all.bat →
+  restart HA → hard-refresh (s0.83.16).
+
+## Current state (v0.83.7 pending, 2026-08-14 afternoon — the queue round)
+
+Suresh: "try and knock a few off — over to you." Three came off:
+
+- **THE SPEAKER GROUPING CARD SHIPPED** (beta-gaps §3, P1 #4 — the
+  oldest open feature). Engine: new `WIDGETS.grouping`
+  (src/widgets/grouping.js, registered in build.mjs) — the cast's
+  players as rows, join/unjoin toggle per member against the MASTER
+  (standard HA contract: truth = the master's `group_members`;
+  join = media_player.join at the master, leave = unjoin at the
+  member; no platform sniffing — Sonos native and MA both honor
+  it), plus a GROUP VOLUME slider that moves every joined member by
+  the SAME DELTA from the group average — offsets preserved, the
+  mini-media-player lesson. Optimistic everywhere, house style.
+  New generator type `speakers` expands from the RUNNING activity's
+  cast (every media_player claim; authored `entities` list wins) —
+  fewer than two players = no card. STOCK_MUSIC → **gen 2** with
+  `{id:"spk", type:"speakers"}` after the volume band; healStockGen
+  upgrades every non-variant copy on load (parent preserved, custom
+  copies untouched). Probes: tests/probe-grouping.mjs (render/
+  join-at-master/unjoin-at-member/delta-math — drag to 0.8 over a
+  0.3+0.7 group → 0.6 and 1.0-clamped, unjoined speaker untouched)
+  and tests/probe-stock-heal.mjs (gen-1 → gen-2 heal with parent
+  kept). One hardening: setPointerCapture wrapped (synthetic
+  pointer events carry no id).
+- **ONE VERSION IN THE HEADER** (Suresh: "We show TWO version
+  #'s!"): the header now shows only the s-stamp; integration and
+  deployed-engine versions moved into its tooltip. probe-stock-heal
+  asserts zero v-chips.
+- **SMOKE-STUDIO SELECTOR REFRESH** (the six pre-existing falses,
+  backlogged since the collapse round): "Activities — owned by this
+  room" → the ＋ Add activity anchor; the dead `startPicker: false`
+  placeholder → a real used-by assertion; 'Watch TV' → 'TV Media
+  Player' (stock rename); the doorway→nav wording sweep (Add nav /
+  New nav / new_nav). smoke-studio now **106 true, 0 false**.
+- Full battery 20/20; all seven feature probes green. STUDIO_V →
+  **0.83.15**. NOT built: the true factory-reset door — deferred
+  pending Suresh's verdict on "Clear to a fresh start…".
+- Ship: same pending v0.83.7 release — make-release.bat →
+  push-all.bat → restart HA → hard-refresh (header reads
+  **s0.83.15**, one number). The grouping card appears on any music
+  controller whose running activity casts 2+ players.
+
+## Current state (v0.83.7 pending machine build, 2026-08-14 — the overnight round)
+
+Suresh's docs/status-review.md (three items, two screenshots) +
+"one more pass" on the activity deep-dive, worked overnight:
+
+- **MUTE INDICATOR** (engine, review #1 "no on remote indicator of
+  mute status"): the volume widget now reads `is_volume_muted` from
+  the reporting entity (level_entity when split, else the command
+  entity). Muted → title line says "Muted", the slider-mode center
+  % becomes an accent `volume_off` glyph, and the track/meter fill
+  drops to 30% opacity (the level stays visible so unmuting lands
+  where you expect). Unmuted → everything returns. volume.js
+  volMuted() + render(); controls.css `.vmute` / `.muted i`.
+  ENGINE_V → **0.83.7**. Probe: tests/probe-mute.mjs (both
+  directions via live state diff); full battery 20/20.
+- **THE SOUNDBAR INPUTS ROW** (Studio, review #2 "Why is the
+  soundbar not showing in the input sources?"): inputTargets
+  filtered on the role KEYS source_select/media_player — a soundbar
+  cast only for volume/volume_level never got an Inputs row even
+  though its claims point at a media_player with a real source list
+  (HDMI/optical/BT). New inputEnt() helper: source_select claim,
+  else media_player claim, else ANY claimed media_player.* entity —
+  used by both the Inputs tab and the generated Start's
+  switch-if-needed step, so they always agree. STUDIO_V →
+  **0.83.11**. Probe: tests/probe-inputs-soundbar.mjs (fixture's
+  porch_soundbar, volume-only claims → row appears with its
+  sources); probe-virgin + probe-collapse re-run green.
+- **THE STRETCHED FIRST-LOAD** (review #3, "toggling the preview
+  view seems to fix it"): could NOT reproduce headlessly —
+  tests/probe-stretch.mjs (kept in repo) opens the Watch Fire TV
+  card cold with the astrion skin and measures the photo-mode
+  iframe before/after the Controller↔Room-page toggle: layout
+  349×581 and transform identical both times. Suspects that survive:
+  slow photo/asset load on real LAN (imgNat default is the old
+  1280×4084 aspect — only 0.1% off, shouldn't be visible), or a
+  stale cached studio.html. FIELD DIAGNOSTIC for next occurrence:
+  when it looks stretched, press 📷 — if the PNG is ALSO stretched
+  the engine content is wrong (viewport), if the PNG is clean it's
+  Studio-side compositing; and note the footer s-stamp. Logged in
+  beta-gaps.
+- **THE SCOPED STOP** (same round, Suresh reading the generated
+  step: "It sets Room to Off. But what if there is another activity
+  running?"): the generated Stop's `harmonium.set_activity off`
+  carried NO room — and the integration's off-with-no-room is
+  ALL-OFF, every select in the workspace. On a one-room box it
+  looked right; on CT it would have ended every room in the house.
+  buildStopActions now stamps `room: a.room_view`. Existing
+  hand-authored sequences (music_stop, all_off) keep their bare
+  form — all_off's is the point. Probe:
+  tests/probe-stop-scope.mjs (generate → Save → POSTed step reads
+  {activity:"off", room:"porch"}). NOTE: within a room only one
+  activity runs at a time (one select), so ending the room IS
+  ending this activity; the room scope is what was missing.
+- **THE STOP IS CONDITIONAL NOW** (revision, same day — Suresh: "a
+  room can run MORE than one activity at a time… If I long press
+  Watch TV, I want Watch TV turned off. Not the whole room."): the
+  scoped off gained a guard — the generated Stop clears the room's
+  routing ONLY `if` the select still holds THIS activity
+  (condition: state == activity id on the minted select, computed
+  from the workspace-prefixed pattern; duplication retargets it).
+  Model made explicit: the select is the FOCUS (controller, keys,
+  context — one activity), device truth is what lights tiles
+  (several at once). Ending Watch TV while Music holds the room now
+  powers off Watch TV's checked devices and touches nothing else.
+  probe-stop-scope.mjs verifies the full if/then shape. The
+  first-class multi-activity question → beta-gaps design note.
+- **THE #4 ERROR, FOUND IN .87's LOG**: "workspace 'main' has no
+  sequence 'porch_watch_fire_tv_stop'" — the long-press ran the
+  DRAFT's stop ref while harmonium.run reads the SAVED store; he
+  hadn't deployed the freshly generated Stop. Not a bug — the
+  draft/saved seam — but the error now says so: handle_run's
+  message adds "if you just created it in the Studio, Save & Deploy
+  first (the remote, the preview's taps, and ▶ Test all run the
+  SAVED copy)".
+- **THE $device SUBSCRIBE LEAK** (found in the same log, unreported:
+  4× "Entity ID $device is an invalid entity ID" on 08-13): one
+  unresolved token in subscribe_entities and HA rejects the WHOLE
+  message — the page then gets no state updates (the 2026-07-26
+  failure class again, new door). entitiesFor() now has an EXIT
+  GUARD: only ids with a dot and no $-token leave the function.
+- **THE ICON FONT GATE** (Suresh: "font and display are messed up.
+  A page refresh clears it"): Material Symbols loads from Google
+  after first paint, so icons render as ligature TEXT
+  ("play_circle") until it lands — and stayed that way on slow
+  fetches. app.css hides `.material-symbols-outlined` until
+  App.svelte confirms the font via `document.fonts.load()` (adds
+  `.fonts-ok` on <html>; 3s fallback so a blocked font degrades to
+  ligature text, never to invisible icons). STUDIO_V → **0.83.12**.
+- **Doc stranger pass** (creating-an-activity.md): added "open the
+  Studio from the HA sidebar" grounding + a ten-step "route you'll
+  take" checklist up front, prefer-the-⊞-rows guidance in the cast
+  picker, what "reload the remote" concretely means (browser
+  refresh / Fully Kiosk / Save+Reload Astrion), and a
+  "picker can't find my device" troubleshooting entry (HA-side
+  registry, not Harmonium config).
+- Ship (morning): `node build-engine.mjs` + `cd studio-src && npm
+  run build` on the machine → make-release copies the engine into
+  custom_components → commit + tag **v0.83.7** (manifest bump still
+  needed at that point: 0.83.6 → 0.83.7) → HACS update on .88.
+
+## Docs: the activity deep-dive (2026-08-13)
+
+**docs/cookbook/creating-an-activity.md** — Suresh: "every step,
+every knob, every option, with screenshots." The long-form twin of
+activities.md (cross-linked both ways; cookbook README row added).
+Written from a full source walk of ActivityCard.svelte, so every
+control is documented at code level: the five concepts (state vs
+orchestration, host pages, the pre-wired library with
+claims/dialect/traits, cast vs roles, shared controllers), the
+identity strip, tri-state tab dots, Setup (kind, navigate-to +
+page minting, controller strip, the cast picker's three row kinds,
+primary rules, understudy/no-claim annotations, the full ⚙
+presentation vocabulary incl. intentional-blank semantics, groups,
+snippets), all 8 roles as a table with claim-promotion (＋ add the
+claim / ↥ save claim), Inputs, Actions (exact generated Start/Stop
+step shapes, the never-guess-power directive, the _v2
+no-overwrite rule, the no-stop fallback chain), Presets, the four
+State modes + both generators, Advanced, save/test truths, and six
+troubleshooting entries. **Eleven screenshots** shot headlessly
+from the REAL Studio (s0.83.10 build) running the CT fixture —
+tests/shoot-activity.mjs (kept in the repo; element-cropped
+CardRow shots, stubbed live states so Inputs/pickers show real
+material) → docs/media/activity-*.png @2x.
+
+## Current state (s0.83.10 Studio, 2026-08-13 — pending machine build)
+
+s0.83.10 — **COLLAPSIBLE COLUMNS** (Suresh: "hide/collapse columns…
+especially the 1st column and the preview column"; local for now, no
+release tagged). Two header icon toggles next to the theme button —
+**◧** folds the 252px nav column, **◨** folds the 372px preview
+column — and the center editor takes the width. Buttons dim at 40%
+opacity when their column is hidden; tooltips explain both states.
+Choices persist per browser (`hakr_studio_nav_hide` /
+`hakr_studio_pv_hide`). Both panes are HIDDEN, never unmounted: the
+NavPane keeps ⌘K search alive, and the preview keeps the engine
+iframe's state (same rule the workspace-map slice already used —
+pvHide just rides it). Probe (tests/probe-collapse.mjs): nav
+252→0→252 px, preview iframe zero-width but the engine frame alive,
+localStorage persisted, state survives reload with dimmed buttons,
+no console errors. STUDIO_V → **0.83.10**. Ships with the next
+`cd studio-src && npm run build` + tag; no integration change.
+
 ## Current state (v0.83.6, 2026-08-13)
 
 v0.83.6 — **THE BUNDLED SKIN** (fourth .88 field report: "No photo

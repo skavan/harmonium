@@ -13,11 +13,15 @@
   import Select from "./Select.svelte";
   import Segmented from "./Segmented.svelte";
   import EntityPicker from "./EntityPicker.svelte";
+  import ServicePicker from "./ServicePicker.svelte";
   import CardRow from "./CardRow.svelte";
   import Chips from "./Chips.svelte";
   import JsonArea from "./JsonArea.svelte";
 
-  let { tile, tiles, index, ownerScreen = null } = $props();
+  /* castEnts (v0.83.7 — Suresh: "Target Entity starts with the
+     cast, as elsewhere"): the owning activity/page hands down its
+     cast entities; the preset pickers list them first. */
+  let { tile, tiles, index, ownerScreen = null, castEnts = [] } = $props();
   /* NAV CARDS (v0.25 — one type, four styles): pick an existing page
      or ＋ mint one — a full hub view with activities/presets present
      but OFF ("same anatomy, bits switched off"), entered in DRAFT
@@ -151,8 +155,9 @@
      Same intelligent filtering as the ⚙'s presShows. ---- */
   const drawsAsValue = () =>
     tile.type === "stepper"
-      ? (tile.kind === "volume" ? "stepper" : "other")  /* a brightness
-           stepper is not a volume choice — hide the select */
+      ? (tile.kind === "volume" ? "volume" : "other")  /* v0.83.7 —
+           ONE volume entry: a volume stepper reads as Volume control
+           with style Stepper (a brightness stepper hides the select) */
       : tile.type;
   const drawsAsOptions = () => {
     const dom = (tile.entity || "").split(".")[0];
@@ -560,15 +565,15 @@
                 onchange={(e) => { tile.action = { service: "scene.turn_on", entity: e.target.value }; }} />
             </Field>
           {:else}
-            <Field label="Service" hint="domain.service">
-              <Input value={tile.action?.service ?? ""} placeholder="media_player.play_media"
-                class="font-mono text-[12.5px]"
+            <Field label="Service" hint="searchable — media players first">
+              <ServicePicker value={tile.action?.service ?? ""} prefer="media_player"
                 onchange={(e) => { tile.action = { ...(tile.action || {}), service: e.target.value.trim() }; }} />
             </Field>
             <Field label="Target entity" hint="who receives the call — $context.* works here">
               <!-- the engine fires action.target || action.entity — honor
                    whichever key the tile already speaks -->
               <EntityPicker value={tile.action?.target ?? tile.action?.entity ?? ""}
+                preferred={castEnts}
                 onchange={(e) => {
                   const k = tile.action && "target" in tile.action ? "target" : "entity";
                   tile.action = { ...(tile.action || {}), [k]: e.target.value };

@@ -153,7 +153,11 @@ function expandTile(t) {
       });
     }
     const doneInline = {};
+    /* a grouped LOOSE entity leaves this section for its group's
+       page, same as a grouped device (v0.83.7 tidy-ups) */
+    const groupedIds = actP ? groupedDeviceIds(actP) : [];
     return ents.filter(e => !skipW[e])
+      .filter(e => groupedIds.indexOf(e) < 0)
       .filter(e => e.split(".")[0] !== "remote" || inlineOf[e])
       .filter(e => !(cmdEnt && e === cmdEnt && e !== ctx2.media_player &&
         !(dopts[e] && dopts[e].tile === true)))
@@ -196,6 +200,13 @@ function expandTile(t) {
           span: 2
         })));
   }
+/* THE CONTROLLER TAB'S BAND SWITCHES (v0.83.7 — Suresh: "What if
+   I don't want to control multiple players. What if I do."): every
+   band the activity's controller renders is a per-activity switch,
+   stored on a.surface (the same home surface.devices has used since
+   v0.48). Absent = Auto (today's behavior); false = off. The shared
+   surface stays shared; the preference travels with the activity. */
+const srfOff = (act, k) => !!(act && act.surface && act.surface[k] === false);
   if (t.type === "volumes") {
     /* VOLUME CAST (v0.57 — Suresh: "there might be 8 volumes; think of
        them as device tiles with a volume role"). One control per CAST
@@ -217,6 +228,7 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act) return [];
+    if (srfOff(act, "volume")) return [];   /* Controller tab: band off */
     /* WHICH ROLE THIS INSTANCE DRAWS (v0.59 — Suresh: "it's not
        intuitive right now"). Was: infer the master from the activity
        wiring and call everything else "the rest". Nothing declared it,
@@ -232,7 +244,9 @@ function expandTile(t) {
     /* fat by default (v0.83.1 — statusreview: "default should be fat"):
        the slider treatment is the default volume everywhere; compact
        and stepper remain one declaration away */
-    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "slider";
+    const dflt = t.style ||
+      (act.surface && act.surface.volume_style) ||   /* Controller tab default */
+      ((CONFIG.global || {}).style || {}).volume || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -257,6 +271,13 @@ function expandTile(t) {
         icon: (pv && pv.icon) || d.icon || "material:volume_up",
         span: 2
       };
+      /* WHICH TILE IS "THE VOLUME BAND" (v0.83.7 — Suresh: "the
+         volume band is the row associated with the Volume Role"):
+         the tile whose entity is the activity's WIRED volume takes
+         the Controller-tab label override; every other cast volume
+         is a per-device row and keeps its own name (bandGen —
+         surfDressTile skips those). */
+      if (ve !== (act.context || {}).volume) base.bandGen = 1;
       out.push(style === "stepper"
         ? Object.assign(base, { type: "stepper", kind: "volume" })
         : Object.assign(base, {
@@ -286,6 +307,8 @@ function expandTile(t) {
             label: pv2 && typeof pv2.name === "string" ? pv2.name
               : (st(ctxV).a.friendly_name || ctxV.split(".").pop()),
             icon: (pv2 && pv2.icon) || "material:volume_up",
+            /* the wired volume itself — the band's one true tile,
+               so the label override applies (no bandGen) */
             span: 2
           };
           out.push(style2 === "stepper"
@@ -319,6 +342,7 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act || !Array.isArray(act.presets)) return [];
+    if (srfOff(act, "presets")) return [];   /* Controller tab: band off */
     /* `include: [ids]` narrows to a subset, in the order given —
        v0.68.5, and note it is not a new idea: the `apps` generator has
        taken exactly this option since v0.46. One activity's presets can
@@ -354,6 +378,95 @@ function expandTile(t) {
       { type: "preset", span: 2, activity: aid }, p,
       { id: t.id + "_" + (p.id || i) }));
   }
+  if (t.type === "speakers") {
+    /* SPEAKER GROUPING (v0.83.7 — beta-gaps §3, P1 #4): expand to
+       ONE grouping card. Members come from the tile's own
+       `entities` list when authored, else from the RUNNING
+       activity's cast — every device with a media_player claim.
+       Fewer than two players = nothing to group = no card, which is
+       what lets this ride the stock controller without ceremony. */
+    /* SPEAKER GROUPS (v0.83.7 — Suresh: "the receiver is a
+       media_player but its only job is to be an amplifier.
+       Conversely there are many ma media players that I might want
+       to add"): a NAMED, workspace-level collection —
+       CONFIG.speaker_groups.<id> = { name, entities } — independent
+       of any cast. The tile (or the activity's Controller tab, via
+       surface.speakers_group) points at one, and the card offers
+       THOSE players instead of the cast. Two card modes: "launcher"
+       (a slim count tile — "5 available · 2 linked" — opening the
+       generated spkgrp: screen with per-player sliders, so levels
+       get trimmed BEFORE linking) or "inline" (the full card in
+       place, today's shape). Group-fed tiles default to launcher;
+       cast-fed keep inline — zero change to deployed configs. */
+    let aid = t.activity && t.activity !== "$current" ? t.activity : null;
+    if (!aid) {
+      const cur = renderActivityId();
+      if (cur && (CONFIG.activities || {})[cur]) aid = cur;
+    }
+    const act = aid && (CONFIG.activities || {})[aid];
+    const gid = t.group ||
+      (act && act.surface && act.surface.speakers_group) || null;
+    const grp = gid && (CONFIG.speaker_groups || {})[gid];
+    const labels = {};
+    let members = [];
+    if (grp) {
+      members = (grp.entities || []).filter(en =>
+        typeof en === "string" && en.indexOf(".") > 0);
+    } else if (Array.isArray(t.entities) && t.entities.length) {
+      members = t.entities.slice();
+    } else if (act) {
+      castDeviceIds(act).forEach(did => {
+        const d = (CONFIG.devices || {})[did];
+        if (!d) return;
+        const mp = (d.roles || {}).media_player;
+        if (!mp || members.indexOf(mp) >= 0) return;
+        members.push(mp);
+        labels[mp] = d.name || did;
+      });
+      /* LOOSE ENTITIES COUNT TOO (v0.83.7 — Suresh's Listen to
+         Music casts two raw media_players, no pre-wired devices,
+         and the card never appeared): the wired media_player, the
+         extra_devices, and the legacy a.devices array all
+         contribute their media_player.* entries. Names come live
+         from friendly_name at render time. */
+      const cm = act.context && act.context.media_player;
+      const loose = [].concat(
+        typeof cm === "string" ? [cm] : [],
+        act.extra_devices || [],
+        Array.isArray(act.devices) ? act.devices : []);
+      loose.forEach(en => {
+        if (typeof en === "string" && en.indexOf("media_player.") === 0 &&
+            members.indexOf(en) < 0)
+          members.push(en);
+      });
+    }
+    if (srfOff(act, "speakers")) return [];   /* Controller tab: band off */
+    if (members.length < 2) return [];
+    const mode = t.mode ||
+      (act && act.surface && act.surface.speakers_mode) ||
+      (grp ? "launcher" : "inline");
+    /* with no activity in play (a group tile on a plain hub) the
+       entity stays ABSENT — an unwired $context hides the tile in
+       visibleTile, and the card's fallback chain picks the master */
+    const ent = t.entity || (act ? "$context.media_player" : undefined);
+    if (mode === "launcher" && grp) return [{
+      id: t.id, type: "grouplaunch", group: gid,
+      entity: ent,
+      entities: members,
+      label: t.label || grp.name || gid,
+      icon: t.icon || "material:speaker_group",
+      span: 2
+    }];
+    return [{
+      id: t.id, type: "grouping",
+      entity: ent,
+      entities: members,
+      labels: t.labels || labels,
+      label: t.label || (grp && (grp.name || gid)) || "Speakers",
+      icon: t.icon || "material:speaker_group",
+      span: 2
+    }];
+  }
   if (t.type === "groups") {
     /* One nav card per group in the running activity's cast. The
        controller says "render this activity's groups" and never names
@@ -367,6 +480,11 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act) return [];
+    /* Controller tab: the Cast-group cards switch gates the NAV
+       CARDS only (tidy-ups: "toggling that off, turns off the
+       device I promoted into the controller" — a promoted control
+       is not a group card; it merely shares this generator) */
+    const groupsOff = srfOff(act, "groups");
     /* WHERE THINGS LIVE (v0.77 — Suresh: "When I create a group, it
        appears directly under the Volume Control. When I create a
        loose device, it appears in DEVICES. We should either (a) be
@@ -376,8 +494,8 @@ function expandTile(t) {
        either. `where: "devices"` on a group sends its nav card down;
        `where: "controls"` in a member's presentation promotes its
        tile up here, beside the group cards. */
-    const gout = castGroups(act)
-      .filter(g => (g.where || "controls") === "controls")
+    const gout = (groupsOff ? [] : castGroups(act)
+      .filter(g => (g.where || "controls") === "controls"))
       .map(g => ({
       type: "nav",
       id: t.id + "_" + String(g.group).replace(/[^a-zA-Z0-9]+/g, "_"),
@@ -523,6 +641,21 @@ function presApply(tile, p, ent) {
 /* one tile for one member of a group, drawn as `shows` */
 function groupChildTile(did, shows, idPrefix, pres) {
   const d = (CONFIG.devices || {})[did];
+  /* LOOSE ENTITIES CAN GROUP TOO (v0.83.7 tidy-ups — his cast is raw
+     media_players, and the group ticks had nothing to offer): a
+     member id that IS an entity renders through the loose path — a
+     control when its ⚙ says so, a device row otherwise. */
+  if (!d && typeof did === "string" && did.includes(".")) {
+    if (shows && shows !== "device")
+      return looseShowTile(did, Object.assign({}, pres, { shows }), idPrefix);
+    return presApply({
+      type: "device",
+      id: idPrefix + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
+      entity: did, span: 2, brRow: false,
+      label: st(did).a.friendly_name || did.split(".").pop().replace(/_/g, " "),
+      icon: "material:devices"
+    }, pres, did);
+  }
   if (!d) return null;
   const roles = d.roles || {};
   const base = {
@@ -550,16 +683,28 @@ function groupChildTile(did, shows, idPrefix, pres) {
      volumes band always drew these as cards; brRow: false pins that
      shape wherever the control lands). The `device` fallback stays
      unstamped — launcher rows are right at home in a list. */
-  if (shows === "volume")
-    return presApply(Object.assign(base, { type: "volume", entity: ent,
-      brRow: false,
-      level_entity: roles.volume_level || ent,
-      slider: ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "slider") === "slider" }),
+  /* ONE volume control, FOUR shapes (v0.83.7 — Suresh: "we have
+     Volume Control and Volume Stepper in DRAWS AS. And we have
+     Volume Style with overlapping choices"): Draws-as picks the
+     CONTROL, Volume style picks the SHAPE — including stepper,
+     which the old branch here silently ignored. shows: "stepper"
+     survives as a legacy alias for volume + style stepper. */
+  if (shows === "volume" || shows === "stepper") {
+    const vstyle = shows === "stepper" ? "stepper" :
+      ((pres && pres.style) ||
+        ((CONFIG.global || {}).style || {}).volume || "slider");
+    /* a PROMOTED per-device control, never "the volume band" —
+       exempt from the band-label override (v0.83.7: typing a band
+       label renamed his promoted Receiver) */
+    return presApply(vstyle === "stepper"
+      ? Object.assign(base, { type: "stepper", kind: "volume",
+          brRow: false, bandGen: 1, entity: ent })
+      : Object.assign(base, { type: "volume", entity: ent,
+          brRow: false, bandGen: 1,
+          level_entity: roles.volume_level || ent,
+          slider: vstyle === "slider" }),
       pres, ent);
-  if (shows === "stepper")
-    return presApply(Object.assign(base, { type: "stepper", kind: "volume",
-      brRow: false, entity: ent }), pres, ent);
+  }
   return presApply(Object.assign(base, { type: shows, brRow: false,
     entity: ent }), pres, ent);
 }
@@ -575,13 +720,17 @@ function looseShowTile(ent, p, idPrefix) {
   const shows = p.shows;
   base.brRow = false;              /* controls are cards — see above */
   let tile;
-  if (shows === "volume")
-    tile = Object.assign(base, { type: "volume", entity: ent,
-      level_entity: ent,
-      slider: ((p && p.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact") === "slider" });
-  else if (shows === "stepper")
-    tile = Object.assign(base, { type: "stepper", kind: "volume", entity: ent });
+  if (shows === "volume" || shows === "stepper") {
+    /* style decides the shape here too (v0.83.7 unification) */
+    const vstyle = shows === "stepper" ? "stepper" :
+      ((p && p.style) ||
+        ((CONFIG.global || {}).style || {}).volume || "compact");
+    tile = vstyle === "stepper"
+      ? Object.assign(base, { type: "stepper", kind: "volume",
+          bandGen: 1, entity: ent })
+      : Object.assign(base, { type: "volume", entity: ent, bandGen: 1,
+          level_entity: ent, slider: vstyle === "slider" });
+  }
   else tile = Object.assign(base, { type: shows, entity: ent });
   return presApply(tile, p, ent);
 }

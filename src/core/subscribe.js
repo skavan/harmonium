@@ -20,7 +20,11 @@ function rawTilesOf(sc) {
     : (sc.tiles || []);
 }
 function tilesOf(sc) {
-  return rawTilesOf(sc).flatMap(expandTile).filter(visibleTile);
+  /* surfDressTile (v0.83.7): the Controller tab's label overrides +
+     np_style must dress EVERY derivation — makeTile builds from the
+     render pipeline, but renderStates re-derives through here, and an
+     undressed twin would feed sub()/render() the wrong tile */
+  return rawTilesOf(sc).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */
@@ -60,7 +64,14 @@ function entitiesFor(screenId) {
   }
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
   activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
-  return [...set];
+  /* EXIT GUARD (v0.83.7 — found in .87's log: subscribe_entities
+     rejected with "Entity ID $device is an invalid entity ID"): ONE
+     unresolved token in the list and HA rejects the WHOLE message —
+     the page then gets no state updates at all (same failure class
+     as 2026-07-26). Whatever slips through the adders above, only
+     real entity ids leave this function: a dot, and no $-token. */
+  return [...set].filter(v =>
+    typeof v === "string" && v.includes(".") && v.indexOf("$") === -1);
 }
 
 function subscribeFor(screenId) {

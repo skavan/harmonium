@@ -8,6 +8,7 @@ outcome on your remote.
 |---|---|
 | [Your first screen](first-screen.md) | A room page with live tiles |
 | [Activities](activities.md) | "Watch TV" that turns everything on, in order |
+| [Creating an Activity — the deep dive](creating-an-activity.md) | Every tab, every knob, every concept, with screenshots |
 | [Presets](presets.md) | One-tap Netflix / scene / favorite buttons |
 | [Mapping a physical remote](remote-map.md) | A new remote model fully described, end to end |
 | [The device photo](device-photo-skin.md) | The Studio preview inside a photo of *your* remote |

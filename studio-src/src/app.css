@@ -160,3 +160,12 @@ body { font-size: var(--ui-fs-base); }
 .ui-row-body    { background: var(--ui-row-body-bg); }
 .ui-role-select { width: var(--ui-role-select-w); flex: 0 0 var(--ui-role-select-w); }
 
+
+/* ICON FONT GATE (v0.83.7 — Suresh: "font and display are messed
+   up. A page refresh clears it"): Material Symbols loads from
+   Google after first paint, and until it lands every icon renders
+   as its LIGATURE TEXT ("play_circle"). Hide the glyph spans until
+   the font is confirmed loaded (App.svelte adds .fonts-ok, with a
+   3s fallback so a blocked font never leaves icons invisible). */
+.material-symbols-outlined { opacity: 0; }
+html.fonts-ok .material-symbols-outlined { opacity: 1; }

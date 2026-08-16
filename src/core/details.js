@@ -227,6 +227,46 @@ function groupScreen(gid) {
   };
 }
 
+/* SPEAKER GROUP SCREEN (v0.83.7 Speaker Groups): the launcher tile's
+   destination — navigate("spkgrp:<id>") renders one named group from
+   CONFIG.speaker_groups as a full grouping card WITH per-player trim
+   sliders. Virtual like group:/detail:, so the launcher works from
+   any surface and the running activity's context (if any) supplies
+   the join master via the card's own fallback chain. */
+function speakerGroupScreen(gid) {
+  const g = (CONFIG.speaker_groups || {})[gid];
+  if (!g) return null;
+  const ents = (g.entities || []).filter(en =>
+    typeof en === "string" && en.indexOf(".") > 0);
+  if (ents.length < 2) return null;
+  /* master = the (presumed) activity's player when there is one —
+     resolved HERE, not left as $context (an unwired $context hides
+     the whole tile in visibleTile); with no activity anywhere the
+     entity stays absent and the card's own fallback chain picks a
+     coordinator / playing member / first listed */
+  const aid = renderActivityId();
+  const act = aid && (CONFIG.activities || {})[aid];
+  const cm = act && act.context && act.context.media_player;
+  const tile = {
+    id: "sg_" + gid, type: "grouping", group: gid,
+    entities: ents, sliders: true, label: g.name || gid,
+    icon: "material:speaker_group", span: 2,
+    /* CARD, not row (Suresh, first sight of the screen: "Move that
+       icon to the Title row. It eats too much space") — row mode
+       hangs the icon in a full-height left column; the card chassis
+       puts it on the title line and the sub goes inline */
+    brRow: false
+  };
+  if (typeof cm === "string" && cm.indexOf(".") > 0) tile.entity = cm;
+  return {
+    name: g.name || gid,
+    virtual: true,
+    grid: { columns: 1 },
+    tiles: [tile],
+    initial_focus: "sg_" + gid
+  };
+}
+
 /* screen id resolution: config screens + virtual detail screens +
    LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
    shared control surfaces; the active activity's context overlay
@@ -244,6 +284,8 @@ function screenOf(id) {
     return diagScreen();
   if (typeof id === "string" && id.startsWith("group:"))
     return groupScreen(id.slice(6));   /* a cast group (v0.60) */
+  if (typeof id === "string" && id.startsWith("spkgrp:"))
+    return speakerGroupScreen(id.slice(7));   /* a speaker group (v0.83.7) */
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;

@@ -12,7 +12,20 @@ WIDGETS.stepper = {
        Kinds with a bounded 0-100 range also get a fat slider track
        (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
        sets the value directly; −/+ remain the precision control. */
-    sub: () => "",
+    /* THE VOLUME KIND IS ITS OWN SHAPE (v0.83.7 — Suresh: "Volume
+       Slider vs Volume Stepper -- they are pretty much identical...
+       Maybe Volume Stepper is like Compact except a fat slider bar"):
+       exactly that. Compact's layout — "Vol n%" on the title line,
+       −/+ around the middle — but the middle is the fat track IN the
+       row instead of the mini meter, and there is no second track
+       above. Now the four styles are four different controls. */
+    sub: (e, t) => {
+      if (t.kind !== "volume") return "";
+      if (st(e).a.is_volume_muted) return "Muted";
+      const l = st(e).a.volume_level;
+      return "Vol " + (l != null ? pct(l) : "–");
+    },
+    inlineSub: t => t.kind === "volume",
     isOn: e => ACTIVE(st(e).s),
     selectCaptures: true, captureHint: "▲▼ adjust · back releases",
     capture: {
@@ -20,16 +33,18 @@ WIDGETS.stepper = {
       down: (e, t) => nudgeStep(e, t.kind, -1)
     },
     body: t => {
+      /* volume: track-in-row, number on the title line — see above */
+      if (t.kind === "volume") return `<div class="steprow vol">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
       const k = STEP_KINDS[t.kind] || {};
       const sl = k.slider
         ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      /* the VOLUME kind matches the volume widget's row (v0.83.3 —
-         Suresh, wired-volume beside a stepper Receiver: "The first
-         is nice. The second needs fixing"): 58×46 buttons + 21px
-         value, so a stepper-styled zone and the wired volume read
-         as the same control. Other kinds (brightness, setpoint,
-         position) keep the big display type — they ARE the page. */
-      return sl + `<div class="steprow${t.kind === "volume" ? " vol" : ""}">
+      /* other kinds (brightness, setpoint, position) keep the big
+         display type — they ARE the page */
+      return sl + `<div class="steprow">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
@@ -60,7 +75,8 @@ WIDGETS.stepper = {
       sl.addEventListener("click", ev => ev.stopPropagation());
       sl.addEventListener("pointerdown", ev => {
         ev.stopPropagation();
-        sl.setPointerCapture(ev.pointerId);
+        try { sl.setPointerCapture(ev.pointerId); }
+        catch (x) { /* synthetic events carry no pointer id */ }
         sl._drag = true;
         apply(ev, false);
       });
@@ -72,8 +88,11 @@ WIDGETS.stepper = {
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
-      el.querySelector(".stepval").textContent = k ? k.fmt(k.get(e)) : "–";
+      const sv = el.querySelector(".stepval");
+      if (sv) sv.textContent = k ? k.fmt(k.get(e)) : "–";
       const sl = el.querySelector(".sldr");
+      if (t.kind === "volume" && sl)
+        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
       if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
         const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));

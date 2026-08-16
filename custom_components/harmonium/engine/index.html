@@ -210,8 +210,54 @@
   .tile.wgt-nav.nav-image .hint { display: none; }
   .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
 
-  /* now-playing art hero (media tile with art: true) */
-  .tile.wgt-media.art .sub { display: none; }
+  /* now-playing SLIM (v0.83.7 — style: "slim"): one line, playlist-
+     row height — indicator + "Title — Artist"; the top row and state
+     sub yield the space; the chassis trailing stays */
+  .tile.wgt-media.slim { min-height: 0; }
+  .tile.wgt-media.slim .top, .tile.wgt-media.slim .sub { display: none; }
+  .npslim { display: flex; align-items: center; gap: 10px; padding: 4px 0; min-width: 0; }
+  .npslim .npsind { font-size: 22px; color: var(--dim); flex: 0 0 auto; }
+  .npslim .npsind.live { color: var(--accent); }
+  .npslim .npst {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: var(--fs-m1, 15px); color: var(--text);
+  }
+  .npslim .npstx { display: inline-block; white-space: nowrap; }
+  /* overflow → marquee: glide to the end, hold, glide back (the
+     alternate loop); distance measured by the widget into --npshift */
+  .npslim .npst.scroll { text-overflow: clip; }
+  .npslim .npst.scroll .npstx { animation: npmarq 9s linear infinite alternate; }
+  @keyframes npmarq {
+    0%, 12% { transform: translateX(0); }
+    88%, 100% { transform: translateX(var(--npshift, 0px)); }
+  }
+
+  /* the plain card's state line breaks before the source (tidy-ups) */
+  .tile.wgt-media .sub { white-space: pre-line; }
+
+  /* now-playing art heroes (media tile, style "art" / "wash") */
+  .tile.wgt-media.art .sub, .tile.wgt-media.wash .sub { display: none; }
+  /* ART HERO v2 (v0.83.7 follow-up — Suresh, mini-media-player shot:
+     "With an album on one side and a library selector on the other,
+     there's not much space left. ... See the fade into artwork."):
+     the artwork is a RIGHT PANEL, full height and full opacity at the
+     edge, masked to fade into the tile toward the text — the track
+     data owns the clear left at the same font sizes. No wash over
+     the words, no 64px thumb. The library trail floats OVER the art,
+     bottom-right, glass-styled (see controls.css). */
+  .tile.wgt-media.art { position: relative; overflow: hidden; }
+  .tile.wgt-media.art .npimg {
+    position: absolute; top: 0; right: 0; bottom: 0; height: 100%;
+    width: 58%; border-radius: 0; object-fit: cover; object-position: center;
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,.92) 45%, transparent 98%);
+    mask-image: linear-gradient(to left, rgba(0,0,0,.92) 45%, transparent 98%);
+  }
+  .tile.wgt-media.art .top, .tile.wgt-media.art .npmeta,
+  .tile.wgt-media.art .npprog { position: relative; z-index: 1; }
+  /* trimmed a little vertically; text may run into the fade */
+  .tile.wgt-media.art .npwrap { padding: 2px 0 4px; }
+  .tile.wgt-media.art .npmeta { max-width: 74%; }
+  .tile.wgt-media.art .npmeta > div { text-shadow: 0 1px 6px rgba(0,0,0,.55); }
   .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
   .npimg {
     width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
@@ -266,12 +312,21 @@
   .steprow.vol { gap: 12px; }
   .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
   .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
+  /* stepper volume (v0.83.7): the fat track rides IN the row between
+     −/+ — compact's layout with a real slider for a middle; height
+     matches the 46px buttons exactly (the "slightly squashed" note),
+     and the row sits 6px under the title — the same breath the fat
+     slider's track takes ("the gap ... is too small") */
+  .steprow.vol { padding-top: 6px; }
+  .steprow.vol .sldr.inrow { flex: 1; min-width: 0; margin: 0; height: 46px; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
   }
   .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
-  .tile.wgt-stepper .sub, .tile.wgt-chips .sub { display: none; }
+  /* the volume-kind stepper carries "Vol n%" on the title line
+     (v0.83.7) — only the block-level sub stays hidden */
+  .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
   /* stepper slider: fat touch track, fill = value; −/+ row stays below */
   .sldr {
     position: relative; height: 44px; border-radius: 12px;
@@ -777,6 +832,37 @@
   .trail.tracc.focused {
     background: var(--accent); color: var(--bg); border-color: var(--text);
   }
+  /* ART HERO v2 trail (v0.83.7 round 2 — Suresh: "the same right
+     side library we had in the original artwork....but this time,
+     make the background the dark wash ... Even better if we can fade
+     in that grey"): the FULL-HEIGHT right zone is back — original
+     ergonomics — drawn as a fade-in of the card's dark wash over the
+     artwork's edge, with the accent glyph riding on it. */
+  .tile.wgt-media.art.has-trail,
+  .tile.wgt-media.art.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  .tile.wgt-media.art .trail,
+  .tile.wgt-media.art .trail.tracc {
+    top: 0; right: 0; bottom: 0; width: 92px; height: auto;
+    z-index: 2; border-radius: 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0;
+    background: linear-gradient(to right,
+      rgba(13, 15, 18, 0), rgba(13, 15, 18, .55) 45%, rgba(13, 15, 18, .82));
+    color: var(--accent);
+    justify-content: flex-end; padding-right: 14px;
+    /* border: 0 — the transparent 2px border painted a hairline seam
+       at the fade's left edge over the masked art */
+    border: 0;
+  }
+  .tile.wgt-media.art .trail .ic.material-symbols-outlined,
+  .tile.wgt-media.art .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
+  .tile.wgt-media.art .trail:active,
+  .tile.wgt-media.art .trail.tracc:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.art .trail.focused,
+  .tile.wgt-media.art .trail.tracc.focused {
+    /* borderless — the focus ring is an inset shadow instead */
+    box-shadow: inset 0 0 0 2px var(--accent);
+    background: linear-gradient(to right,
+      rgba(13, 15, 18, .15), rgba(13, 15, 18, .7) 45%, rgba(13, 15, 18, .92));
+  }
   .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
   .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
 
@@ -826,6 +912,53 @@
   .volrow .volpct {
     flex: 1; text-align: center; font-size: 21px; font-weight: 600;
     font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  /* MUTED (v0.83.7 — status review: "no on remote indicator of mute
+     status"): the center readout swaps to the mute glyph in accent;
+     the track/meter keeps the level but drops to a whisper so
+     unmuting lands where you expect */
+  .volrow .volpct .vmute { font-size: 24px; color: var(--accent); vertical-align: -3px; }
+  .sldr.muted i, .meter.muted i { opacity: .3; }
+
+  /* SPEAKER GROUPING (v0.83.7 — beta-gaps §3): member rows + the
+     group-volume track. A joined row reads accent; the link button
+     is the same 46px touch target as every control row here. */
+  .tile.wgt-grouping .grprow { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .tile.wgt-grouping .grprow .gname {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: var(--fs-m1, 15px); color: var(--text);
+  }
+  .tile.wgt-grouping .grprow .glvl {
+    flex: 0 0 auto; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-dim);
+  }
+  .tile.wgt-grouping .grprow .gjoin { width: 58px; height: 40px; border-radius: 12px; flex: 0 0 auto; }
+  .tile.wgt-grouping .grprow.on .gjoin {
+    background: var(--accent); color: var(--accent-ink, #000);
+  }
+  /* volume-link toggle (joined rows only): linked = lit speaker,
+     unlinked = mute-shaped glyph, dimmed — the group slider skips it */
+  .tile.wgt-grouping .grprow .gvlink { width: 46px; height: 40px; border-radius: 12px; flex: 0 0 auto; }
+  .tile.wgt-grouping .grprow.on .gvlink { color: var(--accent); }
+  .tile.wgt-grouping .grprow.on .gvlink.vloose { color: var(--text-dim); opacity: .6; }
+  /* SPEAKER GROUP rows (v0.83.7): each member's volume row —
+     [−] [track with the % INSIDE it] [+] — under the name line.
+     Always out on the spkgrp: screen; tap the name on the inline
+     card. The master row anchors, unclickable. */
+  .tile.wgt-grouping .grpitem { margin-top: 4px; }
+  .tile.wgt-grouping .rslrow { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+  .tile.wgt-grouping .rslrow .rvol { width: 52px; height: 42px; border-radius: 12px; flex: 0 0 auto; }
+  .tile.wgt-grouping .rslrow .sldr.rowsl { flex: 1; min-width: 0; height: 42px; margin: 0; }
+  .tile.wgt-grouping .sldr.rowsl .rslpct {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text); pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,.55);
+  }
+  .tile.wgt-grouping .grprow .gname { cursor: pointer; }
+  .tile.wgt-grouping .grprow.gmaster .gname { color: var(--accent); cursor: default; }
+  .tile.wgt-grouping .grpvol { margin-top: 12px; }
+  .tile.wgt-grouping .grpvol .gvlabel {
+    font-size: 12px; color: var(--text-dim); margin-bottom: 6px;
   }
 
   /* list-row variant (grid.columns = 1) — height rides the global
@@ -1309,7 +1442,7 @@ function activitiesOwning(sid) {
    DRAWERS (`drawer: true` — the Apps grid, the Music Library), which
    are destinations you step into and back out of. A plain page —
    a room — presumes nothing, or the guess leaks backwards onto it. */
-const VIRTUAL_PREFIX = ["detail:", "sources:", "queue:", "group:", "keys:"];
+const VIRTUAL_PREFIX = ["detail:", "sources:", "queue:", "group:", "spkgrp:", "keys:"];
 /* raw config lookup, deliberately NOT screenOf: screenOf generates the
    virtual screens, and groupScreen asks for the render activity — that
    way lies recursion */
@@ -1470,6 +1603,71 @@ function powerEntities(sc) {
 
 /* Capability-based tile visibility: tile.only / tile.unless name
    capabilities from the active device profile (string or array). */
+/* the Controller tab's band vocabulary (v0.83.7). FIXED_BANDS gate
+   hand-placed singletons in visibleTile; RAW_BANDS also name the
+   generator tiles for per-activity ORDERING (which happens on the
+   DECLARED tiles, before expansion, so a generator keeps its
+   identity). */
+const FIXED_BANDS = { media: "np", transport: "transport",
+  mediabtns: "modes", sources: "sources", volume: "volume" };
+const RAW_BANDS = Object.assign({ volumes: "volume", speakers: "speakers",
+  groups: "groups", presets: "presets", devices: "devices" }, FIXED_BANDS);
+
+/* PER-ACTIVITY BAND ORDER (v0.83.7 — Suresh: "We should have a move
+   up and move down to control the order"): a.surface.band_order is
+   the activity's display order for the bands it recognizes. Band
+   tiles permute among themselves WITHIN their section; everything
+   unrecognized keeps its exact slot. Stable for ties. */
+/* THE CONTROLLER TAB'S DRESSING PASS (v0.83.7 — "would be cool is a
+   label slot, so we can override labels. ... No text means no
+   label!"): per-activity band-label overrides + the Now Playing
+   style, applied to the expanded tiles of controller-class screens.
+   a.surface.band_labels.<band> = "text" ("" = NO label — .lbl:empty
+   collapses); a.surface.np_style = "slim" | "art". Only bands that
+   render ONE surface tile are labelable — per-item tiles (the
+   volumes cast, presets, devices) keep their own names (bandGen). */
+const LABELABLE_BANDS = { media: "np", transport: "transport",
+  mediabtns: "modes", sources: "sources", volume: "volume",
+  grouping: "speakers", grouplaunch: "speakers" };
+function surfDressTile(t) {
+  const sc = screenOf(S.screen);
+  if (!sc || !(sc.class === "activity" || sc.type === "controller")) return t;
+  const cur = renderActivityId();
+  const act = cur && (CONFIG.activities || {})[cur];
+  const srf = act && act.surface;
+  if (!srf) return t;
+  let patch = null;
+  const band = !t.bandGen && (LABELABLE_BANDS[t.type] ||
+    (t.type === "stepper" && t.kind === "volume" ? "volume" : null));
+  const bl = srf.band_labels;
+  if (band && bl && typeof bl[band] === "string")
+    (patch = patch || {}).label = bl[band];
+  if (t.type === "media" && srf.np_style && !t.style)
+    (patch = patch || {}).style = srf.np_style;
+  return patch ? Object.assign({}, t, patch) : t;
+}
+function surfOrderTiles(tiles) {
+  const sc = screenOf(S.screen);
+  if (!sc || !(sc.class === "activity" || sc.type === "controller")) return tiles;
+  const cur = renderActivityId();
+  const act = cur && (CONFIG.activities || {})[cur];
+  const order = act && act.surface && act.surface.band_order;
+  if (!Array.isArray(order) || !order.length) return tiles;
+  const bandOf = t => RAW_BANDS[t.type] ||
+    (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
+  const slots = [], bandTiles = [];
+  tiles.forEach((t, i) => { if (bandOf(t)) { slots.push(i); bandTiles.push([t, i]); } });
+  if (bandTiles.length < 2) return tiles;
+  const rank = pair => {
+    const ix = order.indexOf(bandOf(pair[0]));
+    return ix < 0 ? 900 + pair[1] : ix;   // unlisted bands keep the tail, stably
+  };
+  bandTiles.sort((a, b) => rank(a) - rank(b) || a[1] - b[1]);
+  const out = tiles.slice();
+  slots.forEach((pos, i) => { out[pos] = bandTiles[i][0]; });
+  return out;
+}
+
 function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
   /* a context-bound tile whose role is UNWIRED here hides itself —
@@ -1487,6 +1685,26 @@ function visibleTile(t) {
     const w = (typeof WIDGETS !== "undefined" && WIDGETS[t.type]) || null;
     if (w && typeof w.hidden === "function" &&
         w.hidden(resolveEntity(t.entity), t)) return false;
+  }
+  /* THE CONTROLLER TAB'S BAND SWITCHES (v0.83.7): on a
+     controller-class screen, the running activity's a.surface can
+     switch whole FIXED bands off — np (Now Playing), transport,
+     modes, sources, volume. Generator bands (volumes, speakers,
+     groups, presets, devices) gate themselves pre-expansion in
+     generators.js; this covers the hand-placed singletons. Absent
+     key = Auto = today's behavior. */
+  {
+    const sc0 = screenOf(S.screen);
+    if (sc0 && (sc0.class === "activity" || sc0.type === "controller")) {
+      const cur0 = renderActivityId();
+      const act0 = cur0 && (CONFIG.activities || {})[cur0];
+      const srf = act0 && act0.surface;
+      if (srf) {
+        const band = FIXED_BANDS[t.type] ||
+          (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
+        if (band && srf[band] === false) return false;
+      }
+    }
   }
   /* per-activity content overrides on a SHARED controller: one Watch
      TV page, many activities — tiles opt in/out declaratively.
@@ -1700,7 +1918,11 @@ function expandTile(t) {
       });
     }
     const doneInline = {};
+    /* a grouped LOOSE entity leaves this section for its group's
+       page, same as a grouped device (v0.83.7 tidy-ups) */
+    const groupedIds = actP ? groupedDeviceIds(actP) : [];
     return ents.filter(e => !skipW[e])
+      .filter(e => groupedIds.indexOf(e) < 0)
       .filter(e => e.split(".")[0] !== "remote" || inlineOf[e])
       .filter(e => !(cmdEnt && e === cmdEnt && e !== ctx2.media_player &&
         !(dopts[e] && dopts[e].tile === true)))
@@ -1743,6 +1965,13 @@ function expandTile(t) {
           span: 2
         })));
   }
+/* THE CONTROLLER TAB'S BAND SWITCHES (v0.83.7 — Suresh: "What if
+   I don't want to control multiple players. What if I do."): every
+   band the activity's controller renders is a per-activity switch,
+   stored on a.surface (the same home surface.devices has used since
+   v0.48). Absent = Auto (today's behavior); false = off. The shared
+   surface stays shared; the preference travels with the activity. */
+const srfOff = (act, k) => !!(act && act.surface && act.surface[k] === false);
   if (t.type === "volumes") {
     /* VOLUME CAST (v0.57 — Suresh: "there might be 8 volumes; think of
        them as device tiles with a volume role"). One control per CAST
@@ -1764,6 +1993,7 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act) return [];
+    if (srfOff(act, "volume")) return [];   /* Controller tab: band off */
     /* WHICH ROLE THIS INSTANCE DRAWS (v0.59 — Suresh: "it's not
        intuitive right now"). Was: infer the master from the activity
        wiring and call everything else "the rest". Nothing declared it,
@@ -1779,7 +2009,9 @@ function expandTile(t) {
     /* fat by default (v0.83.1 — statusreview: "default should be fat"):
        the slider treatment is the default volume everywhere; compact
        and stepper remain one declaration away */
-    const dflt = t.style || ((CONFIG.global || {}).style || {}).volume || "slider";
+    const dflt = t.style ||
+      (act.surface && act.surface.volume_style) ||   /* Controller tab default */
+      ((CONFIG.global || {}).style || {}).volume || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -1804,6 +2036,13 @@ function expandTile(t) {
         icon: (pv && pv.icon) || d.icon || "material:volume_up",
         span: 2
       };
+      /* WHICH TILE IS "THE VOLUME BAND" (v0.83.7 — Suresh: "the
+         volume band is the row associated with the Volume Role"):
+         the tile whose entity is the activity's WIRED volume takes
+         the Controller-tab label override; every other cast volume
+         is a per-device row and keeps its own name (bandGen —
+         surfDressTile skips those). */
+      if (ve !== (act.context || {}).volume) base.bandGen = 1;
       out.push(style === "stepper"
         ? Object.assign(base, { type: "stepper", kind: "volume" })
         : Object.assign(base, {
@@ -1833,6 +2072,8 @@ function expandTile(t) {
             label: pv2 && typeof pv2.name === "string" ? pv2.name
               : (st(ctxV).a.friendly_name || ctxV.split(".").pop()),
             icon: (pv2 && pv2.icon) || "material:volume_up",
+            /* the wired volume itself — the band's one true tile,
+               so the label override applies (no bandGen) */
             span: 2
           };
           out.push(style2 === "stepper"
@@ -1866,6 +2107,7 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act || !Array.isArray(act.presets)) return [];
+    if (srfOff(act, "presets")) return [];   /* Controller tab: band off */
     /* `include: [ids]` narrows to a subset, in the order given —
        v0.68.5, and note it is not a new idea: the `apps` generator has
        taken exactly this option since v0.46. One activity's presets can
@@ -1901,6 +2143,95 @@ function expandTile(t) {
       { type: "preset", span: 2, activity: aid }, p,
       { id: t.id + "_" + (p.id || i) }));
   }
+  if (t.type === "speakers") {
+    /* SPEAKER GROUPING (v0.83.7 — beta-gaps §3, P1 #4): expand to
+       ONE grouping card. Members come from the tile's own
+       `entities` list when authored, else from the RUNNING
+       activity's cast — every device with a media_player claim.
+       Fewer than two players = nothing to group = no card, which is
+       what lets this ride the stock controller without ceremony. */
+    /* SPEAKER GROUPS (v0.83.7 — Suresh: "the receiver is a
+       media_player but its only job is to be an amplifier.
+       Conversely there are many ma media players that I might want
+       to add"): a NAMED, workspace-level collection —
+       CONFIG.speaker_groups.<id> = { name, entities } — independent
+       of any cast. The tile (or the activity's Controller tab, via
+       surface.speakers_group) points at one, and the card offers
+       THOSE players instead of the cast. Two card modes: "launcher"
+       (a slim count tile — "5 available · 2 linked" — opening the
+       generated spkgrp: screen with per-player sliders, so levels
+       get trimmed BEFORE linking) or "inline" (the full card in
+       place, today's shape). Group-fed tiles default to launcher;
+       cast-fed keep inline — zero change to deployed configs. */
+    let aid = t.activity && t.activity !== "$current" ? t.activity : null;
+    if (!aid) {
+      const cur = renderActivityId();
+      if (cur && (CONFIG.activities || {})[cur]) aid = cur;
+    }
+    const act = aid && (CONFIG.activities || {})[aid];
+    const gid = t.group ||
+      (act && act.surface && act.surface.speakers_group) || null;
+    const grp = gid && (CONFIG.speaker_groups || {})[gid];
+    const labels = {};
+    let members = [];
+    if (grp) {
+      members = (grp.entities || []).filter(en =>
+        typeof en === "string" && en.indexOf(".") > 0);
+    } else if (Array.isArray(t.entities) && t.entities.length) {
+      members = t.entities.slice();
+    } else if (act) {
+      castDeviceIds(act).forEach(did => {
+        const d = (CONFIG.devices || {})[did];
+        if (!d) return;
+        const mp = (d.roles || {}).media_player;
+        if (!mp || members.indexOf(mp) >= 0) return;
+        members.push(mp);
+        labels[mp] = d.name || did;
+      });
+      /* LOOSE ENTITIES COUNT TOO (v0.83.7 — Suresh's Listen to
+         Music casts two raw media_players, no pre-wired devices,
+         and the card never appeared): the wired media_player, the
+         extra_devices, and the legacy a.devices array all
+         contribute their media_player.* entries. Names come live
+         from friendly_name at render time. */
+      const cm = act.context && act.context.media_player;
+      const loose = [].concat(
+        typeof cm === "string" ? [cm] : [],
+        act.extra_devices || [],
+        Array.isArray(act.devices) ? act.devices : []);
+      loose.forEach(en => {
+        if (typeof en === "string" && en.indexOf("media_player.") === 0 &&
+            members.indexOf(en) < 0)
+          members.push(en);
+      });
+    }
+    if (srfOff(act, "speakers")) return [];   /* Controller tab: band off */
+    if (members.length < 2) return [];
+    const mode = t.mode ||
+      (act && act.surface && act.surface.speakers_mode) ||
+      (grp ? "launcher" : "inline");
+    /* with no activity in play (a group tile on a plain hub) the
+       entity stays ABSENT — an unwired $context hides the tile in
+       visibleTile, and the card's fallback chain picks the master */
+    const ent = t.entity || (act ? "$context.media_player" : undefined);
+    if (mode === "launcher" && grp) return [{
+      id: t.id, type: "grouplaunch", group: gid,
+      entity: ent,
+      entities: members,
+      label: t.label || grp.name || gid,
+      icon: t.icon || "material:speaker_group",
+      span: 2
+    }];
+    return [{
+      id: t.id, type: "grouping",
+      entity: ent,
+      entities: members,
+      labels: t.labels || labels,
+      label: t.label || (grp && (grp.name || gid)) || "Speakers",
+      icon: t.icon || "material:speaker_group",
+      span: 2
+    }];
+  }
   if (t.type === "groups") {
     /* One nav card per group in the running activity's cast. The
        controller says "render this activity's groups" and never names
@@ -1914,6 +2245,11 @@ function expandTile(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act) return [];
+    /* Controller tab: the Cast-group cards switch gates the NAV
+       CARDS only (tidy-ups: "toggling that off, turns off the
+       device I promoted into the controller" — a promoted control
+       is not a group card; it merely shares this generator) */
+    const groupsOff = srfOff(act, "groups");
     /* WHERE THINGS LIVE (v0.77 — Suresh: "When I create a group, it
        appears directly under the Volume Control. When I create a
        loose device, it appears in DEVICES. We should either (a) be
@@ -1923,8 +2259,8 @@ function expandTile(t) {
        either. `where: "devices"` on a group sends its nav card down;
        `where: "controls"` in a member's presentation promotes its
        tile up here, beside the group cards. */
-    const gout = castGroups(act)
-      .filter(g => (g.where || "controls") === "controls")
+    const gout = (groupsOff ? [] : castGroups(act)
+      .filter(g => (g.where || "controls") === "controls"))
       .map(g => ({
       type: "nav",
       id: t.id + "_" + String(g.group).replace(/[^a-zA-Z0-9]+/g, "_"),
@@ -2070,6 +2406,21 @@ function presApply(tile, p, ent) {
 /* one tile for one member of a group, drawn as `shows` */
 function groupChildTile(did, shows, idPrefix, pres) {
   const d = (CONFIG.devices || {})[did];
+  /* LOOSE ENTITIES CAN GROUP TOO (v0.83.7 tidy-ups — his cast is raw
+     media_players, and the group ticks had nothing to offer): a
+     member id that IS an entity renders through the loose path — a
+     control when its ⚙ says so, a device row otherwise. */
+  if (!d && typeof did === "string" && did.includes(".")) {
+    if (shows && shows !== "device")
+      return looseShowTile(did, Object.assign({}, pres, { shows }), idPrefix);
+    return presApply({
+      type: "device",
+      id: idPrefix + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
+      entity: did, span: 2, brRow: false,
+      label: st(did).a.friendly_name || did.split(".").pop().replace(/_/g, " "),
+      icon: "material:devices"
+    }, pres, did);
+  }
   if (!d) return null;
   const roles = d.roles || {};
   const base = {
@@ -2097,16 +2448,28 @@ function groupChildTile(did, shows, idPrefix, pres) {
      volumes band always drew these as cards; brRow: false pins that
      shape wherever the control lands). The `device` fallback stays
      unstamped — launcher rows are right at home in a list. */
-  if (shows === "volume")
-    return presApply(Object.assign(base, { type: "volume", entity: ent,
-      brRow: false,
-      level_entity: roles.volume_level || ent,
-      slider: ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "slider") === "slider" }),
+  /* ONE volume control, FOUR shapes (v0.83.7 — Suresh: "we have
+     Volume Control and Volume Stepper in DRAWS AS. And we have
+     Volume Style with overlapping choices"): Draws-as picks the
+     CONTROL, Volume style picks the SHAPE — including stepper,
+     which the old branch here silently ignored. shows: "stepper"
+     survives as a legacy alias for volume + style stepper. */
+  if (shows === "volume" || shows === "stepper") {
+    const vstyle = shows === "stepper" ? "stepper" :
+      ((pres && pres.style) ||
+        ((CONFIG.global || {}).style || {}).volume || "slider");
+    /* a PROMOTED per-device control, never "the volume band" —
+       exempt from the band-label override (v0.83.7: typing a band
+       label renamed his promoted Receiver) */
+    return presApply(vstyle === "stepper"
+      ? Object.assign(base, { type: "stepper", kind: "volume",
+          brRow: false, bandGen: 1, entity: ent })
+      : Object.assign(base, { type: "volume", entity: ent,
+          brRow: false, bandGen: 1,
+          level_entity: roles.volume_level || ent,
+          slider: vstyle === "slider" }),
       pres, ent);
-  if (shows === "stepper")
-    return presApply(Object.assign(base, { type: "stepper", kind: "volume",
-      brRow: false, entity: ent }), pres, ent);
+  }
   return presApply(Object.assign(base, { type: shows, brRow: false,
     entity: ent }), pres, ent);
 }
@@ -2122,13 +2485,17 @@ function looseShowTile(ent, p, idPrefix) {
   const shows = p.shows;
   base.brRow = false;              /* controls are cards — see above */
   let tile;
-  if (shows === "volume")
-    tile = Object.assign(base, { type: "volume", entity: ent,
-      level_entity: ent,
-      slider: ((p && p.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact") === "slider" });
-  else if (shows === "stepper")
-    tile = Object.assign(base, { type: "stepper", kind: "volume", entity: ent });
+  if (shows === "volume" || shows === "stepper") {
+    /* style decides the shape here too (v0.83.7 unification) */
+    const vstyle = shows === "stepper" ? "stepper" :
+      ((p && p.style) ||
+        ((CONFIG.global || {}).style || {}).volume || "compact");
+    tile = vstyle === "stepper"
+      ? Object.assign(base, { type: "stepper", kind: "volume",
+          bandGen: 1, entity: ent })
+      : Object.assign(base, { type: "volume", entity: ent, bandGen: 1,
+          level_entity: ent, slider: vstyle === "slider" });
+  }
   else tile = Object.assign(base, { type: shows, entity: ent });
   return presApply(tile, p, ent);
 }
@@ -2863,7 +3230,11 @@ function rawTilesOf(sc) {
     : (sc.tiles || []);
 }
 function tilesOf(sc) {
-  return rawTilesOf(sc).flatMap(expandTile).filter(visibleTile);
+  /* surfDressTile (v0.83.7): the Controller tab's label overrides +
+     np_style must dress EVERY derivation — makeTile builds from the
+     render pipeline, but renderStates re-derives through here, and an
+     undressed twin would feed sub()/render() the wrong tile */
+  return rawTilesOf(sc).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */
@@ -2903,7 +3274,14 @@ function entitiesFor(screenId) {
   }
   (CONFIG.global.status_entities || []).forEach(v => set.add(v));
   activityStateEntities().forEach(v => set.add(v));   // v2 state-eval deps
-  return [...set];
+  /* EXIT GUARD (v0.83.7 — found in .87's log: subscribe_entities
+     rejected with "Entity ID $device is an invalid entity ID"): ONE
+     unresolved token in the list and HA rejects the WHOLE message —
+     the page then gets no state updates at all (same failure class
+     as 2026-07-26). Whatever slips through the adders above, only
+     real entity ids leave this function: a dot, and no $-token. */
+  return [...set].filter(v =>
+    typeof v === "string" && v.includes(".") && v.indexOf("$") === -1);
 }
 
 function subscribeFor(screenId) {
@@ -4735,7 +5113,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.83.3";
+const ENGINE_V = "0.83.7";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5076,6 +5454,46 @@ function groupScreen(gid) {
   };
 }
 
+/* SPEAKER GROUP SCREEN (v0.83.7 Speaker Groups): the launcher tile's
+   destination — navigate("spkgrp:<id>") renders one named group from
+   CONFIG.speaker_groups as a full grouping card WITH per-player trim
+   sliders. Virtual like group:/detail:, so the launcher works from
+   any surface and the running activity's context (if any) supplies
+   the join master via the card's own fallback chain. */
+function speakerGroupScreen(gid) {
+  const g = (CONFIG.speaker_groups || {})[gid];
+  if (!g) return null;
+  const ents = (g.entities || []).filter(en =>
+    typeof en === "string" && en.indexOf(".") > 0);
+  if (ents.length < 2) return null;
+  /* master = the (presumed) activity's player when there is one —
+     resolved HERE, not left as $context (an unwired $context hides
+     the whole tile in visibleTile); with no activity anywhere the
+     entity stays absent and the card's own fallback chain picks a
+     coordinator / playing member / first listed */
+  const aid = renderActivityId();
+  const act = aid && (CONFIG.activities || {})[aid];
+  const cm = act && act.context && act.context.media_player;
+  const tile = {
+    id: "sg_" + gid, type: "grouping", group: gid,
+    entities: ents, sliders: true, label: g.name || gid,
+    icon: "material:speaker_group", span: 2,
+    /* CARD, not row (Suresh, first sight of the screen: "Move that
+       icon to the Title row. It eats too much space") — row mode
+       hangs the icon in a full-height left column; the card chassis
+       puts it on the title line and the sub goes inline */
+    brRow: false
+  };
+  if (typeof cm === "string" && cm.indexOf(".") > 0) tile.entity = cm;
+  return {
+    name: g.name || gid,
+    virtual: true,
+    grid: { columns: 1 },
+    tiles: [tile],
+    initial_focus: "sg_" + gid
+  };
+}
+
 /* screen id resolution: config screens + virtual detail screens +
    LIBRARY CONTROLLERS ("controller:<id>" → config.controllers — the
    shared control surfaces; the active activity's context overlay
@@ -5093,6 +5511,8 @@ function screenOf(id) {
     return diagScreen();
   if (typeof id === "string" && id.startsWith("group:"))
     return groupScreen(id.slice(6));   /* a cast group (v0.60) */
+  if (typeof id === "string" && id.startsWith("spkgrp:"))
+    return speakerGroupScreen(id.slice(7));   /* a speaker group (v0.83.7) */
   if (typeof id === "string" && id.startsWith("controller:"))
     return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
@@ -5500,27 +5920,51 @@ WIDGETS.climate = {
     }
   };
 
-/* MEDIA tile — now-playing card (art hero variant with `art: true`);
-   tap play/pauses; sub = state · title. */
+/* MEDIA tile — now-playing card; tap play/pauses. THREE renderers
+   (v0.83.7 — Suresh: "lets come up with 3 renderers"): default card,
+   style:"slim" one-liner, style:"art" hero (legacy art:true). */
+/* style resolution (v0.83.7 follow-up — Suresh: "Hero tile seems the
+   same as Standard": on the stock MUSIC controller the surface tile
+   says art:true, so "Standard" WAS the hero). "plain" exists to say
+   "the flat card, even if the surface tile is art:true"; "" defers
+   to the tile. The Studio's Auto option writes nothing at all. */
+/* v0.83.7 round 2 ("We lost the original display, bring it back! But
+   this new one should be the default!"): "art" = the RIGHT-PANEL hero
+   (default for art:true); "wash" = the original full-bleed — dimmed
+   artwork under the whole card, 64px thumb beside the text. */
+const npMode = t => t.style
+  ? (t.style === "plain" ? "" : t.style)
+  : (t && t.art ? "art" : "");
 WIDGETS.media = {
-    /* Now Playing tile. Plain by default; "art": true upgrades the body
-       to an artwork hero — thumb (entity_picture), title/artist/album,
-       and a live progress meter. One shared 1s ticker interpolates
-       position from media_position_updated_at while playing (HA only
-       sends media_position on state changes) — it touches ONLY visible
-       art heroes, never triggers a full re-render. */
-    sub: e => {
+    /* Default = the plain card. "slim" = one line — a play indicator
+       + "Title — Artist" — for controllers where music is background;
+       the chassis trailing (library / detail) rides along. "art" =
+       the artwork hero: background art, title/artist/album at the
+       same font sizes, live progress meter, NO transport and NO
+       volume (those are their own bands). One shared 1s ticker
+       interpolates position from media_position_updated_at while
+       playing (HA only sends media_position on state changes) — it
+       touches ONLY visible art heroes, never triggers a re-render.
+       The activity picks its style on the Controller tab
+       (surface.np_style, applied by surfDressTile). */
+    sub: (e, t) => {
+      if (npMode(t) === "slim") return "";
       const s = st(e);
       const pend = npPending(e, s);
       if (pend) return "Queuing" +
         (pend.label ? " “" + pend.label + "”" : "") + "…";
-      const src = s.a.source ? " · " + s.a.source : "";
+      /* the SOURCE gets its own line (v0.83.7 tidy-ups: "Music
+         Assistant Queue should sit on its own line") — .sub is
+         white-space: pre-line on media tiles */
+      const src = s.a.source ? "\n" + s.a.source : "";
       return cap(s.s) + src;
     },
     isOn: e => ["playing", "on", "paused"].includes(st(e).s),
     detailable: true,
     select: e => callService("media_player", "media_play_pause", null, e),
-    body: t => t.art ? `<div class="npwrap">
+    body: t => {
+      const m = npMode(t);
+      if (m === "art" || m === "wash") return `<div class="npwrap">
       <img class="npimg hidden" alt="">
       <div class="npmeta">
         <div class="npt"></div>
@@ -5528,16 +5972,53 @@ WIDGETS.media = {
         <div class="npb"></div>
       </div>
     </div>
-    <div class="meter npprog hidden"><i></i></div>`
-      : `<div class="meter hidden"><i></i></div>`,
+    <div class="meter npprog hidden"><i></i></div>`;
+      if (m === "slim") return `<div class="npslim">
+      <span class="material-symbols-outlined npsind">graphic_eq</span>
+      <span class="npst"><span class="npstx">–</span></span>
+    </div>`;
+      return `<div class="meter hidden"><i></i></div>`;
+    },
     wire: (el, t) => {
-      if (!t.art) return;
-      el.classList.add("art");
+      const m = npMode(t);
+      if (m === "slim") { el.classList.add("slim"); return; }
+      if (m !== "art" && m !== "wash") return;
+      el.classList.add(m === "wash" ? "wash" : "art");
       const img = el.querySelector(".npimg");
       img.addEventListener("error", () => img.classList.add("hidden"));
     },
     render: (el, e, t) => {
-      if (!t.art) return;
+      if (npMode(t) === "slim") {
+        const s = st(e);
+        const pend = npPending(e, s);
+        const line = pend
+          ? (pend.label ? "Queuing “" + pend.label + "”…" : "Queuing…")
+          : (s.a.media_title
+            ? s.a.media_title + (s.a.media_artist ? " — " + s.a.media_artist : "")
+            : cap(s.s));
+        const box = el.querySelector(".npst");
+        const tx = el.querySelector(".npstx");
+        el.querySelector(".npsind").classList.toggle("live", s.s === "playing");
+        if (tx.textContent !== line) {
+          tx.textContent = line;
+          /* AUTOSCROLL (v0.83.7 follow-up — "Slim 'Now playing' row
+             should autoscroll text"): when the line overflows, glide
+             it end-to-end and back (CSS marquee, distance in a var);
+             measured after layout so scrollWidth is honest */
+          requestAnimationFrame(() => {
+            const over = tx.scrollWidth - box.clientWidth;
+            if (over > 4) {
+              tx.style.setProperty("--npshift", "-" + over + "px");
+              box.classList.add("scroll");
+            } else {
+              box.classList.remove("scroll");
+              tx.style.removeProperty("--npshift");
+            }
+          });
+        }
+        return;
+      }
+      if (npMode(t) !== "art" && npMode(t) !== "wash") return;
       const s = st(e);
       el.dataset.eid = e || "";
       /* QUEUING (v0.73.3): a play is in flight — say so, pulsing,
@@ -5557,12 +6038,15 @@ WIDGETS.media = {
       const lbl = el.querySelector(".lbl");
       if (lbl) lbl.textContent =
         s.s === "playing" ? (t.label || "Now Playing") : cap(s.s);
-      /* ARTWORK AS BACKGROUND (Suresh): a dimmed full-tile wash —
-         metadata keeps the whole width instead of scrunching */
+      /* ARTWORK, two treatments: "art" = the RIGHT PANEL (npimg
+         full-height, masked in CSS, words on clean background);
+         "wash" = the original — dimmed full-tile background + the
+         64px thumb riding beside the text. */
       const img = el.querySelector(".npimg");
       const pic = s.a.entity_picture;
+      const wash = npMode(t) === "wash";
       if (pic && ACTIVE(s.s)) {
-        if (el.dataset.bg !== pic) {
+        if (wash && el.dataset.bg !== pic) {
           el.dataset.bg = pic;
           el.style.backgroundImage =
             `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
@@ -5574,7 +6058,7 @@ WIDGETS.media = {
           img.classList.remove("hidden");
         }
       } else {
-        el.dataset.bg = ""; el.style.backgroundImage = "";
+        if (wash) { el.dataset.bg = ""; el.style.backgroundImage = ""; }
         img.classList.add("hidden"); img.dataset.src = "";
       }
       el.querySelector(".npt").textContent = s.a.media_title || cap(s.s);
@@ -5610,7 +6094,7 @@ function npProgress(el, s) {
     Math.max(0, Math.min(100, Math.round(p / d * 100))) + "%";
 }
 setInterval(() => {
-  document.querySelectorAll(".tile.wgt-media.art").forEach(el => {
+  document.querySelectorAll(".tile.wgt-media.art, .tile.wgt-media.wash").forEach(el => {
     const s = st(el.dataset.eid);
     if (s.s === "playing") npProgress(el, s);
   });
@@ -5618,10 +6102,25 @@ setInterval(() => {
 
 /* VOLUME — up/down/mute strip + optional level slider; truth may
    come from a separate level_entity (the ARC split). */
+/* MUTE is part of the volume truth (v0.83.7 — .88 status review:
+   "no on remote indicator of mute status"). Truth reads from the
+   reporting entity (level_entity when split), falling back to the
+   command entity. */
+const volMuted = (e, t) => {
+  const m = st(lvlEnt(e, t)).a.is_volume_muted;
+  return m != null ? !!m : !!st(e).a.is_volume_muted;
+};
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
     sub: (e, t) => {
+      /* SLIDER MODE SAYS IT ONCE (v0.83.7 — Suresh, four screenshots
+         deep: "note we duplicate the volume % on the 1st and 3rd"):
+         the center readout owns the number (and the mute glyph), so
+         the title line carries only the name. Compact keeps the
+         "Vol n%" title — its meter has no numeral of its own. */
+      if (t && t.slider !== false) return "";
+      if (volMuted(e, t)) return "Muted";
       const l = st(lvlEnt(e, t)).a.volume_level;
       return "Vol " + (l != null ? pct(l) : "–");
     },
@@ -5719,12 +6218,368 @@ WIDGETS.volume = {
     render: (el, e, t) => {
       if (!e) return;
       const l = st(lvlEnt(e, t)).a.volume_level;
+      const m = volMuted(e, t);
       const pc = el.querySelector(".volpct");
-      if (pc) pc.textContent = l != null ? pct(l) : "–";
+      /* muted: the center % becomes the mute glyph (v0.83.7) — the
+         level is still on the track, dimmed, so unmuting is no
+         surprise */
+      if (pc) pc.innerHTML = m
+        ? `<span class="material-symbols-outlined vmute">volume_off</span>`
+        : (l != null ? pct(l) : "–");
       const sl = el.querySelector(".sldr");
+      const mt = el.querySelector(".meter");
+      if (sl) sl.classList.toggle("muted", m);
+      if (mt) mt.classList.toggle("muted", m);
       if (!sl || sl._drag) return;
       sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
     }
+  };
+
+/* GROUPING — the speaker-grouping card (v0.83.7, beta-gaps §3 /
+   P1 #4). One card on the music controller: the cast's players as
+   rows, each with a join/unjoin toggle against the MASTER (the
+   activity's media_player), plus a GROUP volume that moves every
+   joined member while PRESERVING their relative offsets (the
+   mini-media-player lesson: slamming all members to one level is
+   never what anyone wants).
+
+   Truth is the standard HA contract: the master's `group_members`
+   attribute lists the current group (Sonos native and Music
+   Assistant both honor it); joining is media_player.join with the
+   master as target, leaving is media_player.unjoin on the member.
+   No platform sniffing — a player that doesn't group simply never
+   reports members, and its rows read unjoined. */
+/* VOLUME LINK (v0.83.7 feedback: "one can link the player(s) and a
+   separate toggle should be to link their volume"): joining is about
+   PLAYBACK; whether the group slider drags a member's level along is
+   a separate, per-member choice. Default = linked. The set holds the
+   exceptions (volume-UNLINKED members) and lives client-side only —
+   like a pre-link volume trim, it's a session-time control decision,
+   not config. Sticky across unjoin/rejoin within the session. The
+   master is always volume-linked (its level is the activity's own
+   volume band). */
+const GRP_VOL_UNLINKED = new Set();
+/* INLINE ROWS EXPAND ON TAP (v0.83.7 — "On the inline card we don't
+   show volume sliders at all... (2) Click to show them"): tapping a
+   member's NAME on the inline card reveals its volume row beneath —
+   per member, session-local, so the controller stays compact until a
+   level actually needs setting. The spkgrp: screen (sliders: true)
+   always shows every row. */
+const GRP_EXPANDED = new Set();
+/* WHO IS THE MASTER (v0.83.7 Speaker Groups): the activity's
+   media_player when there is one — the "receiver is just an amp"
+   case joins outdoor players to the RUNNING stream even though the
+   stream's owner isn't in the group. On a standalone group screen
+   with nothing running, fall back: a member already coordinating a
+   group (it heads its own group_members), else the first playing
+   member, else the first listed. */
+function grpMaster(t) {
+  const e = resolveEntity(t.entity);
+  if (e) return e;
+  const ms = t.entities || [];
+  const coord = ms.find(m => {
+    const g = st(m).a.group_members || [];
+    return g.length > 1 && g[0] === m;
+  });
+  if (coord) return coord;
+  return ms.find(m => ACTIVE(st(m).s)) || ms[0] || null;
+}
+WIDGETS.grouping = {
+    /* nothing to offer without a master and at least one OTHER
+       candidate speaker */
+    hidden: (e, t) => {
+      const m0 = e || grpMaster(t);
+      return !m0 || !(t.entities || []).filter(m => m !== m0).length;
+    },
+    isOn: (e, t) => { const m0 = e || grpMaster(t); return !!m0 && ACTIVE(st(m0).s); },
+    inlineSub: true,
+    sub: (e, t) => {
+      const m0 = e || grpMaster(t);
+      if (!m0) return "";
+      const g = st(m0).a.group_members || [];
+      const n = (t.entities || []).filter(m => m !== m0 && g.indexOf(m) >= 0).length;
+      return n ? (n + 1) + " grouped" : "solo";
+    },
+    body: t => {
+      /* every member row carries a VOLUME ROW beneath the name line —
+         [−] [fat track with the % riding INSIDE it] [+] (v0.83.7,
+         "move the volume % into the volume slider. and add back -
+         and + buttons... easier to control on remote surface").
+         Always shown on the spkgrp: screen (sliders: true); on the
+         inline card it appears when the name is tapped. */
+      const rows = (t.entities || []).map(m =>
+        `<div class="grpitem" data-item="${m}"><div class="grprow" data-ent="${m}"${(t.labels || {})[m] ? "" : ` data-auto="1"`}>
+      <span class="gname">${(t.labels || {})[m] || m.split(".").pop().replace(/_/g, " ")}</span>
+      <span class="glvl"></span>
+      <button class="dpbtn gvlink" data-vlink="${m}" title="Group volume moves this player"><span class="material-symbols-outlined">volume_up</span></button>
+      <button class="dpbtn gjoin" data-grp="${m}"><span class="material-symbols-outlined">link</span></button>
+    </div><div class="rslrow" data-row="${m}" style="display:none">
+      <button class="dpbtn rvol" data-rd="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr rowsl" data-rsl="${m}"><i></i><span class="rslpct">–</span></div>
+      <button class="dpbtn rvol" data-rd="up"><span class="material-symbols-outlined">add</span></button>
+    </div></div>`).join("");
+      return rows +
+        `<div class="grpvol"><div class="gvlabel">Group volume</div><div class="sldr"><i></i></div></div>`;
+    },
+    wire: (el, t) => {
+      const master = () => grpMaster(t);
+      const joinedOf = () => {
+        const e = master();
+        const g = st(e).a.group_members || [];
+        /* the group, master included — members list order preserved */
+        return [e].concat((t.entities || []).filter(m => m !== e && g.indexOf(m) >= 0));
+      };
+      wireTaps(el, "grp", m => {
+        const e = master();
+        if (m === e) return;
+        const g = st(e).a.group_members || [];
+        const joined = g.indexOf(m) >= 0;
+        /* OPTIMISTIC (house style): the row flips now; HA's next
+           diff is the truth that keeps or corrects it */
+        const cur = S.states.get(e);
+        if (cur && cur.a) {
+          const gm = (cur.a.group_members || [e]).slice();
+          if (joined) gm.splice(gm.indexOf(m), 1);
+          else gm.push(m);
+          cur.a.group_members = gm;
+          renderStates();
+        }
+        if (joined) callService("media_player", "unjoin", null, m);
+        else callService("media_player", "join", { group_members: [m] }, e);
+      });
+      /* volume link is purely local — flip the set, repaint */
+      wireTaps(el, "vlink", m => {
+        if (GRP_VOL_UNLINKED.has(m)) GRP_VOL_UNLINKED.delete(m);
+        else GRP_VOL_UNLINKED.add(m);
+        renderStates();
+      });
+      /* per-player volume rows: direct volume_set on THAT member —
+         join state is irrelevant, that's the point */
+      el.querySelectorAll(".sldr.rowsl").forEach(rs => {
+        const m = rs.dataset.rsl;
+        const pcEl = rs.querySelector(".rslpct");
+        const rApply = (ev, final) => {
+          const r = rs.getBoundingClientRect();
+          let f = (ev.clientX - r.left) / r.width;
+          f = Math.max(0, Math.min(1, f));
+          rs.firstElementChild.style.width = Math.round(f * 100) + "%";
+          if (pcEl) pcEl.textContent = Math.round(f * 100) + "%";
+          const cur = S.states.get(m);
+          if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
+          const now = Date.now();
+          if ((final || now - (rs._t || 0) > 150) && f !== rs._lastF) {
+            rs._t = now; rs._lastF = f;
+            renderStates();
+            callService("media_player", "volume_set",
+              { volume_level: Math.round(f * 100) / 100 }, m);
+          }
+        };
+        rs.addEventListener("click", ev => ev.stopPropagation());
+        rs.addEventListener("pointerdown", ev => {
+          ev.stopPropagation();
+          try { if (rs.setPointerCapture) rs.setPointerCapture(ev.pointerId); }
+          catch (x) { /* synthetic events carry no pointer id */ }
+          rs._drag = true; rApply(ev, false);
+        });
+        rs.addEventListener("pointermove", ev => { if (rs._drag) rApply(ev, false); });
+        const rEnd = ev => { if (rs._drag) { rs._drag = false; rApply(ev, true); } };
+        rs.addEventListener("pointerup", rEnd);
+        rs.addEventListener("pointercancel", rEnd);
+      });
+      /* the row's −/+ — optimistic nudge (house style) + volume_up/down
+         at the MEMBER */
+      el.querySelectorAll(".rslrow").forEach(rr => {
+        const m = rr.dataset.row;
+        rr.querySelectorAll(".rvol").forEach(bt => {
+          bt.addEventListener("click", ev => {
+            ev.stopPropagation();
+            const d = bt.dataset.rd;
+            const cur = S.states.get(m);
+            if (cur && cur.a && cur.a.volume_level != null) {
+              cur.a.volume_level = Math.max(0, Math.min(1,
+                cur.a.volume_level + (d === "up" ? 0.05 : -0.05)));
+              renderStates();
+            }
+            callService("media_player", "volume_" + d, null, m);
+          });
+        });
+      });
+      /* inline card: tapping the NAME reveals/hides that member's
+         volume row (spkgrp screens always show them) */
+      if (!t.sliders) el.querySelectorAll(".grprow .gname").forEach(gn => {
+        gn.addEventListener("click", ev => {
+          ev.stopPropagation();
+          const m = gn.closest(".grprow").dataset.ent;
+          if (GRP_EXPANDED.has(m)) GRP_EXPANDED.delete(m);
+          else GRP_EXPANDED.add(m);
+          renderStates();
+        });
+      });
+      const sl = el.querySelector(".grpvol .sldr");
+      if (!sl) return;
+      /* GROUP VOLUME: target level f; every joined member moves by
+         the SAME DELTA (f - group average), clamped — offsets
+         between speakers survive the ride. Optimistic + throttled +
+         final-on-release, the same contract as every slider here. */
+      const apply = (ev, final) => {
+        const r = sl.getBoundingClientRect();
+        let f = (ev.clientX - r.left) / r.width;
+        f = Math.max(0, Math.min(1, f));
+        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        const now = Date.now();
+        if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
+        sl._t = now; sl._lastF = f;
+        /* only the volume-LINKED members ride the slider; an
+           unlinked member stays wherever its own trim left it */
+        const grp = joinedOf().filter(m =>
+          m === master() || !GRP_VOL_UNLINKED.has(m));
+        const lv = grp.map(m => {
+          const v = st(m).a.volume_level;
+          return v == null ? f : v;
+        });
+        const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+        const d = f - avg;
+        grp.forEach((m, i) => {
+          const v = Math.max(0, Math.min(1, Math.round((lv[i] + d) * 100) / 100));
+          const cur = S.states.get(m);
+          if (cur && cur.a) cur.a.volume_level = v;
+          callService("media_player", "volume_set", { volume_level: v }, m);
+        });
+        renderStates();
+      };
+      sl.addEventListener("click", ev => ev.stopPropagation());
+      sl.addEventListener("pointerdown", ev => {
+        ev.stopPropagation();
+        try { if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId); }
+        catch (x) { /* synthetic events carry no pointer id */ }
+        sl._drag = true; apply(ev, false);
+      });
+      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
+      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
+      sl.addEventListener("pointerup", end);
+      sl.addEventListener("pointercancel", end);
+    },
+    render: (el, e, t) => {
+      e = e || grpMaster(t);
+      if (!e) return;
+      const g = st(e).a.group_members || [];
+      let joined = [e];
+      el.querySelectorAll(".grprow").forEach(row => {
+        const m = row.dataset.ent;
+        if (m === e) {
+          /* the master's row: hidden on the inline card (its level is
+             the volume band), but on a sliders screen it shows as the
+             anchor — trim track live, join/vlink moot */
+          if (!t.sliders) {
+            row.style.display = "none";
+            const it = row.parentElement;
+            if (it && it.classList.contains("grpitem")) it.style.display = "none";
+            return;
+          }
+          row.classList.add("on", "gmaster");
+          const jb = row.querySelector(".gjoin"), vb0 = row.querySelector(".gvlink");
+          if (jb) jb.style.display = "none";
+          if (vb0) vb0.style.display = "none";
+          if (row.dataset.auto) {
+            const fn = st(m).a.friendly_name;
+            if (fn) { row.querySelector(".gname").textContent = fn; delete row.dataset.auto; }
+          }
+          /* its % rides inside the visible volume row's track */
+          row.querySelector(".glvl").textContent = "";
+          return;
+        }
+        /* a row without a baked device name upgrades to the LIVE
+           friendly_name the moment state arrives (loose entities) */
+        if (row.dataset.auto) {
+          const fn = st(m).a.friendly_name;
+          if (fn) { row.querySelector(".gname").textContent = fn; delete row.dataset.auto; }
+        }
+        /* the master can CHANGE as states arrive (fallback chain) —
+           un-anchor a row that held the job in an earlier pass */
+        if (row.classList.contains("gmaster")) {
+          row.classList.remove("gmaster");
+          const jb0 = row.querySelector(".gjoin");
+          if (jb0) jb0.style.display = "";
+        }
+        const on = g.indexOf(m) >= 0;
+        if (on) joined.push(m);
+        row.classList.toggle("on", on);
+        const lv = st(m).a.volume_level;
+        /* the volume row (when visible) owns the number — it rides
+           inside the track; a collapsed inline row keeps the little
+           % beside the name for joined members */
+        const vrOpen = t.sliders || GRP_EXPANDED.has(m);
+        row.querySelector(".glvl").textContent =
+          !vrOpen && on && lv != null ? pct(lv) : "";
+        row.querySelector(".gjoin .material-symbols-outlined").textContent =
+          on ? "link" : "add_link";
+        /* the volume-link toggle only earns pixels on JOINED rows —
+           unjoined members aren't touched by the group slider anyway */
+        const vb = row.querySelector(".gvlink");
+        if (vb) {
+          vb.style.display = on ? "" : "none";
+          const vlinked = !GRP_VOL_UNLINKED.has(m);
+          vb.classList.toggle("vloose", !vlinked);
+          vb.querySelector(".material-symbols-outlined").textContent =
+            vlinked ? "volume_up" : "volume_mute";
+          vb.title = vlinked ? "Group volume moves this player"
+            : "Volume unlinked — group volume leaves this player alone";
+        }
+      });
+      /* per-player volume rows: visibility (always on a sliders
+         screen; tap-expanded on the inline card) + track/% from HA
+         while not dragged */
+      el.querySelectorAll(".rslrow").forEach(rr => {
+        const m = rr.dataset.row;
+        const show = (t.sliders || GRP_EXPANDED.has(m)) && m !== e;
+        rr.style.display = show ? "" : "none";
+      });
+      /* the master's own volume row DOES show on a sliders screen */
+      if (t.sliders) {
+        const mr = el.querySelector(`.rslrow[data-row="${e}"]`);
+        if (mr) mr.style.display = "";
+      }
+      el.querySelectorAll(".sldr.rowsl").forEach(rs => {
+        if (rs._drag) return;
+        const l = st(rs.dataset.rsl).a.volume_level;
+        rs.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+        const pc = rs.querySelector(".rslpct");
+        if (pc) pc.textContent = l != null ? pct(l) : "–";
+      });
+      const gv = el.querySelector(".grpvol");
+      if (!gv) return;
+      /* the group slider earns its pixels only when there IS a group */
+      gv.style.display = joined.length > 1 ? "" : "none";
+      const sl = gv.querySelector(".sldr");
+      if (sl._drag) return;
+      /* the track reads the LINKED members' average — it's the set
+         the slider actually drives */
+      const linked = joined.filter(m => m === e || !GRP_VOL_UNLINKED.has(m));
+      const lv = linked.map(m => st(m).a.volume_level || 0);
+      const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+    }
+  };
+/* GROUP LAUNCHER (v0.83.7 Speaker Groups — Suresh: "a launcher tile
+   that is slim and says something like 5 available. 0 Linked. and a
+   tap launches the Speaker Group Card"): the slim half of the pair.
+   One line — the group's name and the live count — and select opens
+   the generated spkgrp: screen where the real card (with per-player
+   trim sliders) lives. Lit when any member is linked to the master. */
+WIDGETS.grouplaunch = {
+    hidden: (e, t) => (t.entities || []).length < 2,
+    /* counts live on the SUB line (tidy-ups: "put the info in the
+       state area, not clipping the title") */
+    linkedCount: (e, t) => {
+      const m0 = e || grpMaster(t);
+      if (!m0) return 0;
+      const g = st(m0).a.group_members || [];
+      return (t.entities || []).filter(m => m !== m0 && g.indexOf(m) >= 0).length;
+    },
+    sub: (e, t) => (t.entities || []).length + " available · " +
+      WIDGETS.grouplaunch.linkedCount(e, t) + " linked",
+    isOn: (e, t) => WIDGETS.grouplaunch.linkedCount(e, t) > 0,
+    select: (e, t) => { if (t.group) navigate("spkgrp:" + t.group); }
   };
 
 /* POWER toggle — standalone round homeassistant.toggle button (also
@@ -5804,7 +6659,20 @@ WIDGETS.stepper = {
        Kinds with a bounded 0-100 range also get a fat slider track
        (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
        sets the value directly; −/+ remain the precision control. */
-    sub: () => "",
+    /* THE VOLUME KIND IS ITS OWN SHAPE (v0.83.7 — Suresh: "Volume
+       Slider vs Volume Stepper -- they are pretty much identical...
+       Maybe Volume Stepper is like Compact except a fat slider bar"):
+       exactly that. Compact's layout — "Vol n%" on the title line,
+       −/+ around the middle — but the middle is the fat track IN the
+       row instead of the mini meter, and there is no second track
+       above. Now the four styles are four different controls. */
+    sub: (e, t) => {
+      if (t.kind !== "volume") return "";
+      if (st(e).a.is_volume_muted) return "Muted";
+      const l = st(e).a.volume_level;
+      return "Vol " + (l != null ? pct(l) : "–");
+    },
+    inlineSub: t => t.kind === "volume",
     isOn: e => ACTIVE(st(e).s),
     selectCaptures: true, captureHint: "▲▼ adjust · back releases",
     capture: {
@@ -5812,16 +6680,18 @@ WIDGETS.stepper = {
       down: (e, t) => nudgeStep(e, t.kind, -1)
     },
     body: t => {
+      /* volume: track-in-row, number on the title line — see above */
+      if (t.kind === "volume") return `<div class="steprow vol">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
       const k = STEP_KINDS[t.kind] || {};
       const sl = k.slider
         ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      /* the VOLUME kind matches the volume widget's row (v0.83.3 —
-         Suresh, wired-volume beside a stepper Receiver: "The first
-         is nice. The second needs fixing"): 58×46 buttons + 21px
-         value, so a stepper-styled zone and the wired volume read
-         as the same control. Other kinds (brightness, setpoint,
-         position) keep the big display type — they ARE the page. */
-      return sl + `<div class="steprow${t.kind === "volume" ? " vol" : ""}">
+      /* other kinds (brightness, setpoint, position) keep the big
+         display type — they ARE the page */
+      return sl + `<div class="steprow">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
@@ -5852,7 +6722,8 @@ WIDGETS.stepper = {
       sl.addEventListener("click", ev => ev.stopPropagation());
       sl.addEventListener("pointerdown", ev => {
         ev.stopPropagation();
-        sl.setPointerCapture(ev.pointerId);
+        try { sl.setPointerCapture(ev.pointerId); }
+        catch (x) { /* synthetic events carry no pointer id */ }
         sl._drag = true;
         apply(ev, false);
       });
@@ -5864,8 +6735,11 @@ WIDGETS.stepper = {
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
-      el.querySelector(".stepval").textContent = k ? k.fmt(k.get(e)) : "–";
+      const sv = el.querySelector(".stepval");
+      if (sv) sv.textContent = k ? k.fmt(k.get(e)) : "–";
       const sl = el.querySelector(".sldr");
+      if (t.kind === "volume" && sl)
+        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
       if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
         const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
         const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
@@ -6719,7 +7593,7 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = secTiles.flatMap(expandTile).filter(visibleTile);
+    const vis = surfOrderTiles(secTiles).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
        tiles (the browse view toggle does). Rows want ONE column —
@@ -6731,9 +7605,27 @@ function navigate(screenId, isBack) {
        the list's one-column narrowing trick, one notch looser */
     const brCols = !brList && ((vis.find(x => x.brCols) || {}).brCols || 0);
     let anchorEl = null;
-    if (sec.title) {
+    /* SECTION-HEADING BANDS (v0.83.7 — "Presets should also have a
+       label field (PRESETS) as should DEVICES"): those two bands ARE
+       their section headings, so the Controller tab's label override
+       lands on the heading — typed text renames it, "" removes it. */
+    let secTitle = sec.title;
+    {
+      const scB = screenOf(S.screen);
+      if (scB && (scB.class === "activity" || scB.type === "controller")) {
+        const curB = renderActivityId();
+        const actB = curB && (CONFIG.activities || {})[curB];
+        const blB = actB && actB.surface && actB.surface.band_labels;
+        if (blB) {
+          const bandB = secTiles.some(x => x.type === "presets") ? "presets"
+            : secTiles.some(x => x.type === "devices") ? "devices" : null;
+          if (bandB && typeof blB[bandB] === "string") secTitle = blB[bandB];
+        }
+      }
+    }
+    if (secTitle) {
       const h = document.createElement("div");
-      h.className = "shead"; h.textContent = sec.title;
+      h.className = "shead"; h.textContent = secTitle;
       grid.appendChild(h);
       anchorEl = h;
     }
@@ -7320,6 +8212,20 @@ function act(button, phys) {
         (screenOf(S.screen) || {}).buttons || {});
       const b = bmap[button];
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
+      /* VOL DEFAULT (v0.83.7 — Suresh's Watch Fire TV: "remote volume
+         keys and browser volume keys dont do anything. They should
+         route to the TV which assigned the Volume role"): the doctrine
+         says VOL is always audio, so it must not DEPEND on a config
+         binding — the starter config shipped without one and every
+         volume key on such an install was dead. Unbound VOL now goes
+         to the activity's wired volume ($context.volume), exactly
+         like the mute default below; a config binding still wins. */
+      if (button === "vol_up" || button === "vol_down") {
+        const vt = resolveEntity("$context.volume");
+        if (vt) callService("media_player",
+          button === "vol_up" ? "volume_up" : "volume_down", null, vt);
+        break;
+      }
       /* unbound CH on a multi-section page = CATEGORY/SECTION paging
          (the Music Library's ▲▼; bindings above always win) */
       /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
@@ -7522,6 +8428,22 @@ function wideProbe() {
   window.addEventListener("resize", soon);
   window.addEventListener("orientationchange", soon);
 })();
+
+/* STRETCHED-FIRST-PAINT HEDGE (v0.83.7 — beta-gaps P1 #9, never
+   reproduced headless: "Still getting stretched transport bar").
+   Whatever the trigger is, a refresh cures it — which points at
+   layout measured BEFORE late-arriving resources (fonts) settle.
+   One forced re-render when the font set is done loading costs
+   nothing and covers that whole class. */
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () {
+    setTimeout(function () {
+      if (typeof CONFIG !== "undefined" && CONFIG &&
+          typeof S !== "undefined" && S.screen &&
+          typeof navigate === "function") navigate(S.screen, true);
+    }, 50);
+  });
+}
 
 function showAuth(err) {
   document.getElementById("auth").classList.remove("hidden");

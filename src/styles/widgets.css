@@ -18,8 +18,54 @@
   .tile.wgt-nav.nav-image .hint { display: none; }
   .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
 
-  /* now-playing art hero (media tile with art: true) */
-  .tile.wgt-media.art .sub { display: none; }
+  /* now-playing SLIM (v0.83.7 — style: "slim"): one line, playlist-
+     row height — indicator + "Title — Artist"; the top row and state
+     sub yield the space; the chassis trailing stays */
+  .tile.wgt-media.slim { min-height: 0; }
+  .tile.wgt-media.slim .top, .tile.wgt-media.slim .sub { display: none; }
+  .npslim { display: flex; align-items: center; gap: 10px; padding: 4px 0; min-width: 0; }
+  .npslim .npsind { font-size: 22px; color: var(--dim); flex: 0 0 auto; }
+  .npslim .npsind.live { color: var(--accent); }
+  .npslim .npst {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: var(--fs-m1, 15px); color: var(--text);
+  }
+  .npslim .npstx { display: inline-block; white-space: nowrap; }
+  /* overflow → marquee: glide to the end, hold, glide back (the
+     alternate loop); distance measured by the widget into --npshift */
+  .npslim .npst.scroll { text-overflow: clip; }
+  .npslim .npst.scroll .npstx { animation: npmarq 9s linear infinite alternate; }
+  @keyframes npmarq {
+    0%, 12% { transform: translateX(0); }
+    88%, 100% { transform: translateX(var(--npshift, 0px)); }
+  }
+
+  /* the plain card's state line breaks before the source (tidy-ups) */
+  .tile.wgt-media .sub { white-space: pre-line; }
+
+  /* now-playing art heroes (media tile, style "art" / "wash") */
+  .tile.wgt-media.art .sub, .tile.wgt-media.wash .sub { display: none; }
+  /* ART HERO v2 (v0.83.7 follow-up — Suresh, mini-media-player shot:
+     "With an album on one side and a library selector on the other,
+     there's not much space left. ... See the fade into artwork."):
+     the artwork is a RIGHT PANEL, full height and full opacity at the
+     edge, masked to fade into the tile toward the text — the track
+     data owns the clear left at the same font sizes. No wash over
+     the words, no 64px thumb. The library trail floats OVER the art,
+     bottom-right, glass-styled (see controls.css). */
+  .tile.wgt-media.art { position: relative; overflow: hidden; }
+  .tile.wgt-media.art .npimg {
+    position: absolute; top: 0; right: 0; bottom: 0; height: 100%;
+    width: 58%; border-radius: 0; object-fit: cover; object-position: center;
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,.92) 45%, transparent 98%);
+    mask-image: linear-gradient(to left, rgba(0,0,0,.92) 45%, transparent 98%);
+  }
+  .tile.wgt-media.art .top, .tile.wgt-media.art .npmeta,
+  .tile.wgt-media.art .npprog { position: relative; z-index: 1; }
+  /* trimmed a little vertically; text may run into the fade */
+  .tile.wgt-media.art .npwrap { padding: 2px 0 4px; }
+  .tile.wgt-media.art .npmeta { max-width: 74%; }
+  .tile.wgt-media.art .npmeta > div { text-shadow: 0 1px 6px rgba(0,0,0,.55); }
   .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
   .npimg {
     width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
@@ -74,12 +120,21 @@
   .steprow.vol { gap: 12px; }
   .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
   .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
+  /* stepper volume (v0.83.7): the fat track rides IN the row between
+     −/+ — compact's layout with a real slider for a middle; height
+     matches the 46px buttons exactly (the "slightly squashed" note),
+     and the row sits 6px under the title — the same breath the fat
+     slider's track takes ("the gap ... is too small") */
+  .steprow.vol { padding-top: 6px; }
+  .steprow.vol .sldr.inrow { flex: 1; min-width: 0; margin: 0; height: 46px; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
   }
   .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
-  .tile.wgt-stepper .sub, .tile.wgt-chips .sub { display: none; }
+  /* the volume-kind stepper carries "Vol n%" on the title line
+     (v0.83.7) — only the block-level sub stays hidden */
+  .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
   /* stepper slider: fat touch track, fill = value; −/+ row stays below */
   .sldr {
     position: relative; height: 44px; border-radius: 12px;

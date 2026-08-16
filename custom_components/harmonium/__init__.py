@@ -546,7 +546,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if seq is None:
             raise HomeAssistantError(
                 f"Harmonium workspace '{ws}' has no sequence '{seq_id}' — "
-                "check Building blocks in the Studio"
+                "if you just created it in the Studio, Save & Deploy first: "
+                "the remote, the preview's taps, and ▶ Test all run the "
+                "SAVED copy (check Building blocks otherwise)"
             )
         # deep-copy before stamping — the stored config must never
         # grow baked-in workspace keys (that would break duplication)

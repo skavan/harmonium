@@ -1,7 +1,8 @@
 <script>
   import { app, boot, revert, save, saveAndReload, connectToken, schedulePreview,
     switchWorkspace, exportConfig, exportAllConfigs, importConfig, clearCurrent,
-    undoToast, dismissToast, pairs, approvePair, denyPair, version } from "./lib/state.svelte.js";
+    undoToast, dismissToast, pairs, approvePair, denyPair, version,
+    toggleNav, togglePv, STUDIO_V } from "./lib/state.svelte.js";
   import Button from "./lib/components/Button.svelte";
   import NavPane from "./lib/NavPane.svelte";
   import CenterPane from "./lib/CenterPane.svelte";
@@ -14,6 +15,21 @@
   $effect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("hakr_studio_theme", theme);
+  });
+
+  /* ICON FONT GATE (v0.83.7 — "font and display are messed up… a
+     page refresh clears it"): icons stay hidden (app.css) until
+     Material Symbols is actually IN — fonts.load() forces the fetch
+     (fonts.ready alone can resolve before a lazy font ever starts).
+     3s fallback: a blocked font shows ligature text rather than
+     nothing forever. */
+  $effect(() => {
+    const ok = () => document.documentElement.classList.add("fonts-ok");
+    const t = setTimeout(ok, 3000);
+    document.fonts.load('24px "Material Symbols Outlined"')
+      .then(() => { clearTimeout(t); ok(); })
+      .catch(() => {});
+    return () => clearTimeout(t);
   });
 
   /* any draft mutation (visual OR code) re-renders the preview and
@@ -47,9 +63,16 @@
 <div class="flex h-full flex-col">
   <header class="flex h-[52px] shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
     <span class="h-5 w-5 shrink-0 rounded-[5px] bg-accent"></span>
-    <h1 class="m-0 text-sm font-[600] whitespace-nowrap">Harmonium <span class="text-dim">Studio</span>{#if version.integration}<span
-      class="pl-1.5 text-[10px] font-normal text-faint"
-      title={"integration v" + version.integration + (version.engine ? " · deployed engine " + version.engine : "")}>v{version.integration}</span>{/if}</h1>
+    <!-- ONE NUMBER IN THE HEADER (v0.83.7 — Suresh: "We show TWO
+         version #'s!"): the s-stamp is the one that answers "did my
+         refresh take?", so it gets the header; the integration's
+         version moved into its tooltip (and lives on in the ⓘ
+         surfaces). -->
+    <h1 class="m-0 text-sm font-[600] whitespace-nowrap">Harmonium <span class="text-dim">Studio</span><span
+      class="pl-1.5 align-[1px] text-[10px] font-normal text-faint"
+      title={"this Studio bundle — changes when a new studio.html actually loads"
+        + (version.integration ? " · integration v" + version.integration : "")
+        + (version.engine ? " · deployed engine " + version.engine : "")}>s{STUDIO_V}</span></h1>
     <!-- workspace pills: segmented, sunk track (handoff §6.1) -->
     <div class="flex shrink-0 rounded-[7px] bg-sunk p-[3px]" role="tablist"
       title="Workspaces — each one is a remote's whole world, all deployed at once. Manage on System → Workspaces.">
@@ -101,6 +124,17 @@
     <input bind:this={fileIn} type="file" accept=".json,application/json" class="hidden"
       onchange={(e) => { if (e.target.files[0]) importConfig(e.target.files[0]); e.target.value = ""; }} />
     <span class="h-5 w-px shrink-0 bg-line"></span>
+    <!-- COLLAPSIBLE COLUMNS (s0.83.10 — Suresh: "optimize
+         workspace"): fold the nav / preview columns away; the
+         editor takes the width. Persisted per browser. -->
+    <Button id="navTgl" size="icon" variant="ghost"
+      class={"h-[30px] w-[30px] border-0 " + (app.navHide ? "opacity-40" : "")}
+      title={app.navHide ? "Show the pages column" : "Hide the pages column — more room to edit"}
+      onclick={toggleNav}>◧</Button>
+    <Button id="pvTgl" size="icon" variant="ghost"
+      class={"h-[30px] w-[30px] border-0 " + (app.pvHide ? "opacity-40" : "")}
+      title={app.pvHide ? "Show the preview column" : "Hide the preview column — more room to edit"}
+      onclick={togglePv}>◨</Button>
     <Button id="themeBtn" size="icon" variant="ghost" class="h-[30px] w-[30px] border-0"
       title={theme === "light" ? "Switch to dark" : "Switch to light"}
       onclick={() => (theme = theme === "light" ? "dark" : "light")}
@@ -174,12 +208,16 @@
   {/each}
 
   <div class="flex min-h-0 flex-1">
-    <NavPane />
+    <!-- hidden, not unmounted: NavPane owns the ⌘K search shortcut -->
+    <div class={app.navHide ? "hidden" : "contents"}>
+      <NavPane />
+    </div>
     <CenterPane />
     <!-- the MAP is the overview — it earns the preview's width (mock
          3a shows no phone there); the iframe stays MOUNTED so the
-         engine keeps its state, it just doesn't take space -->
-    <div class={app.selKey === "map" ? "hidden" : "contents"}>
+         engine keeps its state, it just doesn't take space. The
+         s0.83.10 pvHide toggle rides the same rule. -->
+    <div class={app.selKey === "map" || app.pvHide ? "hidden" : "contents"}>
       <PreviewPane />
     </div>
   </div>

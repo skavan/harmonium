@@ -19,6 +19,7 @@
   import ThemeEditor from "./editors/ThemeEditor.svelte";
   import SnippetsEditor from "./editors/SnippetsEditor.svelte";
   import WorkspacesEditor from "./editors/WorkspacesEditor.svelte";
+  import SpeakerGroupsEditor from "./editors/SpeakerGroupsEditor.svelte";
   import WorkspaceMap from "./editors/WorkspaceMap.svelte";
 </script>
 
@@ -29,7 +30,7 @@
         onclick={() => selectSlice(upTarget.key)}>↑ {upTarget.label}</button>
     {/if}
     <span class="font-semibold">{({ devices: "Pre-wired Devices", remotes: "Remotes & keymaps",
-      sequences: "Actions" })[app.selKey] || app.selKey || "—"}</span>
+      sequences: "Actions", spkgroups: "Speaker Groups" })[app.selKey] || app.selKey || "—"}</span>
     <div class="flex overflow-hidden rounded-[9px] border border-line" role="tablist">
       <button id="tabVisual" role="tab" aria-selected={app.tab === "visual"}
         class={"cursor-pointer border-0 px-3 py-1 text-xs font-semibold " +
@@ -62,6 +63,8 @@
       <AppsEditor />
     {:else if app.selKey === "devices"}
       <DevicesEditor />
+    {:else if app.selKey === "spkgroups"}
+      <SpeakerGroupsEditor />
     {:else if app.selKey === "theme"}
       <ThemeEditor />
     {:else if app.selKey === "snippets"}

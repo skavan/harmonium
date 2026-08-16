@@ -122,7 +122,7 @@ function activitiesOwning(sid) {
    DRAWERS (`drawer: true` — the Apps grid, the Music Library), which
    are destinations you step into and back out of. A plain page —
    a room — presumes nothing, or the guess leaks backwards onto it. */
-const VIRTUAL_PREFIX = ["detail:", "sources:", "queue:", "group:", "keys:"];
+const VIRTUAL_PREFIX = ["detail:", "sources:", "queue:", "group:", "spkgrp:", "keys:"];
 /* raw config lookup, deliberately NOT screenOf: screenOf generates the
    virtual screens, and groupScreen asks for the render activity — that
    way lies recursion */
@@ -283,6 +283,71 @@ function powerEntities(sc) {
 
 /* Capability-based tile visibility: tile.only / tile.unless name
    capabilities from the active device profile (string or array). */
+/* the Controller tab's band vocabulary (v0.83.7). FIXED_BANDS gate
+   hand-placed singletons in visibleTile; RAW_BANDS also name the
+   generator tiles for per-activity ORDERING (which happens on the
+   DECLARED tiles, before expansion, so a generator keeps its
+   identity). */
+const FIXED_BANDS = { media: "np", transport: "transport",
+  mediabtns: "modes", sources: "sources", volume: "volume" };
+const RAW_BANDS = Object.assign({ volumes: "volume", speakers: "speakers",
+  groups: "groups", presets: "presets", devices: "devices" }, FIXED_BANDS);
+
+/* PER-ACTIVITY BAND ORDER (v0.83.7 — Suresh: "We should have a move
+   up and move down to control the order"): a.surface.band_order is
+   the activity's display order for the bands it recognizes. Band
+   tiles permute among themselves WITHIN their section; everything
+   unrecognized keeps its exact slot. Stable for ties. */
+/* THE CONTROLLER TAB'S DRESSING PASS (v0.83.7 — "would be cool is a
+   label slot, so we can override labels. ... No text means no
+   label!"): per-activity band-label overrides + the Now Playing
+   style, applied to the expanded tiles of controller-class screens.
+   a.surface.band_labels.<band> = "text" ("" = NO label — .lbl:empty
+   collapses); a.surface.np_style = "slim" | "art". Only bands that
+   render ONE surface tile are labelable — per-item tiles (the
+   volumes cast, presets, devices) keep their own names (bandGen). */
+const LABELABLE_BANDS = { media: "np", transport: "transport",
+  mediabtns: "modes", sources: "sources", volume: "volume",
+  grouping: "speakers", grouplaunch: "speakers" };
+function surfDressTile(t) {
+  const sc = screenOf(S.screen);
+  if (!sc || !(sc.class === "activity" || sc.type === "controller")) return t;
+  const cur = renderActivityId();
+  const act = cur && (CONFIG.activities || {})[cur];
+  const srf = act && act.surface;
+  if (!srf) return t;
+  let patch = null;
+  const band = !t.bandGen && (LABELABLE_BANDS[t.type] ||
+    (t.type === "stepper" && t.kind === "volume" ? "volume" : null));
+  const bl = srf.band_labels;
+  if (band && bl && typeof bl[band] === "string")
+    (patch = patch || {}).label = bl[band];
+  if (t.type === "media" && srf.np_style && !t.style)
+    (patch = patch || {}).style = srf.np_style;
+  return patch ? Object.assign({}, t, patch) : t;
+}
+function surfOrderTiles(tiles) {
+  const sc = screenOf(S.screen);
+  if (!sc || !(sc.class === "activity" || sc.type === "controller")) return tiles;
+  const cur = renderActivityId();
+  const act = cur && (CONFIG.activities || {})[cur];
+  const order = act && act.surface && act.surface.band_order;
+  if (!Array.isArray(order) || !order.length) return tiles;
+  const bandOf = t => RAW_BANDS[t.type] ||
+    (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
+  const slots = [], bandTiles = [];
+  tiles.forEach((t, i) => { if (bandOf(t)) { slots.push(i); bandTiles.push([t, i]); } });
+  if (bandTiles.length < 2) return tiles;
+  const rank = pair => {
+    const ix = order.indexOf(bandOf(pair[0]));
+    return ix < 0 ? 900 + pair[1] : ix;   // unlisted bands keep the tail, stably
+  };
+  bandTiles.sort((a, b) => rank(a) - rank(b) || a[1] - b[1]);
+  const out = tiles.slice();
+  slots.forEach((pos, i) => { out[pos] = bandTiles[i][0]; });
+  return out;
+}
+
 function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
   /* a context-bound tile whose role is UNWIRED here hides itself —
@@ -300,6 +365,26 @@ function visibleTile(t) {
     const w = (typeof WIDGETS !== "undefined" && WIDGETS[t.type]) || null;
     if (w && typeof w.hidden === "function" &&
         w.hidden(resolveEntity(t.entity), t)) return false;
+  }
+  /* THE CONTROLLER TAB'S BAND SWITCHES (v0.83.7): on a
+     controller-class screen, the running activity's a.surface can
+     switch whole FIXED bands off — np (Now Playing), transport,
+     modes, sources, volume. Generator bands (volumes, speakers,
+     groups, presets, devices) gate themselves pre-expansion in
+     generators.js; this covers the hand-placed singletons. Absent
+     key = Auto = today's behavior. */
+  {
+    const sc0 = screenOf(S.screen);
+    if (sc0 && (sc0.class === "activity" || sc0.type === "controller")) {
+      const cur0 = renderActivityId();
+      const act0 = cur0 && (CONFIG.activities || {})[cur0];
+      const srf = act0 && act0.surface;
+      if (srf) {
+        const band = FIXED_BANDS[t.type] ||
+          (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
+        if (band && srf[band] === false) return false;
+      }
+    }
   }
   /* per-activity content overrides on a SHARED controller: one Watch
      TV page, many activities — tiles opt in/out declaratively.

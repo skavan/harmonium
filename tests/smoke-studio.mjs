@@ -133,7 +133,7 @@ r.map.editJump = await p.evaluate(() =>
 //    room through the form; the room OWNS its activities (4 cards)
 r.roomForm = await p.evaluate(() => {
   const out = {
-    activitiesOwned: document.body.textContent.includes('Activities — owned by this room'),
+    activitiesOwned: document.body.textContent.includes('＋ Add activity'),   /* v0.83.7 selector refresh: section header phrase changed */
     activityCards: [...document.querySelectorAll('.font-semibold')]
       .filter(el => ['Watch Fire TV', 'Watch Smart TV', 'Listen to Music'].includes(el.textContent)).length
   };
@@ -183,7 +183,7 @@ r.blocks = await p.evaluate(() => ({
     .filter(el => ['Fire TV On', 'Smart TV On', 'Music On', 'Music Stop', 'All Off'].includes(el.textContent)).length,
   typedRows: [...document.querySelectorAll('span')]
     .filter(el => ['CALL SERVICE', 'DELAY', 'WAIT FOR', 'HA ACTION (JSON)'].includes(el.textContent.toUpperCase())).length >= 3,
-  startPicker: false
+  usedBy: document.body.textContent.includes('used by:')   /* v0.83.7: replaced dead `startPicker: false` placeholder */
 }));
 r.blocks.testRan = ranSequence && ranSequence.sequence === 'firetv_on';
 
@@ -192,7 +192,7 @@ r.blocks.testRan = ranSequence && ranSequence.sequence === 'firetv_on';
 await navClick('TV Media Player');
 r.viewForm = await p.evaluate(() => ({
   visualSelected: document.getElementById('tabVisual').getAttribute('aria-selected'),
-  nameInput: [...document.querySelectorAll('input')].some(i => i.value === 'Watch TV')
+  nameInput: [...document.querySelectorAll('input')].some(i => i.value === 'TV Media Player')   /* v0.83.7: stock rename */
 }));
 await p.click('#tabCode');
 await p.evaluate(() => {
@@ -447,17 +447,17 @@ r.createPage.editLink = await p.evaluate(() =>
 //      jumps in as a draft; DISCARD deletes the page and unlinks
 await p.evaluate(() => {
   /* blessed sections (R2): Devices is always visible — add a doorway */
-  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add doorway'))?.click();
+  [...document.querySelectorAll('button')].find(b => b.textContent.includes('Add nav'))?.click();
 });
 await p.waitForTimeout(400);
 r.navCard = await p.evaluate(() => ({
   added: [...document.querySelectorAll('.font-semibold')]
-    .some(el => el.textContent === 'New doorway'),
+    .some(el => el.textContent === 'New nav'),
 }));
 await p.evaluate(() => {
   /* open the new tile's card row, then hit its ＋ (mint page) */
   [...document.querySelectorAll('.font-semibold')]
-    .find(el => el.textContent === 'New doorway')?.closest('button')?.click();
+    .find(el => el.textContent === 'New nav')?.closest('button')?.click();
 });
 await p.waitForTimeout(300);
 await p.evaluate(() => {
@@ -467,13 +467,13 @@ await p.waitForTimeout(600);
 r.navCard.draftBanner = await p.evaluate(() =>
   document.body.textContent.includes('Discard removes it and unlinks'));
 r.navCard.pageMade = await p.evaluate(() =>
-  [...document.querySelectorAll('input')].some(i => i.value === 'new_doorway'));
+  [...document.querySelectorAll('input')].some(i => i.value === 'new_nav'));
 await p.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === '✕ Discard')?.click();
 });
 await p.waitForTimeout(600);
 r.navCard.discarded = await p.evaluate(() => ({
-  pageGone: !document.getElementById('nav')?.textContent.includes('New doorway'),
+  pageGone: !document.getElementById('nav')?.textContent.includes('New nav'),
   backOnRoom: [...document.querySelectorAll('input')].some(i => i.value === 'porch'),
 }));
 

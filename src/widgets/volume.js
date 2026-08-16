@@ -1,9 +1,24 @@
 /* VOLUME — up/down/mute strip + optional level slider; truth may
    come from a separate level_entity (the ARC split). */
+/* MUTE is part of the volume truth (v0.83.7 — .88 status review:
+   "no on remote indicator of mute status"). Truth reads from the
+   reporting entity (level_entity when split), falling back to the
+   command entity. */
+const volMuted = (e, t) => {
+  const m = st(lvlEnt(e, t)).a.is_volume_muted;
+  return m != null ? !!m : !!st(e).a.is_volume_muted;
+};
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
     sub: (e, t) => {
+      /* SLIDER MODE SAYS IT ONCE (v0.83.7 — Suresh, four screenshots
+         deep: "note we duplicate the volume % on the 1st and 3rd"):
+         the center readout owns the number (and the mute glyph), so
+         the title line carries only the name. Compact keeps the
+         "Vol n%" title — its meter has no numeral of its own. */
+      if (t && t.slider !== false) return "";
+      if (volMuted(e, t)) return "Muted";
       const l = st(lvlEnt(e, t)).a.volume_level;
       return "Vol " + (l != null ? pct(l) : "–");
     },
@@ -101,9 +116,18 @@ WIDGETS.volume = {
     render: (el, e, t) => {
       if (!e) return;
       const l = st(lvlEnt(e, t)).a.volume_level;
+      const m = volMuted(e, t);
       const pc = el.querySelector(".volpct");
-      if (pc) pc.textContent = l != null ? pct(l) : "–";
+      /* muted: the center % becomes the mute glyph (v0.83.7) — the
+         level is still on the track, dimmed, so unmuting is no
+         surprise */
+      if (pc) pc.innerHTML = m
+        ? `<span class="material-symbols-outlined vmute">volume_off</span>`
+        : (l != null ? pct(l) : "–");
       const sl = el.querySelector(".sldr");
+      const mt = el.querySelector(".meter");
+      if (sl) sl.classList.toggle("muted", m);
+      if (mt) mt.classList.toggle("muted", m);
       if (!sl || sl._drag) return;
       sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
     }

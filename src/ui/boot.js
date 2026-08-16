@@ -70,6 +70,22 @@ function wideProbe() {
   window.addEventListener("orientationchange", soon);
 })();
 
+/* STRETCHED-FIRST-PAINT HEDGE (v0.83.7 — beta-gaps P1 #9, never
+   reproduced headless: "Still getting stretched transport bar").
+   Whatever the trigger is, a refresh cures it — which points at
+   layout measured BEFORE late-arriving resources (fonts) settle.
+   One forced re-render when the font set is done loading costs
+   nothing and covers that whole class. */
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () {
+    setTimeout(function () {
+      if (typeof CONFIG !== "undefined" && CONFIG &&
+          typeof S !== "undefined" && S.screen &&
+          typeof navigate === "function") navigate(S.screen, true);
+    }, 50);
+  });
+}
+
 function showAuth(err) {
   document.getElementById("auth").classList.remove("hidden");
   document.getElementById("authErr").textContent = err || "";

@@ -51,6 +51,7 @@ const SCRIPTS = [
   "widgets/preset.js", "widgets/qrow.js", "widgets/transport.js",
   "widgets/mediabtns.js", "widgets/buttons.js", "widgets/activity.js",
   "widgets/climate.js", "widgets/media.js", "widgets/volume.js",
+  "widgets/grouping.js",   // speaker grouping card (v0.83.7, beta §3)
   "widgets/power.js", "widgets/cover.js", "widgets/coverbtns.js",
   "widgets/stepper.js", "widgets/chips.js", "widgets/passthrough.js",
   "widgets/dpad.js", "widgets/device.js", "widgets/sources.js",

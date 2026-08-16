@@ -44,7 +44,10 @@ policy, decided per page class:
   activity's controls; volume drives the wired volume target.
 - **Everywhere**: bindings can be per-page (page buttons), global
   (`global.buttons`), or hold-variants (`menu_hold` etc. — fed by
-  KeyMapper's distinct keycodes).
+  KeyMapper's distinct keycodes). Volume needs NO binding at all:
+  unbound `vol_up`/`vol_down` route to the running activity's wired
+  volume (the Volume role) by default, like mute always has — a
+  `buttons` entry still wins when you want something else.
 
 Which profile a device uses: the engine's `?device=` /
 provisioned profile name — check it on the ⓘ page ("Profile
@@ -70,3 +73,31 @@ change; that's the whole keymap audited in a minute.
 - **Volume drives the wrong thing during an activity** — that's the
   activity's wiring, not the keymap: fix the `volume` role in the
   activity's Devices tab.
+
+
+## Backing up KeyMapper (the wiring is half the remote)
+
+Everything above assumes KeyMapper is configured on the device — and
+until now that configuration lived ONLY there. Two repo scripts make
+it travel with the code. Both use the repo's own adb (`tools/adb/` —
+three files committed once from any scrcpy or platform-tools folder,
+see the README there), so a fresh clone runs them with zero setup.
+Plug the remote in over **USB** (the same connection it was
+provisioned with) and:
+
+- **`pull-keymapper.bat`** — no arguments needed. One manual step
+  first, once per export (KeyMapper offers no headless export
+  intent): on the remote, KeyMapper → **Back up all** → in the share
+  sheet choose **Files/Downloads** (the sheet leads with Bluetooth —
+  ignore it) and save into Download. The script then finds any
+  `*key*.zip` there and pulls it into `remotes/keymapper/astrion/`
+  (pass a name for a different folder). Commit the zip.
+- **`push-keymapper.bat`** — provisioning a NEW remote: pushes the
+  newest committed zip into the device's Download folder, verifies
+  it landed, and opens KeyMapper; finish with **⋮ → Restore** and
+  pick the file. Two taps instead of re-authoring every key.
+
+ADB-over-wifi also works — pass the remote's IP as the first
+argument — but USB is the normal path. Direct access to KeyMapper's
+data directory needs root, so export-then-pull is the honest
+portable flow.

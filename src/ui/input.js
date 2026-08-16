@@ -301,6 +301,20 @@ function act(button, phys) {
         (screenOf(S.screen) || {}).buttons || {});
       const b = bmap[button];
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
+      /* VOL DEFAULT (v0.83.7 — Suresh's Watch Fire TV: "remote volume
+         keys and browser volume keys dont do anything. They should
+         route to the TV which assigned the Volume role"): the doctrine
+         says VOL is always audio, so it must not DEPEND on a config
+         binding — the starter config shipped without one and every
+         volume key on such an install was dead. Unbound VOL now goes
+         to the activity's wired volume ($context.volume), exactly
+         like the mute default below; a config binding still wins. */
+      if (button === "vol_up" || button === "vol_down") {
+        const vt = resolveEntity("$context.volume");
+        if (vt) callService("media_player",
+          button === "vol_up" ? "volume_up" : "volume_down", null, vt);
+        break;
+      }
       /* unbound CH on a multi-section page = CATEGORY/SECTION paging
          (the Music Library's ▲▼; bindings above always win) */
       /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
