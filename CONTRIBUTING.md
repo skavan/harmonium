@@ -93,7 +93,7 @@ us than a finished PR that fights the architecture.
 
 ## Doctrines you must not regress
 
-- **The routing model** (`core/routing.js`, `docs/design-library-ui.md`
+- **The routing model** (`core/routing.js`, `archive/design/design-library-ui.md`
   §5): every playable id is `native` / `bridged` / `fallback` /
   `none` against the cast player. Fallbacks are marked and two-press
   confirmed — a silent speaker takeover is the cardinal sin. New
@@ -119,8 +119,9 @@ cd studio-src && npm run build   # Studio: on a machine, never a sandbox
 build-push.bat               # or push-engine / push-studio / push-all
 ```
 
-`build.mjs` recompiles the config fixture from the legacy `yaml/`
-model — do not run it here. Studio builds depend on the machine's
+(The legacy `yaml/` authoring model and its `build.mjs` compiler are
+retired to `archive/yaml/` — `build-engine.mjs` is self-contained and
+is the only engine build.) Studio builds depend on the machine's
 `node_modules`; a different tree produces a subtly different
 `studio.html`.
 

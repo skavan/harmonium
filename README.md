@@ -123,14 +123,17 @@ Task-shaped guides, one outcome each — start here after install:
 |---|---|
 | [Your first screen](docs/cookbook/first-screen.md) | A room page with live tiles |
 | [Activities](docs/cookbook/activities.md) | "Watch TV" that turns everything on, in order |
+| [Creating an Activity — the deep dive](docs/cookbook/creating-an-activity.md) | Every tab, every knob, with screenshots |
 | [Presets](docs/cookbook/presets.md) | One-tap Netflix / scene / favorite buttons |
+| [Mapping a physical remote](docs/cookbook/remote-map.md) | A new remote model fully described, end to end |
 | [The device photo](docs/cookbook/device-photo-skin.md) | The Studio preview inside a photo of *your* remote |
 | [Hardware keys](docs/cookbook/hardware-keys.md) | Physical buttons doing the right thing on every page |
 | [Workspaces](docs/cookbook/workspaces.md) | A second remote with a different world |
 | [Theming](docs/cookbook/theming.md) | Your accent, your radius, per-device fonts |
+| [Wipe & reinstall](docs/cookbook/wipe-and-reinstall.md) | A box with zero trace, for a clean test |
 
-The older [config recipe collection](docs/cookbook.md) goes deeper
-into hand-edited config for things the Studio doesn't surface yet.
+Hand-edited config beyond what the Studio surfaces: the config
+contract lives in [docs/screen-schema.md](docs/screen-schema.md).
 
 ## How it's built
 
@@ -171,11 +174,13 @@ report issues: **[SECURITY.md](SECURITY.md)**.
 
 ## Status
 
-Beta. Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully
-Kiosk) across two houses. Recent: code-match pairing, HACS packaging
-with engine self-deploy, device-photo skins with button mapping, the
-on-device diagnostics page, media library routing ("the cast player
-decides"), and the engine-side Sonos index. Roadmap and open items:
+Beta (v0.83.9). Daily-driving on a Sanytron Astrion and a Haptique
+RS90 (Fully Kiosk) across two houses. Recent: the per-activity
+Controller tab (band switches, ordering, labels, four Now Playing
+renderers), Speaker Groups with per-player volume link, code-match
+pairing, device-photo skins with button mapping, in-Studio image
+upload, import with a destination chooser, and dialect-level wake
+before app launches. Roadmap and open items:
 [docs/PROJECT.md](docs/PROJECT.md).
 
 ## License

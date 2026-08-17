@@ -5,7 +5,7 @@
 # first run. Suites print JSON result objects; inspect for regressions.
 cd "$(dirname "$0")/.." || exit 1
 [ -d node_modules/playwright-core ] || npm install --no-save --no-package-lock playwright-core || exit 1
-node build.mjs || exit 1
+node build-engine.mjs || exit 1
 cd dist || exit 1
 python3 -m http.server 8482 >/dev/null 2>&1 &
 SRV=$!

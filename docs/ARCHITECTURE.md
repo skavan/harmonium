@@ -7,9 +7,9 @@ the current-state companion to `PROJECT.md` (the decision log) and
 ## The big picture
 
 ```
- yaml/views/*.yaml ──build_config.py──▶ dist/config.json ──┐
-                                                           │  seed / deploy
- src/** ────────────build.mjs─────────▶ dist/index.html    ▼
+ the STUDIO (HA panel) ──validate──▶ config in HA storage ──┐
+                                                           │  deploy
+ src/** ─────────build-engine.mjs─────▶ dist/index.html    ▼
                                               │      HA custom integration
                                               │      · Store (validated config)
                                               │      · /api/harmonium/config
@@ -24,16 +24,15 @@ the current-state companion to `PROJECT.md` (the decision log) and
 
 One source of truth per house: **the Studio** edits the integration's
 stored config and deploys through the server-side validator; the
-engine only ever sees the resulting runtime JSON. (The `yaml/`
-compiler is the LEGACY authoring path from the pre-Studio era — kept
-for history, and the reason this clone builds with `build-engine.mjs`
-rather than `build.mjs`.) Code is shared across houses; config belongs
-to each house's HA — see `houses/README.md`.
+engine only ever sees the resulting runtime JSON. (The pre-Studio
+`yaml/` compiler era is preserved at `archive/yaml/`.) Code is shared
+across houses; config belongs to each house's HA — see
+`houses/README.md`.
 
 ## The engine (`src/`, ships as one file)
 
-Vanilla JS, zero dependencies, concatenated by `build.mjs` into
-`dist/index.html`. One concern per file:
+Vanilla JS, zero dependencies, concatenated by `build-engine.mjs`
+into `dist/index.html`. One concern per file:
 
 - `core/header.js` — the architecture prologue + `TIMING` tunables.
 - `core/config.js` — CONFIG globals, theme, the default keymap.
@@ -134,34 +133,21 @@ orphans; "Reset to stock" re-copies preserving identity. Per-device
 copies of domain stocks (`variant_of: cover, entity: …`) override that
 one device's generated detail page.
 
-## The compiler (`yaml/build_config.py`) — LEGACY
-
-- One YAML file per view; activities and sequences are declared by the
-  view that owns them and stamped with it.
-- Taxonomy: `type: hub | controller | library` (+ `room: true`) — the
-  compiler derives the engine's `class`/`view_kind`.
-- `library: true` views move into `config.controllers`; references are
-  rewritten to `controller:<id>`.
-- Hard migrations live here (e.g. NAV_MIGRATE: legacy `group`/`room`
-  tiles → `nav` + style).
-- `validate()` walks every reference (navigation targets, sequence
-  refs, tile ids, nav targets) and refuses to emit a broken config.
-
 ## The integration (`custom_components/harmonium/`)
 
-- **Store**: the deployed config, seeded from `dist/config.json` by
-  `harmonium.reseed`.
-- **API**: `/api/harmonium/config` GET/POST — POST validates (same
-  reference walking, controller-aware), stores, and republishes the
-  file the remotes fetch.
+- **Store**: one validated config per WORKSPACE in HA storage; a
+  fresh install seeds a bundled starter and deploys it.
+- **API**: `/api/harmonium/config` GET/POST (POST validates every
+  reference, stores, deploys), `/api/harmonium/workspaces` (CRUD),
+  `/api/harmonium/upload` (Studio image upload → `www/images/`),
+  pairing endpoints (`pair`/`poll`/`pair_admin`), `engine_version`.
 - **Services**: `harmonium.run` (execute a named sequence),
-  `harmonium.set_activity`; `harmonium.reseed`/`restore_backup` exist
-  but are RETIRED in the multi-house era (the Studio owns config).
-- **Sensors**: `sensor.harmonium_music_<cat>` — hourly MA favourites
-  lists the ★ Favorites amalgam and `presets_from` render from.
+  `harmonium.set_activity`. (`reseed`/`restore_backup` are RETIRED —
+  the Studio owns config in the multi-house era.)
 - **Select platform**: mints `select.harmonium_<room>_activity` per
   activity-owning hub — the routing cache the engine subscribes to.
-- **Studio panel**: serves `studio/studio.html` in the HA sidebar.
+- **Studio panel**: serves `studio/studio.html` in the HA sidebar;
+  deploys the bundled engine + skins to `www/harmonium/` at setup.
 
 ## The Studio (`studio-src/`, Svelte 5)
 
@@ -169,10 +155,12 @@ Single-file build; the preview pane is the REAL engine loaded in
 `#preview=1` mode — every valid edit pushes the draft config into the
 iframe (`postMessage`), so what you see is what ships.
 
-State layer (`src/lib/state/`, one concern per module — see
-`state/index.js` for the map): reactive app state · stock library +
-config healing · preview plumbing · model/slices · screen ops ·
-draft flows · controller lifecycle · workspaces · server I/O.
+State layer, two halves: `src/lib/state.svelte.js` (the reactive
+side — app state, slices, preview plumbing, workspaces, server I/O,
+import/export) and `src/lib/stocklib.js` (the pure side — stock
+controller shapes with their `gen` migration counters, the starter
+config, and the normalize/heal chain every config passes through:
+"one config door, one normalizer").
 
 UX doctrines:
 

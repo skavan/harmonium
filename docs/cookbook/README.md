@@ -18,7 +18,6 @@ outcome on your remote.
 | [Wipe & reinstall](wipe-and-reinstall.md) | A box with zero trace of Harmonium — the virgin-install test |
 | [Cutting a release](releasing.md) | make-release → commit → tag matching the manifest → rollout |
 
-Deeper, config-level recipes (hand-edited JSON for things the Studio
-doesn't surface yet — entity quirks, per-device tiles, app links) live
-in the older [config recipe collection](../cookbook.md). The config
-contract itself is [screen-schema.md](../screen-schema.md).
+The config contract itself (hand-edited JSON for anything the Studio
+doesn't surface yet) is [screen-schema.md](../screen-schema.md).
+Pre-Studio recipes are preserved at `archive/docs/cookbook-v1.md`.

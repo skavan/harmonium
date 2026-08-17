@@ -1,23 +1,19 @@
 #!/usr/bin/env node
-/* Harmonium ENGINE-ONLY build — writes dist/index.html and NOTHING else.
+/* Harmonium ENGINE build — writes dist/index.html and NOTHING else.
 
-   Why this exists. `build.mjs` does two jobs: it concatenates src/ into
-   the single-file engine, AND it regenerates dist/config.json from the
-   yaml/ authoring model (falling back to config/config.json). This
-   clone has neither yaml/ nor config/ — dist/config.json IS the source
-   of truth here, hand-authored and Studio-authored. Running build.mjs
-   here therefore ranges from "crashes half-way" to "silently overwrites
-   the config", depending on which sibling directories exist.
+   dist/config.json is NEVER touched by any build: it is a test
+   fixture (one real house's config, which the smoke battery was
+   written against). Real configs are authored in the Studio and live
+   in each Home Assistant's storage — see docs/ARCHITECTURE.md.
 
-   So: same engine, same file order, zero chance of touching config.
-   The STYLES / SCRIPTS lists are PARSED OUT OF build.mjs rather than
-   duplicated, so adding a widget there can never leave this script
-   building a stale engine.
+   The STYLES / SCRIPTS lists below are THE authority on what goes
+   into the engine and in what order. (They used to be parsed out of
+   the legacy yaml-era build.mjs, retired to archive/yaml/ in the
+   2026-08-17 cleanup.) Add a new widget or stylesheet HERE.
 
      node build-engine.mjs      →  dist/index.html
-     push-to-ha.bat             →  copies it to HA
 
-   Zero dependencies, same as build.mjs. */
+   Zero dependencies. */
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -26,16 +22,67 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const src = p => readFileSync(join(ROOT, "src", p), "utf8");
 
-const bm = readFileSync(join(ROOT, "build.mjs"), "utf8");
-const list = name => {
-  const m = bm.match(new RegExp("const " + name + " = \\[([\\s\\S]*?)\\n\\];"));
-  if (!m) throw new Error(
-    "could not find `const " + name + " = [...]` in build.mjs — the two " +
-    "builds have drifted; fix this parser rather than duplicating the list");
-  return [...m[1].matchAll(/"([^"]+)"/g)].map(x => x[1]);
-};
+const STYLES = [
+  "styles/tokens.css",
+  "styles/chrome.css",
+  "styles/widgets.css",
+  "styles/grid.css",
+  "styles/controls.css",
+  "styles/auth.css",
+  "styles/compat.css",
+];
 
-const STYLES = list("STYLES"), SCRIPTS = list("SCRIPTS");
+const SCRIPTS = [
+  "core/header.js",
+  "core/config.js",
+  "core/socket.js",
+  "core/context.js",
+  "core/generators.js",
+  "core/gen-browse.js",
+  "core/gen-browse-amalgam.js",
+  "core/gen-browse-search.js",
+  "core/subscribe.js",
+  "core/activities.js",
+  "core/routing.js",
+  "core/browse.js",
+  "core/sonos-index.js",
+  "core/search.js",
+  "core/queue.js",
+  "core/keycap.js",
+  "core/diag.js",
+  "core/details.js",
+  "widgets/registry.js",
+  "widgets/light.js",
+  "widgets/fan.js",
+  "widgets/script.js",
+  "widgets/nav.js",
+  "widgets/preset.js",
+  "widgets/qrow.js",
+  "widgets/transport.js",
+  "widgets/mediabtns.js",
+  "widgets/buttons.js",
+  "widgets/activity.js",
+  "widgets/climate.js",
+  "widgets/media.js",
+  "widgets/volume.js",
+  "widgets/grouping.js",
+  "widgets/power.js",
+  "widgets/cover.js",
+  "widgets/coverbtns.js",
+  "widgets/stepper.js",
+  "widgets/chips.js",
+  "widgets/passthrough.js",
+  "widgets/dpad.js",
+  "widgets/device.js",
+  "widgets/sources.js",
+  "widgets/kslot.js",
+  "widgets/helpers.js",
+  "ui/tiles.js",
+  "ui/render.js",
+  "ui/focus.js",
+  "ui/input.js",
+  "ui/boot.js",
+];
 
 const out = src("index.template.html")
   .replace("/*__STYLES__*/", () => STYLES.map(src).join("\n"))

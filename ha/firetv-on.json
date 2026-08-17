@@ -1,0 +1,80 @@
+[
+	{
+		"alias": "Cold start only: wake the Samsung",
+		"if": [
+			{
+				"condition": "state",
+				"entity_id": "media_player.samsung_q90_porch",
+				"state": "off"
+			}
+		],
+		"then": [
+			{
+				"alias": "Wake TV via wired WOL (reliable from standby)",
+				"action": "button.press",
+				"continue_on_error": true,
+				"target": {
+					"entity_id": "button.samsung_wired_wol_d4_9d_c0_2c_e5_bf"
+				}
+			},
+			{
+				"alias": "Wake TV via remote entity (best effort)",
+				"action": "remote.turn_on",
+				"continue_on_error": true,
+				"target": {
+					"entity_id": "remote.samsung_q90_porch"
+				}
+			},
+			{
+				"alias": "Wait for the TV to report on (up to 6s)",
+				"wait_for_trigger": [
+					{
+						"trigger": "state",
+						"entity_id": "media_player.samsung_q90_porch",
+						"to": "on"
+					}
+				],
+				"timeout": {
+					"seconds": 6
+				},
+				"continue_on_timeout": true
+			},
+			{
+				"alias": "Let the TV finish waking before the source switch",
+				"delay": {
+					"seconds": 1
+				}
+			}
+		]
+	},
+
+	{
+		"alias": "Switch TV input ONLY if not already on the Fire TV",
+		"if": [
+			{
+				"condition": "not",
+				"conditions": [
+					{
+						"condition": "state",
+						"entity_id": "media_player.samsung_q90_porch",
+						"attribute": "source",
+						"state": ["Fire TV", "TV/HDMI"]
+					}
+				]
+			}
+		],
+		"then": [
+			{
+				"alias": "Switch TV input to Fire TV (best effort)",
+				"action": "media_player.select_source",
+				"continue_on_error": true,
+				"data": {
+					"source": "Fire TV"
+				},
+				"target": {
+					"entity_id": "media_player.samsung_q90_porch"
+				}
+			}
+		]
+	}
+]
