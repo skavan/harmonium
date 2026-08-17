@@ -324,11 +324,25 @@ function act(button, phys) {
       if ((button === "ch_up" || button === "ch_down") &&
           heroCycle(button === "ch_up" ? 1 : -1)) break;
       /* mute default (no config binding needed): toggle mute on the
-         context audio path — same ARC-aware target VOL uses */
+         context audio path — same ARC-aware target VOL uses.
+         v0.83.10 (status review #7 — his call): a FOCUSED volume tile
+         wins — with the receiver's volume row selected, mute means
+         THAT receiver; nothing focused (or anything else focused)
+         keeps the Volume-role default. */
       if (button === "mute") {
-        const tgt = resolveEntity("$context.volume");
-        if (tgt) callService("media_player", "volume_mute",
-          { is_volume_muted: !st(tgt).a.is_volume_muted }, tgt);
+        /* trailBase assumes a …TRAIL id — strip only when present */
+        const fid = S.focusId || "";
+        const ft = tileDef(fid.endsWith(TRAIL) ? trailBase(fid) : fid);
+        const fv = ft && (ft.type === "volume" ||
+          (ft.type === "stepper" && ft.kind === "volume"))
+          ? resolveEntity(ft.entity) : null;
+        const tgt = (fv && fv.split(".")[0] === "media_player" ? fv : null) ||
+          resolveEntity("$context.volume");
+        if (tgt) {
+          const rd = (ft && fv === tgt && resolveEntity(ft.level_entity)) || tgt;
+          callService("media_player", "volume_mute",
+            { is_volume_muted: !st(rd).a.is_volume_muted }, tgt);
+        }
       }
       break;
     }

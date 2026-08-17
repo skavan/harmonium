@@ -1,5 +1,7 @@
 # Cutting a release (maintainer ceremony)
 
+*Purpose: The release ceremony: build, commit, tag matching the manifest, roll out. Audience: maintainers.*
+
 **Outcome:** a tagged GitHub release that HACS can install, with the
 built engine and Studio riding inside the integration. Five steps,
 one rule: **the git tag must exactly match `manifest.json`'s

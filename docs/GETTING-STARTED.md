@@ -1,5 +1,7 @@
 # Getting started
 
+*Purpose: Zero to a paired remote: install via HACS, open the Studio, pair a device, put it on hardware. Audience: new users.*
+
 Zero → a paired remote showing your house. Fifteen minutes, no file
 shares, no tokens copied anywhere.
 
@@ -86,6 +88,17 @@ pair as in step 4, then come back to
 physical button do the right thing — and to
 [the device-photo guide](cookbook/device-photo-skin.md) to get the
 Studio previewing on a picture of the remote itself.
+
+**Skip the button-by-button KeyMapper setup**: the repo ships a
+ready-made Astrion mapping at `remotes/keymapper/astrion/` —
+`key_mapper.zip` is a full KeyMapper backup, and the mapping is
+documented key-by-key in `astrion-remote-map.md` (with keycodes and
+scancodes in `KeyCodes Astrion.xlsx`). With the remote on USB and
+KeyMapper installed, run `push-keymapper.bat` from the repo root: it
+pushes the backup onto the device and opens KeyMapper — finish with
+⋮ → *Restore* → pick the file from Downloads. (Your own mapping can
+be backed up the same way with `pull-keymapper.bat`; details in
+[hardware-keys](cookbook/hardware-keys.md).)
 
 Two Fully Kiosk settings worth setting immediately: enable
 *Autostart* and disable battery optimization for Fully (the

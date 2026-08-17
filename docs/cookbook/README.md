@@ -1,5 +1,7 @@
 # The Harmonium cookbook
 
+*Purpose: The index of task-shaped guides — each one ends with a concrete outcome on your remote. Audience: users, after install.*
+
 Task-shaped guides: each page starts from a working install
 ([GETTING-STARTED](../GETTING-STARTED.md)) and ends with one concrete
 outcome on your remote.

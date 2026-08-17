@@ -1,5 +1,7 @@
 # Houses
 
+*Purpose: The multi-house model: code is shared, config belongs to each house, and the rules that keep them apart. Audience: anyone deploying to more than one HA.*
+
 One repo, one codebase, **n houses**.
 
     CODE    engine (src/ → dist/index.html), the integration, the Studio

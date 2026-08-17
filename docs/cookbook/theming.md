@@ -1,5 +1,7 @@
 # Theming
 
+*Purpose: Accent, radius, fonts — per workspace and per device. Audience: users.*
+
 **Outcome:** the remote in your colors — accent, surfaces, corner
 radius — plus a wall tablet you can read from across the room.
 

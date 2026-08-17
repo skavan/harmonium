@@ -1,5 +1,7 @@
 # The smoke battery
 
+*Purpose: The smoke battery: the pattern, per-suite coverage, and how to add a suite. Audience: developers.*
+
 Nineteen Playwright suites that drive the **real engine** — the same
 `dist/index.html` that ships to a house — against a stubbed Home
 Assistant. No mocks of the engine itself, ever: if the grid renders a

@@ -1,5 +1,7 @@
 # Presets
 
+*Purpose: One-tap Netflix / scene / favorite buttons. Audience: users.*
+
 **Outcome:** a row of one-tap buttons — *Netflix*, *YouTube TV*,
 *Porch 30%* — that launch apps, run scenes, or fire any service call.
 

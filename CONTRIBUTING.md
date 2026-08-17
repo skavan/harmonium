@@ -1,5 +1,7 @@
 # Contributing to Harmonium
 
+*Purpose: How to work on Harmonium: fork setup, the house style, doctrines you must not regress, build/push/test. Audience: contributors and forkers.*
+
 PRs are welcome. This file is two things: how to get set up as a
 fork, and the house style — the rules that keep a zero-dependency,
 single-file engine honest across years of changes and more than one
@@ -125,8 +127,10 @@ is the only engine build.) Studio builds depend on the machine's
 `node_modules`; a different tree produces a subtly different
 `studio.html`.
 
-Restarts are earned, not assumed: only integration `.py` changes need
-an HA restart (`push.bat` probes and tells you). Remotes pick up a new
+Every root script is documented in
+[docs/scripts.md](docs/scripts.md). Restarts are earned, not
+assumed: only integration `.py` changes need an HA restart
+(`push.bat` probes and tells you). Remotes pick up a new
 engine on cache-clear + reload (Fully caches `/local/` hard).
 
 ## Tests

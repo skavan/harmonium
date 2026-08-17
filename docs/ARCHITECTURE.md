@@ -1,5 +1,7 @@
 # Harmonium Architecture
 
+*Purpose: How the engine, integration, Studio and config fit together, and the doctrines that keep them simple. Audience: developers reading the code for the first time.*
+
 How the pieces fit, and the doctrines that keep them simple. This is
 the current-state companion to `PROJECT.md` (the decision log) and
 `screen-schema.md` (the config contract's working design doc).

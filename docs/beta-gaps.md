@@ -1,12 +1,26 @@
-# Harmonium — Beta Gap Analysis (2026-08-12)
+# Harmonium — Beta Gap Analysis
 
-Purpose: what stands between "works beautifully in two houses" and
-"another HA user can install this without us in the room." Four
-inputs: our own pain list (auth), a scan of the two Astrion custom
-firmwares, the card ecosystem's best media tricks, and the Unfolded
-Circle Remote's API model. Verdicts are honest: **HAVE** (we do this,
-sometimes better), **PARTIAL**, **MISS** (worth stealing), **SKIP**
-(not our thesis).
+*Purpose: the running scoreboard between "works in two houses" and
+"any HA user can install this without us in the room" — what shipped,
+what's open, in what order. Audience: maintainers planning the next
+round.*
+
+**Status (2026-08-17, v0.83.10 pending)**: the beta is LIVE —
+v0.83.9-Beta is published and installs from HACS. Every P0 gate
+below is shipped (pairing, HACS packaging, outsider docs), as are
+the grouping card, Speaker Groups, image upload, the import chooser,
+dialect wake, and the stretched-preview fix. Still open, in rough
+order: the volume/mute hardware overlay (§6.6), `volume_step` trait
++ UNAVAILABLE contract (§6.5), section folding's second half
+(§6.8), then the demand-driven tail. Sections 1–5 below are the
+original 2026-08-12 analysis, kept for the reasoning; §6 carries
+the live per-item status.
+
+Four inputs: our own pain list (auth), a scan of the two Astrion
+custom firmwares, the card ecosystem's best media tricks, and the
+Unfolded Circle Remote's API model. Verdicts are honest: **HAVE**
+(we do this, sometimes better), **PARTIAL**, **MISS** (worth
+stealing), **SKIP** (not our thesis).
 
 ---
 
@@ -221,10 +235,13 @@ thesis; formalizing capability flags buys generality we don't need.
 
 ## 6. Priorities
 
-**P0 — gates the beta**
-1. Pairing auth (§1) — code-match flow, PIN variant after.
-2. HACS packaging + versioned releases + update banner (§5).
-3. Outsider docs: README / INSTALL / quickstart / SECURITY (§5).
+**P0 — gates the beta (ALL SHIPPED — the beta is live)**
+1. ~~Pairing auth (§1)~~ — **SHIPPED v0.81** (code-match flow; PIN
+   variant still unbuilt, demand-driven).
+2. ~~HACS packaging + versioned releases~~ — **SHIPPED v0.82–v0.83.4**
+   (tree-install, engine self-deploy, update strip in the Studio).
+3. ~~Outsider docs~~ — **SHIPPED v0.83** (README, GETTING-STARTED,
+   cookbook, SECURITY; refreshed in the 2026-08-17 cleanup).
 
 **P1 — first features after the gates**
 4. ~~Grouping card + proportional group volume (§3)~~ — **SHIPPED

@@ -1,7 +1,7 @@
 {
   "domain": "harmonium",
   "name": "Harmonium",
-  "version": "0.83.9",
+  "version": "0.83.10",
   "documentation": "https://github.com/skavan/harmonium",
   "codeowners": [
     "@skavan"

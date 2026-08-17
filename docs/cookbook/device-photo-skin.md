@@ -1,5 +1,7 @@
 # The device photo
 
+*Purpose: The Studio preview rendered inside a photo of your remote, buttons mapped. Audience: users.*
+
 **Outcome:** the Studio preview renders inside a photo of *your*
 remote, at the device's true viewport, with every physical button
 mapped — and washed live to show what it does on the page you're

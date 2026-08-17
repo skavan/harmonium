@@ -1,5 +1,7 @@
 # Wiping Harmonium completely (the virgin-install test)
 
+*Purpose: A box with zero trace of Harmonium, for a true virgin-install test. Audience: maintainers and testers.*
+
 **Outcome:** a Home Assistant box with zero trace of Harmonium, so
 the next install is a true stranger's first hour. Use this before
 testing a release on the virgin box.

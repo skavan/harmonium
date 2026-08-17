@@ -8,6 +8,48 @@ const volMuted = (e, t) => {
   const m = st(lvlEnt(e, t)).a.is_volume_muted;
   return m != null ? !!m : !!st(e).a.is_volume_muted;
 };
+/* THE JUMP-BACK CURE (v0.83.10 — status review #1: "It jumps forward
+   like 5pts and then jumps back like 3"). The optimistic nudge bumps
+   by a NOMINAL step (5%), but the device steps by its OWN (a Sonos
+   moves 2-3%) — so HA's echo yanked the meter backward mid-tap. Two
+   fixes working together, per LEVEL entity:
+   · a HOLD window: while taps are fresh (1.8s), an echo that
+     disagrees is noted but the display keeps the optimistic value —
+     truth is adopted the moment the window lapses;
+   · a LEARNED step: the first echo teaches the device's real
+     increment (|echo − start| / taps), so the next tap's optimism
+     matches reality and there is nothing left to snap. */
+const VOL_OPT = {};    /* level-entity → {v, until, truth0, taps} */
+const VOL_STEP = {};   /* level-entity → learned device step */
+function volNudgeOpt(le, dir) {
+  const cur = S.states.get(le);
+  if (!cur || !cur.a || cur.a.volume_level == null) return;
+  const now = Date.now();
+  let o = VOL_OPT[le];
+  if (!o || now >= o.until)
+    o = VOL_OPT[le] = { truth0: cur.a.volume_level, taps: 0, v: cur.a.volume_level };
+  o.taps += 1;
+  const step = VOL_STEP[le] || 0.05;
+  o.v = Math.max(0, Math.min(1, o.v + (dir === "up" ? step : -step)));
+  o.until = now + 1800;
+  cur.a.volume_level = o.v;
+}
+/* called from render(): returns the level to DISPLAY, learning the
+   device step from any echo that lands inside the hold window */
+function volHeld(le, l) {
+  const o = VOL_OPT[le];
+  if (!o) return l;
+  if (Date.now() >= o.until) { delete VOL_OPT[le]; return l; }
+  if (l != null && Math.abs(l - o.v) > 0.001) {
+    const est = Math.abs(l - o.truth0) / Math.max(1, o.taps);
+    if (est >= 0.005 && est <= 0.12) VOL_STEP[le] = est;
+    /* re-assert so every reader (sub, meter) agrees while holding */
+    const cur = S.states.get(le);
+    if (cur && cur.a) cur.a.volume_level = o.v;
+    return o.v;
+  }
+  return l;
+}
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
@@ -62,13 +104,29 @@ WIDGETS.volume = {
          the next diff from HA overwrites with truth. */
       const nudge = (d) => {
         const le = resolveEntity(t && t.level_entity) || resolveEntity(t.entity);
-        const cur = S.states.get(le);
-        if (cur && cur.a && cur.a.volume_level != null) {
-          cur.a.volume_level = Math.max(0, Math.min(1,
-            cur.a.volume_level + (d === "up" ? 0.05 : -0.05)));
-          renderStates();
-        }
+        volNudgeOpt(le, d);
+        renderStates();
       };
+      /* TAP THE SPEAKER ICON TO MUTE (v0.83.10 — status review #7:
+         "In a browser, Mute is a problem" — the only pointer path to
+         mute was select-capture, and a mouse never long-presses).
+         Optimistic flip on the reporting entity; HA's echo confirms. */
+      const ic = el.querySelector(".icwrap") || el.querySelector(".top .ic");
+      if (ic) {
+        ic.style.cursor = "pointer";
+        ic.title = "mute / unmute";
+        ic.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const ce = resolveEntity(t.entity);
+          if (!ce) return;
+          const re = resolveEntity(t && t.level_entity) || ce;
+          const cur = S.states.get(re);
+          const next = !(cur && cur.a && cur.a.is_volume_muted);
+          if (cur && cur.a) { cur.a.is_volume_muted = next; renderStates(); }
+          callService("media_player", "volume_mute",
+            { is_volume_muted: next }, ce);
+        });
+      }
       wireTaps(el, "vol", d => {
         nudge(d);
         callService("media_player", "volume_" + d, null, resolveEntity(t.entity));
@@ -115,7 +173,8 @@ WIDGETS.volume = {
     /* keep the track in step with HA while not dragging */
     render: (el, e, t) => {
       if (!e) return;
-      const l = st(lvlEnt(e, t)).a.volume_level;
+      const le = lvlEnt(e, t);
+      const l = volHeld(le, st(le).a.volume_level);
       const m = volMuted(e, t);
       const pc = el.querySelector(".volpct");
       /* muted: the center % becomes the mute glyph (v0.83.7) — the

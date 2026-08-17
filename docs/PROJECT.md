@@ -1,5 +1,7 @@
 # Harmonium — HA Lightweight Remote Framework
 
+*Purpose: The living document: intent, core thesis, decisions log, and the current-era changelog (newest first). Audience: maintainers; the deep history is in archive/docs/project-history.md.*
+
 Name: **Harmonium** (successor to harmonia/hastrion; prototype
 developed as `remote-proto/`).
 Repo home: `G:\Documents\Code 2025\repos\HA-2026\harmonium` (organized
@@ -78,6 +80,55 @@ firehose of every entity in the instance. So:
 | Key policy (v0.11) | Physical keys scoped by SCREEN CLASS (room/group/detail/activity; `class` + `parent` config keys): tap-Back/Home = UI (unwind / ladder via parent), HOLD = device back/home through the command map; Power's blast radius follows class (room=All Off, group=page devices, detail=device toggle immediate, activity=end) with confirm only for multi-device scopes; VOL follows the focused device's primary range with a MEDIA CARVE-OUT (media focus keeps the $context.volume ARC path); passthrough claims arrows+select only, cued by a 2px accent rule + gamepad glyph | Field pain: "hitting the wrong buttons all the time" — keys get policies per page class, not one behavior; user picked tap=UI / hold=device over both pure options |
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
+
+## Current state (v0.83.10 pending, 2026-08-17 — the punchlist round: volume truth + mute + doc hygiene)
+
+His morning punchlist (`archive/docs/status-review.md`, 7 items), all
+executed. Engine + manifest → **0.83.10** (first change after the
+v0.83.9-Beta tag). Deploy = `push-engine.bat` only — no `.py` changed,
+no HA restart owed.
+
+- **#1 VOLUME JUMP-BACK FIXED** ("It jumps forward like 5pts and then
+  jumps back like 3"): the tap was optimistic +5% but the device's real
+  step is smaller, so the HA echo yanked the display back. Now
+  `volume.js` holds the optimistic value per level-entity for 1800ms
+  (`VOL_OPT`) — a disagreeing echo inside the window is noted but NOT
+  shown; at lapse, truth is adopted. The disagreement also TEACHES the
+  device's real step (`VOL_STEP` = |echo − truth₀|/taps, clamped
+  0.005–0.12), so the second tap onward moves by the device's actual
+  increment. Feels accurate after one echo.
+- **#7 MUTE, twice over** ("In a browser, Mute is a problem"):
+  (a) clicking the volume tile's speaker ICON now toggles mute
+  (optimistic glyph flip + `volume_mute`); (b) the mute KEY is
+  focus-aware — a focused volume tile (or volume-kind stepper) wins
+  over `$context.volume`, so with the Receiver tile selected, mute
+  hits the receiver; unfocused it hits the Volume role. Fixing this
+  exposed an engine bug: `trailBase()` mangled non-trail ids — now
+  strips only when the id actually ends with the trail suffix.
+- **probe-vol-ux.mjs NEW** — drives both: optimistic 45% → echo 42%
+  ignored during hold → 42% adopted after → next tap 44% (learned 2%
+  step); icon-click mute call+glyph; focused-mute targets the
+  receiver, unfocused the role. Green; battery 20/20.
+- **#6 docs/scripts.md NEW** — all ten root `.bat`s + build scripts
+  tabled (daily drivers / backups / build); verdict: none redundant
+  (pull-config takes a named house, pull-my-config the default;
+  push.bat is the guarded engine under the family). CONTRIBUTING
+  links it.
+- **#3 KeyMapper in GETTING-STARTED §5** — "skip the button-by-button
+  setup": his unpacked `remotes/keymapper/astrion/` (zip + md map +
+  xlsx) documented; `push-keymapper.bat` → KeyMapper ⋮ → Restore.
+- **#2 beta-gaps refreshed** — new Status block (2026-08-17): beta is
+  LIVE on .88, P0 trio struck through as SHIPPED (pairing v0.81, HACS
+  v0.83.4, docs v0.83); open items now honestly: mute hardware overlay
+  (§6.6), volume_step trait (§6.5), section folding (§6.8).
+- **#4 purpose/audience stamps** — every live doc now opens with
+  *Purpose: … Audience: …* (~30 files: CONTRIBUTING, SECURITY, docs/*,
+  the whole cookbook, houses/README, tests/README). Files never
+  touched this session were re-staged FRESH from the device first
+  (the stale-mirror trap, §HANDOFF).
+- **#5 Group Players docs**: verified already covered —
+  creating-an-activity §8 has the Speakers/groups walkthrough from
+  the v0.83.7 rounds; no gap found.
 
 ## Current state (2026-08-17 — THE CLEANUP, overnight, s0.83.9 b34)
 

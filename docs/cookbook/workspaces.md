@@ -1,5 +1,7 @@
 # Workspaces
 
+*Purpose: A second remote with a different world: create, switch, export/import. Audience: multi-remote households.*
+
 **Outcome:** a second remote with a different world — the bedroom
 tablet gets bedroom pages, the porch remote gets the porch — deployed
 side by side from one Studio.

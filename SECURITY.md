@@ -1,5 +1,7 @@
 # Security
 
+*Purpose: The trust model — pairing, tokens, what the integration will and will not do — and how to report a vulnerability. Audience: security-minded users and reporters.*
+
 Harmonium's security model, in the order a stranger needs it.
 
 ## The trust model

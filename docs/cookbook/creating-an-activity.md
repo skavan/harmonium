@@ -1,5 +1,7 @@
 # Creating an Activity
 
+*Purpose: Every tab and knob of the activity editor, with screenshots — the deep dive. Audience: users who want the whole picture.*
+
 **Outcome:** a "Watch Fire TV"-class activity, built end to end — the
 cast of devices, who does what, what gets switched on and to which
 input, what the remote shows while it runs, how Harmonium knows it's

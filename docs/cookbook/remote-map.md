@@ -1,5 +1,7 @@
 # Mapping a physical remote
 
+*Purpose: Describing a new physical remote model end to end: profile, layout, keymap. Audience: users with hardware not yet in the library.*
+
 **Outcome:** a new remote model, fully described — every physical
 button known to the engine, the Studio previewing on a photo of the
 actual hardware, and a map you can verify without leaving your desk.

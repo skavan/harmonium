@@ -1,5 +1,7 @@
 # Activities
 
+*Purpose: A "Watch TV" activity that turns everything on in order and routes the remote. Audience: users.*
+
 **Outcome:** a "Watch Fire TV" card that powers the TV and soundbar,
 switches inputs, hands the D-pad to the Fire TV — and shows as *On*
 on every remote in the house.

@@ -1,5 +1,7 @@
 # Screen Definition Schema — Draft 0.1
 
+*Purpose: The config contract: every key a screen, tile, activity or device can carry, with semantics. Audience: config authors going beyond the Studio, and engine developers.*
+
 Working design for the remote's screen/config format. Stored by the custom
 integration in HA storage, delivered to remotes over websocket
 (`get_config` / `subscribe_config`). The renderer treats this as data —

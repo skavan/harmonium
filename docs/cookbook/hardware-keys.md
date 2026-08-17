@@ -1,5 +1,7 @@
 # Hardware keys
 
+*Purpose: Making every physical button do the right thing on every page — including KeyMapper backup/restore. Audience: hardware-remote users.*
+
 **Outcome:** every physical button on the remote does the right
 thing on every page — arrows drive focus, volume is always volume,
 and during an activity the D-pad belongs to the device you're

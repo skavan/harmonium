@@ -1,5 +1,7 @@
 # Your first screen
 
+*Purpose: A room page with live tiles, from a blank workspace. Audience: new users.*
+
 **Outcome:** a room page — activities up top, one-tap presets, live
 device tiles — on every remote in the house.
 
