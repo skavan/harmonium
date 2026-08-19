@@ -21,7 +21,7 @@ export {
 export const starterConfig = () =>
   starterConfigLib($state.snapshot(app.draft) || {}, app.workspace);
 export const normalizeSelect = (cfg) => normalizeSelectLib(cfg, app.workspace);
-const normalizeConfig = (cfg) => normalizeConfigLib(cfg, app.workspace);
+export const normalizeConfig = (cfg) => normalizeConfigLib(cfg, app.workspace);
 
 /* Harmonium Studio v2 — shared reactive state (Svelte 5 runes).
    Truth lives server-side (the integration's store); `draft` is the
@@ -29,7 +29,6 @@ const normalizeConfig = (cfg) => normalizeConfigLib(cfg, app.workspace);
    follows the draft on every valid edit. */
 
 const API = "/api/harmonium/config";
-const WS_API = "/api/harmonium/workspaces";
 
 export const app = $state({
   saved: null,        // last server copy OF THE CURRENT WORKSPACE
@@ -98,7 +97,27 @@ export function toggleAdvanced() {
 
 /* in-memory homes for drafts while another workspace is on stage:
    ws id → {draft, saved}. Scratch persists to localStorage instead. */
-const wsStash = {};
+/* ---- the split satellites (v0.83.11 round 2) — imported for our own
+   use AND re-exported, so every component keeps importing from state:
+   one door, unchanged surface ---- */
+import { loadWorkspaces, switchWorkspace, createWorkspace, renameWorkspace,
+  deleteWorkspace, exportConfig, exportAllConfigs, importConfig,
+  resolveImport, cancelImport } from "./worlds.svelte.js";
+export { loadWorkspaces, switchWorkspace, createWorkspace, renameWorkspace,
+  deleteWorkspace, exportConfig, exportAllConfigs, importConfig,
+  resolveImport, cancelImport };
+import { snips, SNIPPET_TYPES, actionSnippetSeq, presetSnippetTile,
+  saveSnippet, renameSnippet, deleteSnippet, snippetsOf } from "./snippets.svelte.js";
+export { snips, SNIPPET_TYPES, actionSnippetSeq, presetSnippetTile,
+  saveSnippet, renameSnippet, deleteSnippet, snippetsOf };
+import { loadEntities, loadRegistry, loadServices, entitiesFor, platformOf,
+  impliedStem, seedDeviceFromEntity, impliedGroups } from "./registry.svelte.js";
+export { loadEntities, loadRegistry, loadServices, entitiesFor, platformOf,
+  impliedStem, seedDeviceFromEntity, impliedGroups };
+import { pairs, pollPairs, approvePair, denyPair, version, loadVersion }
+  from "./pairing.svelte.js";
+export { pairs, pollPairs, approvePair, denyPair, version, loadVersion };
+
 
 export const showsRole = (shows) =>
   SHOWS_KINDS.find((k) => k.value === (shows || "device"))?.role || null;
@@ -121,290 +140,6 @@ export function returnFromDevice() {
   selectSlice(b.key);
 }
 
-function stashCurrent() {
-  if (!app.draft) return;
-  wsStash[app.workspace] = {
-    draft: $state.snapshot(app.draft),
-    saved: $state.snapshot(app.saved),
-  };
-}
-
-/* v0.53: the SCRATCH workspace is gone (Suresh: "no point to it") —
-   drafts already sandbox every workspace, and duplication covers the
-   rest. Old hakr_scratch localStorage entries are simply ignored. */
-export async function switchWorkspace(ws) {
-  if (ws === app.workspace || !app.draft) return;
-  stashCurrent();
-  if (wsStash[ws]) {
-    /* resume the in-memory draft (unsaved edits survive the trip) */
-    app.saved = wsStash[ws].saved;
-    app.draft = wsStash[ws].draft;
-  } else {
-    setStatus("loading workspace…");
-    try {
-      const r = await api("GET", null, "?ws=" + encodeURIComponent(ws));
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      app.saved = normalizeConfig(await r.json());
-      app.draft = JSON.parse(JSON.stringify(app.saved));
-    } catch (e) {
-      setStatus("couldn't load workspace '" + ws + "': " + e.message, "err");
-      return;
-    }
-  }
-  app.workspace = ws;
-  localStorage.setItem("hakr_studio_ws", ws);
-  rebaseline();
-  /* every workspace opens on its MAP (Suresh); the hidden preview
-     still follows to the workspace's home so it's warm when a real
-     editor is opened */
-  selectSlice("map");
-  pushPreview();
-  if (pvWindow)
-    pvWindow.postMessage({ type: "harmonium_navigate",
-      screen: app.draft.home_screen }, location.origin);
-  setStatus("workspace: " + (app.workspaces[ws]?.name || ws) +
-    (ws === "main" ? " (repo-built — deploys to config.json)"
-      : " (deploys to config." + ws + ".json)"), "ok");
-}
-
-/* ---- workspace roster (server CRUD) ---- */
-export async function loadWorkspaces() {
-  try {
-    const r = await fetch(WS_API, { headers: { Authorization: "Bearer " + token() } });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const body = await r.json();
-    app.workspaces = body.workspaces || {};
-    app.wsOrder = body.order || Object.keys(app.workspaces);
-    return true;
-  } catch {
-    /* older integration (or sandbox): pretend a main-only roster */
-    app.workspaces = { main: { name: "Main", file: "config.json" } };
-    app.wsOrder = ["main"];
-    return false;
-  }
-}
-
-async function wsAction(body) {
-  const r = await fetch(WS_API, {
-    method: "POST",
-    headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  let out = {};
-  try { out = await r.json(); } catch { /* non-JSON error body */ }
-  if (!r.ok) throw new Error(out.message || out.problems?.join("; ") || "HTTP " + r.status);
-  return out;
-}
-
-/* Create a workspace: source = "blank" (starter), "duplicate"
-   (server-side copy of the current server ws), or "draft" (publish
-   the CURRENT draft). The server retargets minted-select refs and
-   mints the routing selects. */
-export async function createWorkspace(name, source) {
-  if (app.sandbox) return;
-  const from = app.workspace;
-  const body = { action: "create", name };
-  if (source === "duplicate") {
-    body.action = "duplicate";
-    body.from = from;
-  } else {
-    body.config = source === "draft"
-      ? $state.snapshot(app.draft) : starterConfig();
-    body.from = source === "draft" ? from : "main";
-  }
-  try {
-    const out = await wsAction(body);
-    await loadWorkspaces();
-    setStatus("workspace '" + name + "' created → " + (out.file || ""), "ok");
-    await switchWorkspace(out.workspace);
-  } catch (e) {
-    setStatus("create failed: " + e.message, "err");
-  }
-}
-
-export async function renameWorkspace(id, name) {
-  if (app.sandbox || !name.trim()) return;
-  try {
-    await wsAction({ action: "rename", id, name: name.trim() });
-    await loadWorkspaces();
-    setStatus("renamed", "ok");
-  } catch (e) {
-    setStatus("rename failed: " + e.message, "err");
-  }
-}
-
-export async function deleteWorkspace(id) {
-  if (app.sandbox || id === "main") return;
-  try {
-    await wsAction({ action: "delete", id });
-    delete wsStash[id];
-    await loadWorkspaces();
-    setStatus("workspace deleted (its remotes fall back to main)", "ok");
-    if (app.workspace === id) await switchWorkspace("main");
-  } catch (e) {
-    setStatus("delete failed: " + e.message, "err");
-  }
-}
-
-export function exportConfig() {
-  /* the export KNOWS which workspace it is (v0.83.8 follow-up —
-     Suresh: "We don't actually store the workspace name in the
-     json, which is a mistake"): a `_workspace` stamp rides along so
-     a later import can offer the right destination. Stripped on
-     import; the engine never sees it. */
-  const out = $state.snapshot(app.draft);
-  out._workspace = { id: app.workspace,
-    name: app.workspaces[app.workspace]?.name || app.workspace };
-  const blob = new Blob([JSON.stringify(out, null, 2)],
-    { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "harmonium-" + app.workspace + "-" + new Date().toISOString().slice(0, 10) + ".json";
-  a.click();
-  URL.revokeObjectURL(a.href);
-  setStatus("exported " + app.workspace + " config (full fidelity)", "ok");
-}
-
-/* EXPORT ALL (v0.83.2 — statusreview follow-up: "does Export export
-   all workspaces or just current?" — it was just-current, invisibly).
-   One JSON bundle: every workspace's CURRENT truth — the live draft
-   for the workspace you're standing in, the stored config for the
-   rest (fetched fresh; nobody holds other worlds client-side). */
-export async function exportAllConfigs() {
-  const order = app.wsOrder.filter((w) => app.workspaces[w]);
-  const out = { harmonium_export: "workspaces",
-    exported: new Date().toISOString().slice(0, 10),
-    order, workspaces: {} };
-  for (const id of order) {
-    let config;
-    if (id === app.workspace) config = JSON.parse(JSON.stringify($state.snapshot(app.draft)));
-    else {
-      const r = await api("GET", null, "?ws=" + encodeURIComponent(id));
-      config = await r.json();
-    }
-    out.workspaces[id] = { name: app.workspaces[id].name, config };
-  }
-  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "harmonium-all-" + new Date().toISOString().slice(0, 10) + ".json";
-  a.click();
-  URL.revokeObjectURL(a.href);
-  setStatus("exported " + order.length + " workspace" + (order.length === 1 ? "" : "s"), "ok");
-}
-
-/* IMPORT, REWORKED (v0.83.8 follow-up — Suresh: "When I import a
-   workspace it overrites main. It should give the choice. … and we
-   don't allow the import of the full workspace (it should, and which
-   workspaces to import)"). importConfig now only PARSES and parks
-   the result on app.importAsk; the dialog picks the destination and
-   resolveImport() does the landing:
-   - single config → this workspace's draft (safe, Save & Deploy to
-     keep) · REPLACE another workspace (stored + deployed, now) ·
-     a NEW workspace;
-   - a whole-house bundle → tick which workspaces to import; existing
-     ids are replaced, missing ids created. */
-export async function importConfig(file) {
-  try {
-    const cfg = JSON.parse(await file.text());
-    if (cfg.harmonium_export === "workspaces") {
-      const order = (cfg.order || Object.keys(cfg.workspaces || {}))
-        .filter((id) => cfg.workspaces?.[id]?.config?.screens);
-      if (!order.length)
-        throw new Error("bundle holds no importable workspaces");
-      app.importAsk = { kind: "bundle", fname: file.name, order,
-        workspaces: cfg.workspaces };
-      return;
-    }
-    const stamp = cfg._workspace || null;   /* older exports have none */
-    delete cfg._workspace;
-    if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
-    app.importAsk = { kind: "single", fname: file.name, config: cfg, stamp };
-  } catch (e) {
-    setStatus("import failed: " + e.message, "err");
-  }
-}
-
-/* land an import into THIS workspace's draft — the v0.75 rule holds:
-   one config door, one normalizer (ensureStockControllers, heals) */
-function importIntoDraft(cfg) {
-  app.draft = normalizeConfig(JSON.parse(JSON.stringify(cfg)));
-  const rooms = roomIds();
-  selectSlice(rooms.length ? "view." + rooms[0] : "screens." + cfg.home_screen);
-  pushPreview();
-  setStatus("imported into " + app.workspace + " (draft — Save & Deploy to keep)", "ok");
-}
-
-/* REPLACE a workspace's stored config outright (validate + store +
-   deploy server-side). The current workspace refreshes in place;
-   any stale stash of the target is dropped. */
-async function importReplaceWs(ws, cfg) {
-  const r = await api("POST", cfg, "?ws=" + encodeURIComponent(ws));
-  const out = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(out.problems?.join("; ") || out.message || "HTTP " + r.status);
-  delete wsStash[ws];
-  if (ws === app.workspace) {
-    app.saved = normalizeConfig(JSON.parse(JSON.stringify(cfg)));
-    app.draft = JSON.parse(JSON.stringify(app.saved));
-    rebaseline();
-    selectSlice("map");
-    pushPreview();
-  }
-}
-
-export async function resolveImport(opt) {
-  const ask = app.importAsk;
-  if (!ask) return;
-  try {
-    if (ask.kind === "single") {
-      if (opt.dest === "draft") {
-        importIntoDraft(ask.config);
-      } else if (opt.dest === "replace") {
-        if (!opt.ws) throw new Error("pick a workspace to replace");
-        await importReplaceWs(opt.ws, ask.config);
-        setStatus("replaced workspace '" + (app.workspaces[opt.ws]?.name || opt.ws) +
-          "' (stored + deployed)", "ok");
-      } else if (opt.dest === "new") {
-        const name = (opt.name || "").trim();
-        if (!name) throw new Error("name the new workspace");
-        const out = await wsAction({ action: "create", name,
-          /* keep the stamped id when it's free (a restore keeps its
-             address); a taken id lets the server slug the name */
-          ...(ask.stamp?.id && ask.stamp.id !== "main" &&
-            !app.workspaces[ask.stamp.id] ? { id: ask.stamp.id } : {}),
-          config: JSON.parse(JSON.stringify(ask.config)),
-          from: ask.stamp?.id || app.workspace });
-        await loadWorkspaces();
-        setStatus("workspace '" + name + "' created from the import", "ok");
-        await switchWorkspace(out.workspace);
-      }
-    } else {
-      /* bundle: each ticked workspace lands where its id says */
-      const picked = ask.order.filter((id) => opt.ticks?.[id]);
-      if (!picked.length) throw new Error("nothing ticked");
-      let replaced = 0, created = 0;
-      for (const id of picked) {
-        const entry = ask.workspaces[id];
-        if (app.workspaces[id]) {
-          await importReplaceWs(id, entry.config);
-          replaced++;
-        } else {
-          await wsAction({ action: "create", name: entry.name || id, id,
-            config: JSON.parse(JSON.stringify(entry.config)), from: "main" });
-          created++;
-        }
-      }
-      await loadWorkspaces();
-      setStatus("bundle imported — " + replaced + " replaced, " + created +
-        " created (stored + deployed)", "ok");
-    }
-    app.importAsk = null;
-  } catch (e) {
-    setStatus("import failed: " + e.message, "err");
-  }
-}
-
-export function cancelImport() { app.importAsk = null; }
 
 export function clearCurrent() {
   app.draft = starterConfig();
@@ -422,7 +157,7 @@ export function clearCurrent() {
    build counter that never resets (b30 continues the old 0.83.NN
    line, so history stays ordered). The footer reads s0.83.8 b30:
    release first, fingerprint after. */
-export const STUDIO_V = "0.83.11 b35";
+export const STUDIO_V = "0.83.11 b37";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 
@@ -472,7 +207,7 @@ export function setStatus(msg, cls = "") {
   app.status = { msg, cls };
 }
 
-async function api(method, body, query = "") {
+export async function api(method, body, query = "") {
   const r = await fetch(API + query, {
     method,
     headers: {
@@ -1051,74 +786,6 @@ export function instantiateDeviceController(dom, eid) {
   return iid;
 }
 
-/* ---- SNIPPETS (v0.33, Suresh's spec): reusable config blocks with
-   metadata, grouped by TYPE ("setup" = devices & roles, "state" =
-   state rules). Stored in localStorage — genuinely global across
-   workspaces AND immune to reseeds (they're authoring material, not
-   remote config). Export from a block's title bar; Insert offers
-   compatible snippets. */
-export const snips = $state({
-  items: JSON.parse(localStorage.getItem("hakr_snippets") || "{}"),
-});
-function persistSnips() {
-  localStorage.setItem("hakr_snippets", JSON.stringify($state.snapshot(snips.items)));
-}
-export const SNIPPET_TYPES = {
-  setup: "Setup — devices & roles",
-  state: "State rules",
-  /* v0.79.1 — Suresh: "I'd like to be able to export (and import) a
-     Preset to snippets": one preset tile, saved whole (minus its id),
-     insertable on any page's Presets fold or any activity's Presets
-     tab — across workspaces, like every snippet. */
-  preset: "Presets — one-touch shortcuts",
-  /* v0.83.1 — statusreview: "Should actions be global in scope (or
-     copy to snippets if not)". They ARE global within a workspace
-     (any page/preset/activity may reference any sequence; the room
-     stamp is filing, not scope) — what they could not do was TRAVEL.
-     Now a sequence exports whole and reinserts in any workspace. */
-  action: "Actions — HA-side sequences",
-};
-/* a fresh sequence from a saved action snippet (null if it isn't
-   one) — the room stamp is dropped on the way out AND in: it names
-   the source house's rooms, which mean nothing at the destination */
-export function actionSnippetSeq(sid) {
-  const sn = snips.items[sid];
-  if (!sn || sn.type !== "action") return null;
-  const d = JSON.parse(JSON.stringify(sn.data));
-  delete d.room;
-  return d;
-}
-/* a fresh preset tile from a saved snippet (null if it isn't one) —
-   the ONE inserter both doors share, so id-minting never forks */
-export function presetSnippetTile(sid) {
-  const sn = snips.items[sid];
-  if (!sn || sn.type !== "preset") return null;
-  const t = JSON.parse(JSON.stringify(sn.data));
-  t.type = "preset";
-  t.id = "tile_" + Math.random().toString(36).slice(2, 6);
-  return t;
-}
-export function saveSnippet(type, name, data) {
-  const base = (name || type).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || type;
-  let id = base, n = 2;
-  while (snips.items[id]) id = base + "_" + n++;
-  snips.items[id] = { name: name || id, type,
-    data: JSON.parse(JSON.stringify(data)), saved: new Date().toISOString().slice(0, 10) };
-  persistSnips();
-  setStatus("snippet “" + (name || id) + "” saved — Model → Snippets", "ok");
-  return id;
-}
-export function renameSnippet(id, name) {
-  if (snips.items[id]) { snips.items[id].name = name; persistSnips(); }
-}
-export function deleteSnippet(id) {
-  delete snips.items[id];
-  persistSnips();
-}
-export function snippetsOf(type) {
-  return Object.entries(snips.items).filter(([, x]) => x.type === type);
-}
-
 /* ---- preview plumbing ---- */
 let pvWindow = null; // set by PreviewPane
 export function bindPreview(win) { pvWindow = win; }
@@ -1167,170 +834,6 @@ window.addEventListener("message", (ev) => {
   else if (m.type === "harmonium_screen") app.pvScreen = m.screen || "";
   else if (m.type === "harmonium_applied") app.pvScreen = m.screen || app.pvScreen;
 });
-
-/* ---- entity registry for pickers (live HA states) ---- */
-export async function loadEntities() {
-  try {
-    const r = await fetch("/api/states", { headers: { Authorization: "Bearer " + token() } });
-    if (!r.ok) return;
-    const states = await r.json();
-    app.entities = states
-      .map((s) => ({
-        entity_id: s.entity_id,
-        name: s.attributes?.friendly_name || s.entity_id,
-        state: s.state,
-        source_list: s.attributes?.source_list || null,
-        /* attribute NAMES only (v0.79.1): the ⚙ Status-line "+" picker
-           offers {token}s from these — values stay on the wire, the
-           engine reads them live. Without this the picker knew only
-           "state" (loadEntities had dropped attributes wholesale). */
-        attrs: Object.keys(s.attributes || {}),
-        device_class: s.attributes?.device_class || null,
-      }))
-      .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
-  } catch { /* pickers degrade to free text */ }
-}
-/* THE PLATFORM FACT (v0.45.2, Suresh: "too much guesswork"): which
-   integration owns an entity is the TRUE discriminator for channel
-   claims (androidtv = the ADB command channel; androidtv_remote = the
-   push-state twin) — never the entity NAME. /api/states doesn't carry
-   platform, so fetch the entity registry once over the websocket.
-   Failure degrades silently: platformOf() returns null and callers
-   fall back to their old heuristics. */
-export async function loadRegistry() {
-  try {
-    const ws = new WebSocket(
-      (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/websocket");
-    const done = new Promise((resolve) => {
-      const bail = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, 6000);
-      ws.onmessage = (ev) => {
-        let m; try { m = JSON.parse(ev.data); } catch { return; }
-        if (m.type === "auth_required")
-          ws.send(JSON.stringify({ type: "auth", access_token: token() }));
-        else if (m.type === "auth_ok")
-          ws.send(JSON.stringify({ id: 7, type: "config/entity_registry/list" }));
-        else if (m.type === "result" && m.id === 7) {
-          const map = {};
-          for (const e of m.result || [])
-            if (e.entity_id && e.platform) map[e.entity_id] = e.platform;
-          app.registry = map;
-          clearTimeout(bail);
-          try { ws.close(); } catch {}
-          resolve();
-        }
-      };
-      ws.onerror = () => { clearTimeout(bail); resolve(); };
-    });
-    await done;
-  } catch { /* no registry — heuristics carry on */ }
-}
-export const platformOf = (entId) => app.registry[entId] || null;
-
-/* IMPLIED DEVICES (v0.45.2 — the library is a BYPRODUCT, not a
-   prerequisite): integration siblings share the object stem
-   (media_player.X + remote.X + media_player.X_adb_…). Group by stem,
-   seed claims by PLATFORM FACT where the registry has one (androidtv
-   = the ADB commands channel), name-regex only as the fallback. */
-export function impliedStem(entId) {
-  return (entId.split(".")[1] || "")
-    .replace(/_adb(_\d+){0,4}$/, "").replace(/(_\d+){1,4}$/, "");
-}
-const isAdbEnt = (e) => {
-  const pf = platformOf(e);
-  return pf ? pf === "androidtv" : /_adb(_|$)/.test(e);
-};
-export function seedDeviceFromEntity(fromEnt) {
-  const stem = impliedStem(fromEnt) || "new_device";
-  const dev = { name: stem.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    icon: "material:tv", roles: {} };
-  const sibs = app.entities.filter((e) => impliedStem(e.entity_id) === stem)
-    .map((e) => e.entity_id);
-  const list = sibs.length ? sibs : [fromEnt];
-  const applyClaims = (e) => {
-    const dom = e.split(".")[0];
-    if (dom === "media_player") {
-      dev.roles.media_player ||= e;
-      dev.roles.power ||= e;
-      dev.roles.volume ||= e;
-      dev.roles.volume_level ||= e;
-      if ((app.entities.find((x) => x.entity_id === e)?.source_list || []).length)
-        dev.roles.source_select ||= e;
-      dev.roles.commands ||= e;
-    }
-    if (dom === "remote") dev.roles.dpad ||= e;
-  };
-  /* preferred pass: the push-state twins (androidtv_remote, tizen, …) */
-  for (const e of list.filter((e) => !isAdbEnt(e))) applyClaims(e);
-  /* the ADB media_player IS the commands channel — hard assignment */
-  for (const e of list.filter(isAdbEnt))
-    if (e.startsWith("media_player.")) dev.roles.commands = e;
-  /* gap-fill: single-integration devices (Fire TV is androidtv-only) */
-  for (const e of list.filter(isAdbEnt)) applyClaims(e);
-  /* (v0.48.3's MA-twin claim swap was REVERTED in v0.49 before it
-     ever deployed — wrong layer. The music library now speaks the
-     STANDARD media_player/browse_media + play_media contract, so the
-     NATIVE player is the right claim; no ma_ name heuristics.) */
-  /* SEARCH, THE ONE PLACE THE TWIN IS RIGHT (v0.69). Playback stays
-     native — that is settled. But searching is the job the native
-     player usually cannot do, and its Music Assistant twin can. This
-     is a SUGGESTION IN AN EDITOR, not an inference in the engine:
-     seeded here as a default the user can see and change, never
-     guessed at runtime. That distinction is what separates it from
-     the v0.49 revert. Claimed by PLATFORM (the registry knows), with
-     the ma_ name only as the fallback the registry makes unnecessary. */
-  if (!dev.roles.search && dev.roles.media_player) {
-    const twin = app.entities
-      .map((x) => x.entity_id)
-      .find((e) => e.startsWith("media_player.") &&
-        (platformOf(e) === "music_assistant" ||
-         (!platformOf(e) && /^media_player\.ma_/.test(e))) &&
-        impliedStem(e).replace(/^ma_/, "") === stem.replace(/^ma_/, ""));
-    if (twin) dev.roles.search = twin;
-    else if (platformOf(dev.roles.media_player) === "music_assistant")
-      dev.roles.search = dev.roles.media_player;
-  }
-  return { stem, dev };
-}
-/* stem groups not yet represented in the library — the ⊞ rows the
-   unified cast picker offers (≥2 members; singles cast directly) */
-export function impliedGroups() {
-  const lib = app.draft?.devices || {};
-  const claimed = new Set();
-  for (const d of Object.values(lib))
-    for (const ent of Object.values(d.roles || {})) claimed.add(ent);
-  const groups = {};
-  for (const e of app.entities) {
-    const dom = e.entity_id.split(".")[0];
-    if (dom !== "media_player" && dom !== "remote") continue;
-    if (claimed.has(e.entity_id)) continue;
-    const stem = impliedStem(e.entity_id);
-    if (!stem) continue;
-    (groups[stem] ||= []).push(e.entity_id);
-  }
-  return Object.entries(groups).filter(([, ents]) => ents.length >= 2)
-    .map(([stem, ents]) => ({ stem, ents }));
-}
-
-/* HA SERVICE CATALOG (v0.47.6 — Suresh: "can I get a drop down of
-   what I can choose (with Search)?"): /api/services once at load;
-   pickers degrade to free text when it's unreachable. */
-export async function loadServices() {
-  try {
-    const r = await fetch("/api/services", { headers: { Authorization: "Bearer " + token() } });
-    if (!r.ok) return;
-    const doms = await r.json();
-    const out = [];
-    for (const d of doms)
-      for (const [svc, meta] of Object.entries(d.services || {}))
-        out.push({ id: d.domain + "." + svc, name: meta?.name || "" });
-    app.services = out.sort((a, b) => a.id.localeCompare(b.id));
-  } catch { /* free text carries on */ }
-}
-
-export function entitiesFor(domains) {
-  if (!domains || !domains.length) return app.entities;
-  return app.entities.filter((e) => domains.includes(e.entity_id.split(".")[0]));
-}
 
 /* ---- UNDO TOAST (redesign §7.1): nothing is destructive until
    Save & Deploy, and even in the draft a Remove gets 10 seconds of
@@ -1533,140 +1036,3 @@ export async function boot() {
   );
 }
 
-/* ---- PAIRING, THE STUDIO SIDE (v0.81 — beta-gaps §1) ----
-   The remote shows a code; we show the SAME code (polled from the
-   integration's broker); the human compares and clicks Approve. THE
-   STUDIO MINTS THE TOKEN — auth/long_lived_access_token on our own
-   authenticated websocket, the documented path — so every paired
-   remote is a NAMED token in this user's HA profile, individually
-   revocable there. The broker only ferries it, once. */
-export const pairs = $state({ pending: [], busy: "", err: "" });
-
-/* a tab whose token is absent or revoked must NOT hammer pair_admin —
-   HA's http.ban logs every 401 as a login attempt and will eventually
-   BAN the IP (v0.81.2 — measured: a stale Studio tab produced a 401
-   every 10s at 16:44). No token = skip; a real 401 = stop for good
-   (reload after fixing the token). */
-let pairPollDead = false;
-
-export async function pollPairs() {
-  if (pairPollDead || !token()) return;
-  try {
-    const r = await fetch("/api/harmonium/pair_admin",
-      { headers: { Authorization: "Bearer " + token() }, cache: "no-store" });
-    if (r.status === 401 || r.status === 403) { pairPollDead = true; return; }
-    if (!r.ok) return;
-    pairs.pending = (await r.json()).pending || [];
-  } catch { /* offline / sandbox — banner just stays empty */ }
-}
-
-function mintPairToken(clientName) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(
-      (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/websocket");
-    const bail = setTimeout(() => { try { ws.close(); } catch {} reject(new Error("timeout")); }, 8000);
-    ws.onmessage = (ev) => {
-      let m; try { m = JSON.parse(ev.data); } catch { return; }
-      if (m.type === "auth_required")
-        ws.send(JSON.stringify({ type: "auth", access_token: token() }));
-      else if (m.type === "auth_ok")
-        ws.send(JSON.stringify({ id: 9, type: "auth/long_lived_access_token",
-          client_name: clientName, lifespan: 3650 }));
-      else if (m.type === "result" && m.id === 9) {
-        clearTimeout(bail);
-        try { ws.close(); } catch {}
-        if (m.success && m.result) resolve(m.result);
-        else reject(new Error(m.error?.message || "mint refused"));
-      }
-    };
-    ws.onerror = () => { clearTimeout(bail); reject(new Error("websocket error")); };
-  });
-}
-
-export async function approvePair(p) {
-  pairs.busy = p.session; pairs.err = "";
-  try {
-    /* THE CODE IS THE SUFFIX (v0.81.2 — field day one: "clicking
-       approve isn't doing anything", and the HA log said why four
-       times over: `ValueError: Harmonium astrion already exists`.
-       async_create_refresh_token refuses duplicate client_names, so
-       a re-paired remote could never approve twice. The offer's code
-       is random per pairing — a collision-proof, human-readable
-       suffix. Retired tokens still deserve deleting in the profile,
-       but they no longer BLOCK. */
-    const name = "Harmonium " + (p.name || "remote") + " " + p.code;
-    const minted = await mintPairToken(name);
-    const r = await fetch("/api/harmonium/pair_admin", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ session: p.session, token: minted }),
-    });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    setStatus("remote paired — token “" + name + "” (revocable in your HA profile)", "ok");
-  } catch (e) {
-    /* loud, IN the banner — the status line whispers (v0.81.2) */
-    pairs.err = "Pairing failed: " + e.message +
-      (/already exists/.test(e.message)
-        ? " — delete the old token in your HA profile (Security → long-lived tokens) and approve again"
-        : "");
-    setStatus("pairing failed: " + e.message, "err");
-  }
-  pairs.busy = "";
-  await pollPairs();
-}
-
-export async function denyPair(p) {
-  try {
-    await fetch("/api/harmonium/pair_admin", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ session: p.session, deny: true }),
-    });
-  } catch { /* it expires on its own */ }
-  await pollPairs();
-}
-
-pollPairs();
-setInterval(pollPairs, 10000);
-
-/* ---- VERSION & UPDATE CHECK (v0.82 — the HACS story; the in-app
-   update checker is the one trick worth stealing from the dckiller51
-   fork, beta-gaps §2). The integration reports its manifest version
-   on the unauthenticated engine_version endpoint; GitHub's latest
-   release says whether a newer one exists. Silent on every failure —
-   including "repo not published yet", which is today's state. ---- */
-export const version = $state({ integration: "", engine: "", latest: "", url: "" });
-
-function verNewer(a, b) {
-  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const d = (pa[i] || 0) - (pb[i] || 0);
-    if (d) return d > 0;
-  }
-  return false;
-}
-
-export async function loadVersion() {
-  try {
-    const r = await fetch("/api/harmonium/engine_version", { cache: "no-store" });
-    if (!r.ok) return;
-    const j = await r.json();
-    version.integration = j.integration || "";
-    version.engine = j.v || "";
-  } catch { return; }
-  if (!version.integration) return;
-  try {
-    const g = await fetch(
-      "https://api.github.com/repos/skavan/harmonium/releases/latest",
-      { headers: { Accept: "application/vnd.github+json" } });
-    if (!g.ok) return;
-    const rel = await g.json();
-    const tag = String(rel.tag_name || "").replace(/^v/, "");
-    if (tag && verNewer(tag, version.integration)) {
-      version.latest = tag;
-      version.url = rel.html_url || "";
-    }
-  } catch { /* offline or repo not public yet — say nothing */ }
-}
-
-loadVersion();

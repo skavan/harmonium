@@ -14,10 +14,22 @@ REM Over the network (only if you use ADB-over-wifi):
 REM   pull-keymapper.bat 10.0.0.23 porch
 REM
 REM ONE-TIME on the device first (KeyMapper has no headless
-REM export intent): KeyMapper > ... > Back up all > in the share
-REM sheet pick "Files"/"Downloads" (NOT Bluetooth) and save to
-REM the Download folder. After that, this script pulls every
-REM keymapper*.zip it finds there.
+REM export intent): KeyMapper > Settings > "Change automatic
+REM backup location" > Change > save key_mapper.zip into the
+REM Download folder. From then on KeyMapper rewrites that backup
+REM on every mapping change, so the device copy is always
+REM current and this script needs no manual export at all.
+REM ("Export all" is a dead end on the Astrion: its share sheet
+REM offers no save-to-files target, so it jumps straight to the
+REM Bluetooth picker.)
+REM
+REM The save dialog suffixes "(2)"/"(3)" instead of overwriting
+REM (deleting from within it is not possible), so this script
+REM pulls only the NEWEST match, saved locally under the stable
+REM name key_mapper.zip - suffixed names never enter the repo;
+REM git is the version history. Device-side copies are left
+REM alone; tidy them with the remote's File Manager if the
+REM pileup bothers you.
 REM ============================================================
 
 REM adb ships IN the repo (tools\adb) so a fresh clone just works;
@@ -64,16 +76,22 @@ REM adb path - then filter loosely: contains "key" AND ends .zip
 REM (his export is key_mapper.zip, underscore and all)
 "%ADB%" %SER% shell ls -t /sdcard/Download 2>nul > "%TEMP%\km_ls.txt"
 findstr /i "key" "%TEMP%\km_ls.txt" | findstr /i "\.zip" > "%TEMP%\km_hits.txt"
-set FOUND=0
+REM ls -t = newest first, so the FIRST hit is the current backup
+set NEWEST=
 for /f "usebackq delims=" %%f in ("%TEMP%\km_hits.txt") do (
-  set FOUND=1
-  echo    pulling %%f
-  "%ADB%" %SER% pull "/sdcard/Download/%%f" "%OUT%"
+  if "!NEWEST!"=="" set "NEWEST=%%f"
 )
-if "!FOUND!"=="0" (
-  echo    none found. Open KeyMapper on the remote, "Back up all",
-  echo    save to Downloads via the Files target, then rerun this.
+if "!NEWEST!"=="" (
+  echo    none found. On the remote: KeyMapper ^> Settings ^>
+  echo    "Change automatic backup location" ^> Change ^> save
+  echo    key_mapper.zip into Download, then rerun this.
   exit /b 1
 )
-echo == saved under remotes\keymapper\%NAME%\ - commit it.
+echo    pulling !NEWEST!
+"%ADB%" %SER% pull "/sdcard/Download/!NEWEST!" "%OUT%\key_mapper.zip"
+if errorlevel 1 (
+  echo    pull failed.
+  exit /b 1
+)
+echo == saved as remotes\keymapper\%NAME%\key_mapper.zip - commit it.
 echo done.

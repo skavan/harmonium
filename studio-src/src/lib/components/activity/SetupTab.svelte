@@ -4,7 +4,9 @@
      presentation panels, setup snippets, and the ＋ control-page mint.
      Split out of ActivityCard.svelte (v0.83.11); the shared context
      arrives as `card` — see ActivityCard's card object. */
-  import { app, selectSlice, isControllerScreen, beginPageDraft, saveSnippet, snippetsOf, setStatus, seedDeviceFromEntity, impliedGroups, platformOf, isCastGroup, SHOWS_KINDS, showsRole, openDeviceEditor, schedulePreview } from "../../state.svelte.js";
+  import { app, selectSlice, isControllerScreen, beginPageDraft, saveSnippet, snippetsOf, setStatus, seedDeviceFromEntity, platformOf, isCastGroup, SHOWS_KINDS, showsRole, openDeviceEditor, schedulePreview } from "../../state.svelte.js";
+  import PresPanel from "./PresPanel.svelte";
+  import CastPicker from "./CastPicker.svelte";
   import { ROLES } from "./lib.js";
   import Field from "../Field.svelte";
   import Input from "../Input.svelte";
@@ -100,50 +102,6 @@
       if (!Object.keys(a.present).length) delete a.present; }
     if (openPres === key) openPres = null;
   }
-  /* the INTELLIGENT list: only render modes this member can honour —
-     a claimed role for devices, the entity's own domain for loose
-     entities. Launcher is always offered. */
-  function presShows(key, isEnt) {
-    if (!isEnt) {
-      const roles = devLib[key]?.roles || {};
-      return SHOWS_KINDS.filter((k) => !k.role || roles[k.role]);
-    }
-    const dom = key.split(".")[0];
-    return SHOWS_KINDS.filter((k) => !k.role || dom === "media_player" ||
-      (k.value === "power" &&
-        ["switch", "light", "fan", "input_boolean"].includes(dom)));
-  }
-  /* the Volume style select shows only where a volume control can
-     exist: a device claiming roles.volume, or a media_player entity */
-  const canVolume = (key, isEnt) =>
-    isEnt ? key.startsWith("media_player.") : !!devLib[key]?.roles?.volume;
-  const STYLE_OPTS = [
-    { value: "", label: "Theme default" },
-    { value: "compact", label: "Compact" },
-    { value: "slider", label: "Slider — the fat one" },
-    { value: "stepper", label: "Stepper − / +" },
-  ];
-  /* the STATUS LINE's raw material (v0.79 review: "A text box with a
-     drop down of available attributes"): the member's live attribute
-     names, offered as {token} inserts — the engine substitutes them
-     per state diff (render.js subTextOf). */
-  function presEntity(key, isEnt) {
-    if (isEnt) return key;
-    return Object.values(devLib[key]?.roles || {})[0] || null;
-  }
-  function presAttrs(key, isEnt) {
-    const ent = presEntity(key, isEnt);
-    const e = ent && app.entities.find((x) => x.entity_id === ent);
-    /* e.attrs — attribute NAMES captured by loadEntities (v0.79.1:
-       the old read of e.attributes found a field that never existed,
-       so the picker offered nothing but "state") */
-    return ["state", ...(e?.attrs || [])];
-  }
-  const TAP_OPTS = [
-    { value: "", label: "Smart default" },
-    { value: "open", label: "Its controller page" },
-    { value: "none", label: "Nothing — a pure readout" },
-  ];
   /* the adoption itself, shared by BOTH doors into the cast block
      (v0.75.3 — "Didn't work for the existing activity": the Onkyo went
      in as a LOOSE entity, and addExtraEnt regenerated a.devices
@@ -344,58 +302,6 @@
     for (const [role, v] of Object.entries(a.context || {}))
       if (v === ent) delete a.context[role];
     schedulePreview();
-  }
-  /* ---- UNIFIED CAST PICKER (v0.45.2 — Suresh: the library is a
-     byproduct, not a prerequisite). ONE box: library devices, then
-     IMPLIED devices (⊞ stem-grouped entity clusters, minted into the
-     library silently on pick), then raw entities (cast directly). ---- */
-  let castQ = $state("");
-  let castOpen = $state(false);
-  let castEl = $state(null);
-  let castRect = $state(null);   /* FIXED dropdown — no ancestor can clip */
-  const placeCast = () => { castRect = castEl?.getBoundingClientRect() || null; };
-  $effect(() => {
-    if (!castOpen) return;
-    const glue = () => placeCast();
-    window.addEventListener("scroll", glue, true);   /* capture: any scroller */
-    window.addEventListener("resize", glue);
-    return () => {
-      window.removeEventListener("scroll", glue, true);
-      window.removeEventListener("resize", glue);
-    };
-  });
-  const castHit = (txt) => !castQ.trim() ||
-    txt.toLowerCase().includes(castQ.trim().toLowerCase());
-  const pickLib = $derived(Object.entries(devLib)
-    .filter(([k]) => !cast.includes(k))
-    .filter(([k, d]) => castHit((d.name || "") + " " + k))
-    .slice(0, 8));
-  const pickImplied = $derived(impliedGroups()
-    .filter((g) => !devLib[g.stem])
-    .filter((g) => castHit(g.stem + " " + g.ents.join(" ")))
-    .slice(0, 8));
-  const pickEnts = $derived(app.entities
-    .filter((e) => castHit(e.entity_id + " " + (e.name || "")))
-    .filter((e) => !(a.extra_devices || []).includes(e.entity_id))
-    .slice(0, 12));
-  function castLibDevice(devId) {
-    addCast(devId);
-    castQ = ""; castOpen = false;
-  }
-  function castImplied(g) {
-    if (!app.draft.devices) app.draft.devices = {};
-    const lib = app.draft.devices;
-    const { stem, dev } = seedDeviceFromEntity(g.ents[0]);
-    let id = stem, n = 2;
-    while (lib[id]) id = stem + "_" + n++;
-    lib[id] = dev;
-    addCast(id);
-    setStatus("⊞ " + (dev.name || id) + " added to your library and cast", "ok");
-    castQ = ""; castOpen = false;
-  }
-  function castDirect(ent) {
-    addExtraEnt(ent);
-    castQ = ""; castOpen = false;
   }
   /* PROMOTE A DIRECT ENTITY (v0.48.2 — Suresh: "If I select a loose
      device, I should probably have a promote icon"): mint a pre-wired
@@ -637,119 +543,6 @@
         <!-- ONE PANEL SHAPE for every member (v0.76): name · icon ·
              draws-as · tap. Opened by the row's ⚙; empties are swept
              on close so an untouched panel writes nothing. -->
-        {#snippet presPanel(key, isEnt, inGroup)}
-          {#if openPres === key && a.present?.[key]}
-            <!-- ONE GRID, ONE BASELINE (v0.76.3 — Suresh: "the config
-                 layout is a bit messed up"): every control is 38px on
-                 the same row, labels above, explanations in tooltips —
-                 the stacked hints were what pushed fields off-line. -->
-            <!-- wrap-friendly (v0.76.4): uniform 38px blocks that FLOW
-                 at narrow widths instead of a fixed grid that clips —
-                 alignment holds because the hints live in tooltips -->
-            <div class="mt-2 flex flex-wrap items-start gap-3 rounded-[8px] border border-line bg-bg px-2.5 py-2">
-              <div class="min-w-[150px] flex-[1.2]">
-                <Field label="Display name">
-                  <Input bind:value={a.present[key].name}
-                    title="blank = its own name · clearing a SAVED name shows no label at all"
-                    placeholder={isEnt ? key.split(".").pop() : (devLib[key]?.name || key)} />
-                </Field>
-              </div>
-              <!-- BRACES IN TOOLTIPS ARE CODE (v0.79.1 — Suresh:
-                   "Settings cog has stopped working"): a bare {curly}
-                   inside a quoted attribute is a Svelte INTERPOLATION —
-                   "curly is not defined" threw on ⚙ click and ate the
-                   whole panel. Compile passed (unknown ids are globals);
-                   only the runtime probe caught it. Tooltip text that
-                   mentions tokens must be a string EXPRESSION: title={"…"}. -->
-              <div class="min-w-[200px] flex-[1.4]">
-                <Field label="Status line">
-                  <div class="flex gap-1">
-                    <Input bind:value={a.present[key].sub}
-                      title={"the tile's second line — blank = the widget's smart summary · clearing a SAVED line shows none · {curly} tokens read the entity live"}
-                      placeholder="auto" />
-                    <!-- a quiet ＋ button, not a visible select (v0.79.2
-                         — Suresh: "the + dropdown looks wonky. Do we
-                         need the down chevron?"): appearance-none kills
-                         the native chevron; the ＋ centres alone -->
-                    <select value="" title={"insert a live attribute — {token}s follow the entity"}
-                      onchange={(e) => { const v = e.target.value;
-                        if (v) a.present[key].sub = (a.present[key].sub || "") + "{" + v + "}";
-                        e.target.value = ""; }}
-                      class="h-[38px] w-[30px] shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-field text-center text-[15px] text-dim outline-none hover:text-ink">
-                      <option value="">＋</option>
-                      {#each presAttrs(key, isEnt) as at (at)}
-                        <option value={at}>{at}</option>
-                      {/each}
-                    </select>
-                  </div>
-                </Field>
-              </div>
-              <div class="min-w-[200px] flex-[1.3]">
-                <Field label="Display icon">
-                  <IconPicker bind:value={a.present[key].icon} onchange={recompile} />
-                </Field>
-              </div>
-              <div class="min-w-[150px] flex-1">
-                <Field label="Draws as">
-                  <Select value={a.present[key].shows ?? "device"}
-                    title={SHOWS_KINDS.find((k) => k.value === (a.present[key].shows || "device"))?.hint || ""}
-                    options={presShows(key, isEnt).map((k) => ({ value: k.value, label: k.label }))}
-                    onchange={(e) => { const v = e.target.value;
-                      if (v === "device") delete a.present[key].shows;
-                      else a.present[key].shows = v; }} />
-                </Field>
-              </div>
-              <div class="min-w-[150px] flex-1">
-                <Field label="Tap">
-                  <Select value={a.present[key].tap ?? ""}
-                    title="what pressing the tile does"
-                    options={TAP_OPTS}
-                    onchange={(e) => { const v = e.target.value;
-                      if (v) a.present[key].tap = v;
-                      else delete a.present[key].tap; }} />
-                </Field>
-              </div>
-              {#if canVolume(key, isEnt)}
-                <!-- HOW ITS VOLUME DRAWS (v0.77.1): rides the ladder
-                     present.style → device_options.volume_style →
-                     global.style.volume — the volume band, group pages
-                     and inline volume controls all read it -->
-                <div class="min-w-[150px] flex-1">
-                  <Field label="Volume style">
-                    <Select value={a.present[key].style ?? ""}
-                      title="how this member's volume control draws — band, group page and inline alike"
-                      options={STYLE_OPTS}
-                      onchange={(e) => { const v = e.target.value;
-                        if (v) a.present[key].style = v;
-                        else delete a.present[key].style; }} />
-                  </Field>
-                </div>
-              {/if}
-              {#if !inGroup}
-                <!-- WHERE IT LIVES (v0.77 — Suresh: "be consistent or
-                     give optionality!"): Devices section is the
-                     members' home; "controls" promotes the tile up
-                     beside the group cards. A grouped member has no
-                     say — its group decides where it's drawn. -->
-                <div class="min-w-[150px] flex-1">
-                  <Field label="Where">
-                    <Select value={a.present[key].where ?? ""}
-                      title="which band of the controller draws this tile"
-                      options={[{ value: "", label: "Devices section" },
-                        { value: "controls", label: "With the controls" }]}
-                      onchange={(e) => { const v = e.target.value;
-                        if (v) a.present[key].where = v;
-                        else delete a.present[key].where; }} />
-                  </Field>
-                </div>
-              {/if}
-              <div class="pt-[27px]">
-                <button class="h-[38px] cursor-pointer border-0 bg-transparent p-0 px-1 text-[11px] font-semibold text-accent hover:underline"
-                  onclick={() => closePres(key)}>done</button>
-              </div>
-            </div>
-          {/if}
-        {/snippet}
         {#snippet castRow(devId, g)}
           {@const d = devLib[devId]}
           {@const miss = g ? showsFallback(devId, g.shows) : null}
@@ -797,7 +590,7 @@
                   title="Remove from cast — roles it held unwire" onclick={() => removeCast(devId)}>✕</button>
               </span>
             </div>
-            {@render presPanel(devId, false, !!g)}
+            <PresPanel {card} key={devId} isEnt={false} inGroup={!!g} open={openPres === devId} onclose={closePres} />
             {#if miss}
               <!-- honest, not hidden: the engine falls back to a
                    launcher rather than dropping the tile -->
@@ -925,7 +718,7 @@
                 <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
                   aria-label="Remove entity" onclick={() => removeExtraEnt(ent)}>✕</button>
               </div>
-              {@render presPanel(ent, true, false)}
+              <PresPanel {card} key={ent} isEnt={true} inGroup={false} open={openPres === ent} onclose={closePres} />
             </div>
           {/each}
           <!-- GROUP CARDS render BELOW the cast rows (v0.83.7 tidy-ups:
@@ -1029,44 +822,7 @@
               </div>
             {/if}
           {/each}
-          <!-- THE UNIFIED PICKER (v0.48: BELOW the whole cast — new
-               members append at the end, so the input sits where they
-               land): type anything — a defined device, an implied ⊞
-               bundle (minted on pick), or a raw entity -->
-          <div class="relative">
-            <input bind:value={castQ} bind:this={castEl} spellcheck="false"
-              placeholder="cast a device — or type any entity…"
-              onfocus={() => { placeCast(); castOpen = true; }}
-              oninput={() => { placeCast(); castOpen = true; }}
-              onblur={() => setTimeout(() => (castOpen = false), 200)}
-              class="h-[38px] w-full rounded-[4px] border border-line-strong bg-field px-[11px] font-[inherit] text-[13px] text-ink outline-none placeholder:text-faint focus:border-accent" />
-            {#if castOpen && castRect && (pickLib.length || pickImplied.length || pickEnts.length)}
-              <div class="fixed z-50 max-h-[320px] overflow-y-auto rounded-[9px] border border-line-strong bg-surface p-[5px] [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.3))]"
-                style="left:{castRect.left}px; top:{castRect.bottom + 4}px; width:{castRect.width}px">
-                {#each pickLib as [k, d] (k)}
-                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
-                    onmousedown={(e) => { e.preventDefault(); castLibDevice(k); }}>
-                    <span class="font-semibold">⊞ {d.name || k}</span>
-                    <span class="pl-1.5 text-[10.5px] text-dim">{Object.values(d.roles || {}).filter(Boolean).length} claims · in your library</span>
-                  </button>
-                {/each}
-                {#each pickImplied as g (g.stem)}
-                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
-                    onmousedown={(e) => { e.preventDefault(); castImplied(g); }}>
-                    <span class="font-semibold">⊞ {g.stem.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                    <span class="pl-1.5 text-[10.5px] text-dim">{g.ents.map((e) => e.split(".")[0]).join(" + ")} · will join your library</span>
-                  </button>
-                {/each}
-                {#each pickEnts as e (e.entity_id)}
-                  <button class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[7px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
-                    onmousedown={(ev) => { ev.preventDefault(); castDirect(e.entity_id); }}>
-                    <span class="font-mono text-[11.5px]">{e.entity_id}</span>
-                    <span class="pl-1.5 text-[10.5px] text-dim">{e.name && e.name !== e.entity_id ? e.name + " · " : ""}cast this entity</span>
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </div>
+          <CastPicker {card} {addCast} {addExtraEnt} />
           <div class="flex items-center">
             <span class="flex-1 text-[10.5px] text-dim italic">⊞ devices bundle their integration siblings — tune traits any time in</span>
             <button class="cursor-pointer border-0 bg-transparent p-0 pl-1 text-[10.5px] text-accent hover:underline"

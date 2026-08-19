@@ -87,13 +87,21 @@ see the README there), so a fresh clone runs them with zero setup.
 Plug the remote in over **USB** (the same connection it was
 provisioned with) and:
 
-- **`pull-keymapper.bat`** — no arguments needed. One manual step
-  first, once per export (KeyMapper offers no headless export
-  intent): on the remote, KeyMapper → **Back up all** → in the share
-  sheet choose **Files/Downloads** (the sheet leads with Bluetooth —
-  ignore it) and save into Download. The script then finds any
-  `*key*.zip` there and pulls it into `remotes/keymapper/astrion/`
-  (pass a name for a different folder). Commit the zip.
+- **`pull-keymapper.bat`** — no arguments needed. One-time setup on
+  the remote first (KeyMapper offers no headless export intent):
+  KeyMapper → **Settings → Change automatic backup location →
+  Change** → save `key_mapper.zip` into **Download**. From then on
+  KeyMapper rewrites that backup on every mapping change, so the
+  device copy is always current — no manual export step, ever.
+  (Don't bother with ⋮ → *Export all*: on the Astrion the share
+  sheet offers no save-to-files target, so it jumps straight to the
+  Bluetooth picker.) The script pulls the **newest** `*key*.zip`
+  from Download into `remotes/keymapper/astrion/key_mapper.zip`
+  (pass a name for a different folder). Commit the zip. Quirk: the
+  save dialog suffixes `(2)`/`(3)` instead of overwriting and can't
+  delete its own pileup — the script always takes the newest and
+  names it cleanly; tidy Download with the remote's File Manager
+  when the dupes bother you.
 - **`push-keymapper.bat`** — provisioning a NEW remote: pushes the
   newest committed zip into the device's Download folder, verifies
   it landed, and opens KeyMapper; finish with **⋮ → Restore** and
@@ -103,3 +111,62 @@ ADB-over-wifi also works — pass the remote's IP as the first
 argument — but USB is the normal path. Direct access to KeyMapper's
 data directory needs root, so export-then-pull is the honest
 portable flow.
+
+## The glyph row (F4–F7): light · cover · music · climate
+
+The four buttons at the bottom of the Astrion's face (💡 lightbulb,
+curtains, ♪ music, climate) emit `F4`–`F7` — and F-keys reach the
+webview raw, so these need NO KeyMapper mapping at all. The astrion
+profile names them `light` / `cover` / `music` / `climate`, matching
+the device-photo skin's hotspots (which light up the moment the keys
+are named). On your own remote, the Key capture screen (hold ⓘ →
+Key capture) writes the same entries in four presses.
+
+What they DO is yours to bind in **Page settings → Keys** — the
+binding dropdown offers every custom button your remote profiles
+emit (v0.83.11), alongside the fixed set. The natural defaults:
+`music` → navigate to the Music Library page; `light`/`cover`/
+`climate` → navigate to a domain page, fire a scene, or open a
+device's detail page (`detail:<entity>` is a valid navigate target).
+Unbound keys simply do nothing — bind what the house actually uses.
+
+**Apply to children** (same panel): a room page that switches it on
+offers its bindings to everything under it — child pages via their
+parent chain, and the controllers its activities land on — so
+binding the glyph row once on Porch covers the whole Porch world.
+A child's own binding always wins; `global.buttons` sits underneath
+everything.
+
+## Back/Home OUTSIDE Harmonium (don't get stranded)
+
+The Astrion's physical Back and Home keys emit `[` and `]` — which
+Android itself doesn't understand. Inside the kiosk the engine
+translates them; anywhere else (the Android UI, an app you F-keyed
+into, or Fully's own settings sheet pulled up OVER the kiosk) they
+do nothing, and there is no visible way back.
+
+The escape hatch lives in KeyMapper, which is already intercepting
+every key: two mappings — trigger = the Back key with
+**long-press**, action = *Go back*; trigger = the Home key with
+long-press, action = *Go home* — each with the constraint **Fully
+Kiosk Browser in foreground**. Long-press matters: a plain
+(short-press) remap would swallow `[`/`]` before the engine ever
+sees them and break Back/Home inside Harmonium; long-press triggers
+leave short presses flowing through untouched. The constraint
+matters too: scope ONLY these two to Fully — the app-launcher
+F-keys stay global, because they're the way back to Fully from any
+other app you land in.
+
+What this replaced (decided 2026-08-17): those long-presses used to
+emit `]`/`;` — harmonium's `back_hold`/`home_hold`, which forward
+the DEVICE's back/home to the control target. That was redundant on
+controller screens (short back/home already pass through) and its
+unique value — device back/home from a hub page — wasn't worth
+being stranded in Fully's settings for. Retired on the Astrion:
+the stale keymap entries are gone from the starter config (clean
+your live config's astrion profile in the Studio if you care — the
+entries are inert either way), the engine keeps the mechanism (the
+default profile's `{`/`}` still speak it, and long-press Power
+`=` → `power_hold` → All Off is untouched), and
+`astrion-remote-map.md` documents the new rows. After changing
+mappings, run `pull-keymapper.bat` so the backup zip carries them.

@@ -89,6 +89,11 @@ physical button do the right thing — and to
 [the device-photo guide](cookbook/device-photo-skin.md) to get the
 Studio previewing on a picture of the remote itself.
 
+**First, with the remote on USB, run `setup-remote.bat`** from the
+repo root: it locks the display to portrait (the Astrion's
+accelerometer otherwise flips the kiosk the moment the remote is
+picked up).
+
 **Skip the button-by-button KeyMapper setup**: the repo ships a
 ready-made Astrion mapping at `remotes/keymapper/astrion/` —
 `key_mapper.zip` is a full KeyMapper backup, and the mapping is

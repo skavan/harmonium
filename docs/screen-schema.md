@@ -201,11 +201,16 @@ like any entity.
 
 ## Hardware buttons
 
-Three layers, most specific wins:
+Four layers, most specific wins:
 
 1. widget capture (while a widget holds the D-pad)
 2. per-screen `buttons:`
-3. `global.buttons`
+3. inherited ancestors' `buttons:` (v0.83.11 — a screen that sets
+   `buttons_inherit: true` offers its bindings to everything under
+   it: child pages via their `parent` chain, and the controllers /
+   generated screens its activities land on; the NEARER ancestor
+   wins among several)
+4. `global.buttons`
 
 Button ids are logical names (`vol_up`, `power`, `red`, `dpad_up`…). The
 platform shell owns the mapping from physical keycodes to logical ids

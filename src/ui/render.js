@@ -29,9 +29,27 @@ function renderBanner(sc) {
 }
 
 /* ---- hero nav: section jump labels + scroll-spy ---- */
+/* Scroll the GRID and nothing else (v0.83.11 — Suresh: "If I Click
+   presets the entire remote scrolls down"): scrollIntoView propagates
+   to every scrollable ancestor — ACROSS the preview iframe boundary,
+   where it slid the whole Studio pane (the clip guard of v0.83.7
+   only protects the clip itself). Manual scrollTop math touches one
+   scroller, full stop. mode "nearest" mirrors scrollIntoView's:
+   already visible = no move. */
+function gridScrollTo(el, mode) {
+  const gr = grid.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (mode === "nearest") {
+    if (r.top < gr.top) grid.scrollTop += r.top - gr.top;
+    else if (r.bottom > gr.bottom) grid.scrollTop += r.bottom - gr.bottom;
+    return;
+  }
+  grid.scrollTop += r.top - gr.top;      // "start"
+}
 function buildHeroNav(jumps, strip) {
   S.heroJumps = jumps;
   S.heroAt = null;   // fresh page: stepping re-seeds from the spy
+  S.heroPin = null;  // and no tap-pinned chip survives a page change
   const bn = document.getElementById("banner");
   bn.querySelectorAll(".hstrip").forEach(x => x.remove());
   grid.onscroll = null;
@@ -81,7 +99,16 @@ function heroCycle(dir, wrap) {
 function heroGo(i) {
   const j = (S.heroJumps || [])[i];
   if (!j) return;
-  j.anchorEl.scrollIntoView({ block: "start" });
+  gridScrollTo(j.anchorEl, "start");
+  /* THE TAP'S INTENT WINS THE CHIPS (v0.83.11 — Suresh: "presets is
+     not selected (devices is)"): a short page can't always bring the
+     section to the top, so the jump bottoms the grid out and the
+     spy's bottom rule lit the LAST chip. Pin the tapped chip for as
+     long as the scroll stays where the tap left it; scrolling away
+     hands the chips back to the spy. */
+  S.heroPin = { i, top: grid.scrollTop };
+  S.heroAt = i;         // CH▲▼ stepping continues from here
+  updateSpy();
   setFocus(j.firstId);
 }
 function heroActivate(fid) {
@@ -95,6 +122,14 @@ function heroActivate(fid) {
 function updateSpy() {
   const js = S.heroJumps || [];
   if (!js.length) return;
+  if (S.heroPin) {
+    if (Math.abs(grid.scrollTop - S.heroPin.top) < 4) {
+      js.forEach((j, i) =>
+        j.btn && j.btn.classList.toggle("active", i === S.heroPin.i));
+      return;
+    }
+    S.heroPin = null;   // the user scrolled away — the spy takes over
+  }
   const top = grid.getBoundingClientRect().top + 48;
   let active = 0;
   js.forEach((j, i) => { if (j.anchorEl.getBoundingClientRect().top <= top) active = i; });

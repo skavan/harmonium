@@ -107,13 +107,31 @@ The full walk-through (including hardware remotes) is in
 
 ### Putting it on a hardware remote
 
-For the Sanytron Astrion / HA100-class remotes, Brad Sanders'
-excellent community guide covers the hardware prep — sideloading
-Fully Kiosk, installing KeyMapper, remapping buttons:
-**[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,
-button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**.
-Once Fully Kiosk is running, point it at the URL above and pick up at
-[our hardware-keys cookbook](docs/cookbook/hardware-keys.md).
+This is where Harmonium earns its keep — and the physical buttons
+are half of it, so don't skip this part. **Harmonium ships a
+ready-made KeyMapper profile for the Sanytron Astrion / HA100**: the
+whole button story — app-launcher keys, volume/mute/menu, the
+long-press escape hatches — restores onto a fresh remote in two
+taps, no button-by-button authoring.
+
+1. **Hardware prep** (once per remote): sideload Fully Kiosk and
+   KeyMapper per Brad Sanders' excellent community guide —
+   **[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,
+   button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**
+   (stop before its manual button remapping — the profile below
+   replaces that step).
+2. **With the remote on USB**: run `setup-remote.bat` from the repo
+   root (locks the display to portrait), then `push-keymapper.bat` —
+   it pushes the bundled profile from
+   [`remotes/keymapper/astrion/`](remotes/keymapper/astrion/) and
+   opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by
+   hand? The mapping is documented key-by-key in
+   [`astrion-remote-map.md`](remotes/keymapper/astrion/astrion-remote-map.md),
+   and the community guide's screenshots show where everything lives.
+3. **Point Fully Kiosk at the URL above**, pair, and pick up at
+   [our hardware-keys cookbook](docs/cookbook/hardware-keys.md) for
+   what every key does — including the glyph row you can bind to
+   anything in the Studio.
 
 ## Cookbook
 

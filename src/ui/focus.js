@@ -40,7 +40,10 @@ function setFocus(id) {
   document.querySelectorAll("#banner [data-fid]").forEach(el =>
     el.classList.toggle("focused", el.dataset.fid === id));
   const el = focusEl(id);
-  if (el && el.closest("#grid")) el.scrollIntoView({ block: "nearest" });
+  /* gridScrollTo, not scrollIntoView (v0.83.11): the native call
+     propagates to ancestor scrollers — across the preview iframe it
+     slid the whole Studio pane (render.js has the full story) */
+  if (el && el.closest("#grid")) gridScrollTo(el, "nearest");
 }
 
 function spatialMove(dir) {

@@ -81,6 +81,236 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.11 pending, 2026-08-17 — map docs GENERATED from data.json; README gives the remote story airtime)
+
+His pair while testing the ladder:
+
+- **gen-map-docs.py NEW** (remotes/keymapper/astrion/): the map .md
+  and .xlsx rotted twice when hand-maintained — now they REGENERATE
+  from data.json (the KeyMapper backup is the truth, the docs are
+  its rendering). Parses keymap_list + groups: the regenerated table
+  showed the REAL device state — F8→Fully, F9→File Manager (not the
+  old HA-companion/Fully rows), browser on F11 LONG-press, menu
+  emits `#` (the old hand-written `9`/KEYCODE_9 was simply wrong —
+  18 is KEYCODE_POUND), and a Scope column proving his design:
+  launchers global, everything else in group "FullyKiosk"
+  (app-foreground constraint). data.json + key_mapper.zip in the
+  repo refreshed from the device (auto-backup, current today).
+- **README §Putting it on a hardware remote rewritten** (his: "we
+  don't give the Astrion/setup and KeyMapper enough airtime. Without
+  it, the project is compromised"): leads with the out-of-the-box
+  KeyMapper profile — 3 numbered steps: community-guide hardware
+  prep (stop before manual remapping), setup-remote.bat +
+  push-keymapper.bat → ⋮ Restore (manual alternative =
+  astrion-remote-map.md + the guide's screenshots), then Fully →
+  pair → hardware-keys cookbook.
+
+## Current state (v0.83.11 pending, 2026-08-17 — custom keys BINDABLE + the binding ladder)
+
+His correction + addition in one round: "Page Settings>>>Keys doesn't
+offer those buttons" (the nicety became the feature) and "there
+should be an apply to children toggle". Engine + Studio; STUDIO_V
+b37; ENGINE_V/manifest stay 0.83.11.
+
+- **Keys dropdown offers custom buttons** (PageSettings.svelte):
+  BIND_KEYS is now derived — the fixed seven PLUS every custom
+  logical button any remote profile's keymap emits (engine-owned
+  names curated out; `_hold` bases checked). The glyph row shows up
+  as Light/Cover/Music/Climate, point-and-click bindable.
+- **THE BINDING LADDER** (engine, input.js): the three
+  `global.buttons + screen.buttons` merge sites became ONE
+  `boundButtons()` — global → inheriting ANCESTORS (farthest first,
+  nearer wins) → the screen's own. `buttons_inherit: true` on a page
+  offers its bindings downward: children climb their `parent` chain;
+  controllers and virtual screens (no place of their own) HOP to the
+  running/presumed activity's room. TWO honesty rules landed via the
+  probe: a parentless PLAIN page is a root (the hop is only for
+  controllers/virtual — child2 of a non-inheriting room must NOT
+  inherit through the running activity), and on a virtual screen the
+  chain's first entry is an ANCESTOR (opt-in), not "own".
+- **Studio toggle**: "Apply to children" Switch in Page settings →
+  Keys writes/deletes `buttons_inherit`.
+- **Probes NEW**: probe-glyph-keys (engine: own fires / child
+  inherits / child's own wins / controller hops to room / non-inherit
+  stays opt-in — 6 stages) + probe-bindkeys-studio (dropdown offers
+  the four, binding re-keys to light, toggle saves buttons_inherit).
+  Battery 20/20; keys/music/v2/nav payload-IDENTICAL vs pre-ladder
+  engine (no config sets buttons_inherit → zero behavior change
+  until opted in); smoke-studio 107/0; tabs probe green.
+- Docs: screen-schema §Hardware buttons (four layers now),
+  hardware-keys glyph-row section rewritten. KNOWN GAP (minor): the
+  preview's key WASHES read only the current screen's buttons —
+  inherited bindings don't wash on children yet.
+
+## Current state (v0.83.11 pending, 2026-08-17 — the glyph row wired: F4–F7 = light/cover/music/climate)
+
+His bottom-row question ("4 buttons… trigger F4, F5, F6, F7 — what
+would be good keys to map them to?") — answered by the hardware
+itself: the row's printed glyphs are 💡 lightbulb / curtains / ♪ /
+climate (it sits above the colored keys, which are his F8–F11 app
+launchers). Design: **no KeyMapper at all** — F-keys reach the
+webview raw (F1=home proved it), so the astrion profile simply names
+them `light`/`cover`/`music`/`climate`, matching the skin's hotspot
+ids (the photo preview lights them up the moment keys emit them).
+What they DO is Studio-bound per house (screen.buttons /
+global.buttons — custom names via the Advanced/Code path today;
+suggested: music → Music Library, others → domain page / scene /
+detail:<entity>). Also caught up with his device-side reality:
+F7's browser launcher is GONE (he removed it — map doc + xlsx rows
+refreshed, incl. the Back/F1 long-press rows → Android actions);
+his scoping confirmed: launchers global, everything else
+Fully-in-foreground. starter-config astrion keymap +4 (F4–F7);
+FUTURE nicety (unbuilt): HubEditor's Key-bindings dropdown offers a
+fixed list — could offer the profile's custom buttons too.
+
+## Current state (v0.83.11 pending, 2026-08-17 — hold-back/home RETIRED on the Astrion; his Fully-scoped hatch)
+
+Follow-up decisions on the stranded-keys hatch (his questions):
+
+- **"Do we use long-press back/home?"** — we DID: KeyMapper Back/F1
+  long-press emitted `]`/`;` → `back_hold`/`home_hold` → forward the
+  DEVICE's back/home to the control target (input.js hold roles).
+  Verdict (his call: replace/kill): **retired on the Astrion** —
+  redundant on controller screens (short back/home already
+  pass_through) and not worth the stranded-in-Fully-settings cost.
+  Starter config's astrion keymap dropped the four stale entries
+  (`]` `;` `{` `}` — a surgical 4-line diff, tail preserved); the
+  ENGINE mechanism stays (default profile's `{`/`}` + smoke-nav /
+  smoke-v2 exercise it; power_hold `=` → All Off untouched).
+- **His scoping** (better than the global suggestion): the two
+  Android-action long-presses are constrained to **Fully in
+  foreground**; doctrine documented — launcher F-keys stay GLOBAL
+  (they're the road back to Fully from any other app).
+- astrion-remote-map.md rows updated (Back/F1 long-press → Android
+  Go back / Go home w/ constraint + a dated note); hardware-keys.md
+  §Back/Home OUTSIDE Harmonium rewritten with the decision. His
+  device-side steps done by him; next pull-keymapper refreshes the
+  zip. test-integration-split still 12/12; starter parses clean.
+
+## Current state (v0.83.11 pending, 2026-08-17 — remote-provisioning round: rotation lock, KeyMapper backup truth, the stranded-keys hatch)
+
+Three field findings from his Astrion session, all scripts/docs (no
+engine/studio change):
+
+- **setup-remote.bat NEW** (his ask): one-time Android prep — locks
+  display rotation to portrait (`accelerometer_rotation 0` +
+  `user_rotation 0`; the accelerometer otherwise flips the kiosk
+  when the remote is picked up). Same adb prologue as the keymapper
+  scripts; GETTING-STARTED §5 now leads with it; scripts.md row.
+- **KeyMapper backup flow corrected** (what actually works on the
+  box): ⋮ → Export all is a dead end — the share sheet offers no
+  save-to-files target and jumps straight to the Bluetooth picker.
+  The working door is **Settings → Change automatic backup location
+  → Download**, after which KeyMapper rewrites the backup on every
+  mapping change — no manual export step ever again.
+  pull-keymapper.bat now pulls only the NEWEST `*key*.zip` and
+  saves it under the stable name `key_mapper.zip` (the save dialog
+  suffixes "(2)"/"(3)" instead of overwriting; suffixed names never
+  enter the repo — git is the history). Device-side dupes are left
+  alone by his choice (he tidies with the remote's File Manager).
+- **The stranded-keys hatch documented** (his: back/home "don't do
+  anything" outside harmonium; Fully's settings sheet = stuck): the
+  Astrion's Back/Home emit `[`/`]`, which Android doesn't speak —
+  only the engine does. hardware-keys.md gained "Back/Home OUTSIDE
+  Harmonium": KeyMapper long-press mappings ([ long → Go back,
+  ] long → Go home) — long-press so short presses still reach the
+  engine; caveat re engine-side hold variants; re-pull the backup
+  after. (Device-side mappings are HIS step; docs carry the recipe.)
+
+## Current state (v0.83.11 pending, 2026-08-17 — hero-chip jump fixed: pinned highlight, no ancestor scroll)
+
+His preview find ("If I Click presets the entire remote scrolls
+down, presets is not selected (devices is)") — two engine bugs in
+one tap, both long-standing:
+
+- **The pane slid** because `heroGo`/`setFocus` used
+  `scrollIntoView`, which propagates to every scrollable ancestor —
+  ACROSS the preview iframe into the Studio pane's scroller (the
+  v0.83.7 clip guard only protects the clip). New `gridScrollTo(el,
+  mode)` scrolls `#grid` by hand — one scroller, full stop; the
+  engine now contains no `scrollIntoView` at all, so no embedding
+  can be scrolled by it.
+- **DEVICES lit instead of PRESETS** because a short page can't
+  bring the tapped section to the top: the jump bottoms the grid out
+  and the spy's bottom rule lights the LAST chip. Now the tap PINS
+  its chip (`S.heroPin`) for as long as the scroll stays where the
+  tap left it; a real scroll releases the pin and the spy — bottom
+  rule included — takes over. Tapping also seeds `S.heroAt`, so
+  CH▲▼ stepping continues from the tapped section.
+- **probe-hero-chips.mjs NEW** (CT fixture, Porch): tap Presets →
+  Presets active + grid scrolled + body/window unmoved + first
+  preset focused; pin survives spy re-runs; scroll-away releases to
+  the spy; bottomed-out grid honestly lights Devices; tap Activities
+  returns to the top. Battery 20/20; nav/music/keys/present/libui
+  payload-diffed vs the pre-fix engine — IDENTICAL.
+
+## Current state (v0.83.11 pending, 2026-08-17 — SPLIT ROUND 2: "everything left")
+
+His pick via AskUserQuestion: **everything left** on the big-file
+queue, behavior-preserving. Six slices, each verified before the
+next; committed baseline `3dc4cba` was the safety point. STUDIO_V →
+0.83.11 b36; ENGINE_V/manifest stay 0.83.11 (same pending cycle);
+deploy note unchanged from round 1: **.py from round 1 already
+pending → HA restart at next deploy**; this round adds engine +
+studio only (`build-push` covers it).
+
+- **SetupTab 1,077 → 833**: the ⚙ presentation panel →
+  `activity/PresPanel.svelte` (175; the owner keeps the open/close
+  state machine — editPres backfill and close-sweep contracts intact)
+  and the unified cast picker → `activity/CastPicker.svelte` (100).
+- **state.svelte.js 1,672 → 1,046** + four satellites, with state
+  re-exporting so components keep ONE import door (the stocklib
+  pattern): `worlds.svelte.js` (295 — roster CRUD, switchWorkspace
+  with its draft stash, export/import incl. the ImportDialog resolve
+  flow), `registry.svelte.js` (170 — loadEntities/Registry/Services +
+  the ⊞ seeder), `pairing.svelte.js` (147 — pair admin + version
+  check), `snippets.svelte.js` (74).
+  - **TWO TRAPS CAUGHT** (both by verification, not review):
+    (1) the ESM cycle evaluates satellites BEFORE state — pairing's
+    module-level `pollPairs()`/`loadVersion()` kick-offs became TDZ
+    crashes on `token`; deferred one microtask (nothing observable
+    moves — the fetches were async anyway). Rule now in ARCHITECTURE:
+    satellites touch state bindings only inside function bodies.
+    (2) `WS_API` stayed behind in state while its only users moved —
+    Svelte compiles unknown identifiers as globals, and resolveImport's
+    try/catch swallowed the ReferenceError: **probe-import's semantic
+    payload caught it** (newWs.calls 0). Moved to worlds; then EVERY
+    studio probe was payload-diffed against the committed baseline —
+    all IDENTICAL modulo the version stamp. `errs: []` alone is not a
+    pass signal; compare payloads.
+- **PreviewPane 991 → 440**: the two remote faces are children under
+  `preview/` sharing a `pv` context — `SkinPreview.svelte` (390 —
+  photo skin, ✎ map-keys machinery, skew tripwires, its own
+  svelte:window keydown) and `SoftRemote.svelte` (123 — plain frame +
+  soft grid + layout editing); `preview/lib.js` (99 — BTN_DEFS,
+  DEFAULT_LAYOUT, the measured SKIN_ASTRION, PASSTHRU_SET,
+  actionDesc). `mapping`/`editing` hoisted to the pane (the footer
+  drives them, bindable down); the engine iframe is owned by whichever
+  face renders and handed up via pv.setIframe (↻ and bindPreview
+  unchanged). skin/stretch probes payload-identical.
+- **HubEditor 797 → 562**: the Layout/Keys/Advanced panel + key-
+  bindings machinery → `editors/PageSettings.svelte` (261, needs only
+  screenId). **TileRow 779 → 622**: the preset editor →
+  `components/PresetFields.svelte` (143), pure type/icon vocabulary →
+  `components/tile-lib.js` (40).
+- **ENGINE: generators.js 766 → 258 + gen-bands.js (338) +
+  gen-cast.js (216)**: the giant if-chain `expandTile` became a
+  type-keyed dispatch (`TILE_GENERATORS`); page generators stay,
+  controller-band generators (volumes/presets/speakers/groups) →
+  gen-bands, the cast vocabulary + srfOff → gen-cast.
+  **build-engine.mjs SCRIPTS gained the two files** (51 scripts).
+  Verified the strong way: battery 20/20 errs-clean AND 12
+  generator-heavy suites (present/v2/devices/workspaces/googletv +
+  wake/vol-ux/grouping/group-loose/grouping-loose/speaker-groups/
+  stepper-vol) payload-diffed against the committed engine —
+  **12/12 IDENTICAL**.
+- Post-round checks: smoke-studio 107/0 on b36; probe-activity-tabs,
+  probe-apps-grid, probe-nogap green. ARCHITECTURE file maps updated
+  (state satellites + TDZ rule, preview/card children, engine
+  generator trio). Remaining >500-line files (all cohesive, no urgent
+  splits): SetupTab 833, state spine 1,046, ActivityCard 411 is done,
+  screen-schema.md/PROJECT.md are docs.
+
 ## Current state (v0.83.11 pending, 2026-08-17 — THE BIG-FILE SPLIT: ActivityCard + __init__.py)
 
 His ask after committing v0.83.10: "Big lift now is getting those

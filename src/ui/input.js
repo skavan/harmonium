@@ -19,6 +19,59 @@ function ctPass(button) {
   const ct = controlTarget();
   return !!(ct && Array.isArray(ct.pass_through) && ct.pass_through.includes(button));
 }
+/* THE BINDING LADDER (v0.83.11 — Suresh: "There should be an apply
+   to children toggle, so if I set these on a parent page (i.e.
+   Porch), they apply to porch and all its child controllers"):
+   global.buttons → inheriting ANCESTORS (farthest first, so nearer
+   overrides) → the screen's own buttons. A page OFFERS its bindings
+   downward with `buttons_inherit: true`; a child takes them by
+   standing under it — plain pages/drawers climb their declared
+   `parent` chain, and a controller or virtual screen with no parent
+   hops to the room it serves (the running/presumed activity's
+   room_view). The current screen's own bindings always apply. */
+function bindChain() {
+  const out = [];                      /* screen objects, nearest first */
+  const seen = new Set();
+  let cur = S.screen, hops = 0;
+  while (cur && !seen.has(cur) && hops++ < 12) {
+    seen.add(cur);
+    const sc = rawScreen(cur);
+    if (sc) out.push(sc);
+    let next = sc && sc.parent;
+    if (!next) {
+      /* the room hop is for screens with no PLACE of their own —
+         controllers (library or legacy) and virtual screens. A plain
+         page without a parent is a ROOT, not a child of whatever
+         room happens to be running (caught by the probe: child2
+         inherited porch's bindings through the running activity). */
+      const hopper = !sc ||
+        (typeof cur === "string" && cur.indexOf("controller:") === 0) ||
+        sc.type === "controller" || sc.class === "activity";
+      if (hopper) {
+        const aid = renderActivityId() || presumedActivity();
+        const room = aid && CONFIG.activities && CONFIG.activities[aid] &&
+          CONFIG.activities[aid].room_view;
+        next = room && !seen.has(room) ? room : null;
+      }
+    }
+    cur = next;
+  }
+  return out;
+}
+function boundButtons() {
+  const out = Object.assign({}, CONFIG.global && CONFIG.global.buttons);
+  const chain = bindChain();
+  /* chain[0] is the CURRENT screen only when it's a real (authored)
+     one — on a virtual screen (detail:/group:/…) every entry is an
+     ancestor and stays opt-in, so a room's bindings reach its detail
+     pages exactly when buttons_inherit says so */
+  const ownFirst = !!rawScreen(S.screen);
+  for (let i = chain.length - 1; i >= 0; i--)
+    if ((ownFirst && i === 0) || chain[i].buttons_inherit)
+      Object.assign(out, chain[i].buttons || {});
+  return out;
+}
+
 /* v2 input policy from config.input.physical_buttons — absent = v1 */
 function inputPB() {
   return (CONFIG && CONFIG.input && CONFIG.input.physical_buttons) || null;
@@ -190,8 +243,7 @@ function act(button, phys) {
          "Porch All Off" is just an Action it points at). Unbound =
          the derived default: end the running activity IMMEDIATELY
          (tap asks, the deliberate hold doesn't); idle = nothing. */
-      const bh = Object.assign({}, CONFIG.global.buttons,
-        (screenOf(S.screen) || {}).buttons || {}).power_hold;
+      const bh = boundButtons().power_hold;
       if (bh) { runAction(bh); break; }
       const cur = currentActivityId();
       if (!cur) { flashBar("Nothing running"); break; }
@@ -297,9 +349,7 @@ function act(button, phys) {
          next/previous track, menu_hold to the music drawer); entries
          use the shared action grammar — {service, entity|target, data}
          OR {navigate: <screen>} */
-      const bmap = Object.assign({}, CONFIG.global.buttons,
-        (screenOf(S.screen) || {}).buttons || {});
-      const b = bmap[button];
+      const b = boundButtons()[button];   /* the ladder: global → inherited → own */
       if (b) { runAction(b); break; }   // shared grammar: navigate/sequence/service
       /* VOL DEFAULT (v0.83.7 — Suresh's Watch Fire TV: "remote volume
          keys and browser volume keys dont do anything. They should
@@ -353,8 +403,7 @@ function act(button, phys) {
          its action (shared grammar: navigate/sequence/service/seek).
          Unbound stays a deliberate no-op. left_hold/right_hold land
          here; new remotes can mint new names without engine edits. */
-      const bd = Object.assign({}, CONFIG.global.buttons,
-        (screenOf(S.screen) || {}).buttons || {})[button];
+      const bd = boundButtons()[button];   /* same ladder as above */
       if (bd) runAction(bd);
       break;
     }

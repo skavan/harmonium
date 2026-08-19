@@ -37,11 +37,11 @@
 		{
 			"actionList": [
 				{
-					"data": "io.homeassistant.companion.android.minimal",
+					"data": "de.ozerov.fully",
 					"extras": [],
 					"flags": 0,
 					"type": "APP",
-					"uid": "4534cb54-cdbb-4808-90cd-e15f43704444"
+					"uid": "eb98b755-b300-4d5f-bd3f-1d98bc9b5638"
 				}
 			],
 			"constraintList": [],
@@ -69,11 +69,11 @@
 		{
 			"actionList": [
 				{
-					"data": "de.ozerov.fully",
+					"data": "com.mediatek.filemanager",
 					"extras": [],
 					"flags": 0,
 					"type": "APP",
-					"uid": "e29660fc-914e-4470-914e-b50856fb35f2"
+					"uid": "7dd8faf0-89cd-4f90-b684-9ecc8465167b"
 				}
 			],
 			"constraintList": [],
@@ -186,38 +186,6 @@
 		},
 		{
 			"actionList": [
-				{
-					"data": "com.android.browser",
-					"extras": [],
-					"flags": 0,
-					"type": "APP",
-					"uid": "03991ffa-62b4-471e-bcae-c1fa52bada08"
-				}
-			],
-			"constraintList": [],
-			"constraintMode": 1,
-			"flags": 0,
-			"id": 8,
-			"isEnabled": true,
-			"trigger": {
-				"extras": [],
-				"flags": 0,
-				"keys": [
-					{
-						"clickType": 0,
-						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
-						"flags": 0,
-						"keyCode": 137,
-						"scanCode": 65,
-						"uid": "4945ca98-316b-4d8a-b0f4-3dc5cffca4eb"
-					}
-				],
-				"mode": 2
-			},
-			"uid": "a6b2c7ed-012a-40b9-b4d2-5a1c554881b4"
-		},
-		{
-			"actionList": [
 				{ "data": "68", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "e728f7de-0cdb-43d0-9e0b-ab38ec1e8461" }
 			],
 			"constraintList": [],
@@ -299,7 +267,13 @@
 		},
 		{
 			"actionList": [
-				{ "data": "72", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "fa5d65f8-f1f6-4f75-8ee6-d98e703b03ae" }
+				{
+					"data": "go_back",
+					"extras": [],
+					"flags": 0,
+					"type": "SYSTEM_ACTION",
+					"uid": "32336fd4-fa2c-4a42-b941-64ad8f176622"
+				}
 			],
 			"constraintList": [],
 			"constraintMode": 1,
@@ -326,7 +300,13 @@
 		},
 		{
 			"actionList": [
-				{ "data": "74", "extras": [], "flags": 0, "type": "KEY_EVENT", "uid": "b2aca482-d50a-4590-85b2-703901fcd0f6" }
+				{
+					"data": "go_home",
+					"extras": [],
+					"flags": 0,
+					"type": "SYSTEM_ACTION",
+					"uid": "27e28712-4f15-4a8b-86cf-2a2e9de63f58"
+				}
 			],
 			"constraintList": [],
 			"constraintMode": 1,
@@ -377,24 +357,55 @@
 				"mode": 2
 			},
 			"uid": "7665744b-0b60-4bb2-8605-1fb5358efd9c"
+		},
+		{
+			"actionList": [
+				{
+					"data": "com.android.browser",
+					"extras": [],
+					"flags": 0,
+					"type": "APP",
+					"uid": "e4cd00c0-91d1-47e3-8385-8902dc4d2ae6"
+				}
+			],
+			"constraintList": [],
+			"constraintMode": 1,
+			"flags": 0,
+			"id": 17,
+			"isEnabled": true,
+			"trigger": {
+				"extras": [],
+				"flags": 0,
+				"keys": [
+					{
+						"clickType": 1,
+						"deviceId": "io.github.sds100.keymapper.THIS_DEVICE",
+						"flags": 0,
+						"keyCode": 141,
+						"scanCode": 87,
+						"uid": "d8f8640e-fa0f-42d5-8a50-07c2fbc66bbe"
+					}
+				],
+				"mode": 2
+			},
+			"uid": "bdea3129-a842-44fb-a565-ff77510c30da"
 		}
 	],
 	"default_long_press_delay": 600,
 	"default_double_press_delay": 500,
 	"groups": [
 		{
-			"constraints": [],
+			"constraints": [
+				{
+					"extras": [{ "data": "de.ozerov.fully", "id": "extra_package_name" }],
+					"type": "constraint_app_foreground",
+					"uid": "12a965ae-fc01-49ac-9815-08203ecee302"
+				}
+			],
 			"constraint_mode": 1,
-			"last_opened_date": 1784579708344,
-			"name": "HACompanion",
+			"last_opened_date": 1787159474333,
+			"name": "FullyKiosk",
 			"uid": "cd541400-ca76-4db5-99f4-06a8abeae430"
-		},
-		{
-			"constraints": [],
-			"constraint_mode": 1,
-			"last_opened_date": 1784579097228,
-			"name": "Untitled group",
-			"uid": "badb84bf-7def-4823-b76e-1d749cffd43d"
 		}
 	]
 }

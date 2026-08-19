@@ -43,9 +43,13 @@ into `dist/index.html`. One concern per file:
   diffs; call_service error surfacing; the pending-play stamp.
 - `core/context.js` — activity scope (which room am I in, presumed
   activity) + `$context.<slot>` resolution.
-- `core/generators.js` — `expandTile`: the `activities` / `apps` /
-  `keys` / `devices` / `volumes` / `presets` / `groups` /
-  `presets_from` generators + the cast vocabulary.
+- `core/generators.js` — `expandTile` (type-keyed dispatch) + the
+  page generators: `activities` / `apps` / `keys` / `devices` /
+  `presets_from`.
+- `core/gen-bands.js` — the controller-band generators: `volumes` /
+  `presets` / `speakers` / `groups`.
+- `core/gen-cast.js` — the shared cast vocabulary (`castOf`,
+  `castMembers`, `groupChildTile`, `presApply`, `srfOff`…).
 - `core/gen-browse.js` — the browse generator (the library surface),
   with its two extracted views:
   `core/gen-browse-amalgam.js` (★ Favorites merge + ♫ de-mirrored
@@ -164,12 +168,18 @@ Single-file build; the preview pane is the REAL engine loaded in
 `#preview=1` mode — every valid edit pushes the draft config into the
 iframe (`postMessage`), so what you see is what ships.
 
-State layer, two halves: `src/lib/state.svelte.js` (the reactive
-side — app state, slices, preview plumbing, workspaces, server I/O,
-import/export) and `src/lib/stocklib.js` (the pure side — stock
-controller shapes with their `gen` migration counters, the starter
-config, and the normalize/heal chain every config passes through:
-"one config door, one normalizer").
+State layer: `src/lib/state.svelte.js` is the spine (app state,
+slices, preview plumbing, save/boot) and re-exports its satellites,
+so components import from ONE door: `worlds.svelte.js` (workspace
+roster/switch + config export/import), `registry.svelte.js` (live-HA
+entities/registry/services + the ⊞ device seeder),
+`pairing.svelte.js` (pairing admin + version check),
+`snippets.svelte.js`, and the pure `stocklib.js` (stock controller
+shapes with their `gen` migration counters, the starter config, and
+the normalize/heal chain: "one config door, one normalizer").
+Satellite rule: they may touch state's bindings only inside function
+bodies — never at module top level (the import cycle evaluates
+satellites first; a top-level read is a TDZ crash).
 
 The activity card (the Studio's biggest surface) is a spine + six
 per-tab components (v0.83.11): `components/ActivityCard.svelte` owns
@@ -178,7 +188,18 @@ and preview impersonation, and hands each tab under
 `components/activity/` one `card` context object (getters over the
 shared `$derived`s plus the cross-tab verbs). Everything a single tab
 needs lives in that tab. `activity/lib.js` is the shared role
-vocabulary.
+vocabulary; SetupTab's ⚙ presentation panel and unified cast picker
+are their own components (`PresPanel`, `CastPicker`).
+
+The preview pane follows the same shape: `PreviewPane.svelte` is the
+spine (toolbar, the wash + key-description brains, screenshot,
+footer) and the two remote faces are children under `preview/` —
+`SkinPreview.svelte` (photo skin + ✎ map keys + the skew tripwires)
+and `SoftRemote.svelte` (plain frame + soft grid), sharing a `pv`
+context. `HubEditor` hands its Layout/Keys/Advanced panel to
+`editors/PageSettings.svelte`; `TileRow` hands the preset editor to
+`components/PresetFields.svelte` (`tile-lib.js` holds the type/icon
+vocabulary).
 
 UX doctrines:
 

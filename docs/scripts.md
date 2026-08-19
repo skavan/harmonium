@@ -2,7 +2,7 @@
 
 *Purpose: what every `.bat` (and build script) at the repo root does,
 who runs it, and when. Audience: developers and forkers wondering
-which of the ten batch files they actually need.*
+which of the eleven batch files they actually need.*
 
 All deploy scripts act on **your default house**, one line in
 `houses\default.txt` naming a profile in `houses\<name>.cmd`
@@ -31,7 +31,8 @@ you rarely run it directly.
 |---|---|
 | `pull-config.bat <house>` | Snapshot a named house's LIVE config into `houses/<house>/` — a backup and a record; nothing in the push path reads it |
 | `pull-my-config.bat` | The same, for your default house (no argument) — sugar over the same idea, both earn their keep |
-| `pull-keymapper.bat [ip]` | Pull the remote's KeyMapper backup zip into `remotes/keymapper/` over USB (or ADB-over-wifi) |
+| `setup-remote.bat [ip]` | One-time Android prep for a fresh remote: locks display rotation to portrait (the Astrion's accelerometer otherwise flips the kiosk when the remote is handled) |
+| `pull-keymapper.bat [ip]` | Pull the NEWEST KeyMapper backup zip into `remotes/keymapper/` over USB (or ADB-over-wifi); one-time device setup = KeyMapper Settings → automatic backup location → Download |
 | `push-keymapper.bat [ip] [zip]` | Provision a NEW remote: push the newest backed-up zip and open KeyMapper for the two-tap Restore |
 
 ## Build scripts (not batch)
