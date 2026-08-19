@@ -210,9 +210,40 @@
        children for the duration of the capture (visually identical
        live, and inline transforms DO survive cloning), then reverts. */
     const undoScroll = [];
+    /* THE ENGINE MUST HOLD STILL (v0.83.11 — Suresh's attachment: a
+       scrolled snap collaging the presets row and DEVICES header of
+       the SCROLLED view with an Activities tile from the UNSCROLLED
+       one). html-to-image walks the live DOM asynchronously — the
+       font fetch alone is hundreds of ms — and any WS diff in that
+       window runs renderStates; a generated-tile signature change
+       escalates to navigate(), which empties #grid mid-clone: the
+       compensation transforms die with the old nodes and the zeroed
+       scroll never comes back. Same-origin privilege: no-op the
+       engine's re-render doors for the capture and restore after.
+       renderStates is the ONE funnel for state-driven DOM change
+       (its sig check is what calls navigate); the clock and the
+       banner fitter are the two timers that touch layout.
+       ROUND 2 (his second attachment — chips read PRESETS on a
+       DEVICES capture, and a gap split the grid): (a) navigate is
+       frozen TOO, so no path at all can rebuild #grid mid-clone;
+       (b) zeroing the scroll fires the grid's scroll-spy, which
+       RELEASED the tapped chip's pin (scrollTop no longer matched
+       pin.top) and relit the wrong chip in the capture — and left
+       the pin dead after. The spy handler is detached for the
+       capture, so the pin never sees the zeroed scroll at all.
+       (The engine's S is a top-level `let` — invisible as a window
+       property from here — so detaching the handler IS the pin
+       protection; there is no state to save.) */
+    const frozen = {};
+    let fwin = null, heldSpy, gridEl = null;
     try {
       const pv = document.getElementById("pv");
       const doc = pv.contentDocument;
+      fwin = pv.contentWindow;
+      for (const fn of ["renderStates", "updateClock", "fitBanner", "navigate"])
+        if (typeof fwin[fn] === "function") { frozen[fn] = fwin[fn]; fwin[fn] = () => {}; }
+      gridEl = doc.getElementById("grid");
+      if (gridEl) { heldSpy = gridEl.onscroll; gridEl.onscroll = null; }
       const vw = pv.contentWindow.innerWidth, vh = pv.contentWindow.innerHeight;
       for (const el of doc.querySelectorAll("*")) {
         const st = el.scrollTop, sl = el.scrollLeft;
@@ -259,7 +290,12 @@
     } catch (e) {
       setStatus("screenshot failed: " + (e?.message || e), "err");
     }
-    undoScroll.forEach((f) => f());
+    undoScroll.forEach((f) => f());          /* spy still detached: no false release */
+    if (gridEl) gridEl.onscroll = heldSpy;
+    if (fwin) {
+      for (const k of Object.keys(frozen)) fwin[k] = frozen[k];
+      try { fwin.renderStates(); } catch {}   /* catch up on held diffs */
+    }
     snapping = false;
   }
   function softPress(btn) {

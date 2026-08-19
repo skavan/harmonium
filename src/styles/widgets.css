@@ -201,7 +201,10 @@
   .sldr {
     position: relative; height: 44px; border-radius: 12px;
     background: #2c333d; overflow: hidden; margin: 6px 0 10px;
-    touch-action: none; cursor: pointer;
+    /* pan-y, not none (v0.83.11): a vertical swipe that starts on the
+       track belongs to the PAGE — wireSlider only claims committed
+       horizontal drags (vertical tracks get pan-x inline) */
+    touch-action: pan-y; cursor: pointer;
   }
   .sldr i {
     display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;

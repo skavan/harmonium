@@ -365,14 +365,21 @@ function act(button, phys) {
           button === "vol_up" ? "volume_up" : "volume_down", null, vt);
         break;
       }
-      /* unbound CH on a multi-section page = CATEGORY/SECTION paging
-         (the Music Library's ▲▼; bindings above always win) */
-      /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
-      if ((button === "ch_up" || button === "ch_down") &&
-          typeof brStepCat === "function" &&
-          brStepCat(button === "ch_up" ? 1 : -1)) break;
-      if ((button === "ch_up" || button === "ch_down") &&
-          heroCycle(button === "ch_up" ? 1 : -1)) break;
+      /* CH = MOVE THE FOCUS. ALWAYS. (2026-08-19 — Suresh: "ChUp,
+         ChDn, navigate the LCD. Always." — one field day after the
+         hold-CH round, the roles flipped: the SHORT press is the
+         gesture a thumb reaches for). CH▲ walks the focus UP exactly
+         like the D-pad — and unlike the D-pad it works on
+         passthrough controllers, where arrows belong to the device.
+         This also cures the "inverted" feel of the old default: CH▲
+         used to mean "next section", which is DOWN the page. The old
+         short-press defaults (browse category strip, section chips)
+         moved to the HOLDS below; a config binding still beats
+         everything (the ladder above already returned). */
+      if (button === "ch_up" || button === "ch_down") {
+        spatialMove(button === "ch_up" ? "up" : "down");
+        break;
+      }
       /* mute default (no config binding needed): toggle mute on the
          context audio path — same ARC-aware target VOL uses.
          v0.83.10 (status review #7 — his call): a FOCUSED volume tile
@@ -394,6 +401,24 @@ function act(button, phys) {
             { is_volume_muted: !st(rd).a.is_volume_muted }, tgt);
         }
       }
+      break;
+    }
+    case "ch_up_hold": case "ch_down_hold": {
+      /* HOLD-CH = THE BIG JUMPS (2026-08-19 redesign; the buttons
+         themselves arrived one day earlier for "make long press up
+         and down control the LCD?" — then short CH took the focus
+         walk, and the holds inherited the old short-press defaults):
+         the browse CATEGORY strip on the library, the section chips
+         on a room page — CH▲-hold goes to the PREVIOUS one (up the
+         page), CH▼-hold the next. A binding wins first: the stock
+         music controller points these at ±15s seek (his RWD/FFWD).
+         Holds are the SHELL's job (see FIELD LESSON below):
+         KeyMapper long-press on CH▲/CH▼ sends ' and /. */
+      const bch = boundButtons()[button];
+      if (bch) { runAction(bch); break; }
+      const d = button === "ch_up_hold" ? -1 : 1;
+      if (typeof brStepCat === "function" && brStepCat(d)) break;
+      heroCycle(d);
       break;
     }
     default: {

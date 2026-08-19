@@ -72,19 +72,7 @@ WIDGETS.stepper = {
           k.set(resolveEntity(t.entity), v);
         }
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        try { sl.setPointerCapture(ev.pointerId); }
-        catch (x) { /* synthetic events carry no pointer id */ }
-        sl._drag = true;
-        apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      sl.addEventListener("pointerup", ev => {
-        if (sl._drag) { sl._drag = false; apply(ev, true); }
-      });
-      sl.addEventListener("pointercancel", () => { sl._drag = false; });
+      wireSlider(sl, apply, k.slider);   // intent-gated; covers stay vertical
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];

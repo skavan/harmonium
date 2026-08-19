@@ -27,9 +27,10 @@ remote has no light mode unless you build one.
 
 A wall tablet across the room and a remote in your hand want
 different type sizes from the same config. Device profiles carry
-display options (*System → Remotes & keymaps*), and the
-[config recipe #10](../cookbook.md) walks the hand-authored version —
-scaling type per device profile without forking the workspace.
+display options (*System → Remotes & keymaps*); the hand-authored
+form — `remotes.<id>.style`, a per-device map of theme CSS variables
+(type size included) that never forks the workspace — is in
+[the config reference](../screen-schema.md).
 
 Controllers can also scope fonts (`font_scope`) so, e.g., the music
 controller's now-playing type scales independently of the grid.

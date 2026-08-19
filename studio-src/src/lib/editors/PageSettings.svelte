@@ -47,7 +47,12 @@
   const BIND_FIXED = [
     ["power_hold", "Power (hold)"], ["menu_hold", "Menu (hold)"],
     ["vol_up", "Vol +"], ["vol_down", "Vol −"],
-    ["ch_up", "CH +"], ["ch_down", "CH −"], ["mute", "Mute"],
+    ["ch_up", "CH +"], ["ch_down", "CH −"],
+    /* v0.83.11: hold-CH defaults to stepping the panel's focus (his
+       Watch Fire TV fix) — offered here because a page may want the
+       hold for something else, and the binding wins over the default */
+    ["ch_up_hold", "CH + (hold)"], ["ch_down_hold", "CH − (hold)"],
+    ["mute", "Mute"],
   ];
   /* …PLUS every CUSTOM logical button any remote profile emits
      (v0.83.11 — Suresh: "Page Settings>>>Keys doesn't offer those

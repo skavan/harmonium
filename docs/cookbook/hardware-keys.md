@@ -51,6 +51,26 @@ policy, decided per page class:
   volume (the Volume role) by default, like mute always has — a
   `buttons` entry still wins when you want something else.
 
+<img src="../media/studio-page-keys.png" width="720"
+  alt="Page settings → Keys: key mappings, bindings, Apply to children" />
+
+**CH▲/CH▼ move the on-screen focus. Always.** On a passthrough
+controller the D-pad belongs to the device (as it should — that's
+what passthrough means), which used to leave you stranded when a
+widget like volume held the focus: no way to walk the panel without
+touching it. Short CH is the answer, and it means the same thing on
+*every* screen: CH▲ walks the highlight up, CH▼ down — on room
+pages, controllers, the library, everywhere. **Hold CH▲/CH▼ take
+the big jumps**: the section chips on a room page (▲-hold =
+previous section, up the page) and the category strip in the
+library. All four are ordinary logical buttons
+(`ch_up`/`ch_down`/`ch_up_hold`/`ch_down_hold`; the holds arrive as
+`'` and `/`), so a page can rebind any of them in *Page settings →
+Keys* — a binding wins over every default. The stock music
+controller does exactly that: its holds are ±15 s seek (RWD/FFWD);
+track skip lives on the on-screen transport row. Like every hold,
+the gesture is the shell's job: see the KeyMapper recipe below.
+
 Which profile a device uses: the engine's `?device=` /
 provisioned profile name — check it on the ⓘ page ("Profile
 'astrion'").
@@ -74,7 +94,7 @@ change; that's the whole keymap audited in a minute.
   as touch-first.
 - **Volume drives the wrong thing during an activity** — that's the
   activity's wiring, not the keymap: fix the `volume` role in the
-  activity's Devices tab.
+  activity's Roles tab.
 
 
 ## Backing up KeyMapper (the wiring is half the remote)
@@ -170,3 +190,18 @@ default profile's `{`/`}` still speak it, and long-press Power
 `=` → `power_hold` → All Off is untouched), and
 `astrion-remote-map.md` documents the new rows. After changing
 mappings, run `pull-keymapper.bat` so the backup zip carries them.
+
+## Hold-CH in KeyMapper (two more mappings)
+
+Same pattern as the long-presses above, same reasons: trigger =
+**Channel Up** with **long-press**, action = *Key code* →
+`KEYCODE_APOSTROPHE`; trigger = **Channel Down** with long-press,
+action = *Key code* → `KEYCODE_SLASH` — both with the **Fully Kiosk
+Browser in foreground** constraint. (On the Astrion the CH buttons
+emit `KEYCODE_PAGE_UP`/`KEYCODE_PAGE_DOWN` — those are the triggers
+to pick.) The engine maps `'` → `ch_up_hold` and `/` →
+`ch_down_hold` in every profile that doesn't claim those keys for
+something else — older configs whose profiles predate the holds get
+them automatically. Short CH presses keep flowing through untouched
+(PageUp/PageDown → the focus walk). After adding the mappings,
+`pull-keymapper.bat`.

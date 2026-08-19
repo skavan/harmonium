@@ -81,6 +81,108 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.11 pending, 2026-08-19 — the CH flip: short CH walks the focus, holds take the big jumps)
+
+Round 65 (STUDIO_V "0.83.11 b40"; STOCK_MUSIC gen 3). One field day
+after the hold-CH round, the roles flipped — his call: "ChUp, ChDn,
+navigate the LCD. Always. Hold+ChUp, Hold+ChDn on music controller
+does RWD/FWD."
+
+- **Short CH = the focus walk, everywhere.** CH▲ moves the highlight
+  up — which also cures the "inverted" feel he reported (the old
+  default, "next section", went DOWN the page on CH▲). The old short
+  defaults became the HOLD defaults: ▲-hold = previous section/
+  category (up), ▼-hold = next. Bindings win both, ladder unchanged.
+- **Stock music controller gen 3**: track-skip CH bindings removed
+  (short CH now walks focus there too); the holds are ±15 s seek.
+  Houses heal via healStockGen on the next Studio load.
+- **The keymap backstop.** A profile keymap replaces the default
+  wholesale — every profile authored before the holds lacked `'`/`/`,
+  so KeyMapper's keys arrived to nothing (his house included; his
+  KeyMapper mappings, decoded from the pulled backup, were right all
+  along and correctly Fully-scoped). boot.js now adds the two hold
+  keys only-if-absent after profile resolution. Map docs regenerated
+  with the new rows.
+- **The D-pad fence**: ▲ can no longer land on the hero tab row —
+  chips are touch/hold targets, not D-pad stops.
+- **📷 round 2**: navigate frozen during capture too, and the grid's
+  scroll-spy detached — zeroing the scroll used to release the tapped
+  chip's pin (his DEVICES capture lit PRESETS). Pin and chip now
+  survive the snap; churn capture pixel-identical.
+- His #5 (volume steals the drag) is round-63's wireSlider not yet
+  deployed to his engine — no code change; the tell is a vertical
+  swipe starting on the track: new engine scrolls, old drags.
+
+probe-ch-hold rewritten to the new contract; smoke-music rewritten;
+battery 20/20; smoke-studio 107/0. NOTE: dist/config.json (the CT
+fixture) was edited (gen-3 music controller + hold keys in profiles)
+— fixture and his live config re-converge at his next config pull.
+
+## Current state (v0.83.11 pending, 2026-08-19 — the scrolled 📷 fixed: the engine holds still for the capture)
+
+Round 64 (studio-only; STUDIO_V "0.83.11 b39"). His attachment: scroll
+the LCD preview, take the screenshot → a collage of the scrolled view
+and the unscrolled one. Reproduced headlessly, then fixed:
+html-to-image walks the live DOM asynchronously, and a WS diff in
+that window runs renderStates — whose generated-tile signature check
+escalates to a full navigate(), emptying #grid mid-clone; the
+scroll→transform compensation (s0.83.8) dies with the detached nodes.
+snapPreview now freezes the engine for the capture's duration
+(same-origin no-op of renderStates / updateClock / fitBanner,
+restored after with one catch-up render). probe-snap-scroll.mjs NEW:
+churn injected mid-capture at field timing — pre-fix the capture was
+the wrong view (mean px diff 5.01 vs the quiet snap); post-fix
+pixel-identical. smoke-studio 107/0.
+
+## Current state (v0.83.11 pending, 2026-08-19 — hold-CH moves the LCD focus; sliders stop stealing scrolls; the docs edit pass + reshoot shipped)
+
+Round 63 (STUDIO_V "0.83.11 b38"; ENGINE_V/manifest unchanged). Born
+from his Watch Fire TV report: "when volume has focus… I'm stuck with
+it and trying to scroll the LCD often triggers the LCD buttons
+instead", and his own answer — "make long press up and down control
+the LCD?"
+
+- **Hold CH▲/CH▼ = move the panel's focus** — new logical buttons
+  `ch_up_hold`/`ch_down_hold` (keys `'` and `/`, both stock profiles
+  + the engine default). Unbound default steps the screen's own focus
+  (spatialMove); a Page-settings binding wins via the ladder (the
+  Keys dropdown now offers CH + (hold)/CH − (hold)); short CH keeps
+  its job everywhere (track skip, category paging, free on
+  passthrough). One muscle memory across every screen — the design
+  answer to "hold means the LCD" without losing track skip. HIS
+  device step, not yet done: two KeyMapper long-press mappings
+  (Channel Up/Down → KEYCODE_APOSTROPHE/KEYCODE_SLASH, Fully-scoped),
+  then `pull-keymapper.bat` — recipe in hardware-keys.md.
+- **Slider touch hygiene** — one shared `wireSlider()` intent gate
+  (registry.js) replaces the four copy-pasted wire-ups (volume,
+  stepper, grouping master + member rows). The old shape captured the
+  pointer and JUMPED on pointerdown, so a vertical swipe that merely
+  started on a volume track dragged volume instead of scrolling.
+  Now: commit ~8px along the slider's axis to engage (same feel as
+  before), across-axis movement belongs to the page scroll
+  (`touch-action` none→pan-y; vertical cover tracks pan-x), a clean
+  tap still sets on release, pointercancel sets nothing.
+  probe-slider-touch NEW; probe-vol/stepper-vol/grouping
+  payload-identical vs the pre-change build.
+- **Docs edit pass shipped** — activities.md rewritten to the real
+  tabs (Setup·Roles·Inputs·Actions·Controller·State), first-screen
+  boot-view path, presets/theming dead links, hardware-keys Roles
+  fix + §Hold-CH + the new studio-page-keys.png, screen-schema
+  header reworked (Then/Now glossary, real v2 key list).
+- **Reshoot** — engine stills + device composites + hero.gif +
+  studio stills (b38 header) + studio-tour.gif regenerated from
+  today's build; shoot-pagesettings.mjs NEW. astrion-tour.gif kept
+  (Aug-13; no machinery, look unchanged).
+- **Battery beeper PARKED** (his call: Fully sleeps at 60s → webview
+  timers suspend exactly when the nag matters). Engine wiring fully
+  reverted, byte-verified; battery.js + its green probe stay
+  container-only as reference. Proposal on the table: HA-side
+  blueprint on `sensor.astrion1_battery` + plugged sensor +
+  Fully media_player beep — works while the device sleeps.
+
+Battery 20/20; smoke-studio 107/0; 35 files shipped, rolled-md5
+parity.
+
 ## Current state (v0.83.11 pending, 2026-08-17 — map docs GENERATED from data.json; README gives the remote story airtime)
 
 His pair while testing the ladder:

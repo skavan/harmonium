@@ -137,17 +137,7 @@ WIDGETS.grouping = {
               { volume_level: Math.round(f * 100) / 100 }, m);
           }
         };
-        rs.addEventListener("click", ev => ev.stopPropagation());
-        rs.addEventListener("pointerdown", ev => {
-          ev.stopPropagation();
-          try { if (rs.setPointerCapture) rs.setPointerCapture(ev.pointerId); }
-          catch (x) { /* synthetic events carry no pointer id */ }
-          rs._drag = true; rApply(ev, false);
-        });
-        rs.addEventListener("pointermove", ev => { if (rs._drag) rApply(ev, false); });
-        const rEnd = ev => { if (rs._drag) { rs._drag = false; rApply(ev, true); } };
-        rs.addEventListener("pointerup", rEnd);
-        rs.addEventListener("pointercancel", rEnd);
+        wireSlider(rs, rApply, "h");   // intent-gated: vertical swipes scroll
       });
       /* the row's −/+ — optimistic nudge (house style) + volume_up/down
          at the MEMBER */
@@ -210,17 +200,7 @@ WIDGETS.grouping = {
         });
         renderStates();
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        try { if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId); }
-        catch (x) { /* synthetic events carry no pointer id */ }
-        sl._drag = true; apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
-      sl.addEventListener("pointerup", end);
-      sl.addEventListener("pointercancel", end);
+      wireSlider(sl, apply, "h");   // intent-gated: vertical swipes scroll
     },
     render: (el, e, t) => {
       e = e || grpMaster(t);

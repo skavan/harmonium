@@ -19,4 +19,49 @@ function wireTaps(el, attr, fn) {
     b.addEventListener("click", ev => { ev.stopPropagation(); fn(b.dataset[attr]); }));
 }
 
+/* SLIDER TOUCH HYGIENE (v0.83.11 — Suresh's Watch Fire TV: "trying
+   to scroll the LCD often triggers the LCD buttons instead"). Every
+   slider used to seize the pointer ON pointerdown and jump to the
+   touch point — so a vertical swipe that merely STARTED on a volume
+   track dragged volume instead of scrolling the page. One shared
+   wire-up now (volume, stepper, group master, group rows): the track
+   waits for INTENT —
+     · commit along the slider's axis (~8px, dominant)  → engage:
+       capture the pointer, jump, drag (same feel as before);
+     · movement across the axis → hands the touch back to the page
+       (touch-action pan-y/pan-x lets the browser scroll it);
+     · a clean tap (no real movement) still sets on release.
+   pointercancel = the browser took the gesture — nothing is set.
+   `sl._drag` keeps its old meaning, so render()'s don't-fight-the-
+   finger checks are untouched. apply(ev, final) is the widget's own
+   value function, exactly as before. */
+function wireSlider(sl, apply, axis) {
+  const h = axis !== "v";
+  sl.style.touchAction = h ? "pan-y" : "pan-x";
+  sl.addEventListener("click", ev => ev.stopPropagation());
+  sl.addEventListener("pointerdown", ev => {
+    ev.stopPropagation();
+    sl._sx = ev.clientX; sl._sy = ev.clientY;
+    sl._live = true; sl._drag = false;
+  });
+  sl.addEventListener("pointermove", ev => {
+    if (sl._drag) { apply(ev, false); return; }
+    if (!sl._live) return;
+    const dx = Math.abs(ev.clientX - sl._sx), dy = Math.abs(ev.clientY - sl._sy);
+    const along = h ? dx : dy, across = h ? dy : dx;
+    if (along > 8 && along >= across) {         // committed to the track
+      try { sl.setPointerCapture(ev.pointerId); }
+      catch (x) { /* synthetic events carry no pointer id */ }
+      sl._drag = true;
+      apply(ev, false);
+    } else if (across > 8) sl._live = false;    // it's a scroll — let go
+  });
+  sl.addEventListener("pointerup", ev => {
+    if (sl._drag) { sl._drag = false; apply(ev, true); }
+    else if (sl._live) apply(ev, true);         // a TAP — set once
+    sl._live = false;
+  });
+  sl.addEventListener("pointercancel", () => { sl._drag = sl._live = false; });
+}
+
 const WIDGETS = {};

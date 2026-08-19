@@ -86,12 +86,20 @@ r.modeRender = await p.evaluate(() => {
   };
 });
 
-// 2d. physical CH keys -> next/previous track (screen-level buttons map)
+// 2d. CH CONTRACT (2026-08-19 redesign): short CH = the focus walk —
+//     NO service call fires; hold CH (' and /) = ±15s seek via the
+//     gen-3 stock bindings (media_seek at the context player).
 await p.evaluate(() => { window._sent.length = 0; });
 await p.keyboard.press('PageUp');
 await p.keyboard.press('PageDown');
 r.chKeys = await p.evaluate(() => window._sent.map(m =>
-  m.service + '@' + ((m.target || {}).entity_id || '')));
+  m.service + '@' + ((m.target || {}).entity_id || '')));   // want: []
+await p.keyboard.press("'");
+await p.keyboard.press('/');
+await p.waitForTimeout(150);
+r.chHoldSeek = await p.evaluate(() => window._sent
+  .filter(m => m.type === 'call_service')
+  .map(m => m.domain + '.' + m.service));                   // want: media_seek ×2
 
 // 3. hero trail -> music drawer: THREE-BAND BROWSE (v0.50). The
 //    engine walks the STANDARD tree root -> selected root -> selected
@@ -184,7 +192,7 @@ r.chipTap = await p.evaluate(() => ({
   gridFirst: document.querySelector('#tile_lib_0 .lbl')?.textContent,
   chipOn: document.querySelector('#brbar .brchip.on')?.textContent,
 }));
-await p.keyboard.press('PageUp');                    // ch_up -> next category
+await p.keyboard.press('/');                         // hold-CH▼ -> next category
 await p.waitForTimeout(120);
 await p.evaluate(() => {
   window._respond({ title: 'Tracks', children: [
@@ -395,12 +403,17 @@ r.swSame = await p.evaluate(() => ({
   calls: window._sent.filter(m => m.type === 'call_service').length
 }));
 
-// the music CONTROLLER keeps CH = track skip (binding wins)
+// the music CONTROLLER: short CH walks focus (no call, 2026-08-19),
+// hold CH seeks (gen-3 binding)
 await p.evaluate(() => { navigate('controller:music', true); window._sent.length = 0; });
 await p.waitForTimeout(250);
 await p.keyboard.press('PageUp');
 await p.waitForTimeout(150);
 r.ctrlChTrack = await p.evaluate(() => window._sent
+  .filter(m => m.type === 'call_service').map(m => m.domain + '.' + m.service));
+await p.keyboard.press("'");
+await p.waitForTimeout(150);
+r.ctrlChHold = await p.evaluate(() => window._sent
   .filter(m => m.type === 'call_service').map(m => m.domain + '.' + m.service));
 
 // 9b. THE QUEUE (v0.51): adapter probing — first adapter errors

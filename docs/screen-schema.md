@@ -1,11 +1,35 @@
-# Screen Definition Schema — Draft 0.1
+# Screen Definition Schema — reference + decision log
 
 *Purpose: The config contract: every key a screen, tile, activity or device can carry, with semantics. Audience: config authors going beyond the Studio, and engine developers.*
 
-Working design for the remote's screen/config format. Stored by the custom
-integration in HA storage, delivered to remotes over websocket
-(`get_config` / `subscribe_config`). The renderer treats this as data —
-no logic ships in the config.
+**How to read this doc.** It has two parts: the original v0.1 draft
+schema (the next few sections), and the dated **addenda** — the
+decision log that superseded it piece by piece. The addenda are the
+truth; where they disagree with the draft or with each other, the
+NEWEST wins. Addenda are period documents: they use the names of
+their day. Current names for retired ones:
+
+| Then | Now |
+|---|---|
+| `app_class` / app classes | **`dialects`** — a platform's whole vocabulary (apps, keys, wake) |
+| jobs (activity tab) | **Actions** (start/stop sequences; the Controller tab holds bands + presets) |
+| Building blocks (Studio rail) | the **Model** group (Actions, Apps, Snippets, Pre-wired Devices, Speaker Groups) |
+| `input_select` routing | the integration-minted **`select.harmonium_<room>_activity`** (input_select still accepted) |
+| `www/remote-proto/` paths | **`www/harmonium/`** (a redirect stub keeps old start URLs booting) |
+| `harmonium.reseed` / yaml authoring | **retired** — the Studio owns config; `build.mjs` lives in `archive/` |
+| the scratch workspace | retired — every workspace's draft is already a sandbox |
+
+The REAL top level today (`version: 2`) is:
+`global · home_screen · screen_order · screens · controllers ·
+activities · sequences · devices · remotes · apps · dialects ·
+speaker_groups · theme · input · keymap · entity_options`.
+Delivery: the integration stores one config per workspace and
+deploys `config.json` to `/local/harmonium/<ws>/`; remotes fetch it
+on boot (the Studio preview pushes drafts by postMessage). If you
+just want to BUILD things, the [cookbook](cookbook/README.md) is the
+front door — this doc is for hand-authoring and archaeology.
+
+The renderer treats this as data — no logic ships in the config.
 
 ## Design principles
 
@@ -30,6 +54,8 @@ no logic ships in the config.
 
 ## Top level
 
+*(v0.1 draft — superseded; the real key list is in the header above.)*
+
 ```yaml
 version: 1
 
@@ -48,6 +74,12 @@ screens: {}              # the screens themselves
 ```
 
 ## Profiles
+
+*(v0.1 draft — superseded: what shipped is `remotes.<id>` profiles —
+capabilities, keymap, soft_layout, skin, style. Selection: the
+`hakr_device` localStorage key, else a Fully webview auto-picks the
+profile marked `fully: true`, else `default`. See the hardware-keys
+cookbook.)*
 
 A remote identifies itself with its device id and receives one profile.
 

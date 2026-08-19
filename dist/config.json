@@ -46,6 +46,8 @@
         "}": "home_hold",
         "#": "menu",
         "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
         "F2": "power",
         "p": "power",
         "P": "power",
@@ -90,6 +92,8 @@
         "}": "home_hold",
         "#": "menu",
         "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
         "F2": "power",
         "p": "power",
         "P": "power",
@@ -711,7 +715,7 @@
           }
         },
         {
-          "alias": "Stop basement Sonos (best effort \u2014 Fire TV NEVER touched, ARC soundbar is the TV's)",
+          "alias": "Stop basement Sonos (best effort — Fire TV NEVER touched, ARC soundbar is the TV's)",
           "action": "media_player.media_stop",
           "continue_on_error": true,
           "target": {
@@ -916,7 +920,7 @@
         {
           "name": "SEARCH",
           "code": 84,
-          "why": "voice search \u2014 activates the microphone"
+          "why": "voice search — activates the microphone"
         },
         {
           "name": "MUTE",
@@ -1338,14 +1342,6 @@
       "type": "controller",
       "parent": "porch",
       "buttons": {
-        "ch_up": {
-          "service": "media_player.media_next_track",
-          "entity": "$context.media_player"
-        },
-        "ch_down": {
-          "service": "media_player.media_previous_track",
-          "entity": "$context.media_player"
-        },
         "menu_hold": {
           "navigate": "music_library"
         },
@@ -1355,6 +1351,14 @@
         },
         "right_hold": {
           "seek": 15,
+          "entity": "$context.media_player"
+        },
+        "ch_up_hold": {
+          "seek": 15,
+          "entity": "$context.media_player"
+        },
+        "ch_down_hold": {
+          "seek": -15,
           "entity": "$context.media_player"
         }
       },
@@ -1410,7 +1414,8 @@
           "label": "Source",
           "span": 2
         }
-      ]
+      ],
+      "gen": 3
     },
     "music_library": {
       "name": "Music Library",

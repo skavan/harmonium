@@ -159,16 +159,7 @@ WIDGETS.volume = {
             { volume_level: Math.round(f * 100) / 100 }, resolveEntity(t.entity));
         }
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId);
-        sl._drag = true; apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
-      sl.addEventListener("pointerup", end);
-      sl.addEventListener("pointercancel", end);
+      wireSlider(sl, apply, "h");   // intent-gated: vertical swipes scroll
     },
     /* keep the track in step with HA while not dragging */
     render: (el, e, t) => {

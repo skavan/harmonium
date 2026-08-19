@@ -15,10 +15,13 @@ app. That's the Harmony favorite-button experience.
 
 ## 1. Add one
 
-On your page: **Presets section → + Add preset**. Name, icon (or an
-app's own artwork), and the action:
+On your page: **Presets section → + Add preset**. (Presets that
+belong to an activity — the *Netflix* kind — live on that activity's
+**Controller** tab instead, so a shared controller stays shared while
+every room's shortcuts are its own.) Name, icon (or an app's own
+artwork), and the action:
 
-- **An app**: pick from the app library (Building blocks → Apps —
+- **An app**: pick from the app library (Model → Apps —
   per-platform launch links live there, so *Netflix* knows how to
   launch on a Fire TV vs. a Samsung).
 - **A scene/script**: any `scene.turn_on` / `script.turn_on` — the
@@ -34,14 +37,14 @@ activities and devices, on Main and on every workspace alike.
 Any preset exports as a **snippet** (⤴ *Export snippet* on the
 preset, ⤵ *Import snippet…* wherever you want it back). Snippets are
 how you carry a proven preset between pages, workspaces, or houses —
-they live under Building blocks → Snippets.
+they live under Model → Snippets.
 
 ## 3. Dynamic presets
 
 A `presets_from` tile generates presets from an entity's attributes
 (e.g. music favorites from the integration's
-`sensor.harmonium_music_*` sensors — see the
-[config recipes](../cookbook.md) for the hand-authored form). The
+`sensor.harmonium_music_*` sensors — see
+[the config reference](../screen-schema.md) for the hand-authored form). The
 generated tiles behave like hand-placed presets, but maintain
 themselves.
 

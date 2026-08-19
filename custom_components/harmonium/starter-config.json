@@ -42,6 +42,8 @@
         "}": "home_hold",
         "#": "menu",
         "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
         "F2": "power",
         "p": "power",
         "P": "power",
@@ -86,6 +88,8 @@
         "F7": "climate",
         "#": "menu",
         "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
         "F2": "power",
         "p": "power",
         "P": "power",
@@ -554,7 +558,7 @@
         {
           "name": "SEARCH",
           "code": 84,
-          "why": "voice search \u2014 activates the microphone"
+          "why": "voice search — activates the microphone"
         },
         {
           "name": "MUTE",
@@ -793,14 +797,6 @@
       "view_kind": "controller",
       "type": "controller",
       "buttons": {
-        "ch_up": {
-          "service": "media_player.media_next_track",
-          "entity": "$context.media_player"
-        },
-        "ch_down": {
-          "service": "media_player.media_previous_track",
-          "entity": "$context.media_player"
-        },
         "menu_hold": {
           "navigate": "music_library"
         },
@@ -810,6 +806,14 @@
         },
         "right_hold": {
           "seek": 15,
+          "entity": "$context.media_player"
+        },
+        "ch_up_hold": {
+          "seek": 15,
+          "entity": "$context.media_player"
+        },
+        "ch_down_hold": {
+          "seek": -15,
           "entity": "$context.media_player"
         }
       },
@@ -865,7 +869,8 @@
           "label": "Source",
           "span": 2
         }
-      ]
+      ],
+      "gen": 3
     },
     "music_library": {
       "name": "Music Library",

@@ -393,7 +393,10 @@
   .sldr {
     position: relative; height: 44px; border-radius: 12px;
     background: #2c333d; overflow: hidden; margin: 6px 0 10px;
-    touch-action: none; cursor: pointer;
+    /* pan-y, not none (v0.83.11): a vertical swipe that starts on the
+       track belongs to the PAGE — wireSlider only claims committed
+       horizontal drags (vertical tracks get pan-x inline) */
+    touch-action: pan-y; cursor: pointer;
   }
   .sldr i {
     display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
@@ -1232,6 +1235,7 @@ let KEYMAP = {                    // default shell quirk table
   "{": "back_hold", "}": "home_hold",           // shell long-press keys
   "#": "menu",                                   // Astrion menu key
   "@": "menu_hold",                              // menu long-press (KeyMapper)
+  "'": "ch_up_hold", "/": "ch_down_hold",        // CH long-press → LCD focus
   "F2": "power", "p": "power", "P": "power",
   "o": "power_hold", "O": "power_hold"
 };
@@ -5703,6 +5707,51 @@ function wireTaps(el, attr, fn) {
     b.addEventListener("click", ev => { ev.stopPropagation(); fn(b.dataset[attr]); }));
 }
 
+/* SLIDER TOUCH HYGIENE (v0.83.11 — Suresh's Watch Fire TV: "trying
+   to scroll the LCD often triggers the LCD buttons instead"). Every
+   slider used to seize the pointer ON pointerdown and jump to the
+   touch point — so a vertical swipe that merely STARTED on a volume
+   track dragged volume instead of scrolling the page. One shared
+   wire-up now (volume, stepper, group master, group rows): the track
+   waits for INTENT —
+     · commit along the slider's axis (~8px, dominant)  → engage:
+       capture the pointer, jump, drag (same feel as before);
+     · movement across the axis → hands the touch back to the page
+       (touch-action pan-y/pan-x lets the browser scroll it);
+     · a clean tap (no real movement) still sets on release.
+   pointercancel = the browser took the gesture — nothing is set.
+   `sl._drag` keeps its old meaning, so render()'s don't-fight-the-
+   finger checks are untouched. apply(ev, final) is the widget's own
+   value function, exactly as before. */
+function wireSlider(sl, apply, axis) {
+  const h = axis !== "v";
+  sl.style.touchAction = h ? "pan-y" : "pan-x";
+  sl.addEventListener("click", ev => ev.stopPropagation());
+  sl.addEventListener("pointerdown", ev => {
+    ev.stopPropagation();
+    sl._sx = ev.clientX; sl._sy = ev.clientY;
+    sl._live = true; sl._drag = false;
+  });
+  sl.addEventListener("pointermove", ev => {
+    if (sl._drag) { apply(ev, false); return; }
+    if (!sl._live) return;
+    const dx = Math.abs(ev.clientX - sl._sx), dy = Math.abs(ev.clientY - sl._sy);
+    const along = h ? dx : dy, across = h ? dy : dx;
+    if (along > 8 && along >= across) {         // committed to the track
+      try { sl.setPointerCapture(ev.pointerId); }
+      catch (x) { /* synthetic events carry no pointer id */ }
+      sl._drag = true;
+      apply(ev, false);
+    } else if (across > 8) sl._live = false;    // it's a scroll — let go
+  });
+  sl.addEventListener("pointerup", ev => {
+    if (sl._drag) { sl._drag = false; apply(ev, true); }
+    else if (sl._live) apply(ev, true);         // a TAP — set once
+    sl._live = false;
+  });
+  sl.addEventListener("pointercancel", () => { sl._drag = sl._live = false; });
+}
+
 const WIDGETS = {};
 
 /* LIGHT tile — on/off + brightness%; tap toggles; meter = brightness. */
@@ -6463,16 +6512,7 @@ WIDGETS.volume = {
             { volume_level: Math.round(f * 100) / 100 }, resolveEntity(t.entity));
         }
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId);
-        sl._drag = true; apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
-      sl.addEventListener("pointerup", end);
-      sl.addEventListener("pointercancel", end);
+      wireSlider(sl, apply, "h");   // intent-gated: vertical swipes scroll
     },
     /* keep the track in step with HA while not dragging */
     render: (el, e, t) => {
@@ -6635,17 +6675,7 @@ WIDGETS.grouping = {
               { volume_level: Math.round(f * 100) / 100 }, m);
           }
         };
-        rs.addEventListener("click", ev => ev.stopPropagation());
-        rs.addEventListener("pointerdown", ev => {
-          ev.stopPropagation();
-          try { if (rs.setPointerCapture) rs.setPointerCapture(ev.pointerId); }
-          catch (x) { /* synthetic events carry no pointer id */ }
-          rs._drag = true; rApply(ev, false);
-        });
-        rs.addEventListener("pointermove", ev => { if (rs._drag) rApply(ev, false); });
-        const rEnd = ev => { if (rs._drag) { rs._drag = false; rApply(ev, true); } };
-        rs.addEventListener("pointerup", rEnd);
-        rs.addEventListener("pointercancel", rEnd);
+        wireSlider(rs, rApply, "h");   // intent-gated: vertical swipes scroll
       });
       /* the row's −/+ — optimistic nudge (house style) + volume_up/down
          at the MEMBER */
@@ -6708,17 +6738,7 @@ WIDGETS.grouping = {
         });
         renderStates();
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        try { if (sl.setPointerCapture) sl.setPointerCapture(ev.pointerId); }
-        catch (x) { /* synthetic events carry no pointer id */ }
-        sl._drag = true; apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      const end = ev => { if (sl._drag) { sl._drag = false; apply(ev, true); } };
-      sl.addEventListener("pointerup", end);
-      sl.addEventListener("pointercancel", end);
+      wireSlider(sl, apply, "h");   // intent-gated: vertical swipes scroll
     },
     render: (el, e, t) => {
       e = e || grpMaster(t);
@@ -6980,19 +7000,7 @@ WIDGETS.stepper = {
           k.set(resolveEntity(t.entity), v);
         }
       };
-      sl.addEventListener("click", ev => ev.stopPropagation());
-      sl.addEventListener("pointerdown", ev => {
-        ev.stopPropagation();
-        try { sl.setPointerCapture(ev.pointerId); }
-        catch (x) { /* synthetic events carry no pointer id */ }
-        sl._drag = true;
-        apply(ev, false);
-      });
-      sl.addEventListener("pointermove", ev => { if (sl._drag) apply(ev, false); });
-      sl.addEventListener("pointerup", ev => {
-        if (sl._drag) { sl._drag = false; apply(ev, true); }
-      });
-      sl.addEventListener("pointercancel", () => { sl._drag = false; });
+      wireSlider(sl, apply, k.slider);   // intent-gated; covers stay vertical
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
@@ -8169,6 +8177,14 @@ function spatialMove(dir) {
   let best = null, bestScore = Infinity;
   focusables().forEach(f => {
     if (f.id === S.focusId) return;
+    /* THE TAB ROW IS NOT A D-PAD STOP (2026-08-19 — Suresh: "dpad
+       up/dn, sometimes goes into tab row (it shouldn't)"): the hero
+       chips are touch targets and hold-CH anchors, not part of the
+       tile walk — ▲ from the first row used to land on them. Banner
+       items are skipped for vertical moves; with no vertical door
+       in, the D-pad can't reach them at all, which is the intent. */
+    if ((dir === "up" || dir === "down") &&
+        String(f.id).indexOf("hero_") === 0) return;
     const r = f.el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     const dx = x - cx, dy = y - cy;
@@ -8575,14 +8591,21 @@ function act(button, phys) {
           button === "vol_up" ? "volume_up" : "volume_down", null, vt);
         break;
       }
-      /* unbound CH on a multi-section page = CATEGORY/SECTION paging
-         (the Music Library's ▲▼; bindings above always win) */
-      /* browse bands (v0.50): CH steps the CATEGORY strip (wraps) */
-      if ((button === "ch_up" || button === "ch_down") &&
-          typeof brStepCat === "function" &&
-          brStepCat(button === "ch_up" ? 1 : -1)) break;
-      if ((button === "ch_up" || button === "ch_down") &&
-          heroCycle(button === "ch_up" ? 1 : -1)) break;
+      /* CH = MOVE THE FOCUS. ALWAYS. (2026-08-19 — Suresh: "ChUp,
+         ChDn, navigate the LCD. Always." — one field day after the
+         hold-CH round, the roles flipped: the SHORT press is the
+         gesture a thumb reaches for). CH▲ walks the focus UP exactly
+         like the D-pad — and unlike the D-pad it works on
+         passthrough controllers, where arrows belong to the device.
+         This also cures the "inverted" feel of the old default: CH▲
+         used to mean "next section", which is DOWN the page. The old
+         short-press defaults (browse category strip, section chips)
+         moved to the HOLDS below; a config binding still beats
+         everything (the ladder above already returned). */
+      if (button === "ch_up" || button === "ch_down") {
+        spatialMove(button === "ch_up" ? "up" : "down");
+        break;
+      }
       /* mute default (no config binding needed): toggle mute on the
          context audio path — same ARC-aware target VOL uses.
          v0.83.10 (status review #7 — his call): a FOCUSED volume tile
@@ -8604,6 +8627,24 @@ function act(button, phys) {
             { is_volume_muted: !st(rd).a.is_volume_muted }, tgt);
         }
       }
+      break;
+    }
+    case "ch_up_hold": case "ch_down_hold": {
+      /* HOLD-CH = THE BIG JUMPS (2026-08-19 redesign; the buttons
+         themselves arrived one day earlier for "make long press up
+         and down control the LCD?" — then short CH took the focus
+         walk, and the holds inherited the old short-press defaults):
+         the browse CATEGORY strip on the library, the section chips
+         on a room page — CH▲-hold goes to the PREVIOUS one (up the
+         page), CH▼-hold the next. A binding wins first: the stock
+         music controller points these at ±15s seek (his RWD/FFWD).
+         Holds are the SHELL's job (see FIELD LESSON below):
+         KeyMapper long-press on CH▲/CH▼ sends ' and /. */
+      const bch = boundButtons()[button];
+      if (bch) { runAction(bch); break; }
+      const d = button === "ch_up_hold" ? -1 : 1;
+      if (typeof brStepCat === "function" && brStepCat(d)) break;
+      heroCycle(d);
       break;
     }
     default: {
@@ -8986,6 +9027,15 @@ function applyConfig(cfg, devName) {
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
+  /* HOLD-CH BACKSTOP (2026-08-19 — found the hard way: his house
+     config's astrion profile predates the hold keys, and a profile
+     keymap REPLACES the default wholesale, so KeyMapper's ' and /
+     arrived to… nothing). ch_up_hold/ch_down_hold are ENGINE
+     vocabulary tied to the shipped KeyMapper recipe — every profile
+     gets them unless it says otherwise (only-if-absent: a profile
+     that maps ' or / to something else keeps its mapping). */
+  if (!("'" in KEYMAP)) KEYMAP["'"] = "ch_up_hold";
+  if (!("/" in KEYMAP)) KEYMAP["/"] = "ch_down_hold";
   /* v0.58: the REMOTE PROFILE may override presentation tokens on top
      of the theme — remotes.<id>.style is a plain map of CSS custom
      properties ({"bar-h":"100px"}). Same mechanism as the theme, one

@@ -55,10 +55,11 @@ If you make a mess: **Revert** reloads the last saved config, and any
 
 ## 5. Make it home
 
-*System → Workspaces* (or the page's settings) sets the home screen —
-the page the remote boots into and returns to on **Home**. One page
-per house is a fine start; the **overview** pattern (a hub page of
-room navs, like the screenshot's `Home` page) scales it later.
+The owner page's **Page settings → Advanced → Boot view** sets the
+home screen — the page the remote boots into and returns to on
+**Home**. One page per house is a fine start; the **overview**
+pattern (a hub page of room navs, like the screenshot's `Home` page)
+scales it later.
 
 ## Next
 

@@ -22,33 +22,45 @@ running. The engine is a dumb, fast window.
 Each activity declares:
 
 - **a cast** — the devices it involves (from your device library);
-- **wiring** — which cast member is the volume, which is the D-pad,
+- **roles** — which cast member is the volume, which is the D-pad,
   which is the power (`media_player`, `dpad`, `power`, `volume`…);
-- **jobs** — the start/stop sequences;
-- **a screen** — the controller page shown while it runs (the stock
-  TV / Music controllers work out of the box);
+- **actions** — the start/stop sequences;
+- **a controller** — the page shown while it runs (the stock
+  TV / Music controllers work out of the box), plus per-activity
+  band switches and presets;
 - **state** — which entity states mean "this is on" (so the card is
   truthful even when someone used another remote, or the TV's own).
 
 ## 1. Build one
 
-On your room page: **Activities section → + Add activity**. The
-builder is tabbed — **Setup · Devices · Jobs · Inputs · Actions ·
-State** — with completion dots showing what still needs attention.
+On your room page: **Activities section → ＋ Add activity**. The
+builder is tabbed — **Setup · Roles · Inputs · Actions · Controller ·
+State** (Advanced holds the raw JSON) — with completion dots showing
+what still needs attention.
 
-1. **Setup**: name ("Watch Fire TV"), icon, color.
-2. **Devices**: pick the cast from your device library, then wire the
-   roles — who is `power`, who is `volume`, who owns the `dpad`. The
-   pre-wired device shapes (Building blocks → Pre-wired Devices)
-   carry sensible defaults per platform.
-3. **Jobs**: the start sequence — power on, wait, switch input, in
-   order. Stop mirrors it. (Never guess power: if a device's state
-   can't be read, the builder pushes you to declare it rather than
-   toggle blind.)
-4. **Inputs**: which input each device must land on ("Fire TV" on
-   the TV).
-5. **State**: what makes the card say *On* — e.g. the Fire TV's
-   `media_player` being `on`/`playing`/`paused`.
+1. **Setup**: name ("Watch Fire TV"), icon, accent — then cast the
+   devices. One search box does it all: pick from your library, take
+   a suggested ⊞ bundle (minted into the library on pick), or cast a
+   raw entity directly. Pick **Navigate to** — the controller the
+   activity lands on — or let ＋ mint a control page for you.
+2. **Roles**: which cast member fills each role — who takes the
+   volume keys, who owns the D-pad, who is power. Cast devices offer
+   their claims first; picking an unclaimed one saves the claim back
+   to the library, so the next cast fills itself.
+3. **Inputs**: which input each device must land on ("Fire TV" on
+   the TV). Feeds the generated start action and state detection.
+4. **Actions**: the start/stop sequences. Don't write them — the
+   **⚙ Generate from the answers** buttons build them from the cast,
+   roles and inputs (power is never guessed: only devices you check
+   get turned off on stop). The drafts are ordinary editable Actions;
+   regenerating never overwrites your edits.
+5. **Controller**: what the screen shows while this runs — one
+   switch per band (Now Playing, transport, volume, speakers…) plus
+   this activity's presets. The surface stays shared; the choices
+   travel with the activity.
+6. **State**: what makes the card say *On*. With no rule, the
+   primary device's player implies it; the ⚙ buttons generate a rule
+   from your inputs or the primary device in one click.
 
 The activities *tile* on the page renders every activity for the room
 automatically — you never lay out the cards by hand.
@@ -70,7 +82,7 @@ shared devices stay on, departed ones power off.
 Once "Watch Fire TV" works, [presets](presets.md) put Netflix and
 YouTube TV one tap away — a preset can target an activity, so
 pressing *Netflix* starts the activity if needed, then launches the
-app.
+app. They live on the activity's **Controller** tab.
 
 ## Troubleshooting
 
@@ -80,8 +92,8 @@ app.
   sequence ran.
 - **Volume keys do nothing during the activity** — the `volume` role
   isn't wired, or is wired to a device whose volume HA can't drive;
-  re-check the Devices tab.
+  re-check the Roles tab.
 - **D-pad drives the UI instead of the device** — passthrough claims
   arrows + select only while an activity's controller screen is
-  showing; make sure the activity declares its `screen` and the
+  showing; make sure the activity's **Navigate to** is set and the
   `dpad` role is wired.

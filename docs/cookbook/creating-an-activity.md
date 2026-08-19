@@ -57,7 +57,7 @@ media, its sister `remote` entity should take navigation. Sister
 entities come along for the ride — a media_player and its remote
 travel as one device. You can override any of it. The finished
 combination — the device, its sisters, and their roles — can be
-saved and retrieved from a library (Building blocks →
+saved and retrieved from a library (Model →
 **Pre-wired Devices**), and that's all *pre-wired* means: the roles
 are already worked out, so next time the device is retrieved, not
 re-guessed.
@@ -380,7 +380,7 @@ until an action is generated from it.
 </p>
 
 **Start action / Stop action** — each an *action ref*: one of your
-sequences (Building blocks → Actions, executed HA-side by
+sequences (Model → Actions, executed HA-side by
 `harmonium.run` with full delay/wait/choose semantics) or a plain
 HA `script.` entity. The **＋** drafts an empty named sequence
 ("\<Activity\> — Start") and jumps you into it; **edit →** opens

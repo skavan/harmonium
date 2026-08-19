@@ -54,6 +54,14 @@ function spatialMove(dir) {
   let best = null, bestScore = Infinity;
   focusables().forEach(f => {
     if (f.id === S.focusId) return;
+    /* THE TAB ROW IS NOT A D-PAD STOP (2026-08-19 — Suresh: "dpad
+       up/dn, sometimes goes into tab row (it shouldn't)"): the hero
+       chips are touch targets and hold-CH anchors, not part of the
+       tile walk — ▲ from the first row used to land on them. Banner
+       items are skipped for vertical moves; with no vertical door
+       in, the D-pad can't reach them at all, which is the intent. */
+    if ((dir === "up" || dir === "down") &&
+        String(f.id).indexOf("hero_") === 0) return;
     const r = f.el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     const dx = x - cx, dy = y - cy;

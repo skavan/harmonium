@@ -265,6 +265,15 @@ function applyConfig(cfg, devName) {
   S.deviceName = devName || "default";
   CAPS = new Set(DEVICE.capabilities || ["touch", "pointer"]);
   KEYMAP = DEVICE.keymap || CONFIG.keymap || KEYMAP;
+  /* HOLD-CH BACKSTOP (2026-08-19 — found the hard way: his house
+     config's astrion profile predates the hold keys, and a profile
+     keymap REPLACES the default wholesale, so KeyMapper's ' and /
+     arrived to… nothing). ch_up_hold/ch_down_hold are ENGINE
+     vocabulary tied to the shipped KeyMapper recipe — every profile
+     gets them unless it says otherwise (only-if-absent: a profile
+     that maps ' or / to something else keeps its mapping). */
+  if (!("'" in KEYMAP)) KEYMAP["'"] = "ch_up_hold";
+  if (!("/" in KEYMAP)) KEYMAP["/"] = "ch_down_hold";
   /* v0.58: the REMOTE PROFILE may override presentation tokens on top
      of the theme — remotes.<id>.style is a plain map of CSS custom
      properties ({"bar-h":"100px"}). Same mechanism as the theme, one
