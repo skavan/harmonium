@@ -137,6 +137,13 @@ one device's generated detail page.
 
 ## The integration (`custom_components/harmonium/`)
 
+Split by concern (v0.83.11): `__init__.py` is setup/unload wiring
+only; `store.py` holds the disk helpers + workspace store + engine
+fingerprint; `api.py` the HTTP views + `validate_config`;
+`services.py` the four `harmonium.*` services; `workspaces.py` the
+pure config surgery; `pairing.py`/`pairbook.py` onboarding;
+`packaging.py` the deploy stamps; `select.py`/`sensor.py` entities.
+
 - **Store**: one validated config per WORKSPACE in HA storage; a
   fresh install seeds a bundled starter and deploys it.
 - **API**: `/api/harmonium/config` GET/POST (POST validates every
@@ -163,6 +170,15 @@ import/export) and `src/lib/stocklib.js` (the pure side — stock
 controller shapes with their `gen` migration counters, the starter
 config, and the normalize/heal chain every config passes through:
 "one config door, one normalizer").
+
+The activity card (the Studio's biggest surface) is a spine + six
+per-tab components (v0.83.11): `components/ActivityCard.svelte` owns
+the identity strip, tab bar, completion dots, cast/wiring derivations
+and preview impersonation, and hands each tab under
+`components/activity/` one `card` context object (getters over the
+shared `$derived`s plus the cross-tab verbs). Everything a single tab
+needs lives in that tab. `activity/lib.js` is the shared role
+vocabulary.
 
 UX doctrines:
 

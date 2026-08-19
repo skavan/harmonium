@@ -81,6 +81,61 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.83.11 pending, 2026-08-17 — THE BIG-FILE SPLIT: ActivityCard + __init__.py)
+
+His ask after committing v0.83.10: "Big lift now is getting those
+huge code files into manageable world class code." Scope agreed via
+AskUserQuestion: **the big two, behavior-preserving** (mechanical
+splits, no logic changes; polish = structure and headers only).
+Deploy note: `.py` changed → **HACS/copy + HA RESTART** on next
+deploy; manifest + ENGINE_V → **0.83.11** (first integration change
+after the v0.83.10 tag); STUDIO_V → 0.83.11 b35.
+
+- **ActivityCard.svelte 2,513 → 411 lines** + seven files under
+  `components/activity/`: SetupTab (1,077 — the cast, picker, groups,
+  ⚙ presentation panels, snippets, ＋ page mint), ControllerTab (380 —
+  bands, label slots, presets), RolesTab (204), ActionsTab (212 — the
+  generators), StateTab (195), InputsTab (64), lib.js (57 — the shared
+  role vocabulary). The spine keeps identity strip, tab bar +
+  completion dots, cast/wiring derivations, preview impersonation,
+  delete/rename; each tab receives ONE `card` context object (getters
+  over the shared $deriveds + the cross-tab verbs). Every moved block
+  extracted VERBATIM by line range from the pristine file.
+  - Dead pre-cast-era code dropped (grep-proven zero references):
+    devicesOn/toggleDevices, newDev/addDevice/removeDevice/
+    setPrimary/toggleRole/ensureDevices, CTX_SLOTS, rawOpen.
+  - ONE new lifecycle: tabs unmount on switch now, so transient tab
+    UI state (picker query, open panels) resets — and SetupTab sweeps
+    an open ⚙ panel on the way out ($effect teardown → closePres),
+    or the editPres backfill (name:"", sub:"") would persist as
+    intentional blanks. probe-activity-tabs asserts the round-trip.
+  - **probe-activity-tabs.mjs NEW**: walks all 7 tabs of a real card
+    (signature content + zero pageerrors — the net for Svelte's
+    unknown-identifiers-compile-as-globals trap), opens a ⚙ panel,
+    switches away, saves, asserts a.present unchanged vs fixture.
+- **__init__.py 930 → 266 lines** + three modules: `store.py` (126 —
+  json/text helpers, deploy-dir migration, HarmoniumStore, engine
+  fingerprint), `api.py` (362 — the four HTTP views + validate_config),
+  `services.py` (255 — run/reseed/restore_backup/set_activity behind
+  register_services(hass, hstore, entry_data, mint) + remove_services).
+  Handler bodies verbatim; helpers that now cross module boundaries
+  lost the underscore (validate_config, engine_fingerprint, read_json,
+  write_json, write_text, migrate_deploy_dir).
+  - **tests/test-integration-split.py NEW** (plain python): stubs HA,
+    imports every module for real, validates the CT fixture clean +
+    catches a broken config, exercises _bind_ws stamping and the
+    register/remove service wiring — 12/12.
+- **Verified end to end**: vite build green; smoke-studio 107 true /
+  0 false; ALL studio probes at baseline (ctrltab, import, spkgroups,
+  stock-heal, virgin, collapse, band-order, volstyle, upload);
+  engine battery 20/20 errs clean; probe-vol-ux / nogap / wake at
+  baseline. ARCHITECTURE (integration file map + card-spine note),
+  tests/README (probes section) updated.
+- Remaining large files (documented, next candidates): SetupTab
+  (1,077 — cohesive, but PresPanel/CastPicker could peel off),
+  state.svelte.js (1,673 facade), PreviewPane (991), HubEditor (797),
+  TileRow (779), generators.js (766).
+
 ## Current state (v0.83.10 pending, 2026-08-17 — the punchlist round: volume truth + mute + doc hygiene)
 
 His morning punchlist (`archive/docs/status-review.md`, 7 items), all

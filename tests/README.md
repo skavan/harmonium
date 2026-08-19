@@ -67,6 +67,18 @@ config, which is why that file is pinned as the repo's test fixture.
 
 (*queue coverage lives inside `smoke-music`/`smoke-v2` where noted.)
 
+## Probes and unit smokes
+
+Beside the battery live the `probe-*.mjs` regression probes — one per
+shipped fix or feature, same harness pattern, run individually (e.g.
+`node probe-vol-ux.mjs`). Two worth knowing by name:
+`probe-activity-tabs.mjs` walks every tab of a real activity card
+(Svelte compiles unknown identifiers as globals, so a missed import
+in the per-tab components only fails at runtime — this is the net),
+and `tests/test-integration-split.py` (plain python, no pytest)
+imports the integration's modules against stubbed HA and exercises
+the pure seams — `validate_config`, `_bind_ws`, service wiring.
+
 ## Adding a suite
 
 Copy the fake-socket prologue from `smoke-search.mjs`, build your own
