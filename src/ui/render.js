@@ -46,6 +46,18 @@ function gridScrollTo(el, mode) {
   }
   grid.scrollTop += r.top - gr.top;      // "start"
 }
+/* keep an active chip visible in a horizontal strip (2026-08-20 —
+   Suresh: "When I change tabs in the library, an off screen tab
+   doesn't scroll into view"). Manual scrollLeft math, same doctrine
+   as gridScrollTo: one scroller, no scrollIntoView, "nearest"
+   semantics (already visible = no move). */
+function stripScrollTo(strip, el) {
+  if (!strip || !el) return;
+  const sr = strip.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (r.left < sr.left) strip.scrollLeft += r.left - sr.left - 12;
+  else if (r.right > sr.right) strip.scrollLeft += r.right - sr.right + 12;
+}
 function buildHeroNav(jumps, strip) {
   S.heroJumps = jumps;
   S.heroAt = null;   // fresh page: stepping re-seeds from the spy
@@ -227,6 +239,9 @@ function subTextOf(txt, eid) {
    (v0.27), and auto-fill needs a real px minimum instead; (2) the span
    rule below needs to KNOW the count. */
 function navigate(screenId, isBack) {
+  /* leaving the screen ends the pad borrow (padClear lives in
+     input.js — later in the build, hence the guard) */
+  if (typeof padClear === "function") padClear();
   /* CROSS-WORKSPACE DOORWAY (v0.50.2 — Suresh: "a nav tile on main
      porch page that takes me to deck and vice versa"): a `ws:<id>`
      target switches WORLDS by canonical address — the browser leaves
@@ -476,7 +491,20 @@ function renderStates() {
      attribute changes the tile set itself changes, so patch-in-place
      isn't enough — re-render the grid. Rare (favorites edit), cheap. */
   const sig = tileSig(sc);
-  if (sig !== S.tileSig) { S.tileSig = sig; navigate(S.screen, true); return; }
+  if (sig !== S.tileSig) {
+    S.tileSig = sig;
+    /* KEEP THE FOCUS through a structural re-render (2026-08-20 —
+       caught on the new spkgrp tiles: unjoining a member hid the
+       Group Volume tile, the sig changed, and the walk snapped back
+       to the first row mid-interaction). Same screen, same tile
+       still present → the highlight stays put; a tile that vanished
+       falls back to initial_focus as before. */
+    const keep = S.focusId;
+    navigate(S.screen, true);
+    const sc2 = screenOf(S.screen);
+    if (keep && sc2 && tilesOf(sc2).some(t => t.id === keep)) setFocus(keep);
+    return;
+  }
   tilesOf(sc).forEach(t => {
     const el = document.getElementById("tile_" + t.id);
     const w = WIDGETS[t.type];

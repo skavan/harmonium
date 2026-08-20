@@ -1,0 +1,23 @@
+name: Feature request
+description: An idea that would make Harmonium better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the itch?
+      description: The situation where Harmonium falls short — the problem, not yet the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: How you imagine it working. Sketches and examples welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Your setup (optional)
+      description: Hardware remote, house shape, anything that grounds the request.

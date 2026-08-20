@@ -141,6 +141,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "Harmonium could not deploy bundled skins: %s — device-photo "
             "presets will miss their image until it is copied by hand", err)
 
+    # BUNDLED SOUNDS (v0.84.1 — the battery-alert blueprint's default
+    # beep is /local/harmonium/sounds/beep.mp3, so a fresh box must
+    # HAVE it). Same doctrine as skins: deploy what isn't there,
+    # never overwrite, non-fatal.
+    bundled_sounds = Path(__file__).parent / "sounds"
+    try:
+        if bundled_sounds.is_dir():
+            def _deploy_sounds() -> list[str]:
+                copied = []
+                dest = new_dir / "sounds"
+                dest.mkdir(parents=True, exist_ok=True)
+                for src in sorted(bundled_sounds.iterdir()):
+                    if src.is_file() and not (dest / src.name).exists():
+                        (dest / src.name).write_bytes(src.read_bytes())
+                        copied.append(src.name)
+                return copied
+            deployed_sounds = await hass.async_add_executor_job(_deploy_sounds)
+            if deployed_sounds:
+                _LOGGER.info("Harmonium deployed bundled sound(s) to %s: %s",
+                             new_dir / "sounds", ", ".join(deployed_sounds))
+    except OSError as err:
+        _LOGGER.warning(
+            "Harmonium could not deploy bundled sounds: %s — the battery "
+            "blueprint's default beep URL will 404 until copied by hand", err)
+
     # One-time shape migration: persist the wrapped form so every later
     # load is already v2.
     raw = await hstore.store.async_load()

@@ -442,6 +442,11 @@ function browseBar() {
     }));
   bar.querySelectorAll("[data-brq]").forEach(b =>
     b.addEventListener("click", brSearchToggle));
+  /* the selected category chip stays on screen — stepping (CH) or
+     tapping to a chip past the strip's edge scrolls it into view */
+  const onc = bar.querySelector(".brchip.on");
+  if (onc && typeof stripScrollTo === "function")
+    stripScrollTo(onc.closest(".brchips"), onc);
   bar.querySelectorAll("[data-brlr]").forEach(b =>
     b.addEventListener("click", ev => { ev.stopPropagation(); brLibRefresh(); }));
   bar.querySelectorAll("[data-brk]").forEach(b =>

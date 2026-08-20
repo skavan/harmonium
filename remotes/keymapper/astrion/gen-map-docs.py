@@ -27,6 +27,8 @@ KEYCODE = {  # Android input keycode -> (constant, physical label)
     164: ("KEYCODE_VOLUME_MUTE", "Volume Mute"),
     92: ("KEYCODE_PAGE_UP", "Channel Up"),
     93: ("KEYCODE_PAGE_DOWN", "Channel Down"),
+    21: ("KEYCODE_DPAD_LEFT", "D-pad Left"),
+    22: ("KEYCODE_DPAD_RIGHT", "D-pad Right"),
 }
 OUTKEY = {  # KEY_EVENT output keycode -> (constant, printed character)
     68: ("KEYCODE_GRAVE", "`"), 69: ("KEYCODE_MINUS", "-"),
@@ -34,6 +36,7 @@ OUTKEY = {  # KEY_EVENT output keycode -> (constant, printed character)
     72: ("KEYCODE_RIGHT_BRACKET", "]"), 74: ("KEYCODE_SEMICOLON", ";"),
     18: ("KEYCODE_POUND", "#"), 81: ("KEYCODE_PLUS", "+"),
     75: ("KEYCODE_APOSTROPHE", "'"), 76: ("KEYCODE_SLASH", "/"),
+    55: ("KEYCODE_COMMA", ","), 56: ("KEYCODE_PERIOD", "."),
 }
 APP = {
     "io.github.sds100.keymapper": "Open Key Mapper",

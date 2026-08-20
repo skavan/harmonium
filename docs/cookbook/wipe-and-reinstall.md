@@ -5,6 +5,9 @@
 **Outcome:** a Home Assistant box with zero trace of Harmonium, so
 the next install is a true stranger's first hour. Use this before
 testing a release on the virgin box.
+(Leaving for good rather than testing? The user-facing twin —
+including battery-alert cleanup and the remotes themselves — is
+[Removing Harmonium](remove-harmonium.md).)
 
 Everything Harmonium leaves on a box lives in five places, and the
 uninstall UI only cleans two of them. The config store *deliberately*

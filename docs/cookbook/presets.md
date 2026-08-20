@@ -4,6 +4,7 @@
 
 **Outcome:** a row of one-tap buttons — *Netflix*, *YouTube TV*,
 *Porch 30%* — that launch apps, run scenes, or fire any service call.
+**📺 Watch it done: [Presets & Devices](https://youtu.be/lhVmuL7QHfs).**
 
 ## What a preset is
 

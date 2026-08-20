@@ -1,0 +1,287 @@
+# ================================================================
+# HARMONIUM — REMOTE BATTERY ALERTS (v0.84.1 — Suresh: "when battery
+# level is below X make noise every Y minutes… and there should be a
+# beep window. And a default profile(s)").
+#
+# HA-SIDE ON PURPOSE: an engine-side beeper was built, went green,
+# and was PARKED — Fully Kiosk sleeps the webview after ~60s to save
+# battery, which suspends its timers exactly when a low-battery nag
+# matters. The Fully Kiosk integration's sensors and media player
+# work while the device sleeps, cost the remote nothing, and are
+# already in every Harmonium install's HA. So the nag lives here.
+#
+# Shape: tiered nags, DEEPEST tier wins (below 5% outranks below
+# 20%), each with its own repeat interval; silent outside the beep
+# window and always silent while plugged in (charging = message
+# received). Three alert channels, each optional — use any or all:
+#   · a beep through the device's media player (the bundled chirp
+#     deploys to /local/harmonium/sounds/beep.mp3 — give the FULL
+#     http URL so the device itself can fetch it)
+#   · Fully's text-to-speech notify (speaks the level, no asset)
+#   · Fully's overlay-message notify (a banner on the screen)
+#
+# FIELD LESSON (2026-08-20, his screenshot: "Yukky erroneous message
+# and its stuck on 100% of the time"): Fully overlay messages PERSIST
+# until told otherwise — a nag banner (or a forced test) stays on the
+# LCD forever. The RECOVERED trigger clears it: when the battery
+# crosses back above the warn level, an empty overlay message wipes
+# the banner. The Studio's Test button self-cleans the same way.
+# ================================================================
+blueprint:
+  name: "Harmonium: remote battery alerts"
+  description: >-
+    Tiered low-battery nags for a hardware remote (Fully Kiosk /
+    Harmonium): below the warn level beep every warn interval, below
+    the low level more often, below the critical level most often —
+    but only inside the beep window, and never while plugged in.
+    Alert channels (beep URL / TTS / overlay banner) are each
+    optional; configure at least one.
+  domain: automation
+  source_url: https://github.com/skavan/harmonium/blob/main/blueprints/automation/harmonium/battery_alerts.yaml
+  input:
+    battery_sensor:
+      name: Battery sensor
+      description: "The remote's battery level (e.g. sensor.astrion1_battery)."
+      selector:
+        entity:
+          filter:
+            domain: sensor
+            device_class: battery
+    plugged_sensor:
+      name: Plugged-in sensor (optional)
+      description: >-
+        Binary sensor that is ON while charging (e.g.
+        binary_sensor.astrion1_plugged_in). Leave empty to nag
+        regardless of charging.
+      default: ""
+      selector:
+        entity:
+          filter:
+            domain: binary_sensor
+    beep_player:
+      name: Beep player (optional)
+      description: >-
+        The remote's media player (e.g. media_player.astrion1).
+        Needed only for the beep channel.
+      default: ""
+      selector:
+        entity:
+          filter:
+            domain: media_player
+    beep_volume:
+      name: Alert volume
+      description: >-
+        The device's media volume is set to this before any alert
+        fires (needs the Beep player input) — a nag you can't hear
+        is no nag. TTS rides the same volume on Fully.
+      default: 1.0
+      selector:
+        number:
+          min: 0.1
+          max: 1.0
+          step: 0.05
+    beep_url:
+      name: Beep sound URL (optional)
+      description: >-
+        FULL URL the device can fetch, e.g.
+        http://YOUR-HA:8123/local/harmonium/sounds/beep.mp3
+        (Harmonium deploys that file for you). Leave empty to skip
+        the beep channel.
+      default: ""
+      selector:
+        text:
+    tts_notify:
+      name: Text-to-speech notifier (optional)
+      description: >-
+        The Fully TTS notify ENTITY (e.g.
+        notify.astrion1_text_to_speech). Speaks the battery level.
+        Leave empty to skip.
+      default: ""
+      selector:
+        entity:
+          filter:
+            domain: notify
+    overlay_notify:
+      name: Overlay-message notifier (optional)
+      description: >-
+        The Fully overlay notify ENTITY (e.g.
+        notify.astrion1_overlay_message). Shows a banner on the
+        remote. Leave empty to skip.
+      default: ""
+      selector:
+        entity:
+          filter:
+            domain: notify
+    warn_level:
+      name: Warn level
+      default: 20
+      selector:
+        number:
+          min: 5
+          max: 80
+          unit_of_measurement: "%"
+    warn_every:
+      name: Warn interval
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 720
+          unit_of_measurement: min
+    low_level:
+      name: Low level
+      default: 10
+      selector:
+        number:
+          min: 2
+          max: 60
+          unit_of_measurement: "%"
+    low_every:
+      name: Low interval
+      default: 15
+      selector:
+        number:
+          min: 2
+          max: 240
+          unit_of_measurement: min
+    crit_level:
+      name: Critical level
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 40
+          unit_of_measurement: "%"
+    crit_every:
+      name: Critical interval
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+    window_start:
+      name: Beep window start
+      default: "09:00:00"
+      selector:
+        time:
+    window_end:
+      name: Beep window end
+      default: "23:00:00"
+      selector:
+        time:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  battery_sensor: !input battery_sensor
+  plugged_sensor: !input plugged_sensor
+  beep_player: !input beep_player
+  beep_volume: !input beep_volume
+  beep_url: !input beep_url
+  tts_notify: !input tts_notify
+  overlay_notify: !input overlay_notify
+  warn_level: !input warn_level
+  warn_every: !input warn_every
+  low_level: !input low_level
+  low_every: !input low_every
+  crit_level: !input crit_level
+  crit_every: !input crit_every
+  level: "{{ states(battery_sensor) | float(100) }}"
+  # DEEPEST TIER WINS: below-5 outranks below-20
+  every: >-
+    {% if level < crit_level | float %}{{ crit_every }}
+    {%- elif level < low_level | float %}{{ low_every }}
+    {%- else %}{{ warn_every }}{% endif %}
+
+triggers:
+  # the cadence clock — cheap check, conditions do the gating
+  - trigger: time_pattern
+    minutes: "/5"
+    id: tick
+  # an immediate first nag when the level crosses the warn line
+  - trigger: numeric_state
+    entity_id: !input battery_sensor
+    below: !input warn_level
+    id: cross
+  # the RECOVERY crossing — a Fully overlay banner persists until
+  # cleared, so crossing back above the warn line wipes it
+  - trigger: numeric_state
+    entity_id: !input battery_sensor
+    above: !input warn_level
+    id: recovered
+
+conditions:
+  - or:
+      # the clear path: recovery matters only to the overlay channel
+      - and:
+          - "{{ trigger.id == 'recovered' }}"
+          - "{{ overlay_notify != '' }}"
+      # the nag path
+      - and:
+          - "{{ trigger.id != 'recovered' }}"
+          - "{{ level < warn_level | float }}"
+          - "{{ plugged_sensor == '' or states(plugged_sensor) != 'on' }}"
+          - condition: time
+            after: !input window_start
+            before: !input window_end
+          # the rolling throttle: last_triggered is the last RUN (nag
+          # or clear — clears are once-per-recovery, so it stays an
+          # honest nag clock); the warn-line CROSSING is exempt so
+          # the first nag of a fresh dip is never swallowed
+          - "{{ trigger.id == 'cross' or
+                this.attributes.last_triggered is none or
+                (now() - this.attributes.last_triggered).total_seconds()
+                  >= every | float * 60 }}"
+
+actions:
+  - choose:
+      # RECOVERED → wipe the lingering overlay banner, nothing else
+      - conditions: "{{ trigger.id == 'recovered' }}"
+        sequence:
+          - action: notify.send_message
+            target:
+              entity_id: "{{ overlay_notify }}"
+            data:
+              message: ""
+    default:
+      # LOUD FIRST (2026-08-20, his test: "Test is silent. I was
+      # expecting a high volume tone"): whatever Fully's media volume
+      # was left at, the alert sets its own before sounding — TTS and
+      # the beep both ride it
+      - choose:
+          - conditions: "{{ beep_player != '' }}"
+            sequence:
+              - action: media_player.volume_set
+                target:
+                  entity_id: !input beep_player
+                data:
+                  volume_level: !input beep_volume
+      - choose:
+          - conditions: "{{ beep_url != '' and beep_player != '' }}"
+            sequence:
+              - action: media_player.play_media
+                target:
+                  entity_id: !input beep_player
+                data:
+                  media_content_id: "{{ beep_url }}"
+                  media_content_type: music
+      - choose:
+          - conditions: "{{ tts_notify != '' }}"
+            sequence:
+              - action: notify.send_message
+                target:
+                  entity_id: "{{ tts_notify }}"
+                data:
+                  message: >-
+                    Remote battery at {{ level | round(0) }} percent.
+                    Please charge.
+      - choose:
+          - conditions: "{{ overlay_notify != '' }}"
+            sequence:
+              - action: notify.send_message
+                target:
+                  entity_id: "{{ overlay_notify }}"
+                data:
+                  message: "Battery {{ level | round(0) }}% — charge me"

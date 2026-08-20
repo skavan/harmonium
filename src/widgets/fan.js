@@ -12,6 +12,15 @@ WIDGETS.fan = {
   meter: e => { const p = st(e).a.percentage; return (p != null ? p : 0) / 100; },
   select: e => callService("fan", "toggle", null, e),
   detailable: true,
+  /* 2026-08-20 nav modes: value — ◀▶ nudge the speed while focused;
+     OK runs the widget's select as ever (toggle). The hold-capture
+     stays as an optional power gesture. A tile can opt out with
+     nav: "action" (◀▶ walk again). */
+  nav: "value",
+  keys: {
+    left:  e => void nudgeStep(e, "percentage", -1),
+    right: e => void nudgeStep(e, "percentage", +1),
+  },
   holdCapture: true, captureHint: "▲▼ speed · back releases",
   capture: {
     up:   e => nudgeStep(e, "percentage", +1),

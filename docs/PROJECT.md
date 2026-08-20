@@ -11,7 +11,7 @@ Working docs: `S:\Documents\HA26` · Session partner: Claude (Cowork).
 
 ## Intent
 
-Build a lightweight, instant-on control frontend for Home Assistant aimed
+Build a lightweight, fast-loading control frontend for Home Assistant aimed
 at low-power Android hardware remotes (Sanytron Astrion, Haptique RS90 and
 similar), while running equally well in any browser, on tablets, and on
 embedded Linux (WPE WebKit/Cog). Long-term: a product other HA users can
@@ -80,6 +80,262 @@ firehose of every entity in the instance. So:
 | Key policy (v0.11) | Physical keys scoped by SCREEN CLASS (room/group/detail/activity; `class` + `parent` config keys): tap-Back/Home = UI (unwind / ladder via parent), HOLD = device back/home through the command map; Power's blast radius follows class (room=All Off, group=page devices, detail=device toggle immediate, activity=end) with confirm only for multi-device scopes; VOL follows the focused device's primary range with a MEDIA CARVE-OUT (media focus keeps the $context.volume ARC path); passthrough claims arrows+select only, cued by a 2px accent rule + gamepad glyph | Field pain: "hitting the wrong buttons all the time" — keys get policies per page class, not one behavior; user picked tap=UI / hold=device over both pure options |
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
+
+## Current state (v0.84.1 RC, 2026-08-20 — field round 4: the pad meets the widgets)
+
+Round 77. Seven field items, five of them real: (1) CH in the
+library walked tiles — brStepCat is the library's section jump and
+now runs on the SHORT press there; (2) worse, CH on the CONTROLLER
+was stepping the library's category strip OFF-SCREEN (S.browse
+persists after leaving) and the re-render threw focus to the first
+tile — brStepCat is now gated to the screen whose raw def carries
+the browse tile; (3) the volume widget's select-capture died: a
+focused volume row answers ◀/▶ with the level (same optimistic
+nudge as the on-screen −/+), OK mutes immediately, ▲▼ keep
+walking — the stepper's volume kind follows suit (other kinds keep
+their capture; widget keys handlers may return false to decline,
+and selectCaptures may be a per-tile predicate); (4) the
+speaker-group card answers ◀/▶ with the offset-preserving group
+volume nudge (member-row walking from the pad = 0.84.2 design
+question); (5) the stock firetv/googletv dialects now declare
+`wake` (media_player.turn_on on $context.media_player — the
+v0.83.9 mechanism was live but no dialect used it). Also: his
+astrion2 profile isn't in the LIVE house config (starter/fixture
+only — paste-block handed over), and the KeyMapper map regen waits
+on his pull-keymapper run. smoke-music stage 6 moved to short-CH,
+new 2e volume-grammar stage; 20 suites errs-clean; studio 107/0.
+
+## Current state (v0.84.1 RC, 2026-08-20 — home stretch: hand-offs, dialects doc, browser front door)
+
+Round 78 (b48). His release-eve list, all landed: (1) SWITCH
+TEARDOWN — per-activity stop_on_switch (+ confirm_switch surfaced)
+on the Actions tab; engine runs the outgoing Stop before the
+incoming Start, default OFF (shared devices must not flicker), with
+an in-flight pending guard so an impatient double-tap can't tear
+down twice (probe-switch-stop NEW, green). (2) Library category
+tabs scroll into view on step/tap (stripScrollTo — manual
+scrollLeft, no scrollIntoView, browse bar calls it on render).
+(3) NEW cookbook page creating-a-dialect.md (the three-shape launch
+grammar, keys, default wake, Apple TV worked example, share-it
+call) + cookbook index row. (4) first-screen.md Purpose/Outcome
+made honest (foundation page, not a finished room). (5) README —
+HIS edit adopted untouched, one sanctioned addition: the 🌐
+"Harmonium is a web page" callout with the /local/harmonium URL;
+GETTING-STARTED frames the same. (6) hardware-keys: optional
+recipe for device Back/Home on long-press (the escape-hatch
+tradeoff spelled out; engine already speaks back_hold/home_hold).
+(7) Link sweep: all 27 md files' relative links + anchors verified
+programmatically — the "links land at the bottom" report is
+GitHub's per-session scroll restoration, not our markup. Battery +
+all probes green on the final bytes.
+
+## Current state (v0.84.1 RC, 2026-08-20 — field round 5: FOUR NAV MODES, the grammar goes declarative)
+
+Round 77 (engine only, studio stays b47). His design session over
+the grouping-card screenshots ended in the sentence that organizes
+everything: "Seems like we have 3 or 4 'modes' of navigation" —
+exactly four, now declared data: action (OK fires) · value (◀▶
+adjust, OK = secondary — volume/every stepper/light/fan/climate;
+the last select-captures die) · options (◀▶ rove, OK commits —
+chips rows; roving starts at the active choice, drops on blur) ·
+capture (dpad passthrough only). Widget defaults + per-tile `nav`
+override (navOf in registry). The SPEAKER GROUP page rebuilt as
+real tiles: grpmember (◀▶ trim, OK join/unjoin, master OK = noop)
++ grpvol (offsets-preserving ◀▶/slider, OK = ungroup-all with
+link_off icon) — tile gaps, focus walk and CH all free; VOL/Mute
+stay activity-level (his ruling; ARC lesson holds). Structural
+re-renders (tileSig) now KEEP the focus (unjoining a member used to
+snap the walk to row 1). App launchers wake a dozing player BY
+DEFAULT (his "Did we wire in the wake key?" — the v0.83.9 hook
+existed but his live dialect never declared it; now
+media_player.turn_on is the default wake, dialects opt out with
+wake:false). Also verified on CT live: astrion2 profile + skin
+already in his house config, astrion2.png deployed. Field patch same night: member tiles
+label from friendly_name (live-upgraded), icon circles dropped so
+the tracks get the width ("undefined" titles + sliver sliders on
+his LCD). probe-nav-modes
+NEW (value/options/override/spkgrp end-to-end + labels) green; 20 suites +
+pad-latch + ch-hold + apps-grid re-run clean.
+
+## Current state (v0.84.1 RC, 2026-08-20 — wake lock caught, astrion2 gets its photo)
+
+Round 76. The wake-lock hunt ended in a verdict nobody predicted:
+measured live on his Astrion, the 12-hour PARTIAL_WAKE_LOCK was
+held by the HA COMPANION APP (uid lookup: io.homeassistant.
+companion.android.minimal), not the stock launcher — he
+uninstalled it and mHoldingWakeLockSuspendBlocker went false, deep
+sleep restored. Docs now say it plainly: the sideloading guide's
+"install the Companion app" step is marked SKIP (Fully's
+integration provides everything Harmonium uses). He also shot the
+v2 faceplate: astrion2.png landed in the bundled skins (the 2026
+unit is a different industrial design — circular wheel pad, edge
+rockers, color-bar row) and the astrion2 profile got a full
+measured skin block: transparent-cutout screen rect detected
+programmatically (9.84/3.795/79.92/41.77 — his framing matches v1
+almost exactly), 23 hotspots authored off a gridded overlay and
+verified visually (wheel quadrants, rockers, transport row, color
+bars). Suites re-run green on the new fixture.
+
+## Current state (v0.84.1 RC, 2026-08-20 — the doctrine's FINAL FORM: the pad navigates, full stop)
+
+Round 75 (b47). Field round 3's hybrid lasted one deploy: "I'm
+still struggling…" → his own sentence closed it: "dpad should
+always navigate the screen EXCEPT for the TV, where ChUp and ChDn
+engage panel mode." The "transport" pad owner is DELETED — on
+music the pad walks natively and OK always means the focused tile
+(the hero's OK was already play/pause; the receiver-tile pause was
+the bug that proved the mode wrong). Media work rides keys the
+panel doesn't need, all engine defaults on music-shaped pages:
+hold-◀/▶ seek ∓15s · hold-CH prev/next track · short CH section
+jump (walks when nothing to jump) · menu → Library (stock gen 5,
+short press; menu case now honors bindings). Strip is
+passthrough-only again. astrion2 profile added (2026 faceplate:
+F4–F7 = ⏮⏯⏹⏭, same keycodes) — prev/play_pause/stop/next drive the
+running music from ANY page (mediaCtx falls back to the running
+activity). The wake-lock story
+resolved in the field: the launcher switch is out of the script
+(home component varies by firmware; Fully can't be set as home via
+adb anyway), and the measured culprit on OUR unit was the HA
+Companion app's WorkManager lock (12h), not HaRemote — hardware-
+keys rewritten measure-first with per-culprit remedies; NEVER pm
+disable the stock app — it bricks; credit
+marcusadolfsson/astrion-custom §4. probe-pad-latch
+rewritten third time — green first run; smoke-music CH/hold/menu
+stages updated; 20 suites errs-clean; studio 107/0; keys 23/0.
+
+## Current state (v0.84.1 RC, 2026-08-20 — field round 3: the music pad flips to intuition)
+
+Round 74 (b46). A day of real use overturned half the pad doctrine
+on music: "My previous idea that dpad should always be the device
+doesn't fit intuition." The music controller's pad now: ▲/▼ walk
+the panel natively (and open the walk window — strip reads "OK
+selects"), ◀ −15s · ▶ +15s · OK ⏯ at rest, and hold-◀/hold-▶ skip
+to previous/next track (arriving as , and . — KEYCODE_COMMA/PERIOD
+via KeyMapper long-press, default-keymap + backstop like the CH
+holds; a page binding still wins, which is exactly how the stock TV
+screen keeps REWIND/FF). While walking, the whole pad serves the
+highlight — a grid needs its horizontal axis. Passthrough (TV)
+keeps the full original doctrine, strip label "panel". probe-pad-
+latch rewritten for the new shape (at-rest transport, native walk,
+no-seek-while-walking, decay, TV holds silent) — green first run;
+20 suites errs-clean, smoke-studio 107/0.
+
+## Current state (v0.84.1 RC, 2026-08-20 — field round 2: the silent test and the cryptic hint)
+
+Round 73. Blueprint v3: an Alert volume input (default 100%) — the
+nag path sets the device's media volume before any channel sounds,
+because a nag you can't hear is no nag; verified audible on CT. The
+beep channel still waits on his restart to deploy the chirp. And the
+capture-hint line ("▲▼ volume · select mutes · back releases") is
+retired from view at his word — the amber capture ring carries the
+mode alone; the machinery stays for a future teach-mode.
+
+## Current state (v0.84.1 RC, 2026-08-20 — field round 1: the sticky banner and the shy strip)
+
+Round 72 (b45). His first field reports, both fixed same-night:
+Fully overlay banners persist until cleared, so the blueprint's new
+RECOVERED trigger wipes the banner when the battery crosses back
+above the warn level, and the Studio's new per-alert Test button
+(fires every channel at the current level) cleans its own banner up
+after a few seconds — the stuck "Battery 100% — charge me" was
+cleared off his LCD live. The pad-borrow strip went from a whisper
+to a bar: solid accent background, dark uppercase text, and the
+window widened to a rolling 8 seconds with a config knob
+(input.pad_latch_seconds). Blueprint v2 re-imported on CT; probes
+extended; smoke-studio 107/0.
+
+## Current state (v0.84.1 RC, 2026-08-20 — stamped and green; awaiting the field test)
+
+Round 71. Version stamps: manifest + ENGINE_V 0.84.1, Studio
+s0.84.1 b44. Both artifacts rebuilt on the stamps; the full battery
+re-ran green on the RC bytes. What ships in his next deploy IS the
+release candidate — field test, then commit → make-release → tag
+v0.84.1 → GitHub release → HACS on .88.
+
+## Current state (v0.83.11 pending, 2026-08-20 — battery alerts got a Studio face)
+
+Round 70 (b43). His call: "It should live in studio." The Remotes &
+keymaps slice — Code-tab-only until now — grew its visual editor:
+remote-profile summary cards, and a Battery alerts panel that
+discovers the blueprint automations live from HA and shows each one
+with its current level, tier profile, window and channels, an
+on/off switch that flips the automation in place, and the door into
+HA's form for the numbers. The machinery stays HA-side (it must run
+while the device sleeps); this is the Studio's face on it. Roadmap
+0.84.2, his "at a maximum": create and edit the tiers in-Studio and
+grow the slice into the full per-remote hub. probe-battery-studio
+NEW; smoke-studio 107/0.
+
+## Current state (v0.83.11 pending, 2026-08-20 — battery alerts: the HA-side blueprint, live on CT)
+
+Round 69. The parked engine beeper's replacement, built as designed:
+an automation blueprint on the Fully Kiosk integration's sensors —
+tiered nags (deepest wins: 20%/60min · 10%/15min · 5%/5min), the
+09:00–23:00 window, silent while charging, three optional channels
+(beep URL / TTS / overlay banner), a rolling last_triggered
+throttle. Works while the device sleeps; costs the remote nothing.
+Field lesson: Fully's notifiers are notify ENTITIES — the blueprint
+speaks notify.send_message, not legacy notify.<name> services. The
+bundled chirp (the engine's 880→660 signature) ships in the
+integration and deploys beside the skins. Installed live on CT and
+verified: a forced run spoke and bannered the Astrion; the 5-minute
+clock then correctly declined at 100%/plugged. Plus the release
+collateral: GitHub issue templates and the v0.84.1 release-notes
+draft.
+
+## Current state (v0.83.11 pending, 2026-08-20 — four video tutorials, linked everywhere they answer a question)
+
+His recordings: Installing via HACS (youtu.be/2E28x7pt36k), Watch
+Fire TV activity (M75ZPYvorUM), Listen to Music activity
+(vALzJylJLSw), Presets & Devices (lhVmuL7QHfs). Wired into README's
+Quick start, GETTING-STARTED (install at the top, the other three at
+the hand-off), the cookbook index, and the four matching guides.
+Links verified live/public via oEmbed.
+
+## Current state (v0.83.11 pending, 2026-08-20 — README hero is a .webp now)
+
+His hand: `docs/media/astrion-tour.webp` (converted from the gif at
+https://ezgif.com/, 2.1 MB → 0.6 MB) and README line 10 repointed.
+No build script exists for it — after any tour reshoot, re-convert at
+ezgif and drop the .webp in the same place. astrion-tour.gif and
+hero.gif are now unreferenced and deletable.
+
+## Current state (v0.83.11 pending, 2026-08-20 — THE PAD DOCTRINE: the pad drives the activity, CH walks the panel, walking borrows the pad)
+
+Round 67 (b42; STOCK_MUSIC gen 4). The consistency question ("they
+switch roles depending on the controller. It's jarring") closed with
+his hybrid: the D-pad always targets the activity — TV nav on
+passthrough screens, and on music the pad IS the transport (▲ next ·
+▼ previous · ◀▶ ±15 s · OK play/pause; Up=Next was his call). CH
+always walks the panel, holds take the big jumps — and any CH press
+borrows the whole pad for a rolling 5 s: a thin pulsing strip at the
+LCD's bottom edge (pointing at the physical pad below it) says the
+panel has it; every press renews; Back, touch, or navigation return
+it instantly; capture outranks everything. Room pages have no owner,
+so the pad is the panel natively and the strip never shows — no mode
+where there is no mode.
+
+The doctrine SIMPLIFIED the config: music's seek hold-bindings
+(gen 3's ch-holds and v0.54's left/right_hold) are struck — plain
+◀▶ on the transport own seek now. Physical keys only, CAPS-gated
+like passthrough, so desktop keyboards keep walking tiles.
+
+probe-pad-latch.mjs covers the full contract on a physical_dpad
+profile; smoke-music reworked; battery 20/20; smoke-studio 107/0.
+
+## Current state (v0.83.11 pending, 2026-08-19 — 📷 round 3: the capture stops trusting re-layout)
+
+Round 66 (studio-only; b41). His b40 screenshot still spread the
+devices region downward until the bottom clipped. New probe compares
+the capture against the live pixels: headless captures match within
+3px — the drift is environment-specific (the clone re-lays-out
+inside an SVG image, where his Windows font metrics / display
+scaling differ slightly, and content-sized tiles compound the
+difference down the page). Fix: snapPreview pins the live-measured
+height of the banner, the grid and every grid child (inline
+border-box min=max) for the capture's duration, restoring cssText
+after — the clone renders inside boxes that cannot move. All snap
+probes green; smoke-studio 107/0.
 
 ## Current state (v0.83.11 pending, 2026-08-19 — the CH flip: short CH walks the focus, holds take the big jumps)
 

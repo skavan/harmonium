@@ -209,4 +209,19 @@
         </div>
         <Switch label="Confirm before ending (press twice)"
           bind:checked={() => a.confirm_end ?? false, (v) => (a.confirm_end = v)} />
+        <Switch label="Confirm before switching away (press twice)"
+          bind:checked={() => a.confirm_switch ?? false, (v) => (a.confirm_switch = v)} />
+        <!-- SWITCH TEARDOWN (2026-08-20 — "where in Studio do I tell
+             it An activity should be turned off on a switch?"): the
+             outgoing activity opts in to running its Stop when
+             another activity starts. Off = the incoming Start owns
+             the transition (shared devices don't flicker). -->
+        <Switch label="Run my Stop when another activity starts"
+          bind:checked={() => a.stop_on_switch ?? false, (v) => (a.stop_on_switch = v)} />
+        {#if a.stop_on_switch}
+          <p class="mt-1 mb-0 text-[10.5px] text-dim italic">
+            shape this activity's Stop for hand-offs: touch only what
+            no other activity shares (the incoming Start still runs)
+          </p>
+        {/if}
       </div>

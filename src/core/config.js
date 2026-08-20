@@ -27,6 +27,7 @@ let KEYMAP = {                    // default shell quirk table
   "#": "menu",                                   // Astrion menu key
   "@": "menu_hold",                              // menu long-press (KeyMapper)
   "'": "ch_up_hold", "/": "ch_down_hold",        // CH long-press → LCD focus
+  ",": "left_hold", ".": "right_hold",           // ◀▶ long-press (KeyMapper)
   "F2": "power", "p": "power", "P": "power",
   "o": "power_hold", "O": "power_hold"
 };

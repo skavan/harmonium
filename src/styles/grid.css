@@ -91,8 +91,13 @@
   .tile.tacc.row .icwrap { background: var(--tacc); }   /* beats controls.css default */
   .tile.tacc .icwrap .ic,
   .tile.tacc .icwrap .material-symbols-outlined { color: var(--bg); }
-  .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
-  .tile.captured .hint { display: block; color: var(--accent); }
+  /* the capture-hint line is RETIRED from view (2026-08-20 — Suresh,
+     of "▲▼ volume · select mutes · back releases": "Not even sure
+     what it means. Kill it."): the amber capture ring is the mode
+     indicator; the sentence was noise. The machinery stays (widgets
+     still declare captureHint, renderStates still writes it) so a
+     future teach-mode can resurface it deliberately. */
+  .tile .hint { display: none; }
 
   /* SLIM THEMED SCROLLBAR (v0.47.3 — desktop browsers drew the stock
      Windows bar; the kiosk's overlay bar auto-hides so it was never

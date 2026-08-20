@@ -3,7 +3,8 @@
 *Purpose: Zero to a paired remote: install via HACS, open the Studio, pair a device, put it on hardware. Audience: new users.*
 
 Zero → a paired remote showing your house. Fifteen minutes, no file
-shares, no tokens copied anywhere.
+shares, no tokens copied anywhere. **📺 Prefer to watch? The whole
+install is a video: [Installing Harmonium via HACS](https://youtu.be/2E28x7pt36k).**
 
 Harmonium is three pieces. The **integration** (a HACS custom
 component) stores your config, brokers pairing, and deploys the
@@ -61,6 +62,13 @@ On any device, open:
 
     http://<your-ha>:8123/local/harmonium/index.html
 
+This URL is the whole product: Harmonium **is a web page**, and any
+browser is a remote — your laptop (keyboard keys work: arrows,
+Enter, +/− volume, PgUp/PgDn), a wall tablet, a phone, a TV
+webview. Hardware remotes just open the same page in a kiosk. Keep
+it bookmarked; it's also the fastest way to sanity-check a config
+change without leaving your desk.
+
 1. Tap **Pair with Home Assistant** (the host field is prefilled when
    you're on the same origin).
 2. The device shows a short code, big: `FIG-482`.
@@ -108,6 +116,28 @@ be backed up the same way with `pull-keymapper.bat`; details in
 Two Fully Kiosk settings worth setting immediately: enable
 *Autostart* and disable battery optimization for Fully (the
 community guide covers both).
+
+One more that's worth real battery: check whether some app is
+holding a **wake lock** that blocks the remote's deep sleep (on our
+own unit it was the HA Companion app, held since boot; others have
+caught the stock launcher). Two adb commands diagnose it, and the
+remedy depends on the culprit — the recipe, credit, and one
+important **do-not-brick warning** in
+[hardware-keys → wake locks eat the
+battery](cookbook/hardware-keys.md#wake-locks-eat-the-battery-measure-first--and-a-brick-warning).
+
+While you're in hardware-remote land: the
+[battery-alerts blueprint](cookbook/battery-alerts.md) makes the
+remote nag you before it dies — tiered, windowed, charging-aware,
+and it works while the device sleeps.
+
+## What to build first — on video
+
+Three more tutorials pick up exactly where this page ends:
+**[a Watch TV activity](https://youtu.be/M75ZPYvorUM)**,
+**[a Listen to Music activity](https://youtu.be/vALzJylJLSw)**, and
+**[Presets & Devices](https://youtu.be/lhVmuL7QHfs)**. The written versions live in
+[the cookbook](cookbook/README.md).
 
 ## 6. Where things stand
 

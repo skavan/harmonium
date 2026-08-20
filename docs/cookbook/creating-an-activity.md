@@ -11,7 +11,9 @@ behind them.
 This is the long-form version of [Activities](activities.md). Read
 that one first if you just want "Watch TV" working in five minutes;
 read this one when you want to understand what each control actually
-does.
+does. **📺 Both builds also exist as videos:
+[Watch Fire TV activity](https://youtu.be/M75ZPYvorUM) ·
+[Listen to Music activity](https://youtu.be/vALzJylJLSw).**
 
 ---
 
@@ -120,7 +122,13 @@ sections below:
    should be.
 7. **Actions**: **⚙ Start Action**; tick the devices that should
    power off when it ends, then **⚙ Stop Action**. Leave
-   confirm-before-ending on.
+   confirm-before-ending on. Two more switches live here:
+   **Confirm before switching away** (press-twice guard when another
+   activity would replace this one) and **Run my Stop when another
+   activity starts** — off by default, because the incoming
+   activity's Start owns the transition and shared devices must not
+   flicker; switch it on for activities whose Stop touches only
+   their own gear (music's stop touches only the Sonos).
 8. **State**: usually leave the default. If your primary never
    powers off (a Fire TV), use **⚙ From inputs**.
 9. **Save & Deploy**, then reload the remote.

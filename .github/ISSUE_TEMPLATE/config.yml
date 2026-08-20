@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Getting started & cookbook
+    url: https://github.com/skavan/harmonium/blob/main/docs/GETTING-STARTED.md
+    about: Install, pairing, and task-shaped guides — check here first.
+  - name: Video tutorials
+    url: https://github.com/skavan/harmonium#-video-tutorials--watch-it-built
+    about: Install and first-build walkthroughs on YouTube.

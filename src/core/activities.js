@@ -252,6 +252,24 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
+  /* SWITCH TEARDOWN (2026-08-20 — Suresh: "where in Studio do I tell
+     it An activity should be turned off on a switch activity? and/or
+     ignored"): the OUTGOING activity may opt in to running its Stop
+     when another activity replaces it — per-activity
+     `stop_on_switch` (Studio: Actions tab, "Run my Stop when
+     switched away"). Default OFF, deliberately: the incoming
+     activity's Start owns the transition (the Harmony lesson —
+     shared devices must not flicker off/on), so an opted-in Stop
+     should be shaped for it (music's stop touches only the Sonos). */
+  if (cur && cur !== id &&
+      (!S.pendingActivity || S.pendingActivity === cur)) {
+    /* the pending guard: while a switch is already IN FLIGHT (tap
+       landed, select not yet confirmed) currentActivityId still
+       reports the OLD activity — without the guard an impatient
+       second tap would run the same teardown twice */
+    const prev = (CONFIG.activities || {})[cur];
+    if (prev && prev.stop_on_switch && prev.stop) runActionRef(prev.stop);
+  }
   /* NO START ACTION is legal (v0.47 — Suresh's blank-player report):
      the activity still becomes ACTIVE (display state + context) so
      the player renders; orchestration is opt-in, not a prerequisite */

@@ -274,6 +274,228 @@
           }
         ]
       }
+    },
+    "astrion2": {
+      "fully": true,
+      "capabilities": [
+        "physical_dpad",
+        "physical_volume",
+        "touch"
+      ],
+      "keymap": {
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "Tab": "down",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "Enter": "select",
+        " ": "select",
+        "+": "vol_up",
+        "=": "power_hold",
+        "-": "vol_down",
+        "PageUp": "ch_up",
+        "PageDown": "ch_down",
+        "m": "mute",
+        "M": "mute",
+        "`": "mute",
+        "AudioVolumeMute": "mute",
+        "[": "back",
+        "Escape": "back",
+        "Backspace": "back",
+        "F1": "home",
+        "BrowserHome": "home",
+        "F4": "prev",
+        "F5": "play_pause",
+        "F6": "stop",
+        "F7": "next",
+        "#": "menu",
+        "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
+        "F2": "power",
+        "p": "power",
+        "P": "power",
+        "o": "power_hold",
+        "O": "power_hold",
+        ",": "left_hold",
+        ".": "right_hold"
+      },
+      "skin": {
+        "image": "/local/harmonium/skins/astrion2.png",
+        "viewport": {
+          "w": 349,
+          "h": 581
+        },
+        "screen": {
+          "x": 9.84,
+          "y": 3.795,
+          "w": 79.92,
+          "h": 41.77
+        },
+        "buttons": [
+          {
+            "btn": "back",
+            "x": 10.0,
+            "y": 52.3,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "home",
+            "x": 33.0,
+            "y": 52.3,
+            "w": 34,
+            "h": 4.6
+          },
+          {
+            "btn": "power",
+            "x": 71.0,
+            "y": 52.3,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "vol_up",
+            "x": 9.5,
+            "y": 59.5,
+            "w": 14,
+            "h": 6.0
+          },
+          {
+            "btn": "ch_up",
+            "x": 70.0,
+            "y": 59.5,
+            "w": 18,
+            "h": 6.0
+          },
+          {
+            "btn": "up",
+            "x": 40,
+            "y": 60.0,
+            "w": 20,
+            "h": 4.5
+          },
+          {
+            "btn": "left",
+            "x": 26,
+            "y": 66.5,
+            "w": 12,
+            "h": 6.0
+          },
+          {
+            "btn": "select",
+            "x": 40,
+            "y": 65.7,
+            "w": 20,
+            "h": 7.0
+          },
+          {
+            "btn": "right",
+            "x": 62,
+            "y": 66.5,
+            "w": 12,
+            "h": 6.0
+          },
+          {
+            "btn": "down",
+            "x": 40,
+            "y": 73.8,
+            "w": 20,
+            "h": 4.5
+          },
+          {
+            "btn": "vol_down",
+            "x": 9.5,
+            "y": 73.5,
+            "w": 14,
+            "h": 6.0
+          },
+          {
+            "btn": "ch_down",
+            "x": 70.0,
+            "y": 73.5,
+            "w": 18,
+            "h": 6.0
+          },
+          {
+            "btn": "mute",
+            "x": 10,
+            "y": 81.0,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "voice",
+            "x": 33,
+            "y": 81.0,
+            "w": 34,
+            "h": 4.6
+          },
+          {
+            "btn": "menu",
+            "x": 71,
+            "y": 81.0,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "prev",
+            "x": 10.3,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "play_pause",
+            "x": 30.1,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "stop",
+            "x": 49.8,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "next",
+            "x": 69.9,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "red",
+            "x": 10.3,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "green",
+            "x": 30.1,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "blue",
+            "x": 50.4,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "yellow",
+            "x": 69.4,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          }
+        ]
+      }
     }
   },
   "devices": {},
@@ -461,6 +683,10 @@
         "appletv": {
           "source": "com.apple.atve.amazon.appletv"
         }
+      },
+      "wake": {
+        "service": "media_player.turn_on",
+        "entity": "$context.media_player"
       }
     },
     "tizen": {
@@ -723,6 +949,10 @@
             "command": "adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity"
           }
         }
+      },
+      "wake": {
+        "service": "media_player.turn_on",
+        "entity": "$context.media_player"
       }
     }
   },
@@ -797,24 +1027,8 @@
       "view_kind": "controller",
       "type": "controller",
       "buttons": {
-        "menu_hold": {
+        "menu": {
           "navigate": "music_library"
-        },
-        "left_hold": {
-          "seek": -15,
-          "entity": "$context.media_player"
-        },
-        "right_hold": {
-          "seek": 15,
-          "entity": "$context.media_player"
-        },
-        "ch_up_hold": {
-          "seek": 15,
-          "entity": "$context.media_player"
-        },
-        "ch_down_hold": {
-          "seek": -15,
-          "entity": "$context.media_player"
         }
       },
       "control_target": {
@@ -870,7 +1084,7 @@
           "span": 2
         }
       ],
-      "gen": 3
+      "gen": 5
     },
     "music_library": {
       "name": "Music Library",

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something misbehaves — on the remote, in the Studio, or in the integration.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for helping harden Harmonium. The ⓘ diagnostics page
+        on the remote answers most of the environment questions —
+        tap ⓘ and read the numbers back.
+  - type: input
+    id: version
+    attributes:
+      label: Harmonium version
+      description: "From the ⓘ page (Engine v…) or the Studio footer (s… stamp)."
+      placeholder: "e.g. 0.84.1 / s0.84.1 b43"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "e.g. 2026.7.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      options:
+        - The remote (engine)
+        - The Studio
+        - The integration (install / deploy / pairing)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Remote hardware / browser
+      description: "Device + webview if a hardware remote (the ⓘ page shows the profile and viewport)."
+      placeholder: "e.g. Sanytron Astrion (Fully Kiosk, Chromium 75) / Chrome on desktop"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: >
+        HA logs (Settings → System → Logs, filter "harmonium"),
+        browser console errors, or a screenshot — whatever you have.

@@ -16,6 +16,8 @@ GENERATED from `data.json` — do not hand-edit; rerun
 | F11 press | 141 | `KEYCODE_F11` | 87 | Open Key Mapper | `io.github.sds100.keymapper` | — | global |
 | Volume Mute press | 164 | `KEYCODE_VOLUME_MUTE` | 113 | `` ` `` | `68` | `KEYCODE_GRAVE` | group “FullyKiosk” — Fully Kiosk Browser in foreground |
 | Back long-press | 4 | `KEYCODE_BACK` | 158 | Android Go back | — | — | group “FullyKiosk” — Fully Kiosk Browser in foreground |
+| D-pad Left long-press | 21 | `KEYCODE_DPAD_LEFT` | 105 | `,` | `55` | `KEYCODE_COMMA` | group “FullyKiosk” — Fully Kiosk Browser in foreground |
+| D-pad Right long-press | 22 | `KEYCODE_DPAD_RIGHT` | 106 | `.` | `56` | `KEYCODE_PERIOD` | group “FullyKiosk” — Fully Kiosk Browser in foreground |
 | Channel Up long-press | 92 | `KEYCODE_PAGE_UP` | 104 | `'` | `75` | `KEYCODE_APOSTROPHE` | group “FullyKiosk” — Fully Kiosk Browser in foreground |
 | Channel Down long-press | 93 | `KEYCODE_PAGE_DOWN` | 109 | `/` | `76` | `KEYCODE_SLASH` | group “FullyKiosk” — Fully Kiosk Browser in foreground |
 | F1 long-press | 131 | `KEYCODE_F1` | 59 | Android Go home | — | — | group “FullyKiosk” — Fully Kiosk Browser in foreground |

@@ -98,6 +98,124 @@ function passthroughActive() {
   return !!scp.dpad_passthrough;
 }
 
+/* ================================================================
+   THE PAD DOCTRINE, FINAL FORM (2026-08-20 — three field rounds
+   converged on Suresh's sentence: "dpad should always navigate the
+   screen EXCEPT for the TV, where ChUp and ChDn engage panel
+   mode"). One rule: THE PAD DRIVES WHICHEVER SCREEN YOU'RE
+   NAVIGATING. A page that declares a device navigation target (TV,
+   receiver OSD) sends the pad THERE, and CH walks the LCD instead
+   (borrowing the pad while you walk — the strip says so). Every
+   other page — rooms, details, and yes, MUSIC — the pad walks the
+   LCD natively and OK means the focused tile (play/pause on the
+   hero, mute on a volume row: the widgets already speak music).
+   The earlier "transport pad" owner (▲=next, then the same-day
+   at-rest hybrid) is DELETED — both put a hidden mode on keys whose
+   focus-follows meaning was already right ("I am on the receiver
+   tile … I hit OK and it pauses the music" — that was the bug).
+   Media conveniences live on keys the panel doesn't need:
+   hold-◀/▶ seek ∓15s · hold-CH▲/▼ previous/next track · short CH
+   jumps sections (walks when there's nothing to jump) · menu →
+   library via the stock binding — and the astrion2 glyph row
+   (prev/play_pause/stop/next) works from ANY page while music runs.
+   Physical keys only for the pad claim, as passthrough always was.
+   ================================================================ */
+/* who owns the physical pad on THIS screen (latch aside):
+   "device" — passthrough (TV/OSD): keys go to the wired dpad entity
+   null     — the panel's own: everything else, music included */
+function padOwner() {
+  if (!CAPS.has("physical_dpad")) return null;
+  return passthroughActive() ? "device" : null;
+}
+/* a MUSIC-SHAPED page: an activity controller with a media player
+   in context and no device navigation target — where the media
+   defaults (hold-seek, hold-CH track skip, CH section jump) live */
+function mediaScreen() {
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  if (sc.dpad_passthrough) return false;
+  if (sc.control_target &&
+      ["up", "down", "left", "right", "select"].every(ctPass)) return false;
+  return (sc.class === "activity" || sc.type === "controller") &&
+    !!resolveEntity("$context.media_player");
+}
+/* the page that IS the music library: it renders a browse tile.
+   FIELD LESSON (2026-08-20 round 4: "ChUp … seems to be jumping
+   sections in the Music Library which isn't even on screen!"):
+   S.browse persists after leaving the library, so brStepCat MUST
+   be gated to the screen that actually shows it — stepping an
+   invisible category strip also re-navigated the current screen
+   and threw the focus to the first tile. */
+function browseScreen() {
+  /* read the RAW screen def — the browse tile expands into item
+     tiles at render time, so the rendered list no longer says
+     "browse" */
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  const secs = sc.sections || (sc.tiles ? [{ tiles: sc.tiles }] : []);
+  return secs.some(s => (s.tiles || []).some(t => t && t.type === "browse"));
+}
+/* music surfaces = the controller AND its library (his round-4
+   call: the library's CH steps the category strip; both get the
+   hold conveniences). The apps drawer is a library too but not a
+   music surface — no browse tile, so it stays plain. */
+function musicSurface() {
+  return mediaScreen() ||
+    (browseScreen() && !!resolveEntity("$context.media_player"));
+}
+/* the player the transport keys drive: the page's own context first,
+   else the RUNNING activity's — so astrion2's dedicated transport
+   row (F4–F7) works from the room page, the library, anywhere */
+function mediaCtx() {
+  const t = resolveEntity("$context.media_player");
+  if (t) return t;
+  const aid = currentActivityId();
+  const c = aid && CONFIG.activities[aid] && CONFIG.activities[aid].context;
+  return (c && typeof c.media_player === "string") ? c.media_player : null;
+}
+/* the borrow: any CH press arms/renews it (rolling TIMING.padLatch);
+   so does every latched pad press. Back, touch, and navigation end
+   it early. On panel-native screens it never arms — no mode where
+   there is no mode to enter. */
+function padLatched() { return (S.padLatch || 0) > Date.now(); }
+function padArm() {
+  if (!padOwner()) return;
+  /* the borrow window: config input.pad_latch_seconds (Code tab on
+     the Input policy slice) beats the 8s default */
+  const ms = (CONFIG && CONFIG.input && +CONFIG.input.pad_latch_seconds > 0)
+    ? +CONFIG.input.pad_latch_seconds * 1000 : (TIMING.padLatch || 8000);
+  S.padLatch = Date.now() + ms;
+  padStrip();
+}
+function padClear() {
+  if (!S.padLatch) return;
+  S.padLatch = 0;
+  padStrip();
+}
+function padStrip() {
+  const el = document.getElementById("padstrip");
+  if (!el) return;
+  const on = padLatched();
+  el.classList.toggle("hidden", !on);
+  clearTimeout(padStrip._t);
+  if (on) padStrip._t =
+    setTimeout(padStrip, Math.max(60, S.padLatch - Date.now() + 30));
+}
+/* hands on the glass = the panel is being TOUCHED; the pad returns
+   to the activity immediately */
+document.addEventListener("pointerdown", () => padClear(), true);
+/* the dedicated transport keys (astrion2's glyph row, or any remote
+   naming keys prev/play_pause/stop/next) — fired at mediaCtx() so
+   they follow the running music from any page */
+function padMedia(button, tgt) {
+  callService("media_player",
+    button === "prev" ? "media_previous_track"
+    : button === "next" ? "media_next_track"
+    : button === "stop" ? "media_stop" : "media_play_pause", null, tgt);
+  if (typeof PREVIEW !== "undefined" && PREVIEW)
+    flashBar(button === "prev" ? "⏮ Previous track"
+      : button === "next" ? "⏭ Next track"
+      : button === "stop" ? "⏹ Stop" : "⏯ Play/Pause");
+}
+
 /* v2 power-to-target: controls.power may be a full {service, entity}
    action; control_target.power is an entity (default: toggle). */
 function ctPower() {
@@ -164,21 +282,38 @@ function v2Route(button, phys) {
   return false;
 }
 
+/* repaint after the focus leaves an options-mode tile — its render
+   clears the roving highlight only when it runs */
+function blurRove(prevId) {
+  if (!prevId || prevId === S.focusId) return;
+  const t = tileDef(prevId);
+  if (t && typeof navOf === "function" && navOf(t) === "options") renderStates();
+}
+
 function act(button, phys) {
   if (!CONFIG || !S.screen) return;
 
-  /* Harmony passthrough claims PHYSICAL keys only — touch taps on
-     tiles always drive the UI, even on a passthrough screen.
-     v0.11: Back is NO LONGER claimed — tap-Back is UI back everywhere;
+  /* THE PAD CLAIM (2026-08-20 doctrine, final form) — PHYSICAL keys
+     only; touch taps always drive the UI. The pad is claimed on
+     exactly ONE kind of page: a declared device navigation target
+     (passthrough), and only until CH borrows it for the panel —
+     then the five keys fall through to the panel paths below and
+     each press renews the borrow. Everywhere else the pad IS the
+     panel's, natively — no claim, no mode, no strip. Capture
+     outranks everything: a widget the user grabbed keeps its keys.
+     v0.11: Back is never claimed — tap-Back is UI back everywhere;
      hold-Back/Home send the device keys (see keydown). */
-  if (phys && passthroughActive() &&
+  if (phys && !S.captured &&
       ["up", "down", "left", "right", "select"].includes(button)) {
-    rc(deviceKeyTarget(), cmdFor({}, button));
-    /* the Studio preview can't show the device reacting — say where
-       the key went so the pad doesn't read as dead */
-    if (typeof PREVIEW !== "undefined" && PREVIEW)
-      flashBar("D-pad → device (passthrough)");
-    return;
+    if (padLatched()) padArm();              // walking renews the borrow
+    else if (padOwner() === "device") {
+      rc(deviceKeyTarget(), cmdFor({}, button));
+      /* the Studio preview can't show the device reacting — say
+         where the key went so the pad doesn't read as dead */
+      if (typeof PREVIEW !== "undefined" && PREVIEW)
+        flashBar("D-pad → device (passthrough)");
+      return;
+    }
   }
 
   /* v2 input policy (config.input.physical_buttons): short press →
@@ -196,15 +331,30 @@ function act(button, phys) {
   }
 
   switch (button) {
-    case "up": case "down":
-      spatialMove(button); break;
+    case "up": case "down": {
+      /* an OPTIONS tile paints a roving highlight; repaint when the
+         walk leaves it so the outline doesn't linger (chips clear
+         their rove state in render when unfocused) */
+      const was = S.focusId;
+      spatialMove(button);
+      blurRove(was);
+      break;
+    }
     case "left": case "right": {
       /* widget-owned ◀▶ while merely FOCUSED (no capture) — e.g.
-         coverbtns' roving highlight */
-      if (!isTrailId(S.focusId) && w && w.keys && w.keys[button]) {
-        w.keys[button](eid, t); renderStates(); break;
+         coverbtns' roving highlight, or a volume tile's level
+         (round 4 field call: "DPad left and Right SHOULD" change
+         the volume). A handler may return false to decline —
+         per-tile scoping (the stepper only claims volume kind). */
+      /* nav modes: a tile overridden to "action" walks even when its
+         widget offers ◀▶ handlers (the whole policy is data now) */
+      if (!isTrailId(S.focusId) && w && w.keys && w.keys[button] &&
+          navOf(t) !== "action") {
+        if (w.keys[button](eid, t) !== false) { renderStates(); break; }
       }
-      if (!spatialMove(button)) pageScreen(button);
+      { const was = S.focusId;
+        if (!spatialMove(button)) pageScreen(button);
+        blurRove(was); }
       break;
     }
     case "select": {
@@ -218,11 +368,15 @@ function act(button, phys) {
       }
       if (!w) break;
       if (S.confirmTile === t.id && w.select) { w.select(eid, t); break; }
-      if (w.selectCaptures) { enterCapture(); renderStates(); }
+      /* nav modes decide OK: "capture" grabs the pad (dpad tiles
+         only, in stock); everything else runs the widget's select —
+         mute, join, commit-the-roved-option, fire */
+      if (navOf(t) === "capture" && w.capture) { enterCapture(); renderStates(); }
       else if (w.select) { w.select(eid, t); renderStates(); }
       break;
     }
     case "back":
+      padClear();          // Back hands the pad home AND does its job
       if (S.confirmTile) { clearConfirm(); renderStates(); break; }
       if (S.stack.length) navigate(S.stack.pop(), true);
       break;
@@ -253,9 +407,15 @@ function act(button, phys) {
       break;
     }
     case "menu": {
-      /* physical MENU key (Astrion: '#') → the device's menu command
-         on screens with a device context; on a multi-section page
-         without one, MENU tours the categories (wraps) */
+      /* a BINDING wins first (final doctrine, 2026-08-20 — the
+         stock music page binds menu → navigate music_library: "the
+         hamburger jumps to the Library", his call); then the
+         physical MENU key (Astrion: '#') → the device's menu
+         command on screens with a device context; on a
+         multi-section page without one, MENU tours the categories
+         (wraps) */
+      const bm = boundButtons().menu;
+      if (bm) { runAction(bm); break; }
       const mt = deviceKeyTarget();
       if (mt) { rc(mt, cmdFor({}, "menu")); break; }
       heroCycle(1, true);
@@ -323,6 +483,10 @@ function act(button, phys) {
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":
     case "mute": case "menu_hold": {
+      /* ANY CH press is panel intent — it borrows the pad (his #3:
+         "Both Hold and short press") whether a binding wins or the
+         focus-walk default runs */
+      if (button === "ch_up" || button === "ch_down") padArm();
       /* Exception to "VOL is always audio": on a device DETAIL
          screen, VOL nudges that device's primary range (brightness,
          setpoint, volume, position). Everywhere else: activity audio. */
@@ -365,19 +529,28 @@ function act(button, phys) {
           button === "vol_up" ? "volume_up" : "volume_down", null, vt);
         break;
       }
-      /* CH = MOVE THE FOCUS. ALWAYS. (2026-08-19 — Suresh: "ChUp,
-         ChDn, navigate the LCD. Always." — one field day after the
-         hold-CH round, the roles flipped: the SHORT press is the
-         gesture a thumb reaches for). CH▲ walks the focus UP exactly
-         like the D-pad — and unlike the D-pad it works on
-         passthrough controllers, where arrows belong to the device.
-         This also cures the "inverted" feel of the old default: CH▲
-         used to mean "next section", which is DOWN the page. The old
-         short-press defaults (browse category strip, section chips)
-         moved to the HOLDS below; a config binding still beats
-         everything (the ladder above already returned). */
+      /* CH = MOVE THE FOCUS (2026-08-19: "ChUp, ChDn, navigate the
+         LCD. Always."), REFINED on music by the final doctrine
+         (2026-08-20): with the pad walking natively there, CH-walk
+         was redundant, so on a music-shaped page short CH takes the
+         BIG JUMP — the library's category strip, the section tabs —
+         and falls back to the plain walk when there's nothing to
+         jump ("change section if there are sections, redundant walk
+         if not" — his words). CH▲ = up the page (d = −1) either
+         way. On passthrough screens CH stays the walk — it's the
+         only walk there is. A config binding beat everything above. */
       if (button === "ch_up" || button === "ch_down") {
-        spatialMove(button === "ch_up" ? "up" : "down");
+        const d = button === "ch_up" ? -1 : 1;
+        /* on the LIBRARY the section jump is the category strip —
+           and only there (browseScreen gates the persistent
+           S.browse); the controller uses its hero tabs; anything
+           without a jump falls back to the walk */
+        if (browseScreen() &&
+            typeof brStepCat === "function" && brStepCat(d)) break;
+        if (musicSurface() && heroCycle(d)) break;
+        { const wasCh = S.focusId;
+          spatialMove(button === "ch_up" ? "up" : "down");
+          blurRove(wasCh); }
         break;
       }
       /* mute default (no config binding needed): toggle mute on the
@@ -404,20 +577,25 @@ function act(button, phys) {
       break;
     }
     case "ch_up_hold": case "ch_down_hold": {
-      /* HOLD-CH = THE BIG JUMPS (2026-08-19 redesign; the buttons
-         themselves arrived one day earlier for "make long press up
-         and down control the LCD?" — then short CH took the focus
-         walk, and the holds inherited the old short-press defaults):
-         the browse CATEGORY strip on the library, the section chips
-         on a room page — CH▲-hold goes to the PREVIOUS one (up the
-         page), CH▼-hold the next. A binding wins first: the stock
-         music controller points these at ±15s seek (his RWD/FFWD).
-         Holds are the SHELL's job (see FIELD LESSON below):
-         KeyMapper long-press on CH▲/CH▼ sends ' and /. */
+      /* HOLD-CH (final doctrine, 2026-08-20): on a MUSIC-shaped
+         page the hold skips tracks — CH▲-hold = previous, CH▼-hold
+         = next ("Long Press in Next / Previous Track" — the section
+         work moved to the SHORT press there). Everywhere else the
+         hold keeps the BIG JUMPS: the browse category strip, the
+         section chips — CH▲-hold to the PREVIOUS one (up the page).
+         A binding wins first. Holds are the SHELL's job (see FIELD
+         LESSON below): KeyMapper long-press on CH▲/CH▼ sends ' /. */
+      padArm();   // on a passthrough screen a jump is panel intent (no-op elsewhere)
       const bch = boundButtons()[button];
       if (bch) { runAction(bch); break; }
       const d = button === "ch_up_hold" ? -1 : 1;
-      if (typeof brStepCat === "function" && brStepCat(d)) break;
+      if (musicSurface()) {
+        padMedia(d < 0 ? "prev" : "next", resolveEntity("$context.media_player"));
+        break;
+      }
+      /* brStepCat only where the strip is on screen (see browseScreen) */
+      if (browseScreen() &&
+          typeof brStepCat === "function" && brStepCat(d)) break;
       heroCycle(d);
       break;
     }
@@ -429,7 +607,25 @@ function act(button, phys) {
          Unbound stays a deliberate no-op. left_hold/right_hold land
          here; new remotes can mint new names without engine edits. */
       const bd = boundButtons()[button];   /* same ladder as above */
-      if (bd) runAction(bd);
+      if (bd) { runAction(bd); break; }
+      /* MEDIA DEFAULTS (final doctrine, 2026-08-20). Unbound
+         hold-◀/hold-▶ on a music-shaped page SEEK ∓15s ("Hold ◀/▶
+         = seek") — the stock TV screen binds these same buttons to
+         REWIND/FAST_FORWARD passthrough, and that binding won
+         above. And the DEDICATED transport keys — astrion2's glyph
+         row names F4–F7 prev/play_pause/stop/next — drive the
+         running music from ANY page (mediaCtx falls back to the
+         running activity's player). */
+      if ((button === "left_hold" || button === "right_hold") && musicSurface()) {
+        runAction({ seek: button === "right_hold" ? 15 : -15,
+          entity: "$context.media_player" });
+        break;
+      }
+      if (["prev", "play_pause", "stop", "next"].includes(button)) {
+        const mt = mediaCtx();
+        if (mt) padMedia(button, mt);
+        break;
+      }
       break;
     }
   }
@@ -507,7 +703,10 @@ document.addEventListener("keydown", e => {
   if (!b) return;
   e.preventDefault();
   if (b === "select") {                         // hold-select gesture
-    if (e.repeat || S.captured || passthroughActive()) return; // tap on keyup
+    /* the hold timer belongs to the PANEL's select — skip it when the
+       pad's owner (a passthrough device) has the key and no borrow is
+       live (the tap then fires on keyup and the claim routes it) */
+    if (e.repeat || S.captured || (padOwner() && !padLatched())) return;
     holdFired = false;
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => {              // timer-based: works even

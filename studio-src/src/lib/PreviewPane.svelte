@@ -235,6 +235,7 @@
        property from here — so detaching the handler IS the pin
        protection; there is no state to save.) */
     const frozen = {};
+    const pinned = [];
     let fwin = null, heldSpy, gridEl = null;
     try {
       const pv = document.getElementById("pv");
@@ -244,6 +245,26 @@
         if (typeof fwin[fn] === "function") { frozen[fn] = fwin[fn]; fwin[fn] = () => {}; }
       gridEl = doc.getElementById("grid");
       if (gridEl) { heldSpy = gridEl.onscroll; gridEl.onscroll = null; }
+      /* PIN THE VERTICAL LAYOUT (round 3 — his b40 capture still
+         spread the devices region a few px per tile until the bottom
+         clipped, and only on HIS machine: html-to-image re-lays-out
+         the clone inside an SVG image, where font metrics / display
+         scaling can differ slightly from the live page — tiles are
+         min-height + content-sized, so tiny per-line differences
+         COMPOUND down the page. Headless never drifts; his Windows
+         does. So the capture stops trusting re-layout: every banner
+         and grid child gets its LIVE height inlined (border-box) for
+         the duration — the clone can render text however it likes
+         inside boxes that cannot move. Restored after. */
+      for (const el of doc.querySelectorAll(
+        "#banner, #grid, #grid > *, #grid .secgrid > *")) {
+        const r = el.getBoundingClientRect();
+        pinned.push([el, el.style.cssText]);
+        el.style.height = r.height + "px";
+        el.style.minHeight = r.height + "px";
+        el.style.maxHeight = r.height + "px";
+        el.style.boxSizing = "border-box";
+      }
       const vw = pv.contentWindow.innerWidth, vh = pv.contentWindow.innerHeight;
       for (const el of doc.querySelectorAll("*")) {
         const st = el.scrollTop, sl = el.scrollLeft;
@@ -291,6 +312,7 @@
       setStatus("screenshot failed: " + (e?.message || e), "err");
     }
     undoScroll.forEach((f) => f());          /* spy still detached: no false release */
+    pinned.forEach(([el, css]) => (el.style.cssText = css));
     if (gridEl) gridEl.onscroll = heldSpy;
     if (fwin) {
       for (const k of Object.keys(frozen)) fwin[k] = frozen[k];

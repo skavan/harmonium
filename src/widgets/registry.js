@@ -65,3 +65,36 @@ function wireSlider(sl, apply, axis) {
 }
 
 const WIDGETS = {};
+
+/* ================================================================
+   NAV MODES (2026-08-20 — Suresh, designing the speaker-group page:
+   "We need to make this logic something that is configured so we
+   don't have to hard code it all. Seems like we have 3 or 4 'modes'
+   of navigation." Exactly four:
+
+     action  — OK fires the tile. ◀▶ walk. The default.
+     value   — ◀▶ adjust the tile's value, OK does its secondary
+               (mute on volume, join on a group member); ▲▼ walk.
+     options — ◀▶ rove a highlight through the tile's choices,
+               OK commits the highlighted one (chips, transport).
+     capture — OK grabs the whole pad (dpad passthrough tiles: the
+               only survivors of capture, because they genuinely
+               forward keys to another device).
+
+   A widget declares its default (`nav`, value or function(t)); a
+   TILE may override with `"nav": "action" | "value" | "options"`
+   in config — so the policy is data, and the Studio can offer it
+   as a per-tile dropdown. Legacy widgets that declare
+   selectCaptures and no `nav` read as capture; widgets with `keys`
+   and no `nav` read as value. */
+function navOf(t) {
+  if (t && typeof t.nav === "string") return t.nav;
+  const w = (t && WIDGETS[t.type]) || {};
+  const n = typeof w.nav === "function" ? w.nav(t) : w.nav;
+  if (n) return n;
+  const caps = typeof w.selectCaptures === "function"
+    ? w.selectCaptures(t) : w.selectCaptures;
+  if (caps) return "capture";
+  if (w.keys) return "value";
+  return "action";
+}

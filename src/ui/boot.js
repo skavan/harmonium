@@ -274,6 +274,12 @@ function applyConfig(cfg, devName) {
      that maps ' or / to something else keeps its mapping). */
   if (!("'" in KEYMAP)) KEYMAP["'"] = "ch_up_hold";
   if (!("/" in KEYMAP)) KEYMAP["/"] = "ch_down_hold";
+  /* same story one day later for hold-◀/hold-▶ (the music field
+     flip made them the track-skip keys): , and . are the shipped
+     KeyMapper keycodes — COMMA/PERIOD — and every profile gets them
+     unless it claims those keys itself. */
+  if (!("," in KEYMAP)) KEYMAP[","] = "left_hold";
+  if (!("." in KEYMAP)) KEYMAP["."] = "right_hold";
   /* v0.58: the REMOTE PROFILE may override presentation tokens on top
      of the theme — remotes.<id>.style is a plain map of CSS custom
      properties ({"bar-h":"100px"}). Same mechanism as the theme, one

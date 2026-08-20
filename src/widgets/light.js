@@ -7,6 +7,14 @@ WIDGETS.light = {
     meter: e => st(e).s === "on" ? (st(e).a.brightness || 255) / 255 : 0,
     select: e => callService("light", "toggle", null, e),
     detailable: true,
+    /* 2026-08-20 nav modes: value — ◀▶ nudge brightness while
+       focused; OK still toggles (the widget's select). Hold-capture
+       stays as an optional power gesture. */
+    nav: "value",
+    keys: {
+      left:  e => void nudgeLight(e, -26),
+      right: e => void nudgeLight(e, +26),
+    },
     holdCapture: true, captureHint: "▲▼ brightness · back releases",
     capture: {
       up:   e => nudgeLight(e, +26), down: e => nudgeLight(e, -26),

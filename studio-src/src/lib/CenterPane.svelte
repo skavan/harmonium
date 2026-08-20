@@ -19,6 +19,7 @@
   import ThemeEditor from "./editors/ThemeEditor.svelte";
   import SnippetsEditor from "./editors/SnippetsEditor.svelte";
   import WorkspacesEditor from "./editors/WorkspacesEditor.svelte";
+  import RemotesEditor from "./editors/RemotesEditor.svelte";
   import SpeakerGroupsEditor from "./editors/SpeakerGroupsEditor.svelte";
   import WorkspaceMap from "./editors/WorkspaceMap.svelte";
 </script>
@@ -73,6 +74,8 @@
       <WorkspaceMap />
     {:else if app.selKey === "workspaces"}
       <WorkspacesEditor />
+    {:else if app.selKey === "remotes"}
+      <RemotesEditor />
     {:else if app.selKey?.startsWith("controller.")}
       <ViewEditor screenId={app.selKey.slice(11)} kind="controller" />
     {:else if app.selKey?.startsWith("screens.")}

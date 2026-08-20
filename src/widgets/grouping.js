@@ -47,12 +47,37 @@ function grpMaster(t) {
   if (coord) return coord;
   return ms.find(m => ACTIVE(st(m).s)) || ms[0] || null;
 }
+/* GROUP VOLUME FROM THE PAD (2026-08-20 field round 4 — "On
+   Speaker Group page, dpad and Ch Up Dn do nothing"): a focused
+   grouping card answers ◀/▶ with the same preserve-the-offsets
+   group nudge the slider does — every volume-LINKED joined member
+   moves by one step, relative trim intact. Member-row walking from
+   the pad is a 0.84.2 design question; rows stay touch for now. */
+function grpVolKey(e, t, d) {
+  const m0 = e || grpMaster(t);
+  if (!m0) return;
+  const listed = new Set([m0, ...(t.entities || [])]);
+  const members = (st(m0).a.group_members || [m0])
+    .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+  members.forEach(m => {
+    const cur = S.states.get(m);
+    const v = cur && cur.a ? cur.a.volume_level : null;
+    if (v == null) return;
+    const nv = Math.max(0, Math.min(1, Math.round((v + d * 0.05) * 100) / 100));
+    cur.a.volume_level = nv;
+    callService("media_player", "volume_set", { volume_level: nv }, m);
+  });
+}
 WIDGETS.grouping = {
     /* nothing to offer without a master and at least one OTHER
        candidate speaker */
     hidden: (e, t) => {
       const m0 = e || grpMaster(t);
       return !m0 || !(t.entities || []).filter(m => m !== m0).length;
+    },
+    keys: {
+      left:  (e, t) => grpVolKey(e, t, -1),
+      right: (e, t) => grpVolKey(e, t, +1),
     },
     isOn: (e, t) => { const m0 = e || grpMaster(t); return !!m0 && ACTIVE(st(m0).s); },
     inlineSub: true,
@@ -303,6 +328,257 @@ WIDGETS.grouping = {
       sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
     }
   };
+/* ================================================================
+   THE SPEAKER-GROUP PAGE AS TILES (2026-08-20 — Suresh, screenshots
+   in hand: "Each row should behave as a tile. Dpad navigates the
+   tiles, as does ChUp and ChDn. OK on the parent player, does
+   nothing. OK on an ungrouped player toggles its group status. Left
+   and Right DPad … impact the active tile's volume (including group
+   volume which should have the same layout as the others). On group
+   Volume we should have an unlink all icon"). The spkgrp: screen
+   stopped rendering one mega-card: it generates ONE TILE PER MEMBER
+   (grpmember) plus a Group Volume tile (grpvol) — real tiles, so
+   the focus walk, the tile gap, and the nav-mode grammar all come
+   free. The inline card on the music controller is untouched.
+   VOL/Mute hardware keys deliberately stay at the ACTIVITY level
+   (his ruling — the ARC lesson holds); ◀▶ are the per-row keys.
+   ================================================================ */
+function grpmMaster(t) {
+  return grpMaster({ entity: t.group_master, entities: t.entities });
+}
+function grpmJoined(t, m) {
+  const e = grpmMaster(t);
+  return m === e || (st(e).a.group_members || []).indexOf(m) >= 0;
+}
+/* join/unjoin one member against the master — optimistic, shared by
+   the OK press and the title-line link button */
+function grpmToggle(e, t) {
+  const m0 = grpmMaster(t);
+  if (!e || e === m0) { flashBar("Group master"); return; }
+  const g = st(m0).a.group_members || [];
+  const joined = g.indexOf(e) >= 0;
+  const cur = S.states.get(m0);
+  if (cur && cur.a) {
+    const gm = (cur.a.group_members || [m0]).slice();
+    if (joined) gm.splice(gm.indexOf(e), 1);
+    else gm.push(e);
+    cur.a.group_members = gm;
+  }
+  if (joined) callService("media_player", "unjoin", null, e);
+  else callService("media_player", "join", { group_members: [e] }, m0);
+  flashBar(joined ? "Ungrouped" : "Grouped");
+}
+/* one member row: name · [−][track with % inside][+] · link badge */
+WIDGETS.grpmember = {
+  nav: "value",
+  isOn: (e, t) => grpmJoined(t, e),
+  inlineSub: true,
+  sub: (e, t) => e === grpmMaster(t) ? "master"
+    : grpmJoined(t, e) ? "grouped" : "",
+  keys: {
+    left: (e) => {
+      volNudgeOpt(e, "down");
+      callService("media_player", "volume_down", null, e);
+    },
+    right: (e) => {
+      volNudgeOpt(e, "up");
+      callService("media_player", "volume_up", null, e);
+    },
+  },
+  /* OK: master → nothing (its level is the activity's own volume);
+     member → join/unjoin toggle — shared with the title-line link
+     button so touch and OK are the same muscle */
+  select: (e, t) => grpmToggle(e, t),
+  /* THE MEGA-CARD'S LAYOUT, PER TILE (his screenshots, round 77
+     patch 2: "We used to have the volume and link button… That's
+     the layout we want. A proper volume bar with -/+"): the
+     volume-link and join-link buttons ride the TITLE line
+     (absolute, top-right), and the volume row below is a pure
+     [−][fat track with % inside][+] at full width. */
+  body: () => `<div class="grpbtns">
+      <button class="dpbtn gvlink" title="Group volume moves this player"><span class="material-symbols-outlined">volume_up</span></button>
+      <button class="dpbtn gjoin" title="Group / ungroup this player (OK does this too)"><span class="material-symbols-outlined">link</span></button>
+    </div><div class="volrow">
+      <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i><span class="rslpct">–</span></div>
+      <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
+    </div>`,
+  wire: (el, t) => {
+    const m = resolveEntity(t.entity);
+    wireTaps(el, "vol", d => {
+      volNudgeOpt(m, d);
+      renderStates();
+      callService("media_player", "volume_" + d, null, m);
+    });
+    /* join/unjoin (touch) — the same toggle OK runs */
+    const jb = el.querySelector(".gjoin");
+    if (jb) jb.addEventListener("click", ev => {
+      ev.stopPropagation();
+      grpmToggle(m, t);
+      renderStates();
+    });
+    /* volume-link toggle (touch, joined rows): local trim choice */
+    const vb = el.querySelector(".gvlink");
+    if (vb) vb.addEventListener("click", ev => {
+      ev.stopPropagation();
+      if (GRP_VOL_UNLINKED.has(m)) GRP_VOL_UNLINKED.delete(m);
+      else GRP_VOL_UNLINKED.add(m);
+      renderStates();
+    });
+    const sl = el.querySelector(".sldr");
+    if (!sl) return;
+    const apply = (ev, final) => {
+      const r = sl.getBoundingClientRect();
+      let f = (ev.clientX - r.left) / r.width;
+      f = Math.max(0, Math.min(1, f));
+      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = Math.round(f * 100) + "%";
+      const cur = S.states.get(m);
+      if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
+      const now = Date.now();
+      if ((final || now - (sl._t || 0) > 150) && f !== sl._lastF) {
+        sl._t = now; sl._lastF = f;
+        renderStates();
+        callService("media_player", "volume_set",
+          { volume_level: Math.round(f * 100) / 100 }, m);
+      }
+    };
+    wireSlider(sl, apply, "h");
+  },
+  render: (el, e, t) => {
+    if (!e) return;
+    /* the tile was labeled at generation from whatever state existed;
+       upgrade to the live friendly_name the moment it arrives */
+    const fn = st(e).a.friendly_name;
+    const lb = el.querySelector(".lbl");
+    if (fn && lb && lb.textContent !== fn) lb.textContent = fn;
+    const joined = grpmJoined(t, e);
+    const master = e === grpmMaster(t);
+    const l = volHeld(e, st(e).a.volume_level);
+    const sl = el.querySelector(".sldr");
+    if (sl && !sl._drag) {
+      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = l != null ? pct(l) : "–";
+      sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+    }
+    const bts = el.querySelector(".grpbtns");
+    if (bts) bts.style.display = master ? "none" : "";
+    const jb = el.querySelector(".gjoin");
+    if (jb) {
+      jb.classList.toggle("on", joined);
+      jb.querySelector(".material-symbols-outlined").textContent =
+        joined ? "link" : "add_link";
+    }
+    const vb = el.querySelector(".gvlink");
+    if (vb) {
+      vb.style.display = joined && !master ? "" : "none";
+      const vlinked = !GRP_VOL_UNLINKED.has(e);
+      vb.classList.toggle("vloose", !vlinked);
+      vb.querySelector(".material-symbols-outlined").textContent =
+        vlinked ? "volume_up" : "volume_mute";
+      vb.title = vlinked ? "Group volume moves this player"
+        : "Volume unlinked — group volume leaves this player alone";
+    }
+  }
+};
+/* the GROUP VOLUME tile — same layout as a member row, moves every
+   volume-linked joined member preserving offsets; OK = UNLINK ALL */
+WIDGETS.grpvol = {
+  nav: "value",
+  hidden: (e, t) => {
+    const m0 = grpmMaster(t);
+    return !m0 || (st(m0).a.group_members || []).length < 2;
+  },
+  isOn: (e, t) => {
+    const m0 = grpmMaster(t);
+    return !!m0 && (st(m0).a.group_members || []).length > 1;
+  },
+  keys: {
+    left:  (e, t) => grpVolKey(grpmMaster(t), t, -1),
+    right: (e, t) => grpVolKey(grpmMaster(t), t, +1),
+  },
+  /* OK = unlink all (his call): every joined non-master member
+     leaves the group; optimistic, then per-member unjoin */
+  select: (e, t) => {
+    const m0 = grpmMaster(t);
+    if (!m0) return;
+    const listed = new Set(t.entities || []);
+    const gone = (st(m0).a.group_members || [])
+      .filter(m => m !== m0 && listed.has(m));
+    if (!gone.length) return;
+    const cur = S.states.get(m0);
+    if (cur && cur.a) cur.a.group_members = [m0];
+    gone.forEach(m => callService("media_player", "unjoin", null, m));
+    flashBar("Ungrouped " + gone.length +
+      (gone.length === 1 ? " player" : " players"));
+  },
+  body: () => `<div class="grpbtns">
+      <button class="dpbtn gunlink" title="Ungroup all players (OK does this too)"><span class="material-symbols-outlined">link_off</span></button>
+    </div><div class="volrow">
+      <button class="dpbtn" data-gv="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i><span class="rslpct">–</span></div>
+      <button class="dpbtn" data-gv="up"><span class="material-symbols-outlined">add</span></button>
+    </div>`,
+  wire: (el, t) => {
+    wireTaps(el, "gv", d =>
+      grpVolKey(grpmMaster(t), t, d === "up" ? +1 : -1) || renderStates());
+    const ub = el.querySelector(".gunlink");
+    if (ub) ub.addEventListener("click", ev => {
+      ev.stopPropagation();
+      WIDGETS.grpvol.select(null, t);
+      renderStates();
+    });
+    const sl = el.querySelector(".sldr");
+    if (!sl) return;
+    /* drag → target level; every linked member moves by the same
+       delta (offsets survive) — the mega-card's contract, tile-ized */
+    const apply = (ev, final) => {
+      const r = sl.getBoundingClientRect();
+      let f = (ev.clientX - r.left) / r.width;
+      f = Math.max(0, Math.min(1, f));
+      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      const now = Date.now();
+      if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
+      sl._t = now; sl._lastF = f;
+      const m0 = grpmMaster(t);
+      const listed = new Set([m0, ...(t.entities || [])]);
+      const grp = (st(m0).a.group_members || [m0])
+        .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+      const lv = grp.map(m => {
+        const v = st(m).a.volume_level;
+        return v == null ? f : v;
+      });
+      const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+      const d = f - avg;
+      grp.forEach((m, i) => {
+        const v = Math.max(0, Math.min(1, Math.round((lv[i] + d) * 100) / 100));
+        const cur = S.states.get(m);
+        if (cur && cur.a) cur.a.volume_level = v;
+        callService("media_player", "volume_set", { volume_level: v }, m);
+      });
+      renderStates();
+    };
+    wireSlider(sl, apply, "h");
+  },
+  render: (el, e, t) => {
+    const m0 = grpmMaster(t);
+    if (!m0) return;
+    const listed = new Set([m0, ...(t.entities || [])]);
+    const linked = (st(m0).a.group_members || [m0])
+      .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+    const lv = linked.map(m => st(m).a.volume_level || 0);
+    const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+    const sl = el.querySelector(".sldr");
+    if (sl && !sl._drag) {
+      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = pct(avg);
+    }
+  }
+};
+
 /* GROUP LAUNCHER (v0.83.7 Speaker Groups — Suresh: "a launcher tile
    that is slim and says something like 5 available. 0 Linked. and a
    tap launches the Speaker Group Card"): the slim half of the pair.

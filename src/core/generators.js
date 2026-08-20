@@ -68,11 +68,20 @@ function genAppTiles(t) {
        from its own keys catalog, anything else rides the classLaunch
        grammar. firePreset checks the player's state at TAP time and
        fires this first (then waits wake_delay ms, default 600)
-       before the launch. No wake declared = exactly today. */
+       before the launch.
+       DEFAULT ON (2026-08-20 — his field check "Did we wire in the
+       wake key for FireTV Apps?" found his house dialect never
+       declared one, so the v0.83.9 machinery sat idle): with no
+       `wake` declared, media_player.turn_on on the context player
+       IS the wake — the asleep-state gate in firePreset makes it
+       safe (an awake player is never poked). A dialect opts out
+       with `"wake": false`. */
     let wkE = cls.wake;
     if (typeof wkE === "string" && wkE.startsWith("key:"))
       wkE = (cls.keys || {})[wkE.slice(4)];
-    const wake = wkE != null ? classLaunch(wkE) : null;
+    else if (wkE == null)
+      wkE = { service: "media_player.turn_on", entity: "$context.media_player" };
+    const wake = wkE ? classLaunch(wkE) : null;
     const wakeDelay = +cls.wake_delay > 0 ? +cls.wake_delay : 0;
     const ids = Array.isArray(t.include)
       ? t.include.filter((x) => entries[x] != null) : Object.keys(entries);

@@ -8,7 +8,9 @@ on every remote in the house.
 
 *(This is the quick version. Every tab, every knob, and the concepts
 behind them — with screenshots — live in
-[Creating an Activity — the deep dive](creating-an-activity.md).)*
+[Creating an Activity — the deep dive](creating-an-activity.md).
+**📺 Or watch it built end to end: [Watch Fire TV activity](https://youtu.be/M75ZPYvorUM) ·
+[Listen to Music activity](https://youtu.be/vALzJylJLSw).**)*
 
 ## The idea (read this once)
 
@@ -24,7 +26,10 @@ Each activity declares:
 - **a cast** — the devices it involves (from your device library);
 - **roles** — which cast member is the volume, which is the D-pad,
   which is the power (`media_player`, `dpad`, `power`, `volume`…);
-- **actions** — the start/stop sequences;
+- **actions** — the start/stop sequences (plus per-activity
+  switches: confirm-before-ending, confirm-before-switching-away,
+  and *run my Stop when another activity starts* for clean
+  hand-offs);
 - **a controller** — the page shown while it runs (the stock
   TV / Music controllers work out of the box), plus per-activity
   band switches and presets;

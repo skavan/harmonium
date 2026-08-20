@@ -86,9 +86,11 @@ r.modeRender = await p.evaluate(() => {
   };
 });
 
-// 2d. CH CONTRACT (2026-08-19 redesign): short CH = the focus walk —
-//     NO service call fires; hold CH (' and /) = ±15s seek via the
-//     gen-3 stock bindings (media_seek at the context player).
+// 2d. CH CONTRACT (final doctrine, 2026-08-20): on the music page
+//     short CH = section jump / walk (zero service calls), while
+//     hold CH SKIPS TRACKS — CH▲-hold previous, CH▼-hold next
+//     ("Long Press in Next / Previous Track", engine default,
+//     gen 5 keeps the old seek bindings struck).
 await p.evaluate(() => { window._sent.length = 0; });
 await p.keyboard.press('PageUp');
 await p.keyboard.press('PageDown');
@@ -97,9 +99,37 @@ r.chKeys = await p.evaluate(() => window._sent.map(m =>
 await p.keyboard.press("'");
 await p.keyboard.press('/');
 await p.waitForTimeout(150);
-r.chHoldSeek = await p.evaluate(() => window._sent
+r.chHoldTracks = await p.evaluate(() => window._sent
   .filter(m => m.type === 'call_service')
-  .map(m => m.domain + '.' + m.service));                   // want: media_seek ×2
+  .map(m => m.domain + '.' + m.service));
+// want: [media_player.media_previous_track, media_player.media_next_track]
+
+// 2e. VOLUME TILE GRAMMAR (round 77 — "DPad Up and Dpad Dn change
+//     the volume. They shouldn't… But DPad left and Right SHOULD.
+//     … OK doesn't mute. I thought we said it should"): focused
+//     volume tile answers ◀▶ with the level, ▲ walks away, OK mutes
+//     — no capture, no mode.
+await p.evaluate(() => { navigate('controller:music', true); });
+await p.waitForTimeout(200);
+await p.evaluate(() => { setFocus('m_vol'); window._sent.length = 0; });
+await p.keyboard.press('ArrowRight');
+await p.keyboard.press('ArrowLeft');
+await p.waitForTimeout(120);
+r.volKeys = await p.evaluate(() => window._sent
+  .filter(m => m.type === 'call_service').map(m => m.service));
+// want: [volume_up, volume_down]
+await p.keyboard.press('ArrowUp');
+await p.waitForTimeout(120);
+r.volUpNavs = await p.evaluate(() => ({
+  movedOff: S.focusId !== 'm_vol',
+  extraCalls: window._sent.filter(m => m.type === 'call_service').length - 2 }));
+await p.evaluate(() => { setFocus('m_vol'); window._sent.length = 0; });
+await p.keyboard.press('Enter');
+await p.waitForTimeout(150);
+r.volOkMutes = await p.evaluate(() => window._sent
+  .filter(m => m.type === 'call_service')
+  .map(m => m.service + ':' + JSON.stringify((m.service_data || {}).is_volume_muted)));
+// want: ["volume_mute:true"]
 
 // 3. hero trail -> music drawer: THREE-BAND BROWSE (v0.50). The
 //    engine walks the STANDARD tree root -> selected root -> selected
@@ -177,7 +207,11 @@ r.bands = await p.evaluate(() => ({
   gridFirst: document.querySelector('#tile_lib_0 .lbl')?.textContent,
 }));
 
-// 6. chip tap -> Radio items; CH key steps to Tracks (wraps strip)
+// 6. chip tap -> Radio items; SHORT CH steps to Tracks (round 77 —
+//    "In Music Library, ChUp and Dn move tiles. They should jump
+//    sections": the category strip is the library's section jump,
+//    on the SHORT press; hold-CH is the track skip here like every
+//    music surface)
 await p.evaluate(() => { window._sent.length = 0; });
 await p.click('#brbar [data-brc="1"]');
 await p.waitForTimeout(120);
@@ -192,7 +226,7 @@ r.chipTap = await p.evaluate(() => ({
   gridFirst: document.querySelector('#tile_lib_0 .lbl')?.textContent,
   chipOn: document.querySelector('#brbar .brchip.on')?.textContent,
 }));
-await p.keyboard.press('/');                         // hold-CH▼ -> next category
+await p.keyboard.press('PageDown');                  // short CH▼ -> next category
 await p.waitForTimeout(120);
 await p.evaluate(() => {
   window._respond({ title: 'Tracks', children: [
@@ -403,8 +437,10 @@ r.swSame = await p.evaluate(() => ({
   calls: window._sent.filter(m => m.type === 'call_service').length
 }));
 
-// the music CONTROLLER: short CH walks focus (no call, 2026-08-19),
-// hold CH seeks (gen-3 binding)
+// the music CONTROLLER (final doctrine, 2026-08-20): short CH =
+// section jump / walk — still zero service calls — while HOLD-CH
+// now SKIPS TRACKS ("Long Press in Next / Previous Track"), and the
+// hamburger (menu) jumps to the Library via the gen-5 stock binding
 await p.evaluate(() => { navigate('controller:music', true); window._sent.length = 0; });
 await p.waitForTimeout(250);
 await p.keyboard.press('PageUp');
@@ -415,6 +451,11 @@ await p.keyboard.press("'");
 await p.waitForTimeout(150);
 r.ctrlChHold = await p.evaluate(() => window._sent
   .filter(m => m.type === 'call_service').map(m => m.domain + '.' + m.service));
+await p.evaluate(() => act('menu', true));
+await p.waitForTimeout(200);
+r.menuLibrary = await p.evaluate(() => S.screen);
+await p.evaluate(() => navigate('controller:music', true));
+await p.waitForTimeout(150);
 
 // 9b. THE QUEUE (v0.51): adapter probing — first adapter errors
 //     (not an MA player), Sonos answers; rows render; tap = jump
@@ -513,10 +554,11 @@ r.hubTheme = await p.evaluate(() => {
   };
 });
 
-// 11. DPAD-HOLD SCRUB (v0.54 — Suresh: "dpad left hold and right
-//     hold to do RWD and FFWD"): open button vocabulary routes ANY
-//     bound logical button through the screen's buttons map; {seek}
-//     computes live position and calls the standard media_seek
+// 11. THE {seek} GRAMMAR + the hold-seek default (final doctrine,
+//     2026-08-20: "Hold ◀/▶ = seek" — an ENGINE default on
+//     music-shaped pages now, no bindings involved; gen 5 keeps the
+//     old seek bindings struck. The relative-seek grammar is
+//     asserted directly, position math and start-clamp included)
 await p.evaluate(() => navigate('controller:music', true));
 await p.waitForTimeout(150);
 r.scrub = await p.evaluate(() => {
@@ -525,8 +567,8 @@ r.scrub = await p.evaluate(() => {
   s.a.media_position_updated_at = new Date().toISOString();
   S.states.set('media_player.ma_sonos_basement', s);
   window._sent.length = 0;
-  act('left_hold', true);
-  act('right_hold', true);
+  runAction({ seek: -15, entity: '$context.media_player' });
+  runAction({ seek: 15, entity: '$context.media_player' });
   const seeks = window._sent.filter(m => m.service === 'media_seek')
     .map(m => m.service_data.seek_position);
   return {
@@ -537,8 +579,20 @@ r.scrub = await p.evaluate(() => {
       s.a.media_position_updated_at = new Date().toISOString();
       S.states.set('media_player.ma_sonos_basement', s);
       window._sent.length = 0;
-      act('left_hold', true);
+      runAction({ seek: -15, entity: '$context.media_player' });
       return window._sent[0].service_data.seek_position === 0;
+    })(),
+    holdsSeek: (() => {                          // engine default: holds SEEK
+      s.a.media_position = 100;
+      s.a.media_position_updated_at = new Date().toISOString();
+      S.states.set('media_player.ma_sonos_basement', s);
+      window._sent.length = 0;
+      act('left_hold', true);
+      act('right_hold', true);
+      const ss = window._sent.filter(m => m.service === 'media_seek')
+        .map(m => m.service_data.seek_position);
+      return ss.length === 2 &&
+        Math.abs(ss[0] - 85) <= 1 && Math.abs(ss[1] - 115) <= 1;
     })(),
     unboundNoop: (() => {                        // unbound name = silence
       window._sent.length = 0;

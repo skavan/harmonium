@@ -12,6 +12,15 @@ REM      otherwise flips the kiosk when the remote is picked up
 REM   2. user_rotation 0           - and the display stays pinned
 REM      to standard portrait (0 degrees)
 REM
+REM NOT in this script on purpose: making Fully the device's home
+REM launcher (a real battery win - the stock app holds a wake lock
+REM that blocks deep sleep). The stock launcher's component name
+REM varies BY FIRMWARE, so the safe procedure records your unit's
+REM current home before switching - a judgment step that belongs
+REM in your hands, not a script's. The two-command recipe (and a
+REM do-not-brick warning) is in docs/cookbook/hardware-keys.md,
+REM section "The stock app's wake lock".
+REM
 REM USB (the normal case - remote plugged in):
 REM   setup-remote.bat
 REM Over the network (only if you use ADB-over-wifi):
@@ -56,4 +65,7 @@ echo    user_rotation is now:
 echo.
 echo done. Next steps for a fresh remote: push-keymapper.bat for
 echo the key wiring, then docs\GETTING-STARTED.md section 5 for
-echo Fully Kiosk (autostart + battery optimization off).
+echo Fully Kiosk (autostart + battery optimization off). Worth
+echo reading while you're here: the wake-lock/launcher battery
+echo tweak in docs\cookbook\hardware-keys.md (manual, two
+echo commands - see why in the header of this script).

@@ -67,12 +67,33 @@ WIDGETS.volume = {
     inlineSub: true,                 // value rides the title line
     isOn: e => st(e).s !== "off",
     meter: (e, t) => st(lvlEnt(e, t)).a.volume_level || 0,
-    selectCaptures: true, captureHint: "▲▼ volume · select mutes · back releases",
-    capture: {
-      up:   e => callService("media_player", "volume_up", null, e),
-      down: e => callService("media_player", "volume_down", null, e),
-      select: e => callService("media_player", "volume_mute",
-        { is_volume_muted: !st(e).a.is_volume_muted }, e)
+    /* NO MORE CAPTURE (2026-08-20 field round 4 — Suresh, volume
+       tile focused: "DPad Up and Dpad Dn change the volume. They
+       shouldn't — they should nav, like always. But DPad left and
+       Right SHOULD. … OK doesn't mute. I thought we said it
+       should"): the horizontal axis IS the value (the tile draws a
+       horizontal slider), the vertical axis stays navigation, OK
+       mutes immediately — no mode, the pad doctrine's final form.
+       ◀▶ ride the same optimistic-nudge + volume_up/down pair the
+       on-screen −/+ taps use; OK flips mute optimistically exactly
+       like the icon tap. */
+    keys: {
+      left: (e, t) => {
+        volNudgeOpt(resolveEntity(t && t.level_entity) || e, "down");
+        callService("media_player", "volume_down", null, e);
+      },
+      right: (e, t) => {
+        volNudgeOpt(resolveEntity(t && t.level_entity) || e, "up");
+        callService("media_player", "volume_up", null, e);
+      },
+    },
+    select: (e, t) => {
+      if (!e) return;
+      const re = resolveEntity(t && t.level_entity) || e;
+      const cur = S.states.get(re);
+      const next = !(cur && cur.a && cur.a.is_volume_muted);
+      if (cur && cur.a) cur.a.is_volume_muted = next;
+      callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
     /* SLIDER TREATMENT (v0.57): the same fat .sldr track the stepper
        draws, so a screen full of zone volumes reads as ONE control

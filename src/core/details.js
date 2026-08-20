@@ -241,29 +241,38 @@ function speakerGroupScreen(gid) {
   if (ents.length < 2) return null;
   /* master = the (presumed) activity's player when there is one —
      resolved HERE, not left as $context (an unwired $context hides
-     the whole tile in visibleTile); with no activity anywhere the
-     entity stays absent and the card's own fallback chain picks a
-     coordinator / playing member / first listed */
+     the whole tile in visibleTile); with no activity anywhere
+     group_master stays absent and grpMaster's fallback chain picks
+     a coordinator / playing member / first listed */
   const aid = renderActivityId();
   const act = aid && (CONFIG.activities || {})[aid];
-  const cm = act && act.context && act.context.media_player;
-  const tile = {
-    id: "sg_" + gid, type: "grouping", group: gid,
-    entities: ents, sliders: true, label: g.name || gid,
-    icon: "material:speaker_group", span: 2,
-    /* CARD, not row (Suresh, first sight of the screen: "Move that
-       icon to the Title row. It eats too much space") — row mode
-       hangs the icon in a full-height left column; the card chassis
-       puts it on the title line and the sub goes inline */
-    brRow: false
-  };
-  if (typeof cm === "string" && cm.indexOf(".") > 0) tile.entity = cm;
+  const cm0 = act && act.context && act.context.media_player;
+  const cm = typeof cm0 === "string" && cm0.indexOf(".") > 0 ? cm0 : undefined;
+  /* TILES, NOT A MEGA-CARD (2026-08-20 — his screenshots: "Each row
+     should behave as a tile"): one grpmember tile per player + the
+     Group Volume tile. Real tiles → the focus walk, the tile gap,
+     and the value nav-mode all come free. */
+  const tiles = ents.map(m => ({
+    id: "sgm_" + m, type: "grpmember", entity: m,
+    entities: ents, group_master: cm,
+    /* label NOW (friendly name if state already arrived, else the
+       deslugged entity tail) — grpmember.render upgrades it live
+       the moment state lands. No icon: the rows read like the
+       mega-card did, and the track needs the width. */
+    label: (st(m).a || {}).friendly_name ||
+      m.split(".").pop().replace(/_/g, " "),
+    trailing: false,
+  }));
+  tiles.push({
+    id: "sgv_" + gid, type: "grpvol", label: "Group volume",
+    entities: ents, group_master: cm, trailing: false,
+  });
   return {
     name: g.name || gid,
     virtual: true,
     grid: { columns: 1 },
-    tiles: [tile],
-    initial_focus: "sg_" + gid
+    tiles,
+    initial_focus: "sgm_" + ents[0]
   };
 }
 

@@ -144,23 +144,22 @@ export const STOCK_MUSIC_LIBRARY =
 
 export const STOCK_MUSIC = {
   name: "Music Media Player",
-  /* gen 3 (2026-08-19 — Suresh: "ChUp, ChDn, navigate the LCD.
-     Always. Hold+ChUp, Hold+ChDn on music controller does RWD/FWD"):
-     ch_up/ch_down track-skip bindings GONE — short CH falls to the
-     engine's focus-walk default like every other screen; the HOLDS
-     take the transport job as ±15s seek (track skip stays on the
-     on-screen transport row).
+  /* gen 5 (2026-08-20 — the PAD DOCTRINE'S FINAL FORM after three
+     field rounds: the pad ALWAYS walks the panel here — OK = the
+     focused tile — and the media work rides keys the panel doesn't
+     need, all engine-level: hold-◀/▶ seek ∓15s, hold-CH = previous/
+     next track, short CH = section jump (walks when nothing to
+     jump). The one binding left is his hamburger: menu → the
+     Library, a SHORT press now (gen 4 had it on menu_hold, which
+     reverts to the global Apps-drawer binding).
+     gen 4 (2026-08-20 am): the transport-pad experiment; seek holds
+     struck. gen 3 (2026-08-19): ch_up/ch_down track-skip removed.
      gen 2 (v0.83.7): the SPEAKERS grouping card joined the band —
-     renders only when the running activity casts 2+ players, so the
-     shared surface stays quiet for single-speaker rooms */
-  gen: 3,
+     renders only when the running activity casts 2+ players. */
+  gen: 5,
   class: "activity", view_kind: "controller", type: "controller",
   buttons: {
-    menu_hold: { navigate: "music_library" },
-    left_hold: { seek: -15, entity: "$context.media_player" },
-    right_hold: { seek: 15, entity: "$context.media_player" },
-    ch_up_hold: { seek: 15, entity: "$context.media_player" },
-    ch_down_hold: { seek: -15, entity: "$context.media_player" },
+    menu: { navigate: "music_library" },
   },
   control_target: { label: "$activity.name",
     power: "$context.power", volume: "$context.volume" },

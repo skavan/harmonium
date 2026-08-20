@@ -104,3 +104,30 @@
   .hjump.focused, #banner .btitle.focused {
     outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
   }
+
+  /* THE STRIP (v0.83.11 — Suresh's pad doctrine: "a thin strip
+     appears on the panel showing a dpad icon. Gently pulsing"):
+     shown ONLY while CH has borrowed the physical D-pad for the
+     panel. Bottom edge on purpose — on the Astrion the physical pad
+     sits right below the screen, so the strip points at the thing
+     it is talking about. The pulse IS the mode indicator, so it
+     lives exactly as long as the borrow does (padStrip() re-checks
+     at expiry). pointer-events none: it narrates, it never blocks. */
+  #padstrip {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    /* LOUD ON PURPOSE (his field note: "needs to be more pronounced.
+       Make it highlighted background, contrasted foreground"): a
+       solid accent bar with ink-dark text — the mode indicator must
+       read from couch distance */
+    padding: 5px 0 7px; font-size: 13px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--bg, #0d0f12);
+    background: var(--accent);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, .5);
+    pointer-events: none;
+    animation: padpulse 1.4s ease-in-out infinite;
+  }
+  #padstrip .material-symbols-outlined { font-size: 16px; }
+  #padstrip.hidden { display: none; }
+  @keyframes padpulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }

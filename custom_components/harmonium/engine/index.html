@@ -190,6 +190,33 @@
     outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
   }
 
+  /* THE STRIP (v0.83.11 — Suresh's pad doctrine: "a thin strip
+     appears on the panel showing a dpad icon. Gently pulsing"):
+     shown ONLY while CH has borrowed the physical D-pad for the
+     panel. Bottom edge on purpose — on the Astrion the physical pad
+     sits right below the screen, so the strip points at the thing
+     it is talking about. The pulse IS the mode indicator, so it
+     lives exactly as long as the borrow does (padStrip() re-checks
+     at expiry). pointer-events none: it narrates, it never blocks. */
+  #padstrip {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    /* LOUD ON PURPOSE (his field note: "needs to be more pronounced.
+       Make it highlighted background, contrasted foreground"): a
+       solid accent bar with ink-dark text — the mode indicator must
+       read from couch distance */
+    padding: 5px 0 7px; font-size: 13px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--bg, #0d0f12);
+    background: var(--accent);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, .5);
+    pointer-events: none;
+    animation: padpulse 1.4s ease-in-out infinite;
+  }
+  #padstrip .material-symbols-outlined { font-size: 16px; }
+  #padstrip.hidden { display: none; }
+  @keyframes padpulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
 /* per-section column override (preset grids etc.) */
   .secgrid { grid-column: 1 / -1; display: grid; gap: var(--grid-gap, 10px); }
 
@@ -414,6 +441,10 @@
     padding: 8px 6px; cursor: pointer;
   }
   .chip.on { background: var(--accent); color: #1a1400; font-weight: 700; }
+  /* OPTIONS-MODE ROVING (2026-08-20 nav modes): ◀▶ walk this
+     highlight through the pills; OK commits it. Distinct from .on
+     (the committed value) — an outline, not a fill. */
+  .chip.rove { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* preset tiles: icon-first squares */
   .tile.wgt-preset { min-height: 78px; padding: 10px 6px; text-align: center; }
@@ -554,8 +585,13 @@
   .tile.tacc.row .icwrap { background: var(--tacc); }   /* beats controls.css default */
   .tile.tacc .icwrap .ic,
   .tile.tacc .icwrap .material-symbols-outlined { color: var(--bg); }
-  .tile .hint { font-size: 11px; color: var(--dim); margin-top: 4px; display: none; }
-  .tile.captured .hint { display: block; color: var(--accent); }
+  /* the capture-hint line is RETIRED from view (2026-08-20 — Suresh,
+     of "▲▼ volume · select mutes · back releases": "Not even sure
+     what it means. Kill it."): the amber capture ring is the mode
+     indicator; the sentence was noise. The machinery stays (widgets
+     still declare captureHint, renderStates still writes it) so a
+     future teach-mode can resurface it deliberately. */
+  .tile .hint { display: none; }
 
   /* SLIM THEMED SCROLLBAR (v0.47.3 — desktop browsers drew the stock
      Windows bar; the kiosk's overlay bar auto-hides so it was never
@@ -984,6 +1020,47 @@
      unmuting lands where you expect */
   .volrow .volpct .vmute { font-size: 24px; color: var(--accent); vertical-align: -3px; }
   .sldr.muted i, .meter.muted i { opacity: .3; }
+  /* SPEAKER-GROUP TILES (2026-08-20 nav modes — the spkgrp: page is
+     real tiles now): member/group-volume rows reuse the volume-row
+     chassis; the % rides inside the fat track; link toggles keep
+     the grouping card's color language. */
+  .tile.wgt-grpmember .volrow .sldr, .tile.wgt-grpvol .volrow .sldr {
+    flex: 1 1 auto; min-width: 0; width: auto; height: 46px; margin: 0;
+    position: relative;
+  }
+  /* no icon circle on the group rows — the mega-card's rows had
+     none, and the track needs every pixel of width */
+  .tile.row.wgt-grpmember .icwrap, .tile.row.wgt-grpvol .icwrap,
+  .tile.wgt-grpmember .icwrap, .tile.wgt-grpvol .icwrap,
+  .tile.wgt-grpmember .top .ic, .tile.wgt-grpvol .top .ic {
+    display: none !important;
+  }
+  .tile.wgt-grpmember .volrow .dpbtn, .tile.wgt-grpvol .volrow .dpbtn {
+    width: 58px; height: 46px; flex: 0 0 auto;
+  }
+  /* the mega-card's title-line buttons, per tile: volume-link +
+     join-link (or unlink-all) ride the top-right of the tile */
+  .tile.wgt-grpmember, .tile.wgt-grpvol { position: relative; }
+  .tile.wgt-grpmember .grpbtns, .tile.wgt-grpvol .grpbtns {
+    position: absolute; top: 10px; right: 14px;
+    display: flex; gap: 10px; z-index: 2;
+  }
+  .tile.wgt-grpmember .grpbtns .dpbtn, .tile.wgt-grpvol .grpbtns .dpbtn {
+    width: 52px; height: 40px; border-radius: 12px;
+  }
+  .tile.wgt-grpmember .gjoin.on {
+    background: var(--accent); color: #1a1400;
+  }
+  .tile.wgt-grpmember .rslpct, .tile.wgt-grpvol .rslpct {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text); pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,.55);
+  }
+  .tile.wgt-grpmember .gvlink { color: var(--accent); }
+  .tile.wgt-grpmember .gvlink.vloose { color: var(--text-dim); opacity: .6; }
+  .tile.wgt-grpvol .gunlink { color: var(--text-dim); }
+
 
   /* SPEAKER GROUPING (v0.83.7 — beta-gaps §3): member rows + the
      group-volume track. A joined row reads accent; the link button
@@ -1142,6 +1219,10 @@
   <div id="banner" class="hidden"></div>
   <div id="brbar"></div>
   <div id="grid"></div>
+  <!-- THE STRIP (v0.83.11 pad doctrine): visible only while CH has
+       borrowed the physical D-pad for the panel; sits at the BOTTOM
+       edge, pointing at the physical pad below the screen -->
+  <div id="padstrip" class="hidden"><span class="material-symbols-outlined">gamepad</span><span>panel</span></div>
 </div>
 
 <div id="auth" class="hidden">
@@ -1204,7 +1285,10 @@ const TIMING = {
   powerHold: 600,     // power held this long = All Off
   confirm: 5000,      // two-press confirm window (tile + status bar)
   presetPoll: 300,    // ensure-activity: poll interval for state flip
-  wakeDelay: 600      // dialect wake → app launch gap (v0.83.9)
+  wakeDelay: 600,     // dialect wake → app launch gap (v0.83.9)
+  padLatch: 8000      // CH borrows the D-pad this long (his field call: "5 secs
+                      // maybe a touch to small" — 8s default; config
+                      // input.pad_latch_seconds overrides per house)
 };
 
 /* ================================================================
@@ -1236,6 +1320,7 @@ let KEYMAP = {                    // default shell quirk table
   "#": "menu",                                   // Astrion menu key
   "@": "menu_hold",                              // menu long-press (KeyMapper)
   "'": "ch_up_hold", "/": "ch_down_hold",        // CH long-press → LCD focus
+  ",": "left_hold", ".": "right_hold",           // ◀▶ long-press (KeyMapper)
   "F2": "power", "p": "power", "P": "power",
   "o": "power_hold", "O": "power_hold"
 };
@@ -2117,11 +2202,20 @@ function genAppTiles(t) {
        from its own keys catalog, anything else rides the classLaunch
        grammar. firePreset checks the player's state at TAP time and
        fires this first (then waits wake_delay ms, default 600)
-       before the launch. No wake declared = exactly today. */
+       before the launch.
+       DEFAULT ON (2026-08-20 — his field check "Did we wire in the
+       wake key for FireTV Apps?" found his house dialect never
+       declared one, so the v0.83.9 machinery sat idle): with no
+       `wake` declared, media_player.turn_on on the context player
+       IS the wake — the asleep-state gate in firePreset makes it
+       safe (an awake player is never poked). A dialect opts out
+       with `"wake": false`. */
     let wkE = cls.wake;
     if (typeof wkE === "string" && wkE.startsWith("key:"))
       wkE = (cls.keys || {})[wkE.slice(4)];
-    const wake = wkE != null ? classLaunch(wkE) : null;
+    else if (wkE == null)
+      wkE = { service: "media_player.turn_on", entity: "$context.media_player" };
+    const wake = wkE ? classLaunch(wkE) : null;
     const wakeDelay = +cls.wake_delay > 0 ? +cls.wake_delay : 0;
     const ids = Array.isArray(t.include)
       ? t.include.filter((x) => entries[x] != null) : Object.keys(entries);
@@ -3706,6 +3800,24 @@ function startActivity(id) {
   if (cur && cur !== id && guard &&
       !barConfirm("actsw", "Press again to switch to " + (a.name || id), "on"))
     return false;
+  /* SWITCH TEARDOWN (2026-08-20 — Suresh: "where in Studio do I tell
+     it An activity should be turned off on a switch activity? and/or
+     ignored"): the OUTGOING activity may opt in to running its Stop
+     when another activity replaces it — per-activity
+     `stop_on_switch` (Studio: Actions tab, "Run my Stop when
+     switched away"). Default OFF, deliberately: the incoming
+     activity's Start owns the transition (the Harmony lesson —
+     shared devices must not flicker off/on), so an opted-in Stop
+     should be shaped for it (music's stop touches only the Sonos). */
+  if (cur && cur !== id &&
+      (!S.pendingActivity || S.pendingActivity === cur)) {
+    /* the pending guard: while a switch is already IN FLIGHT (tap
+       landed, select not yet confirmed) currentActivityId still
+       reports the OLD activity — without the guard an impatient
+       second tap would run the same teardown twice */
+    const prev = (CONFIG.activities || {})[cur];
+    if (prev && prev.stop_on_switch && prev.stop) runActionRef(prev.stop);
+  }
   /* NO START ACTION is legal (v0.47 — Suresh's blank-player report):
      the activity still becomes ACTIVE (display state + context) so
      the player renders; orchestration is opt-in, not a prerequisite */
@@ -4329,6 +4441,11 @@ function browseBar() {
     }));
   bar.querySelectorAll("[data-brq]").forEach(b =>
     b.addEventListener("click", brSearchToggle));
+  /* the selected category chip stays on screen — stepping (CH) or
+     tapping to a chip past the strip's edge scrolls it into view */
+  const onc = bar.querySelector(".brchip.on");
+  if (onc && typeof stripScrollTo === "function")
+    stripScrollTo(onc.closest(".brchips"), onc);
   bar.querySelectorAll("[data-brlr]").forEach(b =>
     b.addEventListener("click", ev => { ev.stopPropagation(); brLibRefresh(); }));
   bar.querySelectorAll("[data-brk]").forEach(b =>
@@ -5267,7 +5384,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.83.11";
+const ENGINE_V = "0.84.1";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5622,29 +5739,38 @@ function speakerGroupScreen(gid) {
   if (ents.length < 2) return null;
   /* master = the (presumed) activity's player when there is one —
      resolved HERE, not left as $context (an unwired $context hides
-     the whole tile in visibleTile); with no activity anywhere the
-     entity stays absent and the card's own fallback chain picks a
-     coordinator / playing member / first listed */
+     the whole tile in visibleTile); with no activity anywhere
+     group_master stays absent and grpMaster's fallback chain picks
+     a coordinator / playing member / first listed */
   const aid = renderActivityId();
   const act = aid && (CONFIG.activities || {})[aid];
-  const cm = act && act.context && act.context.media_player;
-  const tile = {
-    id: "sg_" + gid, type: "grouping", group: gid,
-    entities: ents, sliders: true, label: g.name || gid,
-    icon: "material:speaker_group", span: 2,
-    /* CARD, not row (Suresh, first sight of the screen: "Move that
-       icon to the Title row. It eats too much space") — row mode
-       hangs the icon in a full-height left column; the card chassis
-       puts it on the title line and the sub goes inline */
-    brRow: false
-  };
-  if (typeof cm === "string" && cm.indexOf(".") > 0) tile.entity = cm;
+  const cm0 = act && act.context && act.context.media_player;
+  const cm = typeof cm0 === "string" && cm0.indexOf(".") > 0 ? cm0 : undefined;
+  /* TILES, NOT A MEGA-CARD (2026-08-20 — his screenshots: "Each row
+     should behave as a tile"): one grpmember tile per player + the
+     Group Volume tile. Real tiles → the focus walk, the tile gap,
+     and the value nav-mode all come free. */
+  const tiles = ents.map(m => ({
+    id: "sgm_" + m, type: "grpmember", entity: m,
+    entities: ents, group_master: cm,
+    /* label NOW (friendly name if state already arrived, else the
+       deslugged entity tail) — grpmember.render upgrades it live
+       the moment state lands. No icon: the rows read like the
+       mega-card did, and the track needs the width. */
+    label: (st(m).a || {}).friendly_name ||
+      m.split(".").pop().replace(/_/g, " "),
+    trailing: false,
+  }));
+  tiles.push({
+    id: "sgv_" + gid, type: "grpvol", label: "Group volume",
+    entities: ents, group_master: cm, trailing: false,
+  });
   return {
     name: g.name || gid,
     virtual: true,
     grid: { columns: 1 },
-    tiles: [tile],
-    initial_focus: "sg_" + gid
+    tiles,
+    initial_focus: "sgm_" + ents[0]
   };
 }
 
@@ -5754,6 +5880,39 @@ function wireSlider(sl, apply, axis) {
 
 const WIDGETS = {};
 
+/* ================================================================
+   NAV MODES (2026-08-20 — Suresh, designing the speaker-group page:
+   "We need to make this logic something that is configured so we
+   don't have to hard code it all. Seems like we have 3 or 4 'modes'
+   of navigation." Exactly four:
+
+     action  — OK fires the tile. ◀▶ walk. The default.
+     value   — ◀▶ adjust the tile's value, OK does its secondary
+               (mute on volume, join on a group member); ▲▼ walk.
+     options — ◀▶ rove a highlight through the tile's choices,
+               OK commits the highlighted one (chips, transport).
+     capture — OK grabs the whole pad (dpad passthrough tiles: the
+               only survivors of capture, because they genuinely
+               forward keys to another device).
+
+   A widget declares its default (`nav`, value or function(t)); a
+   TILE may override with `"nav": "action" | "value" | "options"`
+   in config — so the policy is data, and the Studio can offer it
+   as a per-tile dropdown. Legacy widgets that declare
+   selectCaptures and no `nav` read as capture; widgets with `keys`
+   and no `nav` read as value. */
+function navOf(t) {
+  if (t && typeof t.nav === "string") return t.nav;
+  const w = (t && WIDGETS[t.type]) || {};
+  const n = typeof w.nav === "function" ? w.nav(t) : w.nav;
+  if (n) return n;
+  const caps = typeof w.selectCaptures === "function"
+    ? w.selectCaptures(t) : w.selectCaptures;
+  if (caps) return "capture";
+  if (w.keys) return "value";
+  return "action";
+}
+
 /* LIGHT tile — on/off + brightness%; tap toggles; meter = brightness. */
 WIDGETS.light = {
     sub: e => st(e).s === "on"
@@ -5763,6 +5922,14 @@ WIDGETS.light = {
     meter: e => st(e).s === "on" ? (st(e).a.brightness || 255) / 255 : 0,
     select: e => callService("light", "toggle", null, e),
     detailable: true,
+    /* 2026-08-20 nav modes: value — ◀▶ nudge brightness while
+       focused; OK still toggles (the widget's select). Hold-capture
+       stays as an optional power gesture. */
+    nav: "value",
+    keys: {
+      left:  e => void nudgeLight(e, -26),
+      right: e => void nudgeLight(e, +26),
+    },
     holdCapture: true, captureHint: "▲▼ brightness · back releases",
     capture: {
       up:   e => nudgeLight(e, +26), down: e => nudgeLight(e, -26),
@@ -5784,6 +5951,15 @@ WIDGETS.fan = {
   meter: e => { const p = st(e).a.percentage; return (p != null ? p : 0) / 100; },
   select: e => callService("fan", "toggle", null, e),
   detailable: true,
+  /* 2026-08-20 nav modes: value — ◀▶ nudge the speed while focused;
+     OK runs the widget's select as ever (toggle). The hold-capture
+     stays as an optional power gesture. A tile can opt out with
+     nav: "action" (◀▶ walk again). */
+  nav: "value",
+  keys: {
+    left:  e => void nudgeStep(e, "percentage", -1),
+    right: e => void nudgeStep(e, "percentage", +1),
+  },
   holdCapture: true, captureHint: "▲▼ speed · back releases",
   capture: {
     up:   e => nudgeStep(e, "percentage", +1),
@@ -6111,12 +6287,16 @@ WIDGETS.climate = {
     },
     isOn: e => st(e).s !== "off",
     detailable: true,
-    selectCaptures: true, captureHint: "▲▼ setpoint · select toggles off/cool · back releases",
-    capture: {
-      up: e => nudgeClimate(e, +1), down: e => nudgeClimate(e, -1),
-      select: e => callService("climate", "set_hvac_mode",
-        { hvac_mode: st(e).s === "off" ? "cool" : "off" }, e)
-    }
+    /* VALUE MODE (2026-08-20 nav modes): ◀▶ nudge the setpoint while
+       focused, OK toggles off/cool — the old capture's jobs on the
+       final doctrine's grammar (horizontal = value, ▲▼ = walk). */
+    nav: "value",
+    keys: {
+      left:  e => nudgeClimate(e, -1),
+      right: e => nudgeClimate(e, +1)
+    },
+    select: e => callService("climate", "set_hvac_mode",
+      { hvac_mode: st(e).s === "off" ? "cool" : "off" }, e)
   };
 
 /* MEDIA tile — now-playing card; tap play/pauses. FOUR renderers
@@ -6420,12 +6600,33 @@ WIDGETS.volume = {
     inlineSub: true,                 // value rides the title line
     isOn: e => st(e).s !== "off",
     meter: (e, t) => st(lvlEnt(e, t)).a.volume_level || 0,
-    selectCaptures: true, captureHint: "▲▼ volume · select mutes · back releases",
-    capture: {
-      up:   e => callService("media_player", "volume_up", null, e),
-      down: e => callService("media_player", "volume_down", null, e),
-      select: e => callService("media_player", "volume_mute",
-        { is_volume_muted: !st(e).a.is_volume_muted }, e)
+    /* NO MORE CAPTURE (2026-08-20 field round 4 — Suresh, volume
+       tile focused: "DPad Up and Dpad Dn change the volume. They
+       shouldn't — they should nav, like always. But DPad left and
+       Right SHOULD. … OK doesn't mute. I thought we said it
+       should"): the horizontal axis IS the value (the tile draws a
+       horizontal slider), the vertical axis stays navigation, OK
+       mutes immediately — no mode, the pad doctrine's final form.
+       ◀▶ ride the same optimistic-nudge + volume_up/down pair the
+       on-screen −/+ taps use; OK flips mute optimistically exactly
+       like the icon tap. */
+    keys: {
+      left: (e, t) => {
+        volNudgeOpt(resolveEntity(t && t.level_entity) || e, "down");
+        callService("media_player", "volume_down", null, e);
+      },
+      right: (e, t) => {
+        volNudgeOpt(resolveEntity(t && t.level_entity) || e, "up");
+        callService("media_player", "volume_up", null, e);
+      },
+    },
+    select: (e, t) => {
+      if (!e) return;
+      const re = resolveEntity(t && t.level_entity) || e;
+      const cur = S.states.get(re);
+      const next = !(cur && cur.a && cur.a.is_volume_muted);
+      if (cur && cur.a) cur.a.is_volume_muted = next;
+      callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
     /* SLIDER TREATMENT (v0.57): the same fat .sldr track the stepper
        draws, so a screen full of zone volumes reads as ONE control
@@ -6585,12 +6786,37 @@ function grpMaster(t) {
   if (coord) return coord;
   return ms.find(m => ACTIVE(st(m).s)) || ms[0] || null;
 }
+/* GROUP VOLUME FROM THE PAD (2026-08-20 field round 4 — "On
+   Speaker Group page, dpad and Ch Up Dn do nothing"): a focused
+   grouping card answers ◀/▶ with the same preserve-the-offsets
+   group nudge the slider does — every volume-LINKED joined member
+   moves by one step, relative trim intact. Member-row walking from
+   the pad is a 0.84.2 design question; rows stay touch for now. */
+function grpVolKey(e, t, d) {
+  const m0 = e || grpMaster(t);
+  if (!m0) return;
+  const listed = new Set([m0, ...(t.entities || [])]);
+  const members = (st(m0).a.group_members || [m0])
+    .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+  members.forEach(m => {
+    const cur = S.states.get(m);
+    const v = cur && cur.a ? cur.a.volume_level : null;
+    if (v == null) return;
+    const nv = Math.max(0, Math.min(1, Math.round((v + d * 0.05) * 100) / 100));
+    cur.a.volume_level = nv;
+    callService("media_player", "volume_set", { volume_level: nv }, m);
+  });
+}
 WIDGETS.grouping = {
     /* nothing to offer without a master and at least one OTHER
        candidate speaker */
     hidden: (e, t) => {
       const m0 = e || grpMaster(t);
       return !m0 || !(t.entities || []).filter(m => m !== m0).length;
+    },
+    keys: {
+      left:  (e, t) => grpVolKey(e, t, -1),
+      right: (e, t) => grpVolKey(e, t, +1),
     },
     isOn: (e, t) => { const m0 = e || grpMaster(t); return !!m0 && ACTIVE(st(m0).s); },
     inlineSub: true,
@@ -6841,6 +7067,257 @@ WIDGETS.grouping = {
       sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
     }
   };
+/* ================================================================
+   THE SPEAKER-GROUP PAGE AS TILES (2026-08-20 — Suresh, screenshots
+   in hand: "Each row should behave as a tile. Dpad navigates the
+   tiles, as does ChUp and ChDn. OK on the parent player, does
+   nothing. OK on an ungrouped player toggles its group status. Left
+   and Right DPad … impact the active tile's volume (including group
+   volume which should have the same layout as the others). On group
+   Volume we should have an unlink all icon"). The spkgrp: screen
+   stopped rendering one mega-card: it generates ONE TILE PER MEMBER
+   (grpmember) plus a Group Volume tile (grpvol) — real tiles, so
+   the focus walk, the tile gap, and the nav-mode grammar all come
+   free. The inline card on the music controller is untouched.
+   VOL/Mute hardware keys deliberately stay at the ACTIVITY level
+   (his ruling — the ARC lesson holds); ◀▶ are the per-row keys.
+   ================================================================ */
+function grpmMaster(t) {
+  return grpMaster({ entity: t.group_master, entities: t.entities });
+}
+function grpmJoined(t, m) {
+  const e = grpmMaster(t);
+  return m === e || (st(e).a.group_members || []).indexOf(m) >= 0;
+}
+/* join/unjoin one member against the master — optimistic, shared by
+   the OK press and the title-line link button */
+function grpmToggle(e, t) {
+  const m0 = grpmMaster(t);
+  if (!e || e === m0) { flashBar("Group master"); return; }
+  const g = st(m0).a.group_members || [];
+  const joined = g.indexOf(e) >= 0;
+  const cur = S.states.get(m0);
+  if (cur && cur.a) {
+    const gm = (cur.a.group_members || [m0]).slice();
+    if (joined) gm.splice(gm.indexOf(e), 1);
+    else gm.push(e);
+    cur.a.group_members = gm;
+  }
+  if (joined) callService("media_player", "unjoin", null, e);
+  else callService("media_player", "join", { group_members: [e] }, m0);
+  flashBar(joined ? "Ungrouped" : "Grouped");
+}
+/* one member row: name · [−][track with % inside][+] · link badge */
+WIDGETS.grpmember = {
+  nav: "value",
+  isOn: (e, t) => grpmJoined(t, e),
+  inlineSub: true,
+  sub: (e, t) => e === grpmMaster(t) ? "master"
+    : grpmJoined(t, e) ? "grouped" : "",
+  keys: {
+    left: (e) => {
+      volNudgeOpt(e, "down");
+      callService("media_player", "volume_down", null, e);
+    },
+    right: (e) => {
+      volNudgeOpt(e, "up");
+      callService("media_player", "volume_up", null, e);
+    },
+  },
+  /* OK: master → nothing (its level is the activity's own volume);
+     member → join/unjoin toggle — shared with the title-line link
+     button so touch and OK are the same muscle */
+  select: (e, t) => grpmToggle(e, t),
+  /* THE MEGA-CARD'S LAYOUT, PER TILE (his screenshots, round 77
+     patch 2: "We used to have the volume and link button… That's
+     the layout we want. A proper volume bar with -/+"): the
+     volume-link and join-link buttons ride the TITLE line
+     (absolute, top-right), and the volume row below is a pure
+     [−][fat track with % inside][+] at full width. */
+  body: () => `<div class="grpbtns">
+      <button class="dpbtn gvlink" title="Group volume moves this player"><span class="material-symbols-outlined">volume_up</span></button>
+      <button class="dpbtn gjoin" title="Group / ungroup this player (OK does this too)"><span class="material-symbols-outlined">link</span></button>
+    </div><div class="volrow">
+      <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i><span class="rslpct">–</span></div>
+      <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
+    </div>`,
+  wire: (el, t) => {
+    const m = resolveEntity(t.entity);
+    wireTaps(el, "vol", d => {
+      volNudgeOpt(m, d);
+      renderStates();
+      callService("media_player", "volume_" + d, null, m);
+    });
+    /* join/unjoin (touch) — the same toggle OK runs */
+    const jb = el.querySelector(".gjoin");
+    if (jb) jb.addEventListener("click", ev => {
+      ev.stopPropagation();
+      grpmToggle(m, t);
+      renderStates();
+    });
+    /* volume-link toggle (touch, joined rows): local trim choice */
+    const vb = el.querySelector(".gvlink");
+    if (vb) vb.addEventListener("click", ev => {
+      ev.stopPropagation();
+      if (GRP_VOL_UNLINKED.has(m)) GRP_VOL_UNLINKED.delete(m);
+      else GRP_VOL_UNLINKED.add(m);
+      renderStates();
+    });
+    const sl = el.querySelector(".sldr");
+    if (!sl) return;
+    const apply = (ev, final) => {
+      const r = sl.getBoundingClientRect();
+      let f = (ev.clientX - r.left) / r.width;
+      f = Math.max(0, Math.min(1, f));
+      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = Math.round(f * 100) + "%";
+      const cur = S.states.get(m);
+      if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
+      const now = Date.now();
+      if ((final || now - (sl._t || 0) > 150) && f !== sl._lastF) {
+        sl._t = now; sl._lastF = f;
+        renderStates();
+        callService("media_player", "volume_set",
+          { volume_level: Math.round(f * 100) / 100 }, m);
+      }
+    };
+    wireSlider(sl, apply, "h");
+  },
+  render: (el, e, t) => {
+    if (!e) return;
+    /* the tile was labeled at generation from whatever state existed;
+       upgrade to the live friendly_name the moment it arrives */
+    const fn = st(e).a.friendly_name;
+    const lb = el.querySelector(".lbl");
+    if (fn && lb && lb.textContent !== fn) lb.textContent = fn;
+    const joined = grpmJoined(t, e);
+    const master = e === grpmMaster(t);
+    const l = volHeld(e, st(e).a.volume_level);
+    const sl = el.querySelector(".sldr");
+    if (sl && !sl._drag) {
+      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = l != null ? pct(l) : "–";
+      sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+    }
+    const bts = el.querySelector(".grpbtns");
+    if (bts) bts.style.display = master ? "none" : "";
+    const jb = el.querySelector(".gjoin");
+    if (jb) {
+      jb.classList.toggle("on", joined);
+      jb.querySelector(".material-symbols-outlined").textContent =
+        joined ? "link" : "add_link";
+    }
+    const vb = el.querySelector(".gvlink");
+    if (vb) {
+      vb.style.display = joined && !master ? "" : "none";
+      const vlinked = !GRP_VOL_UNLINKED.has(e);
+      vb.classList.toggle("vloose", !vlinked);
+      vb.querySelector(".material-symbols-outlined").textContent =
+        vlinked ? "volume_up" : "volume_mute";
+      vb.title = vlinked ? "Group volume moves this player"
+        : "Volume unlinked — group volume leaves this player alone";
+    }
+  }
+};
+/* the GROUP VOLUME tile — same layout as a member row, moves every
+   volume-linked joined member preserving offsets; OK = UNLINK ALL */
+WIDGETS.grpvol = {
+  nav: "value",
+  hidden: (e, t) => {
+    const m0 = grpmMaster(t);
+    return !m0 || (st(m0).a.group_members || []).length < 2;
+  },
+  isOn: (e, t) => {
+    const m0 = grpmMaster(t);
+    return !!m0 && (st(m0).a.group_members || []).length > 1;
+  },
+  keys: {
+    left:  (e, t) => grpVolKey(grpmMaster(t), t, -1),
+    right: (e, t) => grpVolKey(grpmMaster(t), t, +1),
+  },
+  /* OK = unlink all (his call): every joined non-master member
+     leaves the group; optimistic, then per-member unjoin */
+  select: (e, t) => {
+    const m0 = grpmMaster(t);
+    if (!m0) return;
+    const listed = new Set(t.entities || []);
+    const gone = (st(m0).a.group_members || [])
+      .filter(m => m !== m0 && listed.has(m));
+    if (!gone.length) return;
+    const cur = S.states.get(m0);
+    if (cur && cur.a) cur.a.group_members = [m0];
+    gone.forEach(m => callService("media_player", "unjoin", null, m));
+    flashBar("Ungrouped " + gone.length +
+      (gone.length === 1 ? " player" : " players"));
+  },
+  body: () => `<div class="grpbtns">
+      <button class="dpbtn gunlink" title="Ungroup all players (OK does this too)"><span class="material-symbols-outlined">link_off</span></button>
+    </div><div class="volrow">
+      <button class="dpbtn" data-gv="down"><span class="material-symbols-outlined">remove</span></button>
+      <div class="sldr inrow"><i></i><span class="rslpct">–</span></div>
+      <button class="dpbtn" data-gv="up"><span class="material-symbols-outlined">add</span></button>
+    </div>`,
+  wire: (el, t) => {
+    wireTaps(el, "gv", d =>
+      grpVolKey(grpmMaster(t), t, d === "up" ? +1 : -1) || renderStates());
+    const ub = el.querySelector(".gunlink");
+    if (ub) ub.addEventListener("click", ev => {
+      ev.stopPropagation();
+      WIDGETS.grpvol.select(null, t);
+      renderStates();
+    });
+    const sl = el.querySelector(".sldr");
+    if (!sl) return;
+    /* drag → target level; every linked member moves by the same
+       delta (offsets survive) — the mega-card's contract, tile-ized */
+    const apply = (ev, final) => {
+      const r = sl.getBoundingClientRect();
+      let f = (ev.clientX - r.left) / r.width;
+      f = Math.max(0, Math.min(1, f));
+      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      const now = Date.now();
+      if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
+      sl._t = now; sl._lastF = f;
+      const m0 = grpmMaster(t);
+      const listed = new Set([m0, ...(t.entities || [])]);
+      const grp = (st(m0).a.group_members || [m0])
+        .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+      const lv = grp.map(m => {
+        const v = st(m).a.volume_level;
+        return v == null ? f : v;
+      });
+      const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+      const d = f - avg;
+      grp.forEach((m, i) => {
+        const v = Math.max(0, Math.min(1, Math.round((lv[i] + d) * 100) / 100));
+        const cur = S.states.get(m);
+        if (cur && cur.a) cur.a.volume_level = v;
+        callService("media_player", "volume_set", { volume_level: v }, m);
+      });
+      renderStates();
+    };
+    wireSlider(sl, apply, "h");
+  },
+  render: (el, e, t) => {
+    const m0 = grpmMaster(t);
+    if (!m0) return;
+    const listed = new Set([m0, ...(t.entities || [])]);
+    const linked = (st(m0).a.group_members || [m0])
+      .filter(m => listed.has(m) && (m === m0 || !GRP_VOL_UNLINKED.has(m)));
+    const lv = linked.map(m => st(m).a.volume_level || 0);
+    const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
+    const sl = el.querySelector(".sldr");
+    if (sl && !sl._drag) {
+      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      const pc = sl.querySelector(".rslpct");
+      if (pc) pc.textContent = pct(avg);
+    }
+  }
+};
+
 /* GROUP LAUNCHER (v0.83.7 Speaker Groups — Suresh: "a launcher tile
    that is slim and says something like 5 available. 0 Linked. and a
    tap launches the Speaker Group Card"): the slim half of the pair.
@@ -6955,10 +7432,26 @@ WIDGETS.stepper = {
     },
     inlineSub: t => t.kind === "volume",
     isOn: e => ACTIVE(st(e).s),
-    selectCaptures: true, captureHint: "▲▼ adjust · back releases",
-    capture: {
-      up:   (e, t) => nudgeStep(e, t.kind, +1),
-      down: (e, t) => nudgeStep(e, t.kind, -1)
+    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — his AirCon
+       ruling: "DPad Up and Down should navigate the tiles as usual.
+       Left and Right DPad should navigate within the Tiles"): ◀▶
+       nudge the value while focused — volume, brightness, setpoint,
+       position, all of them — ▲▼ always walk, and the last
+       select-captures die. OK's secondary: the volume kind toggles
+       mute; other kinds have no secondary (their tap targets are on
+       screen). Even a vertical slider track adjusts on ◀▶ — one
+       grammar beats axis-matching. */
+    nav: "value",
+    keys: {
+      left:  (e, t) => void nudgeStep(e, (t && t.kind) || "volume", -1),
+      right: (e, t) => void nudgeStep(e, (t && t.kind) || "volume", +1),
+    },
+    select: (e, t) => {
+      if (!e || !t || t.kind !== "volume") return;
+      const cur = S.states.get(e);
+      const next = !(cur && cur.a && cur.a.is_volume_muted);
+      if (cur && cur.a) cur.a.is_volume_muted = next;
+      callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
     body: t => {
       /* volume: track-in-row, number on the title line — see above */
@@ -7020,6 +7513,32 @@ WIDGETS.stepper = {
 
 /* CHIPS row — one-tap choice pills for an entity attribute list
    (hvac_mode, fan_mode, preset, effect …); kind picks the recipe. */
+/* OPTIONS MODE (2026-08-20 — Suresh, on the AirCon page: "Left and
+   Right DPad should navigate within the Tiles and OK should trigger
+   the subselection"): no more capture. ◀▶ rove a highlight through
+   the pills — starting from the active one — and OK commits the
+   highlighted choice. The highlight is per-tile, session-local, and
+   drops the moment focus walks off the tile. Touch taps unchanged. */
+const CHIP_ROVE = {};   /* tile id → roved option index */
+function chipRove(e, t, dir) {
+  const k = CHIP_KINDS[t.kind];
+  if (!k) return false;
+  const opts = chipOptions(e, t.kind);
+  if (!opts.length) return false;
+  let i = CHIP_ROVE[t.id];
+  if (i == null) i = Math.max(0, opts.indexOf(k.current(e)));
+  i = (i + dir + opts.length) % opts.length;
+  CHIP_ROVE[t.id] = i;
+  return true;
+}
+function chipCommit(e, t) {
+  const k = CHIP_KINDS[t.kind];
+  const opts = chipOptions(e, t.kind);
+  const i = CHIP_ROVE[t.id];
+  if (!k || i == null || !opts[i]) return;
+  k.set(resolveEntity(t.entity), opts[i]);
+  flashBar(deslug(opts[i]));
+}
 WIDGETS.chips = {
   /* v0.57: a chips row with nothing to choose is chrome — hide it.
      This is what keeps the new sound_mode row off every media_player
@@ -7027,15 +7546,15 @@ WIDGETS.chips = {
   hidden: (e, t) => !!e && !chipOptions(e, t.kind).length,
     /* option pills from a CHIP_KINDS binding (t.kind); options are
        read from entity attributes each render, so they track the
-       device. Tile self-hides when the entity offers no options.
-       D-pad: capture, then ◀▶ cycles (and applies) the option. */
+       device. Tile self-hides when the entity offers no options. */
     sub: () => "",
     isOn: () => false,
-    selectCaptures: true, captureHint: "◀▶ change · back releases",
-    capture: {
-      left:  (e, t) => cycleChip(e, t, -1),
-      right: (e, t) => cycleChip(e, t, +1)
+    nav: "options",
+    keys: {
+      left:  (e, t) => chipRove(e, t, -1),
+      right: (e, t) => chipRove(e, t, +1)
     },
+    select: (e, t) => chipCommit(e, t),
     body: () => `<div class="chiprow"></div>`,
     render(el, e, t) {
       const k = CHIP_KINDS[t.kind];
@@ -7053,8 +7572,14 @@ WIDGETS.chips = {
         wireTaps(row, "ch", v => k.set(resolveEntity(t.entity), v));
       }
       const cur = k.current(e);
-      row.querySelectorAll(".chip").forEach(c =>
-        c.classList.toggle("on", c.dataset.ch === cur));
+      /* the roving highlight lives only while the tile is focused */
+      if (S.focusId !== t.id) delete CHIP_ROVE[t.id];
+      const ri = CHIP_ROVE[t.id];
+      const chips = row.querySelectorAll(".chip");
+      chips.forEach((c, i) => {
+        c.classList.toggle("on", c.dataset.ch === cur);
+        c.classList.toggle("rove", ri != null && i === ri);
+      });
     }
   };
 
@@ -7595,6 +8120,18 @@ function gridScrollTo(el, mode) {
   }
   grid.scrollTop += r.top - gr.top;      // "start"
 }
+/* keep an active chip visible in a horizontal strip (2026-08-20 —
+   Suresh: "When I change tabs in the library, an off screen tab
+   doesn't scroll into view"). Manual scrollLeft math, same doctrine
+   as gridScrollTo: one scroller, no scrollIntoView, "nearest"
+   semantics (already visible = no move). */
+function stripScrollTo(strip, el) {
+  if (!strip || !el) return;
+  const sr = strip.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (r.left < sr.left) strip.scrollLeft += r.left - sr.left - 12;
+  else if (r.right > sr.right) strip.scrollLeft += r.right - sr.right + 12;
+}
 function buildHeroNav(jumps, strip) {
   S.heroJumps = jumps;
   S.heroAt = null;   // fresh page: stepping re-seeds from the spy
@@ -7776,6 +8313,9 @@ function subTextOf(txt, eid) {
    (v0.27), and auto-fill needs a real px minimum instead; (2) the span
    rule below needs to KNOW the count. */
 function navigate(screenId, isBack) {
+  /* leaving the screen ends the pad borrow (padClear lives in
+     input.js — later in the build, hence the guard) */
+  if (typeof padClear === "function") padClear();
   /* CROSS-WORKSPACE DOORWAY (v0.50.2 — Suresh: "a nav tile on main
      porch page that takes me to deck and vice versa"): a `ws:<id>`
      target switches WORLDS by canonical address — the browser leaves
@@ -8025,7 +8565,20 @@ function renderStates() {
      attribute changes the tile set itself changes, so patch-in-place
      isn't enough — re-render the grid. Rare (favorites edit), cheap. */
   const sig = tileSig(sc);
-  if (sig !== S.tileSig) { S.tileSig = sig; navigate(S.screen, true); return; }
+  if (sig !== S.tileSig) {
+    S.tileSig = sig;
+    /* KEEP THE FOCUS through a structural re-render (2026-08-20 —
+       caught on the new spkgrp tiles: unjoining a member hid the
+       Group Volume tile, the sig changed, and the walk snapped back
+       to the first row mid-interaction). Same screen, same tile
+       still present → the highlight stays put; a tile that vanished
+       falls back to initial_focus as before. */
+    const keep = S.focusId;
+    navigate(S.screen, true);
+    const sc2 = screenOf(S.screen);
+    if (keep && sc2 && tilesOf(sc2).some(t => t.id === keep)) setFocus(keep);
+    return;
+  }
   tilesOf(sc).forEach(t => {
     const el = document.getElementById("tile_" + t.id);
     const w = WIDGETS[t.type];
@@ -8324,6 +8877,124 @@ function passthroughActive() {
   return !!scp.dpad_passthrough;
 }
 
+/* ================================================================
+   THE PAD DOCTRINE, FINAL FORM (2026-08-20 — three field rounds
+   converged on Suresh's sentence: "dpad should always navigate the
+   screen EXCEPT for the TV, where ChUp and ChDn engage panel
+   mode"). One rule: THE PAD DRIVES WHICHEVER SCREEN YOU'RE
+   NAVIGATING. A page that declares a device navigation target (TV,
+   receiver OSD) sends the pad THERE, and CH walks the LCD instead
+   (borrowing the pad while you walk — the strip says so). Every
+   other page — rooms, details, and yes, MUSIC — the pad walks the
+   LCD natively and OK means the focused tile (play/pause on the
+   hero, mute on a volume row: the widgets already speak music).
+   The earlier "transport pad" owner (▲=next, then the same-day
+   at-rest hybrid) is DELETED — both put a hidden mode on keys whose
+   focus-follows meaning was already right ("I am on the receiver
+   tile … I hit OK and it pauses the music" — that was the bug).
+   Media conveniences live on keys the panel doesn't need:
+   hold-◀/▶ seek ∓15s · hold-CH▲/▼ previous/next track · short CH
+   jumps sections (walks when there's nothing to jump) · menu →
+   library via the stock binding — and the astrion2 glyph row
+   (prev/play_pause/stop/next) works from ANY page while music runs.
+   Physical keys only for the pad claim, as passthrough always was.
+   ================================================================ */
+/* who owns the physical pad on THIS screen (latch aside):
+   "device" — passthrough (TV/OSD): keys go to the wired dpad entity
+   null     — the panel's own: everything else, music included */
+function padOwner() {
+  if (!CAPS.has("physical_dpad")) return null;
+  return passthroughActive() ? "device" : null;
+}
+/* a MUSIC-SHAPED page: an activity controller with a media player
+   in context and no device navigation target — where the media
+   defaults (hold-seek, hold-CH track skip, CH section jump) live */
+function mediaScreen() {
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  if (sc.dpad_passthrough) return false;
+  if (sc.control_target &&
+      ["up", "down", "left", "right", "select"].every(ctPass)) return false;
+  return (sc.class === "activity" || sc.type === "controller") &&
+    !!resolveEntity("$context.media_player");
+}
+/* the page that IS the music library: it renders a browse tile.
+   FIELD LESSON (2026-08-20 round 4: "ChUp … seems to be jumping
+   sections in the Music Library which isn't even on screen!"):
+   S.browse persists after leaving the library, so brStepCat MUST
+   be gated to the screen that actually shows it — stepping an
+   invisible category strip also re-navigated the current screen
+   and threw the focus to the first tile. */
+function browseScreen() {
+  /* read the RAW screen def — the browse tile expands into item
+     tiles at render time, so the rendered list no longer says
+     "browse" */
+  const sc = (CONFIG && screenOf(S.screen)) || {};
+  const secs = sc.sections || (sc.tiles ? [{ tiles: sc.tiles }] : []);
+  return secs.some(s => (s.tiles || []).some(t => t && t.type === "browse"));
+}
+/* music surfaces = the controller AND its library (his round-4
+   call: the library's CH steps the category strip; both get the
+   hold conveniences). The apps drawer is a library too but not a
+   music surface — no browse tile, so it stays plain. */
+function musicSurface() {
+  return mediaScreen() ||
+    (browseScreen() && !!resolveEntity("$context.media_player"));
+}
+/* the player the transport keys drive: the page's own context first,
+   else the RUNNING activity's — so astrion2's dedicated transport
+   row (F4–F7) works from the room page, the library, anywhere */
+function mediaCtx() {
+  const t = resolveEntity("$context.media_player");
+  if (t) return t;
+  const aid = currentActivityId();
+  const c = aid && CONFIG.activities[aid] && CONFIG.activities[aid].context;
+  return (c && typeof c.media_player === "string") ? c.media_player : null;
+}
+/* the borrow: any CH press arms/renews it (rolling TIMING.padLatch);
+   so does every latched pad press. Back, touch, and navigation end
+   it early. On panel-native screens it never arms — no mode where
+   there is no mode to enter. */
+function padLatched() { return (S.padLatch || 0) > Date.now(); }
+function padArm() {
+  if (!padOwner()) return;
+  /* the borrow window: config input.pad_latch_seconds (Code tab on
+     the Input policy slice) beats the 8s default */
+  const ms = (CONFIG && CONFIG.input && +CONFIG.input.pad_latch_seconds > 0)
+    ? +CONFIG.input.pad_latch_seconds * 1000 : (TIMING.padLatch || 8000);
+  S.padLatch = Date.now() + ms;
+  padStrip();
+}
+function padClear() {
+  if (!S.padLatch) return;
+  S.padLatch = 0;
+  padStrip();
+}
+function padStrip() {
+  const el = document.getElementById("padstrip");
+  if (!el) return;
+  const on = padLatched();
+  el.classList.toggle("hidden", !on);
+  clearTimeout(padStrip._t);
+  if (on) padStrip._t =
+    setTimeout(padStrip, Math.max(60, S.padLatch - Date.now() + 30));
+}
+/* hands on the glass = the panel is being TOUCHED; the pad returns
+   to the activity immediately */
+document.addEventListener("pointerdown", () => padClear(), true);
+/* the dedicated transport keys (astrion2's glyph row, or any remote
+   naming keys prev/play_pause/stop/next) — fired at mediaCtx() so
+   they follow the running music from any page */
+function padMedia(button, tgt) {
+  callService("media_player",
+    button === "prev" ? "media_previous_track"
+    : button === "next" ? "media_next_track"
+    : button === "stop" ? "media_stop" : "media_play_pause", null, tgt);
+  if (typeof PREVIEW !== "undefined" && PREVIEW)
+    flashBar(button === "prev" ? "⏮ Previous track"
+      : button === "next" ? "⏭ Next track"
+      : button === "stop" ? "⏹ Stop" : "⏯ Play/Pause");
+}
+
 /* v2 power-to-target: controls.power may be a full {service, entity}
    action; control_target.power is an entity (default: toggle). */
 function ctPower() {
@@ -8390,21 +9061,38 @@ function v2Route(button, phys) {
   return false;
 }
 
+/* repaint after the focus leaves an options-mode tile — its render
+   clears the roving highlight only when it runs */
+function blurRove(prevId) {
+  if (!prevId || prevId === S.focusId) return;
+  const t = tileDef(prevId);
+  if (t && typeof navOf === "function" && navOf(t) === "options") renderStates();
+}
+
 function act(button, phys) {
   if (!CONFIG || !S.screen) return;
 
-  /* Harmony passthrough claims PHYSICAL keys only — touch taps on
-     tiles always drive the UI, even on a passthrough screen.
-     v0.11: Back is NO LONGER claimed — tap-Back is UI back everywhere;
+  /* THE PAD CLAIM (2026-08-20 doctrine, final form) — PHYSICAL keys
+     only; touch taps always drive the UI. The pad is claimed on
+     exactly ONE kind of page: a declared device navigation target
+     (passthrough), and only until CH borrows it for the panel —
+     then the five keys fall through to the panel paths below and
+     each press renews the borrow. Everywhere else the pad IS the
+     panel's, natively — no claim, no mode, no strip. Capture
+     outranks everything: a widget the user grabbed keeps its keys.
+     v0.11: Back is never claimed — tap-Back is UI back everywhere;
      hold-Back/Home send the device keys (see keydown). */
-  if (phys && passthroughActive() &&
+  if (phys && !S.captured &&
       ["up", "down", "left", "right", "select"].includes(button)) {
-    rc(deviceKeyTarget(), cmdFor({}, button));
-    /* the Studio preview can't show the device reacting — say where
-       the key went so the pad doesn't read as dead */
-    if (typeof PREVIEW !== "undefined" && PREVIEW)
-      flashBar("D-pad → device (passthrough)");
-    return;
+    if (padLatched()) padArm();              // walking renews the borrow
+    else if (padOwner() === "device") {
+      rc(deviceKeyTarget(), cmdFor({}, button));
+      /* the Studio preview can't show the device reacting — say
+         where the key went so the pad doesn't read as dead */
+      if (typeof PREVIEW !== "undefined" && PREVIEW)
+        flashBar("D-pad → device (passthrough)");
+      return;
+    }
   }
 
   /* v2 input policy (config.input.physical_buttons): short press →
@@ -8422,15 +9110,30 @@ function act(button, phys) {
   }
 
   switch (button) {
-    case "up": case "down":
-      spatialMove(button); break;
+    case "up": case "down": {
+      /* an OPTIONS tile paints a roving highlight; repaint when the
+         walk leaves it so the outline doesn't linger (chips clear
+         their rove state in render when unfocused) */
+      const was = S.focusId;
+      spatialMove(button);
+      blurRove(was);
+      break;
+    }
     case "left": case "right": {
       /* widget-owned ◀▶ while merely FOCUSED (no capture) — e.g.
-         coverbtns' roving highlight */
-      if (!isTrailId(S.focusId) && w && w.keys && w.keys[button]) {
-        w.keys[button](eid, t); renderStates(); break;
+         coverbtns' roving highlight, or a volume tile's level
+         (round 4 field call: "DPad left and Right SHOULD" change
+         the volume). A handler may return false to decline —
+         per-tile scoping (the stepper only claims volume kind). */
+      /* nav modes: a tile overridden to "action" walks even when its
+         widget offers ◀▶ handlers (the whole policy is data now) */
+      if (!isTrailId(S.focusId) && w && w.keys && w.keys[button] &&
+          navOf(t) !== "action") {
+        if (w.keys[button](eid, t) !== false) { renderStates(); break; }
       }
-      if (!spatialMove(button)) pageScreen(button);
+      { const was = S.focusId;
+        if (!spatialMove(button)) pageScreen(button);
+        blurRove(was); }
       break;
     }
     case "select": {
@@ -8444,11 +9147,15 @@ function act(button, phys) {
       }
       if (!w) break;
       if (S.confirmTile === t.id && w.select) { w.select(eid, t); break; }
-      if (w.selectCaptures) { enterCapture(); renderStates(); }
+      /* nav modes decide OK: "capture" grabs the pad (dpad tiles
+         only, in stock); everything else runs the widget's select —
+         mute, join, commit-the-roved-option, fire */
+      if (navOf(t) === "capture" && w.capture) { enterCapture(); renderStates(); }
       else if (w.select) { w.select(eid, t); renderStates(); }
       break;
     }
     case "back":
+      padClear();          // Back hands the pad home AND does its job
       if (S.confirmTile) { clearConfirm(); renderStates(); break; }
       if (S.stack.length) navigate(S.stack.pop(), true);
       break;
@@ -8479,9 +9186,15 @@ function act(button, phys) {
       break;
     }
     case "menu": {
-      /* physical MENU key (Astrion: '#') → the device's menu command
-         on screens with a device context; on a multi-section page
-         without one, MENU tours the categories (wraps) */
+      /* a BINDING wins first (final doctrine, 2026-08-20 — the
+         stock music page binds menu → navigate music_library: "the
+         hamburger jumps to the Library", his call); then the
+         physical MENU key (Astrion: '#') → the device's menu
+         command on screens with a device context; on a
+         multi-section page without one, MENU tours the categories
+         (wraps) */
+      const bm = boundButtons().menu;
+      if (bm) { runAction(bm); break; }
       const mt = deviceKeyTarget();
       if (mt) { rc(mt, cmdFor({}, "menu")); break; }
       heroCycle(1, true);
@@ -8549,6 +9262,10 @@ function act(button, phys) {
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":
     case "mute": case "menu_hold": {
+      /* ANY CH press is panel intent — it borrows the pad (his #3:
+         "Both Hold and short press") whether a binding wins or the
+         focus-walk default runs */
+      if (button === "ch_up" || button === "ch_down") padArm();
       /* Exception to "VOL is always audio": on a device DETAIL
          screen, VOL nudges that device's primary range (brightness,
          setpoint, volume, position). Everywhere else: activity audio. */
@@ -8591,19 +9308,28 @@ function act(button, phys) {
           button === "vol_up" ? "volume_up" : "volume_down", null, vt);
         break;
       }
-      /* CH = MOVE THE FOCUS. ALWAYS. (2026-08-19 — Suresh: "ChUp,
-         ChDn, navigate the LCD. Always." — one field day after the
-         hold-CH round, the roles flipped: the SHORT press is the
-         gesture a thumb reaches for). CH▲ walks the focus UP exactly
-         like the D-pad — and unlike the D-pad it works on
-         passthrough controllers, where arrows belong to the device.
-         This also cures the "inverted" feel of the old default: CH▲
-         used to mean "next section", which is DOWN the page. The old
-         short-press defaults (browse category strip, section chips)
-         moved to the HOLDS below; a config binding still beats
-         everything (the ladder above already returned). */
+      /* CH = MOVE THE FOCUS (2026-08-19: "ChUp, ChDn, navigate the
+         LCD. Always."), REFINED on music by the final doctrine
+         (2026-08-20): with the pad walking natively there, CH-walk
+         was redundant, so on a music-shaped page short CH takes the
+         BIG JUMP — the library's category strip, the section tabs —
+         and falls back to the plain walk when there's nothing to
+         jump ("change section if there are sections, redundant walk
+         if not" — his words). CH▲ = up the page (d = −1) either
+         way. On passthrough screens CH stays the walk — it's the
+         only walk there is. A config binding beat everything above. */
       if (button === "ch_up" || button === "ch_down") {
-        spatialMove(button === "ch_up" ? "up" : "down");
+        const d = button === "ch_up" ? -1 : 1;
+        /* on the LIBRARY the section jump is the category strip —
+           and only there (browseScreen gates the persistent
+           S.browse); the controller uses its hero tabs; anything
+           without a jump falls back to the walk */
+        if (browseScreen() &&
+            typeof brStepCat === "function" && brStepCat(d)) break;
+        if (musicSurface() && heroCycle(d)) break;
+        { const wasCh = S.focusId;
+          spatialMove(button === "ch_up" ? "up" : "down");
+          blurRove(wasCh); }
         break;
       }
       /* mute default (no config binding needed): toggle mute on the
@@ -8630,20 +9356,25 @@ function act(button, phys) {
       break;
     }
     case "ch_up_hold": case "ch_down_hold": {
-      /* HOLD-CH = THE BIG JUMPS (2026-08-19 redesign; the buttons
-         themselves arrived one day earlier for "make long press up
-         and down control the LCD?" — then short CH took the focus
-         walk, and the holds inherited the old short-press defaults):
-         the browse CATEGORY strip on the library, the section chips
-         on a room page — CH▲-hold goes to the PREVIOUS one (up the
-         page), CH▼-hold the next. A binding wins first: the stock
-         music controller points these at ±15s seek (his RWD/FFWD).
-         Holds are the SHELL's job (see FIELD LESSON below):
-         KeyMapper long-press on CH▲/CH▼ sends ' and /. */
+      /* HOLD-CH (final doctrine, 2026-08-20): on a MUSIC-shaped
+         page the hold skips tracks — CH▲-hold = previous, CH▼-hold
+         = next ("Long Press in Next / Previous Track" — the section
+         work moved to the SHORT press there). Everywhere else the
+         hold keeps the BIG JUMPS: the browse category strip, the
+         section chips — CH▲-hold to the PREVIOUS one (up the page).
+         A binding wins first. Holds are the SHELL's job (see FIELD
+         LESSON below): KeyMapper long-press on CH▲/CH▼ sends ' /. */
+      padArm();   // on a passthrough screen a jump is panel intent (no-op elsewhere)
       const bch = boundButtons()[button];
       if (bch) { runAction(bch); break; }
       const d = button === "ch_up_hold" ? -1 : 1;
-      if (typeof brStepCat === "function" && brStepCat(d)) break;
+      if (musicSurface()) {
+        padMedia(d < 0 ? "prev" : "next", resolveEntity("$context.media_player"));
+        break;
+      }
+      /* brStepCat only where the strip is on screen (see browseScreen) */
+      if (browseScreen() &&
+          typeof brStepCat === "function" && brStepCat(d)) break;
       heroCycle(d);
       break;
     }
@@ -8655,7 +9386,25 @@ function act(button, phys) {
          Unbound stays a deliberate no-op. left_hold/right_hold land
          here; new remotes can mint new names without engine edits. */
       const bd = boundButtons()[button];   /* same ladder as above */
-      if (bd) runAction(bd);
+      if (bd) { runAction(bd); break; }
+      /* MEDIA DEFAULTS (final doctrine, 2026-08-20). Unbound
+         hold-◀/hold-▶ on a music-shaped page SEEK ∓15s ("Hold ◀/▶
+         = seek") — the stock TV screen binds these same buttons to
+         REWIND/FAST_FORWARD passthrough, and that binding won
+         above. And the DEDICATED transport keys — astrion2's glyph
+         row names F4–F7 prev/play_pause/stop/next — drive the
+         running music from ANY page (mediaCtx falls back to the
+         running activity's player). */
+      if ((button === "left_hold" || button === "right_hold") && musicSurface()) {
+        runAction({ seek: button === "right_hold" ? 15 : -15,
+          entity: "$context.media_player" });
+        break;
+      }
+      if (["prev", "play_pause", "stop", "next"].includes(button)) {
+        const mt = mediaCtx();
+        if (mt) padMedia(button, mt);
+        break;
+      }
       break;
     }
   }
@@ -8733,7 +9482,10 @@ document.addEventListener("keydown", e => {
   if (!b) return;
   e.preventDefault();
   if (b === "select") {                         // hold-select gesture
-    if (e.repeat || S.captured || passthroughActive()) return; // tap on keyup
+    /* the hold timer belongs to the PANEL's select — skip it when the
+       pad's owner (a passthrough device) has the key and no borrow is
+       live (the tap then fires on keyup and the claim routes it) */
+    if (e.repeat || S.captured || (padOwner() && !padLatched())) return;
     holdFired = false;
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => {              // timer-based: works even
@@ -9036,6 +9788,12 @@ function applyConfig(cfg, devName) {
      that maps ' or / to something else keeps its mapping). */
   if (!("'" in KEYMAP)) KEYMAP["'"] = "ch_up_hold";
   if (!("/" in KEYMAP)) KEYMAP["/"] = "ch_down_hold";
+  /* same story one day later for hold-◀/hold-▶ (the music field
+     flip made them the track-skip keys): , and . are the shipped
+     KeyMapper keycodes — COMMA/PERIOD — and every profile gets them
+     unless it claims those keys itself. */
+  if (!("," in KEYMAP)) KEYMAP[","] = "left_hold";
+  if (!("." in KEYMAP)) KEYMAP["."] = "right_hold";
   /* v0.58: the REMOTE PROFILE may override presentation tokens on top
      of the theme — remotes.<id>.style is a plain map of CSS custom
      properties ({"bar-h":"100px"}). Same mechanism as the theme, one

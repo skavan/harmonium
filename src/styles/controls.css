@@ -119,6 +119,47 @@
      unmuting lands where you expect */
   .volrow .volpct .vmute { font-size: 24px; color: var(--accent); vertical-align: -3px; }
   .sldr.muted i, .meter.muted i { opacity: .3; }
+  /* SPEAKER-GROUP TILES (2026-08-20 nav modes — the spkgrp: page is
+     real tiles now): member/group-volume rows reuse the volume-row
+     chassis; the % rides inside the fat track; link toggles keep
+     the grouping card's color language. */
+  .tile.wgt-grpmember .volrow .sldr, .tile.wgt-grpvol .volrow .sldr {
+    flex: 1 1 auto; min-width: 0; width: auto; height: 46px; margin: 0;
+    position: relative;
+  }
+  /* no icon circle on the group rows — the mega-card's rows had
+     none, and the track needs every pixel of width */
+  .tile.row.wgt-grpmember .icwrap, .tile.row.wgt-grpvol .icwrap,
+  .tile.wgt-grpmember .icwrap, .tile.wgt-grpvol .icwrap,
+  .tile.wgt-grpmember .top .ic, .tile.wgt-grpvol .top .ic {
+    display: none !important;
+  }
+  .tile.wgt-grpmember .volrow .dpbtn, .tile.wgt-grpvol .volrow .dpbtn {
+    width: 58px; height: 46px; flex: 0 0 auto;
+  }
+  /* the mega-card's title-line buttons, per tile: volume-link +
+     join-link (or unlink-all) ride the top-right of the tile */
+  .tile.wgt-grpmember, .tile.wgt-grpvol { position: relative; }
+  .tile.wgt-grpmember .grpbtns, .tile.wgt-grpvol .grpbtns {
+    position: absolute; top: 10px; right: 14px;
+    display: flex; gap: 10px; z-index: 2;
+  }
+  .tile.wgt-grpmember .grpbtns .dpbtn, .tile.wgt-grpvol .grpbtns .dpbtn {
+    width: 52px; height: 40px; border-radius: 12px;
+  }
+  .tile.wgt-grpmember .gjoin.on {
+    background: var(--accent); color: #1a1400;
+  }
+  .tile.wgt-grpmember .rslpct, .tile.wgt-grpvol .rslpct {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text); pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,.55);
+  }
+  .tile.wgt-grpmember .gvlink { color: var(--accent); }
+  .tile.wgt-grpmember .gvlink.vloose { color: var(--text-dim); opacity: .6; }
+  .tile.wgt-grpvol .gunlink { color: var(--text-dim); }
+
 
   /* SPEAKER GROUPING (v0.83.7 — beta-gaps §3): member rows + the
      group-volume track. A joined row reads accent; the link button

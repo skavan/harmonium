@@ -1,9 +1,13 @@
 # Your first screen
 
-*Purpose: A room page with live tiles, from a blank workspace. Audience: new users.*
+*Purpose: Your first page — created, sectioned, deployed, and set as home — ready for the activities and presets the next guides add. Audience: new users.*
 
-**Outcome:** a room page — activities up top, one-tap presets, live
-device tiles — on every remote in the house.
+**Outcome:** a named room page with its sections scaffolded and a
+device tile or two live, deployed to every remote and set as the
+home screen — a foundation ready for
+[activities](activities.md) and [presets](presets.md), which the
+next guides (and the videos) build on top of it.
+**📺 The presets-and-devices half is on video: [Presets & Devices](https://youtu.be/lhVmuL7QHfs).**
 
 <p align="center">
   <img src="../media/engine-porch.png" width="300"

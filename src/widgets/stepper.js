@@ -27,10 +27,26 @@ WIDGETS.stepper = {
     },
     inlineSub: t => t.kind === "volume",
     isOn: e => ACTIVE(st(e).s),
-    selectCaptures: true, captureHint: "▲▼ adjust · back releases",
-    capture: {
-      up:   (e, t) => nudgeStep(e, t.kind, +1),
-      down: (e, t) => nudgeStep(e, t.kind, -1)
+    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — his AirCon
+       ruling: "DPad Up and Down should navigate the tiles as usual.
+       Left and Right DPad should navigate within the Tiles"): ◀▶
+       nudge the value while focused — volume, brightness, setpoint,
+       position, all of them — ▲▼ always walk, and the last
+       select-captures die. OK's secondary: the volume kind toggles
+       mute; other kinds have no secondary (their tap targets are on
+       screen). Even a vertical slider track adjusts on ◀▶ — one
+       grammar beats axis-matching. */
+    nav: "value",
+    keys: {
+      left:  (e, t) => void nudgeStep(e, (t && t.kind) || "volume", -1),
+      right: (e, t) => void nudgeStep(e, (t && t.kind) || "volume", +1),
+    },
+    select: (e, t) => {
+      if (!e || !t || t.kind !== "volume") return;
+      const cur = S.states.get(e);
+      const next = !(cur && cur.a && cur.a.is_volume_muted);
+      if (cur && cur.a) cur.a.is_volume_muted = next;
+      callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
     body: t => {
       /* volume: track-in-row, number on the title line — see above */
