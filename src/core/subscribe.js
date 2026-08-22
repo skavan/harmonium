@@ -15,8 +15,11 @@ function groupEntities(t) {
 function rawTilesOf(sc) {
   /* enabled:false (v0.40 blessed sections): a switched-off section
      keeps its items in config but stops rendering AND subscribing */
+  /* reduce/concat, not flatMap: .flatMap is Chromium 69+ and the
+     syntax floor is 61 (stock Astrion webview) — see boot.js */
   return sc.sections
-    ? sc.sections.filter(x => x.enabled !== false).flatMap(x => x.tiles)
+    ? sc.sections.filter(x => x.enabled !== false)
+        .reduce((a, x) => a.concat(x.tiles || []), [])
     : (sc.tiles || []);
 }
 function tilesOf(sc) {
@@ -24,7 +27,8 @@ function tilesOf(sc) {
      np_style must dress EVERY derivation — makeTile builds from the
      render pipeline, but renderStates re-derives through here, and an
      undressed twin would feed sub()/render() the wrong tile */
-  return rawTilesOf(sc).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
+  return rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), [])
+    .map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */

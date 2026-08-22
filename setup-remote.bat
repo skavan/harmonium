@@ -11,6 +11,12 @@ REM   1. accelerometer_rotation 0  - the Astrion's accelerometer
 REM      otherwise flips the kiosk when the remote is picked up
 REM   2. user_rotation 0           - and the display stays pinned
 REM      to standard portrait (0 degrees)
+REM   3. display density - REPORTED, NEVER CHANGED (2026-08-22,
+REM      Suresh: "we shouldn't fix what isn't broken"). The HA100
+REM      ships a factory density-220 override (physical 200) and
+REM      the whole astrion profile is built on 220 - this script
+REM      only WARNS if an HA100 has lost it, and prints the one
+REM      command to restore it by hand.
 REM
 REM NOT in this script on purpose: making Fully the device's home
 REM launcher (a real battery win - the stock app holds a wake lock
@@ -61,6 +67,23 @@ echo    accelerometer_rotation is now:
 "%ADB%" %SER% shell settings get system accelerometer_rotation
 echo    user_rotation is now:
 "%ADB%" %SER% shell settings get system user_rotation
+
+echo == display density (report only - nothing is changed)
+echo    model:
+"%ADB%" %SER% shell getprop ro.product.model
+"%ADB%" %SER% shell wm density
+"%ADB%" %SER% shell getprop ro.product.model | findstr /i "HA100" >nul
+if errorlevel 1 goto :denok
+"%ADB%" %SER% shell wm density | findstr "220" >nul
+if errorlevel 1 (
+  echo    *** WARNING: this HA100 is NOT at density 220. The astrion
+  echo    profile ^(skin viewport 349x581, layout, Studio preview^) is
+  echo    built on the factory 220 override. Restore it yourself with:
+  echo        adb shell wm density 220
+) else (
+  echo    OK: density 220 - matches the astrion profile.
+)
+:denok
 
 echo.
 echo done. Next steps for a fresh remote: push-keymapper.bat for

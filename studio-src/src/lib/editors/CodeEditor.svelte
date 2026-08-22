@@ -6,7 +6,24 @@
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        /* plain-http HA (the common case) is not a secure context, so
+           navigator.clipboard doesn't exist at all — fall back to the
+           deprecated-but-universal execCommand path (2026-08-21,
+           field: "copy failed: Cannot read properties of undefined
+           (reading 'writeText')"). */
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        if (!ok) throw new Error("browser refused the copy");
+      }
       setStatus("copied " + app.selKey + " to clipboard", "ok");
     } catch (e) { setStatus("copy failed: " + e.message, "err"); }
   }

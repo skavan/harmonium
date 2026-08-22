@@ -363,7 +363,9 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = surfOrderTiles(secTiles).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
+    const vis = surfOrderTiles(secTiles)              /* no flatMap: floor is Chromium 61 */
+      .reduce((a, t) => a.concat(expandTile(t)), [])
+      .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
        tiles (the browse view toggle does). Rows want ONE column —

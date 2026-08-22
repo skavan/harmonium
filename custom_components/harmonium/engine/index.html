@@ -91,7 +91,10 @@
      exactly what shipped, so an un-styled profile is unchanged. */
   #bar {
     display: flex; align-items: center; gap: var(--bar-gap, 8px);
-    padding: var(--bar-pad, 8px 14px 4px);
+    /* default grew 8/4 → 11/8 (2026-08-22, Suresh: "hitting the info
+       icon on the remote is near impossible") — a few px of strip
+       height; profiles still override via --bar-pad */
+    padding: var(--bar-pad, 11px 14px 8px);
     font-size: var(--bar-sub, 13px);
     min-height: var(--bar-h, 0);
     color: var(--dim);
@@ -146,7 +149,10 @@
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer; padding: 4px; }
+  /* ⓘ hit zone: ~44×44 finger target (padding grows the tap area,
+     negative margin keeps the glyph visually where it was) */
+  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer;
+    padding: 12px 10px; margin: -8px -4px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */
@@ -3453,8 +3459,11 @@ function groupEntities(t) {
 function rawTilesOf(sc) {
   /* enabled:false (v0.40 blessed sections): a switched-off section
      keeps its items in config but stops rendering AND subscribing */
+  /* reduce/concat, not flatMap: .flatMap is Chromium 69+ and the
+     syntax floor is 61 (stock Astrion webview) — see boot.js */
   return sc.sections
-    ? sc.sections.filter(x => x.enabled !== false).flatMap(x => x.tiles)
+    ? sc.sections.filter(x => x.enabled !== false)
+        .reduce((a, x) => a.concat(x.tiles || []), [])
     : (sc.tiles || []);
 }
 function tilesOf(sc) {
@@ -3462,7 +3471,8 @@ function tilesOf(sc) {
      np_style must dress EVERY derivation — makeTile builds from the
      render pipeline, but renderStates re-derives through here, and an
      undressed twin would feed sub()/render() the wrong tile */
-  return rawTilesOf(sc).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
+  return rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), [])
+    .map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */
@@ -3640,6 +3650,24 @@ function activityStateEntities() {
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
+/* ROLE-ADDRESSED NAVIGATION (v0.84.2 — Suresh: source glyph on the
+   shared Fire TV controller must open the input picker for whatever
+   device holds the source_select ROLE here, not a hardcoded entity).
+   A virtual target's entity tail may be a $context/$activity token —
+   resolve it so `sources:$context.source_select` becomes the concrete
+   `sources:media_player.xyz` before navigate() (which takes a literal
+   id). Concrete ids and non-virtual screens (controller:tv, ws:deck,
+   plain pages) have no leading-$ tail and pass straight through. */
+function navTarget(nav) {
+  if (typeof nav !== "string") return nav;
+  var i = nav.indexOf(":");
+  if (i < 0) return nav;
+  var tail = nav.slice(i + 1);
+  if (tail.charAt(0) !== "$") return nav;
+  var r = resolveEntity(tail);
+  return r ? nav.slice(0, i + 1) + r : nav;
+}
+
 /* Generic action object: { navigate: <screen> } or { sequence: <id> }
    or { service, target|entity, data } — the ONE action grammar shared
    by presets, trailing slots, and key bindings (v0.28). */
@@ -3656,7 +3684,7 @@ function runAction(a, srcTile) {
   if (a.confirm && !barConfirm("act:" + (a.confirm.key || a.service || ""),
       a.confirm.msg, a.confirm.tone, srcTile)) return;
   if (a.browse !== undefined) { browseGo(a.browse); return; }
-  if (a.navigate) { navigate(a.navigate); return; }
+  if (a.navigate) { navigate(navTarget(a.navigate)); return; }
   if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
   if (a.seek !== undefined) {
     /* RELATIVE SEEK (v0.54): HA's media_seek is absolute-only and
@@ -5438,6 +5466,14 @@ function diagScreen() {
     diagRow("dg_dpr", "grid_4x4", "Pixel ratio " + dpr,
       "physical " + (scr.width != null ? scr.width + " × " + scr.height : "unknown") +
       " · " + (window.innerWidth > window.innerHeight ? "landscape" : "portrait")),
+    /* the RUNTIME's version (2026-08-22, Suresh: a sideloaded webview
+       is invisible — "make it writ large... else new users are DOA"):
+       the UA names the Chromium the webview really is. Stock Astrion
+       = 61 (the engine's syntax floor); a sideloaded Android System
+       WebView shows its own number here. */
+    diagRow("dg_wv", "public",
+      "WebView Chromium " + ((navigator.userAgent.match(/Chrom(e|ium)\/([0-9.]+)/) || [])[2] || "unknown"),
+      "the engine's runtime · stock Astrion ships 61 · see hardware-keys"),
   ];
 
   /* --- band 2: THE BUILD --- */
@@ -5640,10 +5676,12 @@ const DETAIL_VOL_KIND = {
    per-device CUSTOM copy (variant_of: <domain>, entity: <eid>) wins
    for its device. Fallback: the hardcoded composition. */
 function bindDeviceTiles(tiles, eid) {
+  /* reduce, not Object.fromEntries (Chromium 73+): syntax floor is
+     61 — the stock Astrion webview. See boot.js. */
   const sub = v => v === "$device" ? eid
     : Array.isArray(v) ? v.map(sub)
     : (v && typeof v === "object")
-      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]))
+      ? Object.entries(v).reduce((o, kv) => (o[kv[0]] = sub(kv[1]), o), {})
       : v;
   return tiles.map(sub);
 }
@@ -5659,7 +5697,7 @@ function detailScreen(eid) {
   const def = detailDef(eid);
   const raw = def
     ? ((def.tiles && def.tiles.length) ? def.tiles
-        : (def.sections || []).flatMap(x => x.tiles || []))
+        : (def.sections || []).reduce((a, x) => a.concat(x.tiles || []), []))
     : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
   if (!raw || !raw.length) return null;
   const tiles = def ? bindDeviceTiles(raw, eid) : raw;
@@ -8437,7 +8475,9 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = surfOrderTiles(secTiles).flatMap(expandTile).map(surfDressTile).filter(visibleTile);
+    const vis = surfOrderTiles(secTiles)              /* no flatMap: floor is Chromium 61 */
+      .reduce((a, t) => a.concat(expandTile(t)), [])
+      .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
        tiles (the browse view toggle does). Rows want ONE column —
@@ -9736,7 +9776,11 @@ document.getElementById("connectBtn").addEventListener("click", () => {
         const r = await fetch(pairHost + "/api/harmonium/pair/" + pairSid,
           { cache: "no-store" });
         out = await r.json();
-      } catch { return; }               /* transient — keep polling */
+      } catch (e) { return; }           /* transient — keep polling.
+           NOTE the binding: bare `catch {` is ES2019 (Chromium 66+)
+           and the SYNTAX FLOOR is Chromium 61 — the stock Astrion
+           webview (61.0.3163.98, fleet-verified 2026-08-21). One
+           bare catch = white screen on a virgin unit. */
       if (out.status === "approved") {
         pairStop(); pairSid = null;
         localStorage.setItem("hakr_host", host);

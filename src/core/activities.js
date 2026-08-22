@@ -92,6 +92,24 @@ function activityStateEntities() {
 }
 function isActActive(t) { return isActivityActive(t.activity); }
 
+/* ROLE-ADDRESSED NAVIGATION (v0.84.2 — Suresh: source glyph on the
+   shared Fire TV controller must open the input picker for whatever
+   device holds the source_select ROLE here, not a hardcoded entity).
+   A virtual target's entity tail may be a $context/$activity token —
+   resolve it so `sources:$context.source_select` becomes the concrete
+   `sources:media_player.xyz` before navigate() (which takes a literal
+   id). Concrete ids and non-virtual screens (controller:tv, ws:deck,
+   plain pages) have no leading-$ tail and pass straight through. */
+function navTarget(nav) {
+  if (typeof nav !== "string") return nav;
+  var i = nav.indexOf(":");
+  if (i < 0) return nav;
+  var tail = nav.slice(i + 1);
+  if (tail.charAt(0) !== "$") return nav;
+  var r = resolveEntity(tail);
+  return r ? nav.slice(0, i + 1) + r : nav;
+}
+
 /* Generic action object: { navigate: <screen> } or { sequence: <id> }
    or { service, target|entity, data } — the ONE action grammar shared
    by presets, trailing slots, and key bindings (v0.28). */
@@ -108,7 +126,7 @@ function runAction(a, srcTile) {
   if (a.confirm && !barConfirm("act:" + (a.confirm.key || a.service || ""),
       a.confirm.msg, a.confirm.tone, srcTile)) return;
   if (a.browse !== undefined) { browseGo(a.browse); return; }
-  if (a.navigate) { navigate(a.navigate); return; }
+  if (a.navigate) { navigate(navTarget(a.navigate)); return; }
   if (a.sequence) { callService("harmonium", "run", { sequence: a.sequence }); return; }
   if (a.seek !== undefined) {
     /* RELATIVE SEEK (v0.54): HA's media_seek is absolute-only and

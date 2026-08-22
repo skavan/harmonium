@@ -25,6 +25,22 @@ deep sleep and bleeding the battery. If it's already installed:
 `adb uninstall io.homeassistant.companion.android.minimal` — clean
 and reversible. Details in the wake-lock section below.
 
+⚠️ **One step to ADD to that guide: check (and maybe update) the
+webview.** Every Astrion carries stock **Chromium 61** (2017) as
+its fallback webview; inspected units *run* a factory **Google
+WebView 136** from `/system/priv-app/NWebView_x15` — whether any
+retail unit really runs the 61 fallback is unproven, so check
+yours. Tap **ⓘ** on the remote and read
+the **WebView Chromium** row: 136+ means you're done; 61 means
+sideload the current Android System WebView APK (`adb install` —
+Android 8.1's provider list accepts Google's package by AOSP
+default; if selection fails, `adb shell dumpsys webviewupdate`
+explains why). The engine runs on 61 (our battery enforces that
+syntax floor) but newer is faster and better tested. The RS90 is
+the opposite case: its Android 12 locks the provider list to stock
+Chromium 91 — no upgrade possible or needed; ignore Fully's nag
+there.
+
 One Harmonium-specific rule for KeyMapper: **gestures are KeyMapper's
 job**. Map *hold* and *double-press* to their own distinct keycodes
 there — the engine deliberately runs no gesture timers (one

@@ -6,7 +6,10 @@
      exactly what shipped, so an un-styled profile is unchanged. */
   #bar {
     display: flex; align-items: center; gap: var(--bar-gap, 8px);
-    padding: var(--bar-pad, 8px 14px 4px);
+    /* default grew 8/4 → 11/8 (2026-08-22, Suresh: "hitting the info
+       icon on the remote is near impossible") — a few px of strip
+       height; profiles still override via --bar-pad */
+    padding: var(--bar-pad, 11px 14px 8px);
     font-size: var(--bar-sub, 13px);
     min-height: var(--bar-h, 0);
     color: var(--dim);
@@ -61,7 +64,10 @@
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer; padding: 4px; }
+  /* ⓘ hit zone: ~44×44 finger target (padding grows the tap area,
+     negative margin keeps the glyph visually where it was) */
+  #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer;
+    padding: 12px 10px; margin: -8px -4px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */

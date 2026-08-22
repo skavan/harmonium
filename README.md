@@ -29,7 +29,7 @@ I wanted an AV first replacement, and thus was born **Harmonium**.
 
 The bottleneck on remote hardware is not the webview — it is the stock HA frontend: a multi-megabyte bundle plus a websocket firehose of every entity in your instance. Harmonium subscribes to **only the** **entities on the current screen** (~20 messages instead of thousands) and renders them with a dependency-free engine that ships as **one** **auditable HTML file**. The result on a Sanytron Astrion or Haptique RS90: a fast load and a responsive page — not the multi-second Lovelace crawl.
 
-- **Fast.** Quick cold boot even on vendor-frozen Chromium 75 webviews. No framework, no multi-megabyte bundle, no loading spinner.
+- **Fast.** Quick cold boot even on ancient vendor webviews — the engine's enforced compatibility floor is 2017-era Chromium 61, the Astrion's built-in fallback. No framework, no multi-megabyte bundle, no loading spinner.
 - **Buttons are first-class.** Full D-pad / spatial-focus operation. During an activity, the physical D-pad *is* the device's D-pad (Harmony-style passthrough); touch always drives the UI.
 - **Activities live in HA, not the remote.** Start "Watch Fire TV" and the TV, soundbar and input switching run HA-side; the remote is a dumb, fast 2-way window onto them. Every remote in the house agrees about what's running.
 - **Pairing, not tokens.** A new remote shows a short code; you approve it in the Studio. No copying long-lived tokens onto a kiosk device.
@@ -79,12 +79,15 @@ The full walk-through (including hardware remotes) is in **[docs/GETTING-STARTED
 This is where Harmonium earns its keep — and the physical buttons are half of it, so don't skip this part. **Harmonium ships a ready-made KeyMapper profile for the Sanytron Astrion / HA100**: the whole button story — app-launcher keys, volume/mute/menu, the long-press escape hatches — restores onto a fresh remote in two taps, no button-by-button authoring.
 
 1. **Hardware prep** (once per remote): sideload Fully Kiosk and
-  KeyMapper per Brad Sanders' excellent community guide —  
+  KeyMapper per Brad Sanders' excellent community guide — **and
+  check the Astrion's webview** (ⓘ on the remote shows the version —
+  if it reads Chromium 61, [update it](docs/GETTING-STARTED.md#%EF%B8%8F-update-the-webview--do-this-its-two-minutes)) —  
    **[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
   **[ button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
    (stop before its manual button remapping — the profile below replaces that step).
 2. **With the remote on USB**: run `setup-remote.bat` from the repo
-  root (locks the display to portrait), then `push-keymapper.bat` — it pushes the bundled profile from [`remotes/keymapper/astrion/`](remotes/keymapper/astrion/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
+  root (locks the display to portrait and warns — without changing
+  anything — if the HA100's factory display density of 220 has been lost), then `push-keymapper.bat` — it pushes the bundled profile from [`remotes/keymapper/astrion/`](remotes/keymapper/astrion/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
    [`astrion-remote-map.md`](remotes/keymapper/astrion/astrion-remote-map.md), and the community guide's screenshots show where everything lives.
 3. **Point Fully Kiosk at the URL above**, pair, and pick up at [our hardware-keys cookbook](docs/cookbook/hardware-keys.md) for what every key does — including the glyph row you can bind to anything in the Studio.
 

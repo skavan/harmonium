@@ -81,6 +81,60 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.84.1 RELEASED, 2026-08-21 — the community debut is live; beta watch begins)
+
+**(79) RELEASE + ANNOUNCEMENT DAY (no code — release ops, forum
+campaign, first outside contact).** v0.84.1 committed, tagged and
+released on GitHub; HACS update verified working on .88. The
+announcement campaign ran three beats: a post in the existing
+Astrion showcase thread (forum.sanytron.com …/277/15), then a
+dedicated Sanytron topic —
+<https://forum.sanytron.com/t/harmonium-a-fast-activity-based-universal-remote-platform-for-the-astrion-built-on-home-assistant-open-beta/294>
+— and finally the HA Community post —
+<https://community.home-assistant.io/t/harmonium-a-fast-activity-based-universal-remote-platform-for-home-assistant-open-beta-via-hacs/1022037>.
+The HA post's final form was hard-won: the hook is Suresh's
+origin story verbatim ("I have a jumble of remotes on my coffee
+table. Even today, in 2026."), each paragraph one unwrapped line
+(Discourse renders hard breaks literally), Astrion priced honestly
+(~$180), and his before/after image table (remote pile vs the
+Harmonium gif) as the visual open. Titles locked as "…a fast,
+activity-based universal-remote platform for {the Astrion, Home
+Assistant}". Still owed on the campaign: cross-link footer on the
+Sanytron topic → HA topic; r/homeassistant once the HA thread
+settles.
+
+**FIRST OUTSIDE CONTACT — Dmitry (dskudrin).** The astrion-custom
+HA thread (/t/1020169) was mined post for post: Dmitry's wishlist
+there (activity/page separation, back-stack, per-activity buttons,
+"HA as the Activity processor") is Harmonium's architecture nearly
+verbatim, and dckiller's users report page-switch latency — our
+core strength. Suresh DM'd him; Dmitry replied warmly: he has
+ordered a SECOND Astrion (~1 month out) to run Harmonium
+side-by-side against astrion-custom — a bake-off judged by the
+best QA reporter in the community. His large RTI system runs
+control over IP/RS232 (no IR needed on the remote) — exactly our
+thesis house.
+
+**ROADMAP MOVES (claude/beta-gaps.md §6, synced to the Claude
+project).** Two additions sourced from the thread: (a) "remote as
+a first-class HA citizen" — HA→remote command channel (open_page /
+popup targeted at a remote id over the existing websocket; the
+doorbell→intercom automation) + per-remote HA device exposing
+battery/online/current page; (b) card-gap notes (camera/intercom
+validation, vacuum-map grace period = the UNAVAILABLE contract).
+And the big one: **multi-activity mental model promoted to an
+active design conversation** (Suresh: "many activities can be
+active. We need to think through our mental model"). Sketch logged
+in §6.7: the activity select is a scalar doing three jobs —
+TRUTH (the running SET, per-activity entities), FOCUS (per-remote
+pointer the UI fronts; today's select becomes exactly this, so
+select-keyed automations survive), EXCLUSIVITY (derived from
+device claims, not the room — start preempts only overlapping
+activities; stop_on_switch matures into stop-when-preempted).
+Staged: (0) Active Activities card over today's model, (1)
+conflict-based preemption, (2) true same-room sets. Standalone
+design doc on offer, timing his call.
+
 ## Current state (v0.84.1 RC, 2026-08-20 — field round 4: the pad meets the widgets)
 
 Round 77. Seven field items, five of them real: (1) CH in the

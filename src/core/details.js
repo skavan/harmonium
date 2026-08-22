@@ -142,10 +142,12 @@ const DETAIL_VOL_KIND = {
    per-device CUSTOM copy (variant_of: <domain>, entity: <eid>) wins
    for its device. Fallback: the hardcoded composition. */
 function bindDeviceTiles(tiles, eid) {
+  /* reduce, not Object.fromEntries (Chromium 73+): syntax floor is
+     61 — the stock Astrion webview. See boot.js. */
   const sub = v => v === "$device" ? eid
     : Array.isArray(v) ? v.map(sub)
     : (v && typeof v === "object")
-      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sub(x)]))
+      ? Object.entries(v).reduce((o, kv) => (o[kv[0]] = sub(kv[1]), o), {})
       : v;
   return tiles.map(sub);
 }
@@ -161,7 +163,7 @@ function detailScreen(eid) {
   const def = detailDef(eid);
   const raw = def
     ? ((def.tiles && def.tiles.length) ? def.tiles
-        : (def.sections || []).flatMap(x => x.tiles || []))
+        : (def.sections || []).reduce((a, x) => a.concat(x.tiles || []), []))
     : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
   if (!raw || !raw.length) return null;
   const tiles = def ? bindDeviceTiles(raw, eid) : raw;

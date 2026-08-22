@@ -12,6 +12,25 @@ whose §1 CORRECTS the phase-3 plan below and whose §5 reframes it.
 Everything below is verified, not assumed. Where something is untested,
 it says so.
 
+> **STATUS 2026-08-21 — v0.84.1 IS RELEASED AND ANNOUNCED. WE ARE IN
+> BETA WATCH.** Tagged on GitHub, HACS-verified on .88, announced on
+> the Sanytron forum (dedicated topic /294 + showcase post /277/15)
+> and the HA Community forum (topic /1022037) — same day, titles
+> "…a fast, activity-based universal-remote platform for {the
+> Astrion, Home Assistant}". The operating rule of this era: incoming
+> forum replies and GitHub issues outrank everything planned — see
+> `docs/beta-gaps.md` §6 (the LIVING ROADMAP; the Claude project's
+> `claude/beta-gaps.md` is the synced twin and currently the most
+> up-to-date copy). First outside relationship: Dmitry (dskudrin,
+> RTI background, astrion-custom's best tester) is running a
+> side-by-side Harmonium-vs-astrion-custom bake-off on a second
+> Astrion arriving ~Sept 2026. Open design conversation with Suresh:
+> the multi-activity mental model (truth = running SET · focus =
+> per-remote pointer · exclusivity = device claims) — sketch in
+> beta-gaps §6.7. Campaign leftovers: Sanytron→HA cross-link footer,
+> r/homeassistant later. Everything below this box describes the
+> code as shipped and remains accurate.
+
 ---
 
 ## 1. What this is, and where it lives

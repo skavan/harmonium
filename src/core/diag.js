@@ -70,6 +70,14 @@ function diagScreen() {
     diagRow("dg_dpr", "grid_4x4", "Pixel ratio " + dpr,
       "physical " + (scr.width != null ? scr.width + " × " + scr.height : "unknown") +
       " · " + (window.innerWidth > window.innerHeight ? "landscape" : "portrait")),
+    /* the RUNTIME's version (2026-08-22, Suresh: a sideloaded webview
+       is invisible — "make it writ large... else new users are DOA"):
+       the UA names the Chromium the webview really is. Stock Astrion
+       = 61 (the engine's syntax floor); a sideloaded Android System
+       WebView shows its own number here. */
+    diagRow("dg_wv", "public",
+      "WebView Chromium " + ((navigator.userAgent.match(/Chrom(e|ium)\/([0-9.]+)/) || [])[2] || "unknown"),
+      "the engine's runtime · stock Astrion ships 61 · see hardware-keys"),
   ];
 
   /* --- band 2: THE BUILD --- */

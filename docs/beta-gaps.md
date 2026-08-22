@@ -1,26 +1,321 @@
-# Harmonium — Beta Gap Analysis
+# Harmonium — Beta Gap Analysis & Living Roadmap
 
 *Purpose: the running scoreboard between "works in two houses" and
 "any HA user can install this without us in the room" — what shipped,
 what's open, in what order. Audience: maintainers planning the next
 round.*
 
-**Status (2026-08-17, v0.83.10 pending)**: the beta is LIVE —
-v0.83.9-Beta is published and installs from HACS. Every P0 gate
-below is shipped (pairing, HACS packaging, outsider docs), as are
-the grouping card, Speaker Groups, image upload, the import chooser,
-dialect wake, and the stretched-preview fix. Still open, in rough
-order: the volume/mute hardware overlay (§6.6), `volume_step` trait
-+ UNAVAILABLE contract (§6.5), section folding's second half
-(§6.8), then the demand-driven tail. Sections 1–5 below are the
-original 2026-08-12 analysis, kept for the reasoning; §6 carries
-the live per-item status.
+**Status (2026-08-21, v0.84.1 PUBLIC BETA — announced on the
+Sanytron AND Home Assistant forums, same day)**: the community
+debut is out. Everything the
+original analysis gated on is shipped — pairing, HACS packaging,
+outsider docs, the grouping card, Speaker Groups (now real tiles),
+the pad doctrine's final form, four nav modes, battery alerts, four
+video tutorials, dialect docs, the removal guide. §6 was rewritten
+top to bottom on release day: it is now the LIVING ROADMAP, and the
+first rule of this era is that **incoming issues and forum feedback
+outrank everything on it**. Sections 1–5 remain the original
+2026-08-12 analysis, kept for the reasoning.
 
 Four inputs: our own pain list (auth), a scan of the two Astrion
 custom firmwares, the card ecosystem's best media tricks, and the
 Unfolded Circle Remote's API model. Verdicts are honest: **HAVE**
 (we do this, sometimes better), **PARTIAL**, **MISS** (worth
 stealing), **SKIP** (not our thesis).
+
+---
+
+*(§1 Onboarding & authentication, §2 Competitor scan, §3 Grouping
+card, §4 UC-model adoptions, §5 Beta logistics — original analysis
+preserved unchanged below §6; every P0/P1 verdict in them is now
+resolved and tracked in §6.)*
+
+---
+
+## 6. THE LIVING ROADMAP (rewritten 2026-08-21, v0.84.1 day)
+
+### 6.0 Shipped since the last update (v0.83.10 → v0.84.1)
+
+Pad doctrine final form (pad navigates; passthrough + CH-borrow on
+TV only) · four nav modes (action/value/options/capture, per-tile
+`nav` override) · chips/steppers/climate/light/fan converted to
+value/options (select-capture dead outside passthrough) · Speaker
+Group page as real tiles (join/unjoin on OK, group volume,
+unlink-all) · focus survives structural re-renders · CH section
+jumps scoped to on-screen browse · library tab strip auto-scroll ·
+media holds (seek/track-skip) + menu→Library · astrion2 profile +
+skin (2026 faceplate, F4–F7 transport) · default app-launcher wake
+· switch teardown (`stop_on_switch` + `confirm_switch` in Studio) ·
+battery-alerts blueprint v3 + Studio panel + Test · wake-lock
+forensics (Companion-app SKIP warning; measure-first guide) ·
+creating-a-dialect + remove-harmonium + browser-front-door docs ·
+four videos · key map regenerated with all hold gestures.
+
+### 6.1 Now (the beta-watch fortnight — no speculative code)
+
+- Answer forum replies + GitHub issues FAST; first reporters get
+  same-day turnaround. Incoming feedback re-orders everything below.
+- Re-point CT's blueprint import at the GitHub URL; repo links into
+  the YouTube descriptions; delete `skins/_to_delete/`.
+- Announcements LIVE (watch both):
+  [Sanytron topic](https://forum.sanytron.com/t/harmonium-a-fast-activity-based-universal-remote-platform-for-the-astrion-built-on-home-assistant-open-beta/294)
+  ·
+  [HA Community topic](https://community.home-assistant.io/t/harmonium-a-fast-activity-based-universal-remote-platform-for-home-assistant-open-beta-via-hacs/1022037)
+  (plus showcase-thread post #15). Still owed: cross-link footer on
+  the Sanytron topic pointing at the HA topic; r/homeassistant once
+  the HA thread settles. One venue at a time.
+- **Public ROADMAP.md in the repo** distilled from this section, so
+  the community sees where it's going and issues can link to it.
+- 2026-08-21 (RS90 round): the **HA100 density story** — the
+  Astrion's density-220 is a FACTORY override (physical 200 +
+  shipped override; fleet-verified on a virgin Sanytron user's
+  unit), so no user-facing gap existed. `setup-remote.bat` now
+  RE-ASSERTS it per model (insurance against a reset clearing it);
+  README/GETTING-STARTED updated. Same fleet probe delivered the
+  real find: **stock Astrion webview = Chromium 61** → the engine
+  gained a hard SYNTAX FLOOR (six post-61 usages fixed, guarded
+  forever by `tests/probe-syntax-floor.mjs`, doctrine in
+  CONTRIBUTING). A `device-facts.bat` ask to any forum user =
+  fleet telemetry; keep doing it.
+
+### 6.2 v0.84.x candidates (small, high-value, in rough order)
+
+1. **Per-remote hub in the Studio** — his "at a maximum": battery
+   tiers edited in-Studio, skin, keymap, provisioning in one place.
+2. **`nav` mode dropdown** on the tile editor (engine honors it
+   today).
+3. **Volume/mute hardware-key OVERLAY** (§2 astrion trick) — big
+   transient overlay readable at 3 m.
+4. **`volume_step` per device + the UNAVAILABLE-contract test**
+   (§4.1/§4.2).
+5. **Section-card folding** in the Studio (§ old 6.8 second half).
+6. **Dialect visual editor** (the cookbook promises it).
+7. **astrion2 in the flesh**: verify color-bar keycodes (unknown
+   until hardware), hotspot tweaks, transport row end to end.
+8. **Stock TV: menu_hold → Apps drawer** (2026-08-21, Suresh: "Its
+   the one screen on TV controller that is kind of hard to get to
+   without screen press"): ship it as a stock TV-screen binding
+   (gen bump), symmetric with music's menu → Library — short Menu
+   stays device passthrough, long Menu opens Apps. Engine is ready
+   today (menu_hold rides the binding ladder); the gen-heal
+   delivers it to existing configs. Document the KeyMapper half
+   (Menu long-press → KEYCODE_AT) in hardware-keys' hold table.
+   (His house: fixed by hand 2026-08-21 — KeyMapper row + Studio
+   binding; his fresh KeyMapper pull had LOST the Menu long-press
+   row, and his live config never had the binding.)
+9. **Stock keyboard (IME) text entry** (2026-08-21, Suresh): today
+   the only typing surface is the library search's key-walk plus a
+   physical keyboard. Focusing a real `<input>` summons Android's
+   soft keyboard in Fully — offer it as an opt-in text mode for
+   library search (and reuse it anywhere text is needed: pair-screen
+   host entry, future rename fields). Mind the search-typing
+   doctrine (printable keys must keep routing as buttons when the
+   IME mode is off).
+
+### 6.3 New cards (the widget gap list — 2026-08-21, Suresh)
+
+Inventory of missing/thin tile types, roughly by expected demand:
+
+- **Lock** — state + lock/unlock (confirm on unlock), jammed state.
+- **Vacuum** — state, start/pause/dock, battery, fan speed chips.
+  (Map rendering, if ever: Dmitry's flicker report next door says
+  hold the last-known image through brief unavailability — our
+  UNAVAILABLE contract, §4.2, already implies this.)
+- **Sensor readout** — value + unit + name; template-able; the
+  building block half the requests will reduce to. (Sparkline/
+  history is a possible later layer — keep the first cut static.)
+- **Weather** — current + short forecast from a `weather` entity.
+- **Fan upgrade** — widget exists (toggle + ◀▶ speed); add preset
+  chips + oscillate where the entity offers them.
+- **Camera** — snapshot tile (still refresh, tap for larger; MJPEG
+  streams are a battery/webview hazard — stills first). Validated
+  by Dmitry's intercom use case in the astrion-custom thread: the
+  full story is camera card + HA→remote push (§6.7) + a `when`
+  clause (§6.5).
+- **Alarm panel** — arm/disarm with code entry; pairs with Lock as
+  the "security" story.
+- **Scene** — scene domain sibling of the script tile.
+- **Generic select** — any `select`/`input_select` as an options
+  row (falls out of the composite card's data-driven chips ↓).
+- Humidifier, timer, person/presence — demand-driven tail.
+
+Each lands as: widget + nav-mode declaration + detail-page
+generator entry + Studio Draws-as entry + a probe stage + a
+FORMAT.md row. The chassis makes these mostly mechanical.
+
+### 6.4 THE COMPOSITE CARD (design sketch — "a receiver with
+### surround modes")
+
+The generalization that makes half of §6.3 configuration instead of
+code. Today `CHIP_KINDS`/`STEP_KINDS` are a hard-coded vocabulary;
+the composite card makes the same primitives **data-driven**: a
+tile whose config is a list of ROWS, each row one of the existing
+interaction primitives bound to any entity/attribute/service.
+
+```jsonc
+{ "type": "card", "label": "Denon AVR", "entity": "media_player.denon",
+  "rows": [
+    { "row": "options", "label": "Input",
+      "options_attr": "source_list", "current_attr": "source",
+      "set": { "service": "media_player.select_source", "key": "source" } },
+    { "row": "options", "label": "Surround",
+      "options_attr": "sound_mode_list", "current_attr": "sound_mode",
+      "set": { "service": "media_player.select_sound_mode", "key": "sound_mode" } },
+    { "row": "value", "kind": "volume" },
+    { "row": "buttons", "items": [
+      { "label": "Pure Direct", "action": { "service": "denonavr.set_sound_mode_pure" } },
+      { "label": "Zone 2", "action": { "navigate": "detail:media_player.denon_zone2" } } ] },
+    { "row": "readout", "label": "Now", "attr": "media_title" }
+  ] }
+```
+
+Row vocabulary = exactly the four nav modes: `options` (chips,
+◀▶ rove + OK commits), `value` (a stepper/slider on any numeric
+attr with a set service), `buttons` (a preset row), `readout`
+(sensor line). The pad walks rows inside the card like the speaker-
+group page walks tiles (rows as focus stops — the machinery the
+grouping rewrite proved out). Studio: a row-list editor, each row a
+small form. This one deserves a short design doc before code —
+focus-stop nesting and the Studio editor are the two real problems;
+the engine rendering is assembled from parts we have.
+
+### 6.5 CONDITIONALS (design sketch — "show this card WHEN")
+
+Per-tile / per-section `when` clause, declarative (no Jinja in the
+engine — it must stay evaluable client-side against subscribed
+state):
+
+```jsonc
+"when": { "entity": "binary_sensor.house_occupied", "is": "on" }
+"when": { "entity": "sensor.astrion1_battery", "below": 20 }
+"when": { "all": [ {…}, { "entity": "select.x", "not": "off" } ] }
+```
+
+Grammar: `is` / `not` / `above` / `below` / `in`, combinable with
+`all`/`any`. Evaluated in `visibleTile` (the hide machinery already
+exists — unwired-context hiding and capability `only`/`unless` are
+the precedents); referenced entities join the page's subscription
+list automatically. Section-level `when` folds the whole section.
+Studio: a small condition-builder on tile ⚙ and Section settings.
+Care: focus repair when the focused tile disappears (the tileSig
+focus-keeper already handles this), and a "why is my tile missing"
+affordance in the Studio preview (badge tiles hidden by `when`).
+
+### 6.6 RS90 — proper UI & setup support (2026-08-21, promoted)
+
+The second remote model, treated as a product feature rather than a
+personal runbook. Pieces (see also `todo-remote-pairing.md`):
+
+- Field-test the v0.56 describe-and-learn loop on real hardware
+  (the `e.key` stability question is THE risk).
+- A stock `rs90` profile once the hardware is in hand: capabilities,
+  keymap conventions, KeyMapper recipe doc, device photo + hotspots.
+- The **photo-hotspot V2 UX**: photograph the remote, drag regions,
+  each region a slot — describing hardware stops being a typing
+  exercise. (Open: image storage, rect authoring, Studio-only vs
+  engine.)
+- Generalized setup docs: "pairing a NEW remote model" as a
+  first-class cookbook path (remote-map.md is the seed).
+
+### 6.7 Design conversations (need Suresh before code)
+
+- **Multi-activity rooms** (music + TV concurrently) — PROMOTED
+  2026-08-21 (Suresh, after Dmitry's DM: "many activities can be
+  active. We need to think through our mental model"). Sketch: the
+  activity select is a scalar doing three separable jobs. (1)
+  TRUTH = the RUNNING SET, not a scalar — per-activity running
+  entities minted by the integration (Dmitry's "array of
+  activities"). (2) FOCUS = per-REMOTE pointer to the activity the
+  UI fronts (controller shown, volume/mute + padMedia target);
+  today's select becomes exactly this, so select-keyed automations
+  survive. (3) EXCLUSIVITY = derived from DEVICE CLAIMS, never from
+  the room: activities already declare devices/roles, so start
+  preempts only overlapping activities — `stop_on_switch` matures
+  into "stop when actually preempted" and music surviving a TV
+  launch needs no config. One-liner: activities are processes,
+  devices are resources, the remote focuses one process at a time.
+  Staged: (0) Active Activities card over today's model (tap =
+  refocus, hold = stop — Dmitry's original ask; shippable before
+  his second Astrion arrives), (1) conflict-based preemption
+  replacing blanket switch teardown, (2) true same-room sets +
+  per-remote focus. Open for the design doc: where running-set
+  truth lives, what a room hub shows with 2 running, select-as-API
+  migration. Dmitry (dskudrin) is running a side-by-side vs
+  astrion-custom on a second Astrion (~1 month out) — the natural
+  first outside reviewer for this design.
+- **Teach-mode**: the hidden capture-hint machinery, resurrected
+  deliberately (first-run hints? long-press ⓘ?).
+- **IR / Bond**: his README calls it out. Possible shape: IR
+  blasters as a dialect-like catalog (learned codes as keys), Bond
+  as the first backend.
+- **Microphone / voice** (2026-08-21, promoted from the parked
+  tail): the Astrion has a mic pill and HA has **Assist
+  pipelines** — the natural shape is push-to-talk on the voice key:
+  `getUserMedia` in the Fully webview (mic permission is a Fully
+  setting) → HA's `assist_pipeline` WebSocket API (binary audio
+  frames) → transcript + response in a transient overlay; the same
+  capture could drive dictation into library search. Open
+  questions: the stock webview's audio-capture reliability
+  (stock Astrion = Chromium 61, fleet-measured 2026-08-21; the
+  reference unit runs sideloaded Google WebView 136, RS90 stock is
+  91 and firmware-locked), pipeline selection per house, and whether
+  responses speak (TTS to the remote) or stay visual. Marcus's
+  native Siri work shows the appetite; ours must stay
+  webview-honest.
+- **Remote as a first-class HA citizen** (2026-08-21, sourced from
+  Dmitry/dskudrin's feedback in the astrion-custom HA thread —
+  /t/1020169): two halves. (a) **HA→remote command channel**: HA
+  tells a SPECIFIC remote to navigate — `open_page`, `back`, `home`,
+  open-current-activity, transient popup — for automations like
+  "doorbell rings → intercom page on the living-room remote". The
+  engine already holds a live websocket; the cheap shape is
+  subscribing to a `harmonium_command` event filtered by remote id
+  (profile name). Latency is our advantage — dckiller's users
+  report visible page-switch lag; ours would ride the same socket
+  the state diffs do. (b) **Exposed remote state**: battery /
+  charging / online exist today via the Fully Kiosk integration but
+  as loose sensors; a per-remote HA device grouping them + current
+  page + running activity (the select already covers activity) is
+  the tidy version. (b) is integration work; (a) is mostly engine
+  and pairs naturally with conditionals (§6.5). Dmitry's wishlist —
+  activity/page separation, back-stack, per-activity buttons,
+  HA-side activity truth — is otherwise a checklist of things
+  Harmonium ALREADY does; he is the profile of user the beta wants.
+- **Composite card** (§6.4) and **conditionals** (§6.5) both get a
+  blessing conversation before build.
+
+### 6.8 Infrastructure (community-proofing)
+
+- **CI**: GitHub Action running the smoke battery + probes on PRs
+  (community PRs are coming; today only our ceremony guards them).
+  The suites are headless-Chromium already — this is wiring, not
+  writing.
+- **Release automation**: Action that rebuilds engine+studio,
+  verifies build determinism against the tagged dist, attaches the
+  zip, runs the link sweep and hacs validation.
+- **Diagnostics export**: one tap on the diag: screen → sanitized
+  bundle (versions, caps, profile, tile counts — never tokens/
+  entity names without consent) for pasting into issues.
+- **Config safety**: auto-snapshot before every Save & Deploy with
+  a visible restore list (restore_backup exists server-side; give
+  it a Studio face).
+- **Perf guard for big houses**: an entity-count/subscription audit
+  probe — strangers have 3,000-entity installs.
+- **HACS default store + home-assistant/brands** submission once
+  the beta stabilizes; git-history rewrite if wanted before that
+  spotlight.
+
+### 6.9 Parked, demand-driven (unchanged)
+
+PIN pairing variant · idle/burn-in view · transport auto-collapse ·
+i18n (two layers) · TTS responses (rides the mic work, §6.7) ·
+`device_class` Studio smarts (§4.4) ·
+dialect naming conventions doc (§4.3) · auto-derived Watched
+entities · per-person profiles.
+
+---
+
+*(Original §1–§5 follow, unchanged, for the reasoning.)*
 
 ---
 
@@ -230,142 +525,6 @@ thesis; formalizing capability flags buys generality we don't need.
   match the ha-fusion/mini-media-player ecosystem, unless you feel
   otherwise).
 - **i18n**: explicitly deferred; English-only noted in README.
-
----
-
-## 6. Priorities
-
-**P0 — gates the beta (ALL SHIPPED — the beta is live)**
-1. ~~Pairing auth (§1)~~ — **SHIPPED v0.81** (code-match flow; PIN
-   variant still unbuilt, demand-driven).
-2. ~~HACS packaging + versioned releases~~ — **SHIPPED v0.82–v0.83.4**
-   (tree-install, engine self-deploy, update strip in the Studio).
-3. ~~Outsider docs~~ — **SHIPPED v0.83** (README, GETTING-STARTED,
-   cookbook, SECURITY; refreshed in the 2026-08-17 cleanup).
-
-**P1 — first features after the gates**
-4. ~~Grouping card + proportional group volume (§3)~~ — **SHIPPED
-   v0.83.7** (WIDGETS.grouping + `speakers` generator + STOCK_MUSIC
-   gen 2; probe-grouping.mjs / probe-stock-heal.mjs). 2026-08-15:
-   loose-entity collection + per-member VOLUME LINK toggle shipped
-   (join ≠ ride the group slider — his "a separate toggle should be
-   to link their volume"). Remaining §3 nicety superseded by ↓.
-4b. ~~SPEAKER GROUPS building block~~ — **SHIPPED v0.83.7
-   (2026-08-15 PM, "OK - do the grouping work")**: top-level
-   `speaker_groups` block; speakers band takes group + mode
-   (launcher/inline; group-fed defaults launcher); generated
-   `spkgrp:<id>` screen with per-player trim sliders; master =
-   activity's player, else coordinator→playing→first fallback;
-   volume link stays per-device (his question — answered). Studio:
-   Model → Speaker Groups editor + Controller-tab Players/Card
-   selects. probe-speaker-groups / probe-stepper-vol /
-   probe-spkgroups-studio. Stepper volume style re-shaped in the
-   same round (Compact's layout + fat in-row track — his design).
-5. `volume_step` trait (§4.1) and the UNAVAILABLE contract test
-   (§4.2).
-6. Volume/mute hardware-key overlay (§2, astrion).
-7. ~~**Studio image upload**~~ — **SHIPPED v0.83.8 (2026-08-16)**:
-   authenticated POST /api/harmonium/upload (8 MB cap, image-type
-   whitelist + magic sniff, 409-before-overwrite) + UploadBtn
-   (button/drop target) on the Hero banner field and the skin map
-   toolbar. Heroes land in www/images/ (OUTSIDE the wipeable
-   harmonium tree — Suresh's call), skins in www/harmonium/skins/.
-   probe-upload-studio.mjs. Original note: a
-   drag-and-drop / file-picker upload in the banner editor (and the
-   skin picker) that POSTs to the integration and saves under
-   `www/harmonium/images/` (skins under `www/harmonium/skins/`),
-   returning the `/local/...` path straight into the field. Kills
-   the "install Samba just to get a hero picture onto the box" edge
-   — the same rough edge the bundled astrion skin papered over for
-   one device. Server side is small (authenticated view, size/type
-   whitelist, never overwrite without confirm); the win is that a
-   stranger never needs filesystem access to finish a
-   good-looking page.
-8. **Collapsible Studio real estate** (2026-08-13, Suresh:
-   "optimize workspace"). Two halves:
-   - **Columns — SHIPPED s0.83.10**: header toggles (◧ nav / ◨
-     preview) fold the 252px nav and 372px preview columns away;
-     the editor takes the width. Persisted per browser
-     (hakr_studio_nav_hide / _pv_hide); panes are hidden, never
-     unmounted (⌘K search and the engine iframe stay alive).
-   - **Section cards — open**: the visual editor's section cards
-     collapse to a one-line header (name + tile count + role chip);
-     remember open/closed per section, collapse-all/expand-all at
-     the top. (Engine-side folding sections on the remote itself
-     would be a separate, config-driven feature; confirm before
-     building.)
-
-9. ~~**The stretched first-load preview**~~ — **SOLVED v0.83.8
-   (2026-08-16)**: `html.nogap` misdetection — the flex-gap boot
-   probe read "no layout" (engine booting behind the hidden preview
-   pane) as "no gap support" and latched compat margins on top of
-   the working gap; the transport row overflowed and the play circle
-   squashed. Probe now distinguishes no-layout (retries) from
-   genuinely-ignored gap; `.trow` children carry flex:0 0 auto
-   insurance; probe-nogap.mjs guards it. Suresh's DevTools dig found
-   it. History of the hunt below, kept for the method: (2026-08-14 status review
-   #3, OPEN — needs a live repro): controller page in the photo
-   preview renders stretched on first load; toggling the
-   Controller↔Room-page chip fixes it. Headless repro FAILED
-   (tests/probe-stretch.mjs: iframe layout + transform identical
-   before/after toggle). Next occurrence, capture two facts before
-   toggling: (a) press 📷 — a stretched PNG = engine/viewport
-   problem, a clean PNG = Studio compositing; (b) the footer
-   s-stamp, to rule out a stale cached studio.html. Suspects:
-   slow LAN asset load (imgNat defaults to the old 1280×4084
-   aspect — 0.1% off, shouldn't be visible), engine reflow timing
-   on first photo mount. 2026-08-15: recurred ("Still getting
-   stretched transport bar"). HEDGED, not solved: (a) engine
-   boot.js re-renders once on document.fonts.ready — covers the
-   measured-before-fonts-settled class (a refresh cures it, which
-   smells like exactly that); (b) ↻ button beside 📷 reloads the
-   engine iframe alone — the one-tap cure. If it recurs on
-   s0.83.21+, the fonts theory is dead: 📷 it and note the stamp.
-   2026-08-16 CAPTURED: his 814×2600 shot shows the transport's
-   84×84 play circle rendered as an OVAL — only a NON-UNIFORM
-   transform can do that, and the skinned preview's iframe scale is
-   the sole one in the system → Studio compositing, engine
-   exonerated (fonts theory dead). A browser refresh resets it; the
-   scale math also assumed a 340px photo width, now measured live
-   (bind:clientWidth, s0.83.26) in case the pane ever sizes
-   differently. NEXT OCCURRENCE: tap ↻ first — squish surviving ↻
-   but dying on browser refresh pins it to stale transform inputs
-   (imgNat/viewport state), and we log those values.
-   2026-08-16 ROUND 3 — it recurred ON s0.83.26 (oval again): the
-   live imgW measure fixed X but Y was still COMPUTED from imgNat's
-   natural aspect — one more stale-able input. s0.83.27 scales each
-   axis to the CLIP BOX'S OWN measured size (bind:clientWidth/Height
-   on the aperture div), so the transform cannot disagree with the
-   rendered layout, whatever produced it; and the capture protocol
-   is AUTOMATED — >2% anamorphic skew console.warns sx/sy/clip/
-   imgNat/rect/viewport. If an oval survives THIS, the warn line in
-   the browser console names the guilty input.
-
-**Design conversation — multi-activity rooms (2026-08-14)**
-Suresh: "a room can run MORE than one activity at a time. Listen to
-Music and Watch TV." True today at the TRUTH level (state rules /
-implied state light both tiles) while the room's minted select
-holds only ONE activity — the FOCUS: who owns the controller, the
-keys, the context. v0.83.7's conditional generated Stop respects
-this (ending Watch TV never stomps Music's routing). The open
-question is whether concurrent activities should become
-first-class: per-activity state entities, select demoted to pure
-focus, volume/power routing when two activities share a room. Big
-change — needs its own design doc before any code.
-
-**P2 — polish that can trail the beta**
-7. Idle/burn-in view for always-on kiosks; transport auto-collapse.
-7b. **Auto-derive Watched entities** (2026-08-14, Suresh: "What's
-   the point of watched entities when we have rules below?"): in
-   the device-rules State modes, the watched list could be derived
-   from the rule entities automatically (it's the engine's
-   subscription list; today it's authored). Keep it visible-but-
-   auto, with manual extras allowed; it stays load-bearing for the
-   "primary entity in any of…" mode, where entities[0] IS the
-   operand.
-8. `device_class` Studio smarts (§4.4); dialect naming conventions
-   doc (§4.3).
-9. i18n, TTS, mic — demand-driven.
 
 Sources: HA auth API docs (developers.home-assistant.io/docs/auth_api),
 marcusadolfsson/astrion-custom README, dckiller51/astrion-custom-

@@ -112,6 +112,15 @@ us than a finished PR that fights the architecture.
   exception: select hold-capture).
 - **Touch always drives the UI**; passthrough claims physical arrows +
   select only.
+- **The ENGINE's syntax floor is Chromium 61** — the stock Astrion
+  webview (`61.0.3163.98`, fleet-verified 2026-08-21 on a virgin
+  unit). No optional chaining (`?.`), no `??`, no bare `catch {}`,
+  no `.flat`/`.flatMap`, no `Object.fromEntries` — the full list
+  lives in `tests/probe-syntax-floor.mjs`, which parses all 51
+  engine files at the 61 language level and greps the runtime
+  hazards; run it with the battery. One modern token = a white
+  screen on a stock remote. (The Studio is exempt — it runs in a
+  desktop browser. So are tests.)
 
 ## Building & pushing
 

@@ -100,7 +100,44 @@ Studio previewing on a picture of the remote itself.
 **First, with the remote on USB, run `setup-remote.bat`** from the
 repo root: it locks the display to portrait (the Astrion's
 accelerometer otherwise flips the kiosk the moment the remote is
-picked up).
+picked up) and *reports* the display density — on an HA100 it warns
+if the factory 220 override has been lost (the astrion profile is
+built on it) and prints the one command to restore it; it never
+changes anything itself. Sanity check on any device: tap ⓘ on the
+remote and compare the Viewport line with the profile's
+`skin.viewport`.
+
+### ⚠️ Update the WebView — do this, it's two minutes
+
+Every Astrion carries the **2017 stock webview (Chromium 61)** as
+its built-in fallback; the units we've inspected *run* a **Google
+WebView 136 baked into /system** (`/system/priv-app/NWebView_x15`,
+factory) — and that's where all of Harmonium's tuning happened.
+Whether any retail unit actually runs the 61 fallback is unproven
+either way, so trust nothing but the device in your hand. The
+engine is written to run on 61 regardless (that floor is enforced
+in our test battery), but newer is faster and far better tested.
+So:
+
+1. **Check first**: tap **ⓘ** on the remote → read the **WebView
+   Chromium** row. **136+**: you're done, skip this section.
+   **61**: continue.
+2. Download the current stable **Android System WebView**
+   (`com.google.android.webview`) APK — arm64, Android 8+ — from a
+   source you trust (APKMirror carries Google's signed builds).
+3. `adb install com.google.android.webview.apk` — Android 8.1's
+   provider list includes Google's package by AOSP default, so the
+   system should adopt it. (If it doesn't:
+   `adb shell dumpsys webviewupdate` names every candidate and why
+   it was rejected — open an issue with that output.)
+4. Verify: tap **ⓘ** again — the WebView row should show the new
+   version. (That row exists precisely so the webview is never
+   invisible again.)
+
+The Haptique RS90 is the opposite case: its Android 12 firmware
+locks the provider list to its stock Chromium 91 — no upgrade is
+possible, none is needed, and Fully's "please update WebView" nag
+there can be ignored.
 
 **Skip the button-by-button KeyMapper setup**: the repo ships a
 ready-made Astrion mapping at `remotes/keymapper/astrion/` —

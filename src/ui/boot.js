@@ -222,7 +222,11 @@ document.getElementById("connectBtn").addEventListener("click", () => {
         const r = await fetch(pairHost + "/api/harmonium/pair/" + pairSid,
           { cache: "no-store" });
         out = await r.json();
-      } catch { return; }               /* transient — keep polling */
+      } catch (e) { return; }           /* transient — keep polling.
+           NOTE the binding: bare `catch {` is ES2019 (Chromium 66+)
+           and the SYNTAX FLOOR is Chromium 61 — the stock Astrion
+           webview (61.0.3163.98, fleet-verified 2026-08-21). One
+           bare catch = white screen on a virgin unit. */
       if (out.status === "approved") {
         pairStop(); pairSid = null;
         localStorage.setItem("hakr_host", host);
