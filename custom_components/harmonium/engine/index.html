@@ -8877,8 +8877,27 @@ function bindChain() {
   }
   return out;
 }
+/* DIALECT CAPABILITIES (v0.84.3 — Suresh: "devices have their own
+   custom commands, remotes have theirs; the engine is the glue").
+   The active context's dialect may declare `capabilities` — a
+   button→action map in the shared grammar (service/data/navigate,
+   targets as $context.<role>), so a device-type verb like Fire TV's
+   `settings` (androidtv.adb_command) lives ONCE on the dialect and
+   reaches every activity of that type, instead of being hardcoded
+   into a shared controller (where it would poison other device
+   types). Lowest rung of the ladder: global/ancestor/screen bindings
+   all override it, and an unwired role no-ops in runAction — so an
+   unbound, unwired, or wrong-type press stays a deliberate no-op.
+   (Design: claude/design-device-capabilities.md — this is slice 1,
+   dialect-only; the device_classes layer is deferred.) */
+function dialectButtons() {
+  const d = ctxFor(S.screen).dialect;
+  const dial = d && CONFIG.dialects && CONFIG.dialects[d];
+  return (dial && dial.capabilities) || {};
+}
 function boundButtons() {
-  const out = Object.assign({}, CONFIG.global && CONFIG.global.buttons);
+  const out = Object.assign({}, dialectButtons());
+  Object.assign(out, CONFIG.global && CONFIG.global.buttons);
   const chain = bindChain();
   /* chain[0] is the CURRENT screen only when it's a real (authored)
      one — on a virtual screen (detail:/group:/…) every entry is an

@@ -917,6 +917,15 @@
    "wake": {
     "service": "media_player.turn_on",
     "entity": "$context.media_player"
+   },
+   "capabilities": {
+    "settings": {
+     "service": "androidtv.adb_command",
+     "entity": "$context.media_player",
+     "data": {
+      "command": "input keyevent --longpress 3"
+     }
+    }
    }
   },
   "tizen": {
