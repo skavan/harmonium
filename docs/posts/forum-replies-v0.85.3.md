@@ -23,7 +23,7 @@ only accepts its own — lowercase, and its "back" command is literally called
   launch does nothing: the app's name must match your player's `source_list`
   exactly, and those names shift with rebrands.
 
-Since you have the real hardware and we don't, a quick confirmation in this
+Since you have the real hardware and I don't, a quick confirmation in this
 thread that the buttons behave would be very welcome.
 
 **Card height.** Two answers, and the easy one first: if what you're after is
