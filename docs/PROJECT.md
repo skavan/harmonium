@@ -81,12 +81,13 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.85.4 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
+## Current state (v0.85.5 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
 
 **v0.85.3 was tagged and released BEFORE the three pre-tag catches
-below landed, then withdrawn (release + tag deleted). It is superseded
-by v0.85.4 — same content plus the flat-photo protection and the
-remote-profile healer. The number was burned, not reused: at least one
+below landed, then withdrawn (release + tag deleted). It is superseded by
+v0.85.4 (flat-photo protection + remote-profile healer) and then by
+v0.85.5 (the tv-controller twin + gen heal, caught on the .88 box
+AFTER 0.85.4 shipped — 0.85.4 is safe, just incomplete). The number was burned, not reused: at least one
 install (the .88 box) pulled 0.85.3, and HACS only offers a fix if the
 version moves.**
 
@@ -118,7 +119,21 @@ One long session, driven end-to-end by the first two beta reports
   truth) + `healStockRemotes` (plant-if-absent, never overwrite) in
   the ensureStockControllers chain; probe-stock-sync holds starter ≡
   stocklib for profiles too; probe-stock-remotes.mjs pins plant /
-  no-overwrite / idempotence / deep-copy. Side effect on OUR house:
+  no-overwrite / idempotence / deep-copy. **Third catch, same box,
+  post-0.85.4-download: the tv controller's "no stocklib twin" gap
+  bit for real** — .88's 2026-era tv shape never healed, so the
+  transport bar and back/home row showed ungated on an RS90 (and
+  np_default:"hero" never arrived). Gap CLOSED: `STOCK_TV` (gen 1;
+  the wild has no gen on tv) + `heal("tv", STOCK_TV)` in
+  healStockGen; starter tv regenerated from it; probe-stock-sync's
+  known-gap note retired (tv is in `pairs` now); probe-dpad-dialect's
+  tv scenario flipped from "never replaced" to "gen-healed, gates
+  present, surgical strip still covers the at-gen baked-style case."
+  NOTE the bottom BACK·HARMONIUM·HOME strip on TV pages is NOT part
+  of this — it is routing-spec §7 by design (short-press Back/Home go
+  to the device there); hiding it for physical_back_home remotes
+  would be a spec change (long-press would remain the only Harmonium
+  back/home on TV pages) — Suresh's call, not made yet. Side effect on OUR house:
   dist/config.json's rs90 skin still points at the flat path, which
   now reads as a user photo — re-pick the built-in RS90 skin in the
   Studio once (astrion2's flat path still heals; it shipped flat).

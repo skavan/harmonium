@@ -219,6 +219,167 @@ export const STOCK_MUSIC = {
    (variant_of) are yours and are never touched — the same doctrine
    every healer above already follows. */
 
+
+/* THE STOCK TV CONTROLLER (v0.85.4 — the .88 box, third instance of
+   the starter-only disease in one week: dialects, then remote
+   profiles, now this). The tv controller was born in the starter and
+   NEVER healed — the "known gap" probe-stock-sync used to shrug at.
+   So an existing install kept its 2026-era tv shape forever: no
+   `unless: physical_transport` on the transport bar, no
+   `unless: physical_back_home` on the back/home row, no
+   np_default: "hero" — which is exactly what an updated .88 showed on
+   an RS90. gen 1 (the wild has NO gen at all on tv), heals through
+   healStockGen like every other stock controller; custom copies
+   (variant_of) are yours, never touched. probe-stock-sync now holds
+   the starter's tv equal to this. */
+export const STOCK_TV = {
+  "gen": 1,
+  "name": "TV Media Player",
+  "class": "activity",
+  "view_kind": "controller",
+  "type": "controller",
+  "buttons": {
+    "left_hold": {
+      "service": "remote.send_command",
+      "entity": "$context.dpad",
+      "data": {
+        "command": "REWIND"
+      }
+    },
+    "right_hold": {
+      "service": "remote.send_command",
+      "entity": "$context.dpad",
+      "data": {
+        "command": "FAST_FORWARD"
+      }
+    },
+    "source": {
+      "navigate": "sources:$context.source_select"
+    },
+    "menu": {
+      "navigate": "apps"
+    }
+  },
+  "control_target": {
+    "label": "$activity.name",
+    "navigation": "$context.dpad",
+    "power": "$context.power",
+    "volume": "$context.volume",
+    "pass_through": [
+      "up",
+      "down",
+      "left",
+      "right",
+      "select",
+      "back",
+      "home",
+      "power"
+    ]
+  },
+  "dpad_passthrough": "$context.dpad",
+  "sections": [
+    {
+      "tiles": [
+        {
+          "id": "t_np",
+          "type": "media",
+          "entity": "$context.media_player",
+          "icon": "material:smart_display",
+          "label": "Now Playing",
+          "span": 2,
+          "trailing": {
+            "icon": "material:apps",
+            "action": {
+              "navigate": "apps"
+            }
+          },
+          "np_default": "hero"
+        },
+        {
+          "id": "t_tr",
+          "unless": "physical_transport",
+          "type": "transport",
+          "entity": "$context.media_player",
+          "label": "Transport",
+          "span": 2
+        },
+        {
+          "id": "t_btns",
+          "type": "buttons",
+          "entity": "$context.dpad",
+          "label": "On-screen device buttons",
+          "span": 2,
+          "only": "physical_dpad",
+          "buttons": [
+            "back",
+            "home"
+          ],
+          "unless": "physical_back_home"
+        },
+        {
+          "id": "t_pad",
+          "type": "dpad",
+          "entity": "$context.dpad",
+          "icon": "material:gamepad",
+          "label": "Remote",
+          "span": 2,
+          "unless": "physical_dpad"
+        },
+        {
+          "id": "t_btns2",
+          "type": "buttons",
+          "entity": "$context.dpad",
+          "label": "",
+          "span": 2,
+          "unless": "physical_dpad",
+          "buttons": [
+            "back",
+            "home",
+            "power"
+          ]
+        },
+        {
+          "id": "t_vol",
+          "type": "volume",
+          "entity": "$context.volume",
+          "level_entity": "$context.volume_level",
+          "icon": "material:volume_up",
+          "label": "Volume",
+          "span": 2
+        },
+        {
+          "id": "t_src",
+          "type": "sources",
+          "entity": "$context.source_select",
+          "icon": "material:input",
+          "label": "Source",
+          "span": 2
+        }
+      ]
+    },
+    {
+      "columns": 2,
+      "tiles": [
+        {
+          "id": "keys",
+          "type": "keys"
+        }
+      ],
+      "title": "Device keys"
+    },
+    {
+      "columns": 1,
+      "tiles": [
+        {
+          "id": "cast",
+          "type": "devices"
+        }
+      ],
+      "title": "Devices"
+    }
+  ]
+};
+
 export function healStockGen(cfg) {
   const heal = (cid, stock, extra) => {
     const c = cfg.controllers[cid];
@@ -232,6 +393,7 @@ export function healStockGen(cfg) {
   heal("apps", STOCK_APPS_DRAWER);
   heal("music_library", STOCK_MUSIC_LIBRARY);
   heal("music", STOCK_MUSIC);
+  heal("tv", STOCK_TV);
   heal("media", GENERIC_MEDIA_CONTROLLER);
   for (const [dom, stock] of Object.entries(DOMAIN_STOCKS))
     heal(dom, stock, { domain: dom, class: "activity",
@@ -1163,9 +1325,10 @@ export function ensureStockControllers(cfg) {
     if (c && !c.variant_of && !c.domain && c.context) delete c.context;
   }
   /* THE BAKED-STYLE REPAIR (v0.85.2). v0.85 wrote `style` onto the
-     stock Now Playing tiles of `music` AND `tv`. On music the gen bump
-     above carries the repair, but `tv` is NOT gen-healed at all — it
-     would stay locked forever. So strip the key surgically instead:
+     stock Now Playing tiles of `music` AND `tv`. Gen bumps carry the
+     repair when the gen moved (music; and tv has a twin + gen heal
+     since v0.85.4) — this strip stays as the belt-and-braces for a
+     config already AT the current gen with the style baked in:
      remove `style` from a stock np tile that still carries `np_default`
      alongside it, or from the known stock ids on a non-variant
      controller. One key, no controller replaced, nothing a user typed

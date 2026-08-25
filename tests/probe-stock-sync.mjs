@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { STOCK_MUSIC, STOCK_APPS_DRAWER, STOCK_MUSIC_LIBRARY,
   DOMAIN_STOCKS, STOCK_DIALECTS, STOCK_APP_IDENTITIES,
-  GENERIC_MEDIA_CONTROLLER, STOCK_REMOTE_PROFILES, STOCK_SKINS }
+  GENERIC_MEDIA_CONTROLLER, STOCK_TV, STOCK_REMOTE_PROFILES, STOCK_SKINS }
   from "../studio-src/src/lib/stocklib.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +37,7 @@ const strip = (o, keys) => {
    routing extras from ensureStockControllers) */
 const pairs = [
   ["music", STOCK_MUSIC, []],
+  ["tv", STOCK_TV, []],
   ["apps", STOCK_APPS_DRAWER, []],
   ["music_library", STOCK_MUSIC_LIBRARY, []],
 ];
@@ -96,8 +97,10 @@ for (const [id, prof] of Object.entries(STOCK_REMOTE_PROFILES)) {
     errs.push("remotes." + id + " drifted between starter and stocklib");
 }
 
-/* the tv controller has NO stocklib twin (known gap, never gen-healed);
-   say so if that ever changes so this probe gets extended */
+/* the tv controller's "no stocklib twin" gap CLOSED in v0.85.4 (the
+   .88 box shipped an unhealable 2026-era tv shape — ungated transport
+   and back/home rows on an RS90). STOCK_TV is in `pairs` above; the
+   media controller must also still exist. */
 if (typeof GENERIC_MEDIA_CONTROLLER === "undefined")
   errs.push("stocklib no longer exports GENERIC_MEDIA_CONTROLLER");
 

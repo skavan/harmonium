@@ -1,4 +1,4 @@
-# Forum replies — v0.85.4
+# Forum replies — v0.85.5
 
 Post these after the release is tagged and pushed.
 
@@ -6,7 +6,7 @@ Post these after the release is tagged and pushed.
 
 ## Reply to reporter 1 (Expert Mode / Apple TV / card height)
 
-Thanks for this report — all three items are addressed in v0.85.4, and your
+Thanks for this report — all three items are addressed in v0.85.5, and your
 follow-up with the real Apple TV `source_list` directly shaped what shipped.
 
 **Apple TV.** You were right that it belonged in dialects. The remote was
@@ -28,7 +28,7 @@ thread that the buttons behave would be very welcome.
 
 **Card height.** Two answers, and the easy one first: if what you're after is
 a bigger Now Playing card, you don't need to size anything by hand. Open the
-activity, Controller tab, and set the Now Playing style — v0.85.4 adds
+activity, Controller tab, and set the Now Playing style — v0.85.5 adds
 **Art Hero — Large**, which is near full screen, holds its size through
 play/pause/idle, and dims the artwork instead of blanking it.
 
@@ -46,7 +46,7 @@ restore to.
 
 **Upgrading:** after the HACS update, restart Home Assistant, press "Clear
 browser cache" on the Fully device page if the remote looks unchanged (the ⓘ
-page should say 0.85.4), then **open the Studio and press Save & Deploy
+page should say 0.85.5), then **open the Studio and press Save & Deploy
 once** — that's what applies the new stock content, including the Apple TV
 dialect, to your config. Updates never rewrite your config behind your back.
 
@@ -61,7 +61,7 @@ bug with a long history, and you're the one who caught it.
 old, cut-down copy of the Music controller — the speakers, groups, presets
 and devices bands existed in the library but never made it into the starter
 config, so a brand-new install was born without them (your first save in the
-Studio is what quietly repaired it). v0.85.4 generates the starter from the
+Studio is what quietly repaired it). v0.85.5 generates the starter from the
 library itself, and a test now fails the build if the two ever drift apart
 again. New installs get the complete controller from first boot.
 
@@ -80,6 +80,6 @@ come back on its own (and roughly when), and had HA restarted shortly
 before? A screenshot of the ⓘ page at the time would help too.
 
 **Upgrading:** restart Home Assistant after the HACS update, clear the Fully
-browser cache if the remote looks unchanged (ⓘ should say 0.85.4), then
+browser cache if the remote looks unchanged (ⓘ should say 0.85.5), then
 **open the Studio and press Save & Deploy once** — that save is what brings
 your config up to date, including the repaired Music controller.

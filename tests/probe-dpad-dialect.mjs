@@ -83,14 +83,16 @@ ck('Studio DPAD_FALLBACK matches the engine DPAD_DEFAULT',
 /* --- THE BAKED-STYLE REPAIR (v0.85.2). v0.85 wrote `style` onto the
        stock Now Playing tiles, which disabled the activity's picker.
        Two repairs must both work, or the people it broke stay broken:
-       music via the gen bump, tv via a surgical key strip (tv is not
-       gen-healed at all). --- */
+       music via the gen bump; tv healed too (a stocklib twin + gen
+       heal since v0.85.4 — the .88 box), with the surgical strip as
+       the belt-and-braces for a config already AT the current gen
+       with the style baked in. --- */
 {
-  const { STOCK_MUSIC, ensureStockControllers } =
+  const { STOCK_MUSIC, STOCK_TV, ensureStockControllers } =
     await import('../studio-src/src/lib/stocklib.js');
   const broken = { controllers: {
     music: Object.assign(JSON.parse(JSON.stringify(STOCK_MUSIC)), { gen: 6 }),
-    tv: { name: 'TV', type: 'controller',
+    tv: { name: 'TV', type: 'controller',       // 2026-era: no gen at all
       sections: [{ tiles: [{ id: 't_np', type: 'media', style: 'poster', entity: 'x' }] }] },
   } };
   const mnp = broken.controllers.music.sections[0].tiles[0];
@@ -100,10 +102,29 @@ ck('Studio DPAD_FALLBACK matches the engine DPAD_DEFAULT',
   ck('music: the baked style is gone (picker free again)', !m2.style);
   ck('music: np_default carries the default instead', m2.np_default === 'hero');
   ck('music: gen moved past the broken release', broken.controllers.music.gen > 6);
-  ck('tv: baked style stripped surgically (tv never gen-heals)',
-    !broken.controllers.tv.sections[0].tiles[0].style);
-  ck('tv: the controller itself was NOT replaced',
-    broken.controllers.tv.name === 'TV');
+  const tvTiles = [];
+  (broken.controllers.tv.tiles || []).forEach(t => tvTiles.push(t));
+  (broken.controllers.tv.sections || []).forEach(sec =>
+    (sec.tiles || []).forEach(t => tvTiles.push(t)));
+  ck('tv: gen-healed to the stock shape (v0.85.4)',
+    broken.controllers.tv.gen === STOCK_TV.gen);
+  ck('tv: healed transport is capability-gated',
+    tvTiles.some(t => t.id === 't_tr' && t.unless === 'physical_transport'));
+  ck('tv: healed back/home row is capability-gated',
+    tvTiles.some(t => t.id === 't_btns' && t.unless === 'physical_back_home'));
+  ck('tv: no baked style anywhere after heal',
+    !tvTiles.some(t => t.type === 'media' && t.style));
+
+  /* AT the current gen with a baked style — the strip must still fire */
+  const atGen = { controllers: { tv: Object.assign(
+    JSON.parse(JSON.stringify(STOCK_TV)), {}) } };
+  const np = atGen.controllers.tv.sections.flatMap(x => x.tiles || [])
+    .concat(atGen.controllers.tv.tiles || []).find(t => t.id === 't_np');
+  np.style = 'poster';
+  ensureStockControllers(atGen);
+  ck('tv: baked style stripped surgically at current gen',
+    !atGen.controllers.tv.sections.flatMap(x => x.tiles || [])
+      .concat(atGen.controllers.tv.tiles || []).find(t => t.id === 't_np').style);
 }
 
 /* --- the ladder, in the real engine --- */

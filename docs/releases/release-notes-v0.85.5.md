@@ -1,16 +1,19 @@
-# Harmonium v0.85.4
+# Harmonium v0.85.5
 
 This release is dominated by two things: a ground-up rework of **what
 the physical buttons do**, and a long list of fixes and features driven
 directly by the first beta reports. Thank you to both reporters — most
 of this release exists because you wrote things down.
 
-*(v0.85.4 replaces a short-lived v0.85.3 release, withdrawn the same
-day: it could overwrite a user-made RS90 photo skin during migration,
-and updated installs never received the RS90 remote profile. If you
-installed 0.85.3, update normally. One check for RS90 owners who made
-their own photo skin: if 0.85.3's restart replaced your photo with the
-stock one, re-upload your photo — 0.85.4 will never touch it again.)*
+*(v0.85.5 supersedes two short-lived releases from the same day.
+v0.85.3 was withdrawn: it could overwrite a user-made RS90 photo skin
+during migration, and updated installs never received the RS90 remote
+profile. v0.85.4 fixed both but still left updated installs with a
+frozen TV controller — the on-screen transport bar and back/home row
+showed on remotes that have the physical keys. If you installed
+either, update normally. One check for RS90 owners who made their own
+photo skin: if 0.85.3's restart replaced your photo with the stock
+one, re-upload it — it will never be touched again.)*
 
 ## ⚠ Upgrading from v0.84.1 — three steps
 
@@ -20,7 +23,7 @@ stock one, re-upload your photo — 0.85.4 will never touch it again.)*
    caches aggressively — if the remote looks unchanged, press **Clear
    browser cache** on the Fully device page in HA and reload. The ⓘ
    page now shows the engine version at the top; it should say
-   **0.85.4**. If it doesn't, you're still on the old engine.
+   **0.85.5**. If it doesn't, you're still on the old engine.
 3. **Open the Studio and press Save & Deploy once.** Updates to the
    built-in pages (controllers, skins, the Apple TV support) are
    applied when *you* save — never behind your back. One save brings
@@ -63,7 +66,12 @@ ways that were hard to predict. There is now one written rule set
 
 Remotes with real transport keys (the Haptique RS90 and the Astrion v2)
 no longer show the on-screen transport bar — you have the buttons.
-Remotes with real Back/Home keys don't get on-screen ones either.
+Remotes with real Back/Home keys don't get on-screen ones either. This
+now applies on **updated** installs too, not just fresh ones: the
+built-in TV controller used to reach existing systems only at install
+time, so an update left it frozen in its old shape — it now stays
+current like the other built-ins (your customised copies are never
+touched).
 
 ## Apple TV works now
 

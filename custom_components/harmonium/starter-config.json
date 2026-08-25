@@ -1052,7 +1052,7 @@
     {
      "name": "SEARCH",
      "code": 84,
-     "why": "voice search — activates the microphone"
+     "why": "voice search \u2014 activates the microphone"
     },
     {
      "name": "MUTE",
@@ -1480,6 +1480,7 @@
    ]
   },
   "tv": {
+   "gen": 1,
    "name": "TV Media Player",
    "class": "activity",
    "view_kind": "controller",
