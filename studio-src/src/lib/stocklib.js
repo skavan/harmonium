@@ -1256,10 +1256,28 @@ export function healStockRemotes(cfg) {
   if (!cfg) return;
   if (!cfg.remotes) cfg.remotes = {};
   for (const id in STOCK_REMOTE_PROFILES) {
-    if (cfg.remotes[id]) continue;                 // theirs (or already planted)
-    const p = JSON.parse(JSON.stringify(STOCK_REMOTE_PROFILES[id]));
-    if (STOCK_SKINS[id]) p.skin = JSON.parse(JSON.stringify(STOCK_SKINS[id]));
-    cfg.remotes[id] = p;
+    if (!cfg.remotes[id]) {
+      const p = JSON.parse(JSON.stringify(STOCK_REMOTE_PROFILES[id]));
+      if (STOCK_SKINS[id]) p.skin = JSON.parse(JSON.stringify(STOCK_SKINS[id]));
+      cfg.remotes[id] = p;
+      continue;
+    }
+    /* EXISTING stock profile: capabilities heal by UNION (v0.85.5 —
+       Suresh, testing .88: "Astrion shows transport - good. back/home
+       strip = bad. Astrion2 shows both. rs90 shows neither." The
+       planted rs90 carried current capabilities; the astrions'
+       profiles predate physical_back_home / physical_transport and
+       plant-if-absent never revisited them, so the unless-gates had
+       nothing to read). Capabilities are HARDWARE FACTS — which keys
+       the device physically has — not preferences, and the Studio has
+       no capabilities editor; they were starter-born, so they heal.
+       Union only: never remove, and everything else in the profile —
+       keymap, skin, style — stays the user's, exactly as before. */
+    const r = cfg.remotes[id];
+    const stock = STOCK_REMOTE_PROFILES[id].capabilities || [];
+    if (!Array.isArray(r.capabilities)) r.capabilities = [];
+    for (const cap of stock)
+      if (r.capabilities.indexOf(cap) < 0) r.capabilities.push(cap);
   }
 }
 

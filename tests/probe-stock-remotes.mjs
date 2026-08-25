@@ -18,7 +18,7 @@ const ck = (name, cond) => { if (!cond) errs.push(name); };
 /* --- 1. plant into an existing house (the .88 case) --- */
 const cfgA = { remotes: {
   default: { capabilities: ["touch", "pointer"], keymap: {} },
-  astrion: { capabilities: ["touch"], keymap: { F9: "custom" } },   // theirs, remapped
+  astrion: { capabilities: ["touch"], keymap: { F9: "custom" } },   // theirs, remapped (old caps)
 } };
 healStockRemotes(cfgA);
 ck("rs90 planted", !!cfgA.remotes.rs90);
@@ -35,12 +35,37 @@ ck("rs90 skin born current (gen stamped)",
   cfgA.remotes.rs90.skin.gen === STOCK_SKINS.rs90.gen);
 ck("astrion2 planted too", !!cfgA.remotes.astrion2);
 
-/* --- 2. an existing profile is the user's --- */
-ck("customised astrion untouched",
+/* --- 2. an existing profile is the user's — EXCEPT capabilities,
+   which are hardware facts and heal by UNION (v0.85.5 — the .88
+   circuit: pre-existing astrion/astrion2 profiles predated
+   physical_back_home / physical_transport, so the unless-gates had
+   nothing to read; only the freshly-planted rs90 behaved). Keymap,
+   skin, style, fully: still never touched. Union never removes. --- */
+ck("customised astrion keymap untouched",
   cfgA.remotes.astrion.keymap.F9 === "custom" &&
-  Object.keys(cfgA.remotes.astrion.keymap).length === 1 &&
-  cfgA.remotes.astrion.capabilities.length === 1);
-ck("default untouched", Object.keys(cfgA.remotes.default.keymap).length === 0);
+  Object.keys(cfgA.remotes.astrion.keymap).length === 1);
+ck("astrion capabilities healed by union (kept its own, gained stock)",
+  cfgA.remotes.astrion.capabilities.includes("touch") &&
+  STOCK_REMOTE_PROFILES.astrion.capabilities.every(c =>
+    cfgA.remotes.astrion.capabilities.includes(c)));
+ck("astrion did NOT gain transport (v1 has no transport keys)",
+  !cfgA.remotes.astrion.capabilities.includes("physical_transport"));
+ck("default profile (not a stock id) untouched",
+  Object.keys(cfgA.remotes.default.keymap).length === 0 &&
+  cfgA.remotes.default.capabilities.length === 2);
+
+/* the .88 shape verbatim: 2026-era astrion2, no new caps at all */
+const cfgU = { remotes: { astrion2: {
+  capabilities: ["physical_dpad", "physical_volume", "touch"],
+  fully: true, keymap: { F1: "power" } } } };
+healStockRemotes(cfgU);
+ck("astrion2 gains physical_transport by union",
+  cfgU.remotes.astrion2.capabilities.includes("physical_transport"));
+ck("astrion2 gains physical_back_home by union",
+  cfgU.remotes.astrion2.capabilities.includes("physical_back_home"));
+ck("astrion2 keymap and fully untouched by the union",
+  cfgU.remotes.astrion2.keymap.F1 === "power" &&
+  cfgU.remotes.astrion2.fully === true);
 
 /* --- 3. idempotent --- */
 const before = JSON.stringify(cfgA);

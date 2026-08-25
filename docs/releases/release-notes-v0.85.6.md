@@ -1,18 +1,18 @@
-# Harmonium v0.85.5
+# Harmonium v0.85.6
 
 This release is dominated by two things: a ground-up rework of **what
 the physical buttons do**, and a long list of fixes and features driven
 directly by the first beta reports. Thank you to both reporters — most
 of this release exists because you wrote things down.
 
-*(v0.85.5 supersedes two short-lived releases from the same day.
-v0.85.3 was withdrawn: it could overwrite a user-made RS90 photo skin
-during migration, and updated installs never received the RS90 remote
-profile. v0.85.4 fixed both but still left updated installs with a
-frozen TV controller — the on-screen transport bar and back/home row
-showed on remotes that have the physical keys. If you installed
-either, update normally. One check for RS90 owners who made their own
-photo skin: if 0.85.3's restart replaced your photo with the stock
+*(v0.85.6 supersedes the short-lived 0.85.3–0.85.5 builds from the
+same day, each withdrawn as beta testing caught migration gaps on
+updated installs: a user-made RS90 photo skin could be overwritten
+(0.85.3 only), and updated systems missed the RS90 profile, kept a
+frozen TV controller, or kept stale capability lists — so on-screen
+rows showed on remotes with the physical keys. Whichever you
+installed, just update normally. One check for RS90 owners who made
+their own photo skin: if 0.85.3 replaced your photo with the stock
 one, re-upload it — it will never be touched again.)*
 
 ## ⚠ Upgrading from v0.84.1 — three steps
@@ -23,7 +23,7 @@ one, re-upload it — it will never be touched again.)*
    caches aggressively — if the remote looks unchanged, press **Clear
    browser cache** on the Fully device page in HA and reload. The ⓘ
    page now shows the engine version at the top; it should say
-   **0.85.5**. If it doesn't, you're still on the old engine.
+   **0.85.6**. If it doesn't, you're still on the old engine.
 3. **Open the Studio and press Save & Deploy once.** Updates to the
    built-in pages (controllers, skins, the Apple TV support) are
    applied when *you* save — never behind your back. One save brings
