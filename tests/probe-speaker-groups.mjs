@@ -8,7 +8,16 @@
    media_player.join at the ACTIVITY's master (the "receiver is just
    an amp" case: the master is not in the group) · a trim drag hits
    ONLY that member · inline mode renders the card in place · with
-   nothing running, the master falls back to the coordinating member. */
+   nothing running, the master falls back to the coordinating member.
+
+   SHAPE NOTE (2026-08-24): the spkgrp: screen stopped rendering one
+   mega-card in the 2026-08-20 tile round ("Each row should behave as a
+   tile") — it now generates ONE TILE PER MEMBER (grpmember,
+   id="tile_sgm_<entity>") plus a Group Volume tile (grpvol, hidden
+   until 2+ are joined). This probe asserted the retired .grprow
+   mega-card and had been red since; the assertions below now read the
+   tile shape. The INLINE card on the music controller (step 6) is
+   deliberately untouched and still a mega-card. */
 import { chromium } from 'playwright-core';
 
 const STATES = {
@@ -101,55 +110,64 @@ r.launcher = await p.evaluate(() => {
 await p.evaluate(() => navigate('spkgrp:outdoor'));
 await p.waitForTimeout(400);
 r.screen = await p.evaluate(() => {
-  const w = document.querySelector('.tile.wgt-grouping');
+  const tiles = [...document.querySelectorAll('.tile.wgt-grpmember')];
   return {
-    card: !!w,
-    /* CARD chassis, not row ("Move that icon to the Title row"):
-       the icon shares the .top line with the label + inline sub */
-    notRow: !w?.classList.contains('row'),
-    iconInTop: !!w?.querySelector('.top .ic'),
-    subInline: !!w?.querySelector('.top .sub.subin'),
+    /* one real tile per member, id'd by entity */
+    tiles: tiles.length,
+    ids: tiles.map(t => t.id),
+    rows: tiles.map(t => ({ ent: t.id.replace('tile_sgm_', ''),
+      name: t.querySelector('.lbl').textContent,
+      lvl: t.querySelector('.rslpct').textContent })),
+    trims: tiles.map(t => ({ ent: t.id.replace('tile_sgm_', ''),
+      fill: t.querySelector('.sldr.inrow > i').style.width })),
     title: document.querySelector('.btitle')?.textContent,
-    rows: [...(w?.querySelectorAll('.grprow') || [])]
-      .filter(x => x.style.display !== 'none')
-      .map(x => ({ ent: x.dataset.ent, name: x.querySelector('.gname').textContent,
-        lvl: x.querySelector('.glvl').textContent })),
-    trims: [...(w?.querySelectorAll('.sldr.rowsl') || [])]
-      .map(x => ({ ent: x.dataset.rsl, fill: x.firstElementChild.style.width })),
+    /* every member row carries its own join control */
+    allJoinable: tiles.every(t => !!t.querySelector('.gjoin')),
+    /* the mega-card is NOT how this screen renders any more */
+    noMegaCard: !document.querySelector('.tile.wgt-grouping'),
+    /* group volume stays hidden until 2+ are actually joined */
+    grpvolHidden: !document.querySelector('.tile.wgt-grpvol:not([style*="display: none"])'),
+    focused: document.querySelector('.tile.focused')?.id,
   };
 });
 
 // 2b. the volume row: % rides INSIDE the track; −/+ nudge THAT member
 r.volrow = await p.evaluate(() => {
-  const rr = document.querySelector('.rslrow[data-row="media_player.ma_patio"]');
-  return { pctInTrack: rr?.querySelector('.sldr.rowsl .rslpct')?.textContent,
-    btns: rr?.querySelectorAll('.rvol').length };
+  const t = document.getElementById('tile_sgm_media_player.ma_patio');
+  return { pctInTrack: t?.querySelector('.volrow .sldr.inrow .rslpct')?.textContent,
+    btns: t?.querySelectorAll('.volrow .dpbtn').length };
 });
 await p.evaluate(() => { window._calls.length = 0;
-  document.querySelector('.rslrow[data-row="media_player.ma_patio"] .rvol[data-rd="up"]')?.click(); });
+  document.querySelector('#tile_sgm_media_player\\.ma_patio .volrow .dpbtn[data-vol="up"]')?.click(); });
 await p.waitForTimeout(150);
 r.volrow.nudge = await p.evaluate(() =>
-  window._calls.filter(c => c.service === 'volume_up').map(c =>
+  window._calls.filter(c => /^volume_(up|set)$/.test(c.service)).map(c =>
     c.target?.entity_id ?? c.service_data?.entity_id));
 
 // 3. join Deck → media_player.join at the ACTIVITY's master (ma_living,
 //    which is NOT in the group)
-await p.evaluate(() => {
-  document.querySelector('.grprow[data-ent="media_player.ma_deck"] .gjoin')?.click();
+/* deckOn is sampled SYNCHRONOUSLY with the click: the toggle is
+   optimistic (paints joined before HA answers), and this mock never
+   echoes a service call back — its next re-subscribe re-serves
+   _STATES, where ma_living is still alone, so the optimistic paint is
+   reverted a few hundred ms later. Real HA echoes the join. Sampling
+   late is what made the old assertion read false. */
+r.join = await p.evaluate(() => {
+  document.querySelector('#tile_sgm_media_player\\.ma_deck .gjoin')?.click();
+  return {
+    call: window._calls.filter(c => c.service === 'join').map(c =>
+      ({ target: c.target?.entity_id ?? c.service_data?.entity_id,
+         members: (c.service_data || {}).group_members })),
+    deckOn: document.getElementById('tile_sgm_media_player.ma_deck')
+      ?.classList.contains('on'),
+  };
 });
 await p.waitForTimeout(150);
-r.join = await p.evaluate(() => ({
-  call: window._calls.filter(c => c.service === 'join').map(c =>
-    ({ target: c.target?.entity_id ?? c.service_data?.entity_id,
-       members: (c.service_data || {}).group_members })),
-  deckOn: document.querySelector('.grprow[data-ent="media_player.ma_deck"]')
-    ?.classList.contains('on'),
-}));
 
 // 4. trim Patio to ~80% → volume_set ONLY on patio
 await p.evaluate(() => { window._calls.length = 0; });
 await p.evaluate(() => {
-  const rs = document.querySelector('.sldr.rowsl[data-rsl="media_player.ma_patio"]');
+  const rs = document.querySelector('#tile_sgm_media_player\\.ma_patio .sldr.inrow');
   const r2 = rs.getBoundingClientRect();
   const x = r2.left + r2.width * 0.8, y = r2.top + r2.height / 2;
   rs.dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: y, bubbles: true }));
@@ -203,11 +221,13 @@ await p.evaluate(() => {
 });
 await p.waitForTimeout(400);
 await p.evaluate(() => {
-  document.querySelector('.grprow[data-ent="media_player.ma_deck"] .gjoin')?.click();
+  document.querySelector('#tile_sgm_media_player\\.ma_deck .gjoin')?.click();
 });
 await p.waitForTimeout(150);
 r.fallback = await p.evaluate(() => ({
-  masterRow: document.querySelector('.grprow.gmaster')?.dataset.ent,
+  masterRow: [...document.querySelectorAll('.tile.wgt-grpmember')]
+    .find(t => /master/i.test(t.querySelector('.sub')?.textContent || ''))
+    ?.id.replace('tile_sgm_', ''),
   joinTarget: window._calls.filter(c => c.service === 'join').map(c =>
     c.target?.entity_id ?? c.service_data?.entity_id),
 }));

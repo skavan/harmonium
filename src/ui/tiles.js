@@ -92,6 +92,24 @@ function makeTile(t, row, spanCols) {
   /* .span2 carries the common case in CSS so compact output is
      unchanged; any other width is stated inline */
   if (!row && sp > 2) el.style.gridColumn = "span " + sp;
+  /* PER-TILE HEIGHT (v0.84.7 — forum request: "on the Watch TV
+     controller pages I'd like to have a nearly full screen
+     visualization with artwork for what's currently playing but I
+     don't see a way to adjust just that card's height"). `span` said
+     how WIDE a tile is; nothing said how TALL — height was a
+     per-SCREEN knob (grid.tile_h / row_h), so one big Now Playing card
+     beside normal ones was literally unsayable. `h` states it for THIS
+     tile: a number = px, or a css length ("40vh", "12rem"). The
+     per-screen knobs still carry every tile that stays silent. */
+  var th = t.h;
+  if (th != null && th !== "") {
+    var hv = typeof th === "number" || /^\d+$/.test(String(th))
+      ? parseInt(th, 10) + "px" : String(th);
+    if (/^[\d.]+(px|vh|vw|rem|em|%)$/.test(hv)) {
+      el.style.height = hv;
+      el.style.setProperty("--tile-h", hv);   /* row-mode + inner sizing */
+    }
+  }
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */

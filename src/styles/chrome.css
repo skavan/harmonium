@@ -137,3 +137,80 @@
   #padstrip .material-symbols-outlined { font-size: 16px; }
   #padstrip.hidden { display: none; }
   @keyframes padpulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  /* FINAL-SECOND DRAIN (spec §6.4): the last second before the borrow
+     lapses, the strip fades out over ~1s so the user can see the pad
+     is about to return to the device — silent expiry is prohibited. */
+  #padstrip.draining {
+    animation: paddrain 1s linear forwards;
+  }
+  @keyframes paddrain { from { opacity: 1; } to { opacity: .1; } }
+
+  /* TV BACK/HOME STRIP (spec §7): pinned to the bottom of the panel on
+     TV pages, where the physical Back/Home now drive the device. Short
+     row, but the two buttons fill it so they're easy thumb/finger
+     targets on the LCD. Harmonium accent — deliberately calmer than the
+     LOUD padstrip (this one is always present, not a transient mode).
+     CH-61 floor: no color-mix, no flex gap — theme tokens + margins. */
+  #tvstrip {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 39;
+    display: flex; align-items: stretch;
+    padding: 4px 4px; box-sizing: border-box;
+    background: var(--bg, #0d0f12);
+    border-top: 1px solid var(--wash, rgba(255, 179, 0, .18));
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, .45);
+  }
+  #tvstrip.hidden { display: none; }
+  #tvstrip .tvname {
+    align-self: center; flex: 0 0 auto; min-width: 0;
+    padding: 0 8px; font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); opacity: .7;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #tvstrip .tvbtn {
+    flex: 1 1 0; min-height: 40px; margin: 0 3px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--accent); border-radius: 9px;
+    background: var(--wash, rgba(255, 179, 0, .12));
+    color: var(--accent);
+    font-size: 13px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  #tvstrip .tvbtn:active { background: var(--accent); color: var(--bg, #0d0f12); }
+  #tvstrip .tvbtn .material-symbols-outlined { font-size: 20px; margin-right: 5px; }
+  /* when the strip is present, keep the pad-borrow strip ABOVE it and
+     give the grid room so the last tiles clear the pinned strip
+     (Chromium-61 floor: no :has(), so #app carries the state class) */
+  #app.tvstrip-on #padstrip { bottom: 50px; }
+  #app.tvstrip-on #grid { padding-bottom: 54px; }
+
+  /* THE CLAIM COUNTDOWN BAR (2026-08-24 — Suresh: "a disappearing line
+     on the selected tile … like the now-playing progress, but reverse:
+     starts full and shrinks"). On TV pages the ring only lives while
+     the Ch±-claim is active; this accent line along the focused tile's
+     bottom edge shows exactly how long is left before the pad returns
+     to the device. It STARTS FULL and shrinks to nothing at expiry;
+     every press renews the claim and refills it. Robust to grid
+     re-renders: drawClaimBar() re-seeks with a negative animation-delay
+     so a mid-claim repaint resumes at the right point (no refill jump). */
+  .tile.focused { position: relative; }
+  #claimbar {
+    position: absolute; left: 0; bottom: 0; width: 100%; height: 3px;
+    border-bottom-left-radius: var(--radius);
+    background: var(--accent); pointer-events: none; z-index: 2;
+    animation-name: claimdrain; animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  /* width, not transform: unambiguously anchored at the left edge, so
+     it starts full and drains from the right — like the now-playing
+     progress bar, in reverse (Suresh's ask). */
+  @keyframes claimdrain { from { width: 100%; } to { width: 0%; } }
+
+  /* EDGE-SWIPE RUBBER-BAND (spec §8.3): a swipe with no target nudges
+     the content in the gesture's direction and springs back, so it
+     never reads as a missed swipe. Transform only — no layout, no
+     scroll disruption; returns to rest (no fill-mode). */
+  #grid.rubber-r { animation: rubberR .28s ease; }
+  #grid.rubber-l { animation: rubberL .28s ease; }
+  @keyframes rubberR { 50% { transform: translateX(18px); } }
+  @keyframes rubberL { 50% { transform: translateX(-18px); } }

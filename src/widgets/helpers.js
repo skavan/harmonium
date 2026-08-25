@@ -48,12 +48,28 @@ const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
 const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
-/* command resolution: default < tile "commands" < activity context "dpad_commands" */
+/* command resolution (v0.84.7 — the DIALECT rung):
+     DPAD_DEFAULT < dialect.dpad_commands < tile "commands"
+                  < activity context "dpad_commands"
+   The defaults below are ANDROID/Fire TV names, which is what most of
+   the world speaks — but an Apple TV (pyatv) only accepts its own
+   lowercase vocabulary and answers "command not recognized" to every
+   one of these (forum report, 2026-08-24). The per-device escape hatch
+   (a device's traits.dpad_commands) always existed but was invisible
+   in the Studio; the DIALECT is where a platform's command vocabulary
+   belongs — same place its apps, channels and wake already live — so
+   one appletv dialect fixes every Apple TV in the house at once. */
 const DPAD_DEFAULT = {
   up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", select: "ENTER",
   back: "BACK", home: "HOME", menu: "MENU", info: "INFO",
   ch_up: "CHANNEL_UP", ch_down: "CHANNEL_DOWN"
 };
+/* the active surface's dialect command map ({} when it declares none) */
+function dialectCommands() {
+  var d = ctxFor(S.screen).dialect;
+  var dial = d && CONFIG.dialects && CONFIG.dialects[d];
+  return (dial && dial.dpad_commands) || {};
+}
 const BTN_ICON = {
   up: "keyboard_arrow_up", down: "keyboard_arrow_down",
   left: "keyboard_arrow_left", right: "keyboard_arrow_right",
@@ -61,7 +77,8 @@ const BTN_ICON = {
   ch_up: "add", ch_down: "remove", power: "power_settings_new"
 };
 function cmdFor(t, key) {
-  const m = Object.assign({}, DPAD_DEFAULT, t.commands || {}, ctxFor(S.screen).dpad_commands || {});
+  const m = Object.assign({}, DPAD_DEFAULT, dialectCommands(),
+    t.commands || {}, ctxFor(S.screen).dpad_commands || {});
   return m[key];
 }
 

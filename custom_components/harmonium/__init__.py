@@ -43,7 +43,13 @@ from .const import (
     PANEL_URL_PATH,
     STATIC_URL,
 )
-from .packaging import read_stamp, should_deploy, write_stamp
+from .packaging import (
+    deploy_bundled_assets,
+    deploy_skins_split,
+    read_stamp,
+    should_deploy,
+    write_stamp,
+)
 from .pairing import register_pairing
 from .services import register_services, remove_services
 from .store import (
@@ -114,53 +120,53 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "integration will still set up; fix permissions/space and "
             "restart to deploy the remote UI", deployed_engine, err)
 
-    # BUNDLED SKINS (v0.83.6 — .88 field report: "No photo for
-    # astrion"): the starter config's astrion profile references
-    # /local/harmonium/skins/astrion.png, so a fresh box must HAVE
-    # it. Deploy every bundled skin that isn't already deployed —
-    # and NEVER overwrite: a user's own photo of their own remote
-    # always wins over ours. Non-fatal, same doctrine as the engine.
-    bundled_skins = Path(__file__).parent / "skins"
+    # BUNDLED ASSETS — skins + sounds — with the ENGINE's OWNERSHIP
+    # STAMP (v0.84.4). The old rule ("deploy only if absent, never
+    # overwrite") protected a user's own photo but meant a shipped
+    # STOCK update never reached an existing install — every customer
+    # kept the first skin we ever gave them. Now each asset carries a
+    # stamp of what WE last deployed (.assets.stamp, a {name: fp} map):
+    # should_deploy() overwrites a file we recognise as our own (stock
+    # updates flow) but keeps its hands off a file whose bytes differ
+    # from our stamp (a user's own photo/sound is preserved) — exactly
+    # the engine's contract, per file. Skins ALSO get a manifest.json of
+    # content fingerprints so the Studio can append ?v=<fp> and dodge
+    # Fully's hard /local/ cache (the "shows the wrong skin" bug).
+    # Non-fatal, same doctrine as the engine deploy. The per-file logic
+    # lives in packaging.deploy_bundled_assets (pure, unit-tested).
+    #
+    # THE PATH SPLIT (v0.84.6 — Suresh: "stock images and skins can go
+    # in a stock subdirectory… whereas their stuff can go in a user
+    # subdirectory. Our file pickers refuse to overwrite stock"):
+    # bundled skins now land in skins/stock/, uploads in skins/user/,
+    # so ownership is POSITIONAL — the path says who owns a file and
+    # nothing has to be inferred from its bytes. The legacy FLAT copies
+    # keep being refreshed for one release, because configs written
+    # before this release still point at /local/harmonium/skins/<n>.png
+    # and only heal (Studio load/save) repoints them; dropping the flat
+    # copies now would blank those skins in the gap.
     try:
-        if bundled_skins.is_dir():
-            def _deploy_skins() -> list[str]:
-                copied = []
-                dest = new_dir / "skins"
-                dest.mkdir(parents=True, exist_ok=True)
-                for src in sorted(bundled_skins.iterdir()):
-                    if src.is_file() and not (dest / src.name).exists():
-                        (dest / src.name).write_bytes(src.read_bytes())
-                        copied.append(src.name)
-                return copied
-            deployed_skins = await hass.async_add_executor_job(_deploy_skins)
-            if deployed_skins:
-                _LOGGER.info("Harmonium deployed bundled skin(s) to %s: %s",
-                             new_dir / "skins", ", ".join(deployed_skins))
+        split = await hass.async_add_executor_job(
+            deploy_skins_split, Path(__file__).parent / "skins",
+            new_dir / "skins")
+        if split["stock"]:
+            _LOGGER.info("Harmonium deployed/updated stock skin(s): %s",
+                         ", ".join(split["stock"]))
+        if split["legacy"]:
+            _LOGGER.info("Harmonium refreshed legacy flat skin(s) "
+                         "(compat window): %s", ", ".join(split["legacy"]))
     except OSError as err:
         _LOGGER.warning(
             "Harmonium could not deploy bundled skins: %s — device-photo "
             "presets will miss their image until it is copied by hand", err)
 
-    # BUNDLED SOUNDS (v0.84.1 — the battery-alert blueprint's default
-    # beep is /local/harmonium/sounds/beep.mp3, so a fresh box must
-    # HAVE it). Same doctrine as skins: deploy what isn't there,
-    # never overwrite, non-fatal.
-    bundled_sounds = Path(__file__).parent / "sounds"
     try:
-        if bundled_sounds.is_dir():
-            def _deploy_sounds() -> list[str]:
-                copied = []
-                dest = new_dir / "sounds"
-                dest.mkdir(parents=True, exist_ok=True)
-                for src in sorted(bundled_sounds.iterdir()):
-                    if src.is_file() and not (dest / src.name).exists():
-                        (dest / src.name).write_bytes(src.read_bytes())
-                        copied.append(src.name)
-                return copied
-            deployed_sounds = await hass.async_add_executor_job(_deploy_sounds)
-            if deployed_sounds:
-                _LOGGER.info("Harmonium deployed bundled sound(s) to %s: %s",
-                             new_dir / "sounds", ", ".join(deployed_sounds))
+        deployed_sounds = await hass.async_add_executor_job(
+            deploy_bundled_assets, Path(__file__).parent / "sounds",
+            new_dir / "sounds", False)
+        if deployed_sounds:
+            _LOGGER.info("Harmonium deployed/updated sound(s): %s",
+                         ", ".join(deployed_sounds))
     except OSError as err:
         _LOGGER.warning(
             "Harmonium could not deploy bundled sounds: %s — the battery "

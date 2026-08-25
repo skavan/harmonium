@@ -84,7 +84,46 @@ for (const f of uniq) {
   if (m) bad61.push(f + ": post-61 runtime usage: " + m[0].trim());
 }
 
+/* ---- 3. THE STYLESHEETS (2026-08-25). The probe covered JS only,
+   which is how `aspect-ratio` (Chrome 88) reached a Now Playing card:
+   on the stock Astrion it is simply ignored, so the art fell back to
+   its natural aspect and the card could not hold a fixed height. CSS
+   fails SILENTLY — no error, just a wrong-looking remote — so it needs
+   the same floor. Engine styles only; the Studio is exempt. */
+{
+  const CSS_BANNED = [
+    [/aspect-ratio\s*:/, "aspect-ratio (Chrome 88)"],
+    [/color-mix\s*\(/, "color-mix() (111)"],
+    [/:has\s*\(/, ":has() (105)"],
+    [/backdrop-filter\s*:/, "backdrop-filter (76)"],
+    [/[:,(\s]clamp\s*\(/, "clamp() (79)"],
+    [/[:,(\s]min\s*\(/, "css min() (79)"],
+    [/[:,(\s]max\s*\(/, "css max() (79)"],
+    [/\binset\s*:/, "inset shorthand (87)"],
+    [/:is\s*\(/, ":is() (88)"],
+    /* NO `gap` RULE: grid gap ships in 57 and is used correctly all
+       over these files; only FLEX gap is post-61, and the two are
+       indistinguishable without resolving each rule's display context.
+       A check that cries wolf on every grid is worse than no check —
+       the flex-gap convention stays a documented one (chrome.css). */
+  ];
+  /* the build script owns the stylesheet list too */
+  const cssFiles = [...be.matchAll(/["'`](styles\/[^"'`]+\.css)["'`]/g)]
+    .map(m => "src/" + m[1]);
+  if (![...new Set(cssFiles)].length)
+    errs.push("no stylesheets found in build-engine.mjs — pattern drift?");
+  for (const f of [...new Set(cssFiles)]) {
+    const raw = readFileSync(join(root, f), "utf8");
+    /* strip comments — the floor is documented IN comments all over
+       these files, and a warning about color-mix is not a use of it */
+    const src = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const [re, why] of CSS_BANNED)
+      if (re.test(src)) errs.push(f + ": " + why);
+  }
+}
+
 const all = errs.concat(bad61);
+
 console.log(JSON.stringify({
   files: uniq.length,
   ok: all.length === 0,

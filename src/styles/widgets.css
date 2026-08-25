@@ -45,6 +45,10 @@
 
   /* now-playing art heroes (media tile, style "art" / "wash") */
   .tile.wgt-media.art .sub, .tile.wgt-media.wash .sub { display: none; }
+  /* hero too (v0.85.1): the chassis sub repeats state + source, which
+     is exactly the "Idle / Home / Idle / Home" duplication he caught —
+     and the extra lines were what pushed the card past its height. */
+  .tile.wgt-media.hero .sub { display: none; }
   /* ART HERO v2 (v0.83.7 follow-up — Suresh, mini-media-player shot:
      "With an album on one side and a library selector on the other,
      there's not much space left. ... See the fade into artwork."):
@@ -83,12 +87,138 @@
      we build this. With a Bar underneath for the Library"): stacked —
      big centered art, track text, progress + times, Library bar.
      Same child slots as the heroes; only the geometry differs. */
-  .tile.wgt-media.poster .top, .tile.wgt-media.poster .sub { display: none; }
+  /* Large keeps its HEADER (v0.85.2 — "All text is gone… it should
+     show idle/now playing etc"). Only the chassis sub goes: that is the
+     line that duplicated state + source. */
+  .tile.wgt-media.poster .sub { display: none; }
   .tile.wgt-media.poster { display: flex; flex-direction: column; }
   /* the chassis trailing becomes the bottom bar — cancel its
      right-edge reservation and geometry outright */
+  /* hero too (v0.85.2 — "that library tile should extend so we have
+     same padding as the left, on the right"): .has-trail reserves ~92px
+     of right padding for the SMALL trailing chip, but hero and poster
+     draw the trailing as a full-width bar, so that reservation just
+     left the bar short on one side. */
   .tile.wgt-media.poster.has-trail,
-  .tile.wgt-media.poster.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  .tile.wgt-media.poster.has-trail-acc,
+  .tile.wgt-media.hero.has-trail,
+  .tile.wgt-media.hero.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  /* DIMMED ART (v0.85): a paused/idle player keeps its cover, at half
+     strength — the card says "this is what's loaded" without pretending
+     to be playing. Art only; the words stay legible. */
+  /* .40 buried the art on a TV that idles at the launcher all day —
+     his "so dark its almost invisible". Dim must read as "paused",
+     not "gone". */
+  .tile.wgt-media.npdim .npimg { opacity: .60; filter: saturate(.75); }
+  .tile.wgt-media.npdim .npph { opacity: .7; }
+
+  /* THE HEIGHT IS LOCKED (v0.85 — Suresh: "I want the size locked in
+     and not jumping around"). These cards used to grow and shrink with
+     their content — art arriving, a title wrapping, a progress bar
+     appearing on play — so the whole page below them twitched on every
+     state change. Each hero style now states its height outright and
+     the content fits inside it. Nothing below a Now Playing card ever
+     moves again. */
+  .tile.wgt-media.art { height: var(--np-art-h, 150px); }
+  .tile.wgt-media.hero { height: var(--np-hero-h, 244px); }
+  .tile.wgt-media.art, .tile.wgt-media.hero { overflow: hidden; }
+  /* THE BAR SITS AT THE BOTTOM (v0.85.1 — his "the tile extends below
+     the fold, instead of stopping after the Library tile"). A locked
+     height and a variable amount of metadata pull against each other:
+     an idle player has no title/artist/album, so the content ended
+     ~100px short and the card looked like it had a hole in it. Rather
+     than un-lock the height (which is what makes the page stop
+     twitching), the content now FILLS the box — the trailing bar is
+     pushed to the bottom edge, so the card reads as deliberate at
+     every state. */
+  .tile.wgt-media.hero { display: flex; flex-direction: column; }
+
+  /* the progress meter holds its ROW even when hidden, so a track that
+     reports no duration doesn't shorten the card */
+  .tile.wgt-media.hero .npprog.hidden { visibility: hidden; display: block !important; }
+
+  /* ART HERO — the middle (v0.85). Large's chrome (the full-width
+     Library bar, the progress meter) with Compact's SIDE-PANEL art, so
+     it lands short enough that the Volume tile still clears the fold on
+     a 480x800 remote — the whole point of the size. */
+  .tile.wgt-media.hero { position: relative; }
+  .tile.wgt-media.hero .npimg {
+    position: absolute; top: 0; right: 0; height: 100%; width: 58%;
+    object-fit: cover; opacity: .95;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+  }
+  .tile.wgt-media.hero .top, .tile.wgt-media.hero .npwrap,
+  .tile.wgt-media.hero .npprog, .tile.wgt-media.hero .nptimes,
+  .tile.wgt-media.hero .trail {
+    position: relative; z-index: 1;
+  }
+  /* the words get the room (v0.85.2 — "we are cutting the text with
+     ... way too early: Head over Fe…"). The art is masked to a soft
+     edge, so the meta column may run under it and still read. */
+  .tile.wgt-media.hero .npmeta { max-width: 86%; }
+  .tile.wgt-media.hero .npmeta > div { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  .tile.wgt-media.hero .npwrap { padding: 2px 0 6px; }
+  .tile.wgt-media.hero .npprog { width: 100%; margin-top: 4px; }
+
+  /* THE ROWS HOLD THEIR PLACE (v0.85.3). Large is content-sized again
+     — that layout was right and forcing a height on it was my mistake
+     — so "locked" has to come from the CONTENT not collapsing. An idle
+     player has no title/artist/album and no elapsed readout, which is
+     exactly the ~76px the card used to shed. Each line keeps its row
+     whether or not it has words in it, and the times row stays in
+     layout while invisible. Same card, every state, no forced height. */
+  .tile.wgt-media.poster .npt,
+  .tile.wgt-media.poster .npa,
+  .tile.wgt-media.poster .npb,
+  .tile.wgt-media.hero .npt,
+  .tile.wgt-media.hero .npa,
+  .tile.wgt-media.hero .npb {
+    /* line-height stated as well as min-height: without it an EMPTY
+       row falls back to min-height while a FILLED one uses the font's
+       normal line box, and the two differ by a pixel per row. */
+    line-height: 1.3; min-height: 1.3em;
+  }
+  /* the readout's own line box rounds a pixel differently when it is
+     empty; state the height outright rather than chase it. */
+  .tile.wgt-media.poster .nptimes { height: 1.3em; overflow: hidden; }
+  /* .hidden is `display:none !important` (auth.css), so reserving a
+     row has to say !important back — the row must keep its space while
+     showing nothing. */
+  .tile.wgt-media.poster .nptimes.hidden { visibility: hidden; display: flex !important; }
+  .tile.wgt-media.poster .npprog.hidden { visibility: hidden; display: block !important; }
+
+  /* THE PLACEHOLDER (v0.85.4 — his mock: a quiet grey panel with a
+     dim tv / music-note glyph). Takes the art's exact footprint in
+     each mode, so "no artwork" and "black-slab artwork" read as a
+     deliberate card, never a hole — and the card cannot shrink. */
+  .npph {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--tile-hi); color: var(--dim);
+  }
+  .npph .material-symbols-outlined { font-size: 64px; opacity: .55; }
+  .npposter .npph {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    border-radius: 14px;
+  }
+  /* v0.85.5 (his: "the TV looks weird hung into a random space…
+     probably need a lighter background"): the side-panel placeholders
+     are PANELS now — a lighter rounded block where the art would sit,
+     glyph centered in it. Reads as "this is the art slot, empty",
+     never as a floating icon. */
+  .tile.wgt-media.hero .npph {
+    /* clears the bottom-pinned Library bar — a photo may run under
+       the bar, a PANEL overlapping it is clutter */
+    position: absolute; right: 12px; top: 12px; bottom: 66px;
+    width: 42%; height: auto; border-radius: 12px;
+  }
+  .tile.wgt-media.hero .npph .material-symbols-outlined { font-size: 60px; opacity: .5; }
+  /* COMPACT gets NO placeholder (v0.85.6 — his screenshot: the panel
+     collided with the trailing chip and clipped the glyph). A 150px
+     card with a corner chip has no room for an art panel; missing art
+     there just means a text card, which reads fine. */
+  .tile.wgt-media.art .npph { display: none !important; }
+
   .npposter { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0 0; }
   /* ~12px SHORTER than the first cut (v0.83.8 follow-up — Suresh:
      "the Poster panel was too big, pushing the transport down so it
@@ -96,33 +226,67 @@
      art/progress margins 12→8, trail 12→10. The artwork itself is
      untouched, and an artless card simply shrinks — that was always
      fine. */
-  .npposter .npimg {
-    width: min(72%, 300px); height: auto; aspect-ratio: 1 / 1;
-    border-radius: 14px; object-fit: cover; margin: 2px auto 8px;
+  /* THE ART FRAME (v0.85.4). Round 3 of sizing this, and the honest
+     history matters: `aspect-ratio` is unsupported on Chromium 61, and
+     the fixed-height replacement was square ONLY at my test width —
+     the devices render at ~350 CSS px (480 physical / 1.5 DPR), where
+     72% ≈ 225px wide × 300 fixed = a huge PORTRAIT slab, which is
+     exactly the broken card in his screenshot. The padding hack is the
+     floor-safe way to say "square at ANY width": .npsq's padding-top
+     is a % of the FRAME's width, the image absolutely fills the frame.
+     The frame also hosts the placeholder, so a card with no art keeps
+     the identical footprint. */
+  .npposter .npart {
+    /* 66% (v0.85.5 — his devtools: 433px tall, wants ~410): the art is
+       the only honest vertical lever; ~6% narrower ≈ 20px shorter at
+       device width, and the square keeps itself. */
+    position: relative; width: 62%; max-width: 300px;
+    margin: 8px auto 6px;
+  }
+  .npposter .npsq { display: block; padding-top: 100%; }
+  .npposter .npart .npimg {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    border-radius: 14px; object-fit: cover; margin: 0;
   }
   .npposter .npt { font-size: calc(var(--fs-1) + 3px); max-width: 100%; text-align: center; }
   .npposter .npa { max-width: 100%; text-align: center; }
   .npposter .npb { max-width: 100%; text-align: center; }
   .npposter .npprog { width: 100%; margin-top: 8px; }
-  .npposter .nptimes {
+  .npposter .nptimes,
+  .tile.wgt-media.hero .nptimes {
     display: flex; justify-content: space-between; width: 100%;
     font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px);
     font-weight: var(--fw-2); color: var(--dim); margin-top: 5px;
   }
   .tile.wgt-media.poster .trail,
-  .tile.wgt-media.poster .trail.tracc {
+  .tile.wgt-media.poster .trail.tracc,
+  .tile.wgt-media.hero .trail,
+  .tile.wgt-media.hero .trail.tracc {
     position: static; width: 100%; height: 46px; margin-top: 10px;
     border-radius: 12px; display: flex; align-items: center;
     justify-content: center; gap: 9px;
     background: var(--tile-hi); color: var(--text);
   }
-  .tile.wgt-media.poster .trail .trlbl {
+  /* over artwork the bar needs to READ (v0.85.1 — "the library button
+     background needs to be more opaque"): a solid, slightly lifted
+     ground instead of the translucent tile wash. */
+  .tile.wgt-media.hero .trail, .tile.wgt-media.hero .trail.tracc,
+  .tile.wgt-media.poster .trail, .tile.wgt-media.poster .trail.tracc {
+    background: rgba(22, 26, 32, .92);
+    box-shadow: 0 1px 10px rgba(0,0,0,.35);
+  }
+  .tile.wgt-media.poster .trail .trlbl,
+  .tile.wgt-media.hero .trail .trlbl {
     font-weight: var(--fw-1); font-size: var(--fs-2); letter-spacing: .02em;
   }
-  .tile.wgt-media.poster .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
-  .tile.wgt-media.poster .trail:active { background: var(--accent); color: #1a1400; }
-  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined { color: inherit; }
-  .tile.wgt-media.poster .trail.focused {
+  .tile.wgt-media.poster .trail .ic.material-symbols-outlined,
+  .tile.wgt-media.hero .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
+  .tile.wgt-media.poster .trail:active,
+  .tile.wgt-media.hero .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined,
+  .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
+  .tile.wgt-media.poster .trail.focused,
+  .tile.wgt-media.hero .trail.focused {
     box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   }
 
@@ -272,3 +436,23 @@
     font-size: 10.5px; margin-top: 3px; opacity: .85; overflow-wrap: anywhere;
   }
   .tile.wgt-kslot .hint { display: none; }
+
+  /* LAST WORD (v0.85.1): the poster/hero trailing bar block above sets
+     margin-top:10px at the same specificity, so the bottom-pin has to
+     come after it in source order to win. */
+  .tile.wgt-media.hero .trail, .tile.wgt-media.hero .trail.tracc {
+    margin-top: auto;
+  }
+
+  /* TV LARGE (v0.85.6 — his: "On TV make it 340px"). A TV never has
+     artist, album, or an elapsed readout — those reserves exist so a
+     MUSIC card cannot jump between states. On a TV they were 60px of
+     permanent air. .nptv is stamped from device_class/app_name (both
+     constant per player), so collapsing them here is just as
+     jump-proof — and the card lands at his 340. */
+  .tile.wgt-media.poster.nptv .npa,
+  .tile.wgt-media.poster.nptv .npb { min-height: 0; }
+  .tile.wgt-media.poster.nptv .nptimes { height: 0; overflow: hidden; margin: 0; }
+  /* 300px on a TV (v0.85.8, his number — was 340): the art gives the
+     ~40px back. */
+  .tile.wgt-media.poster.nptv .npart { width: 44.3%; margin-bottom: 4px; }

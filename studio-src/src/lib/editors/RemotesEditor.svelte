@@ -21,6 +21,17 @@
         keymap, provisioning) — his "at a maximum". */
   import { app, token } from "../state.svelte.js";
   import Switch from "../components/Switch.svelte";
+  import Field from "../components/Field.svelte";
+  import EntityPicker from "../components/EntityPicker.svelte";
+
+  /* BATTERY ON THE ⓘ PAGE (v0.84.8). Editable HERE rather than only on
+     the Code tab — the forum round's lesson: a capability with no UI
+     is, to a user, a capability that does not exist. Both entities come
+     from the Fully Kiosk HA integration, the same source the
+     battery-alerts blueprint uses. */
+  function setSensor(r, key, v) {
+    if (v) r[key] = v; else delete r[key];
+  }
 
   const remotes = $derived(app.draft?.remotes || {});
 
@@ -148,6 +159,24 @@
               {#if r.skin}&nbsp;· device photo ✓{/if}
               {#if r.viewport || r.skin?.viewport}&nbsp;· viewport {(r.viewport || r.skin?.viewport)?.w}×{(r.viewport || r.skin?.viewport)?.h}{/if}
               {#if r.style}&nbsp;· {Object.keys(r.style).length} style overrides{/if}
+              {#if r.battery_sensor}&nbsp;· battery ✓{/if}
+            </div>
+            <!-- BATTERY (v0.84.8): shows on the remote's ⓘ page. The
+                 Fully Kiosk integration publishes both for a kiosk
+                 device; blank = no battery row for this remote. -->
+            <div class="mt-2 grid grid-cols-2 gap-3">
+              <Field label="Battery level sensor"
+                hint="Fully Kiosk integration — shows on this remote's ⓘ page. Blank = no battery row.">
+                <EntityPicker value={r.battery_sensor || ""} domains={["sensor"]}
+                  placeholder="sensor.<device>_battery"
+                  onchange={(e) => setSensor(r, "battery_sensor", (e.target.value || "").trim())} />
+              </Field>
+              <Field label="Charging sensor"
+                hint="optional — the Fully 'Plugged in' binary sensor; adds “· charging”">
+                <EntityPicker value={r.charging_sensor || ""} domains={["binary_sensor"]}
+                  placeholder="binary_sensor.<device>_plugged_in"
+                  onchange={(e) => setSensor(r, "charging_sensor", (e.target.value || "").trim())} />
+              </Field>
             </div>
           </div>
         {/each}

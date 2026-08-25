@@ -58,7 +58,8 @@
    "capabilities": [
     "physical_dpad",
     "physical_volume",
-    "touch"
+    "touch",
+    "physical_back_home"
    ],
    "keymap": {
     "ArrowUp": "up",
@@ -99,7 +100,7 @@
     ".": "right_hold"
    },
    "skin": {
-    "image": "/local/harmonium/skins/astrion.png",
+    "image": "/local/harmonium/skins/stock/astrion.png",
     "viewport": {
      "w": 349,
      "h": 581
@@ -280,7 +281,9 @@
    "capabilities": [
     "physical_dpad",
     "physical_volume",
-    "touch"
+    "physical_transport",
+    "touch",
+    "physical_back_home"
    ],
    "keymap": {
     "ArrowUp": "up",
@@ -321,7 +324,7 @@
     ".": "right_hold"
    },
    "skin": {
-    "image": "/local/harmonium/skins/astrion2.png",
+    "image": "/local/harmonium/skins/stock/astrion2.png",
     "viewport": {
      "w": 349,
      "h": 581
@@ -501,7 +504,9 @@
    "capabilities": [
     "physical_dpad",
     "physical_volume",
-    "touch"
+    "physical_transport",
+    "touch",
+    "physical_back_home"
    ],
    "keymap": {
     "ArrowUp": "up",
@@ -544,185 +549,185 @@
     "MediaStop": "stop"
    },
    "skin": {
-    "image": "/local/harmonium/skins/rs90.png",
+    "image": "/local/harmonium/skins/stock/rs90.png",
     "viewport": {
      "w": 350,
      "h": 582
     },
     "screen": {
-     "x": 14.38,
-     "y": 3.744,
-     "w": 73.38,
-     "h": 31.68
+     "x": 12.97,
+     "y": 4.14,
+     "w": 73.939,
+     "h": 40.103
     },
     "buttons": [
      {
       "btn": "power",
-      "x": 8.31,
-      "y": 45.793,
-      "w": 28.56,
-      "h": 3.804
+      "x": 8,
+      "y": 47.5,
+      "w": 24,
+      "h": 6
      },
      {
       "btn": "home",
-      "x": 36.87,
-      "y": 45.793,
-      "w": 28.56,
-      "h": 3.804
+      "x": 38,
+      "y": 47.5,
+      "w": 24,
+      "h": 6
      },
      {
       "btn": "mic",
-      "x": 65.44,
-      "y": 45.793,
-      "w": 28.56,
-      "h": 3.804
+      "x": 67,
+      "y": 47.5,
+      "w": 24,
+      "h": 6
      },
      {
       "btn": "ch_up",
-      "x": 7.92,
-      "y": 52.214,
-      "w": 14.77,
-      "h": 3.704
-     },
-     {
-      "btn": "vol_up",
-      "x": 79.08,
-      "y": 52.114,
-      "w": 14.62,
-      "h": 3.764
+      "x": 5,
+      "y": 56.5,
+      "w": 17,
+      "h": 7
      },
      {
       "btn": "up",
-      "x": 36.15,
-      "y": 52.073,
-      "w": 27.69,
-      "h": 3.724
+      "x": 40,
+      "y": 57,
+      "w": 18,
+      "h": 6
+     },
+     {
+      "btn": "vol_up",
+      "x": 78,
+      "y": 56.5,
+      "w": 16,
+      "h": 7
      },
      {
       "btn": "left",
-      "x": 25.15,
-      "y": 55.012,
-      "w": 13.85,
-      "h": 7.246
+      "x": 25,
+      "y": 64,
+      "w": 13,
+      "h": 6
      },
      {
       "btn": "select",
-      "x": 38.85,
-      "y": 55.797,
-      "w": 22.31,
-      "h": 5.837
+      "x": 42,
+      "y": 63,
+      "w": 16,
+      "h": 8
      },
      {
       "btn": "right",
-      "x": 61.0,
-      "y": 55.012,
-      "w": 13.85,
-      "h": 7.246
-     },
-     {
-      "btn": "down",
-      "x": 36.15,
-      "y": 61.473,
-      "w": 27.69,
-      "h": 3.724
+      "x": 62,
+      "y": 64,
+      "w": 13,
+      "h": 6
      },
      {
       "btn": "ch_down",
-      "x": 7.85,
-      "y": 61.312,
-      "w": 14.54,
-      "h": 3.845
+      "x": 5,
+      "y": 70,
+      "w": 17,
+      "h": 7
+     },
+     {
+      "btn": "down",
+      "x": 40,
+      "y": 71,
+      "w": 18,
+      "h": 6
      },
      {
       "btn": "vol_down",
-      "x": 79.15,
-      "y": 61.252,
-      "w": 14.62,
-      "h": 3.804
+      "x": 78,
+      "y": 70,
+      "w": 16,
+      "h": 7
      },
      {
       "btn": "back",
-      "x": 7.38,
-      "y": 67.713,
-      "w": 28.82,
-      "h": 3.865
+      "x": 8,
+      "y": 76.5,
+      "w": 24,
+      "h": 5.5
      },
      {
       "btn": "menu",
-      "x": 36.21,
-      "y": 67.713,
-      "w": 28.82,
-      "h": 3.865
+      "x": 38,
+      "y": 76.5,
+      "w": 24,
+      "h": 5.5
      },
      {
       "btn": "mute",
-      "x": 65.03,
-      "y": 67.713,
-      "w": 28.82,
-      "h": 3.865
+      "x": 67,
+      "y": 76.5,
+      "w": 24,
+      "h": 5.5
      },
      {
       "btn": "left_hold",
-      "x": 6.62,
-      "y": 73.329,
-      "w": 29.13,
-      "h": 3.704
+      "x": 8,
+      "y": 82.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "play_pause",
-      "x": 35.74,
-      "y": 73.329,
-      "w": 29.13,
-      "h": 3.704
+      "x": 38,
+      "y": 82.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "right_hold",
-      "x": 64.87,
-      "y": 73.329,
-      "w": 29.13,
-      "h": 3.704
+      "x": 67,
+      "y": 82.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "screencast",
-      "x": 6.62,
-      "y": 77.033,
-      "w": 29.13,
-      "h": 3.684
+      "x": 8,
+      "y": 88.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "source",
-      "x": 35.74,
-      "y": 77.033,
-      "w": 29.13,
-      "h": 3.684
+      "x": 38,
+      "y": 88.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "settings",
-      "x": 64.87,
-      "y": 77.033,
-      "w": 29.13,
-      "h": 3.684
+      "x": 67,
+      "y": 88.5,
+      "w": 24,
+      "h": 5
      },
      {
       "btn": "app_fully",
-      "x": 6.62,
-      "y": 80.717,
-      "w": 29.13,
-      "h": 3.704
+      "x": 8,
+      "y": 94,
+      "w": 24,
+      "h": 4
      },
      {
       "btn": "app_haptique",
-      "x": 35.74,
-      "y": 80.717,
-      "w": 29.13,
-      "h": 3.704
+      "x": 38,
+      "y": 94,
+      "w": 24,
+      "h": 4
      },
      {
       "btn": "app_keymapper",
-      "x": 64.87,
-      "y": 80.717,
-      "w": 29.13,
-      "h": 3.704
+      "x": 67,
+      "y": 94,
+      "w": 24,
+      "h": 4
      }
     ]
    }
@@ -787,10 +792,10 @@
  },
  "input": {
   "physical_buttons": {
-   "short_press": "app",
+   "short_press": "control_target",
    "hold": {
-    "back": "control_target",
-    "home": "control_target",
+    "back": "app_back",
+    "home": "room_home",
     "power": "all_off"
    },
    "hold_ms": {
@@ -868,6 +873,30 @@
   "britbox": {
    "name": "BritBox",
    "icon": "material:tv_gen"
+  },
+  "spotify": {
+   "name": "Spotify",
+   "icon": "material:equalizer"
+  },
+  "plex": {
+   "name": "Plex",
+   "icon": "material:play_circle"
+  },
+  "plutotv": {
+   "name": "Pluto TV",
+   "icon": "material:live_tv"
+  },
+  "tubi": {
+   "name": "Tubi",
+   "icon": "material:smart_display"
+  },
+  "pbs": {
+   "name": "PBS",
+   "icon": "material:account_balance"
+  },
+  "philo": {
+   "name": "Philo",
+   "icon": "material:connected_tv"
   }
  },
  "dialects": {
@@ -1023,7 +1052,7 @@
     {
      "name": "SEARCH",
      "code": 84,
-     "why": "voice search \u2014 activates the microphone"
+     "why": "voice search — activates the microphone"
     },
     {
      "name": "MUTE",
@@ -1193,6 +1222,71 @@
     "service": "media_player.turn_on",
     "entity": "$context.media_player"
    }
+  },
+  "appletv": {
+   "name": "Apple TV",
+   "dpad_commands": {
+    "up": "up",
+    "down": "down",
+    "left": "left",
+    "right": "right",
+    "select": "select",
+    "back": "menu",
+    "home": "home",
+    "menu": "top_menu",
+    "ch_up": "channel_up",
+    "ch_down": "channel_down"
+   },
+   "apps": {
+    "netflix": {
+     "source": "Netflix"
+    },
+    "youtube": {
+     "source": "YouTube"
+    },
+    "youtubetv": {
+     "source": "YouTube TV"
+    },
+    "disney": {
+     "source": "Disney+"
+    },
+    "hulu": {
+     "source": "Hulu"
+    },
+    "max": {
+     "source": "HBO Max"
+    },
+    "prime": {
+     "source": "Prime Video"
+    },
+    "appletv": {
+     "source": "TV"
+    },
+    "peacock": {
+     "source": "Peacock"
+    },
+    "paramount": {
+     "source": "Paramount+"
+    },
+    "spotify": {
+     "source": "Spotify"
+    },
+    "plex": {
+     "source": "Plex"
+    },
+    "plutotv": {
+     "source": "Pluto TV"
+    },
+    "tubi": {
+     "source": "Tubi"
+    },
+    "pbs": {
+     "source": "PBS"
+    },
+    "philo": {
+     "source": "Philo"
+    }
+   }
   }
  },
  "screens": {
@@ -1230,6 +1324,7 @@
  "controllers": {
   "apps": {
    "name": "Apps",
+   "gen": 2,
    "class": "group",
    "view_kind": "library",
    "type": "library",
@@ -1257,11 +1352,11 @@
      ],
      "hero_label": "Apps"
     }
-   ],
-   "gen": 2
+   ]
   },
   "music": {
    "name": "Music Media Player",
+   "gen": 8,
    "class": "activity",
    "view_kind": "controller",
    "type": "controller",
@@ -1276,62 +1371,98 @@
     "volume": "$context.volume"
    },
    "font_scope": "music",
-   "tiles": [
+   "sections": [
     {
-     "id": "m_np",
-     "type": "media",
-     "art": true,
-     "entity": "$context.media_player",
-     "icon": "material:music_note",
-     "label": "Now Playing",
-     "span": 2,
-     "trailing": {
-      "icon": "material:library_music",
-      "action": {
-       "navigate": "music_library"
+     "tiles": [
+      {
+       "id": "m_np",
+       "type": "media",
+       "art": true,
+       "np_default": "hero",
+       "entity": "$context.media_player",
+       "icon": "material:music_note",
+       "label": "Now Playing",
+       "span": 2,
+       "trailing": {
+        "icon": "material:library_music",
+        "action": {
+         "navigate": "music_library"
+        },
+        "emphasis": "accent"
+       }
+      },
+      {
+       "id": "m_tr",
+       "type": "transport",
+       "entity": "$context.media_player",
+       "label": "Transport",
+       "span": 2,
+       "unless": "physical_transport"
+      },
+      {
+       "id": "m_cmd",
+       "type": "mediabtns",
+       "entity": "$context.media_player",
+       "label": "Modes",
+       "span": 2
+      },
+      {
+       "id": "vol",
+       "type": "volumes"
+      },
+      {
+       "id": "spk",
+       "type": "speakers"
+      },
+      {
+       "id": "grp",
+       "type": "groups"
+      },
+      {
+       "id": "m_src",
+       "type": "sources",
+       "entity": "$context.source_select",
+       "icon": "material:input",
+       "label": "Source",
+       "span": 2
       }
-     }
+     ]
     },
     {
-     "id": "m_tr",
-     "type": "transport",
-     "entity": "$context.media_player",
-     "label": "Transport",
-     "span": 2
+     "columns": 2,
+     "title": "Presets",
+     "hero_label": "Presets",
+     "role": "presets",
+     "tiles": [
+      {
+       "id": "acts_presets",
+       "type": "presets"
+      }
+     ]
     },
     {
-     "id": "m_cmd",
-     "type": "mediabtns",
-     "entity": "$context.media_player",
-     "label": "Modes",
-     "span": 2
-    },
-    {
-     "id": "m_vol",
-     "type": "volume",
-     "entity": "$context.volume",
-     "icon": "material:volume_up",
-     "label": "Volume",
-     "span": 2
-    },
-    {
-     "id": "m_src",
-     "type": "sources",
-     "entity": "$context.source_select",
-     "icon": "material:input",
-     "label": "Source",
-     "span": 2
+     "columns": 1,
+     "title": "Devices",
+     "tiles": [
+      {
+       "id": "cast",
+       "type": "devices"
+      }
+     ]
     }
    ],
-   "gen": 5
+   "grid": {
+    "max_width": 760
+   }
   },
   "music_library": {
    "name": "Music Library",
+   "gen": 1,
    "class": "group",
    "view_kind": "library",
    "type": "library",
-   "parent": "controller:music",
    "font_scope": "music",
+   "parent": "controller:music",
    "drawer": true,
    "grid": {
     "columns": 3
@@ -1370,6 +1501,9 @@
     },
     "source": {
      "navigate": "sources:$context.source_select"
+    },
+    "menu": {
+     "navigate": "apps"
     }
    },
    "control_target": {
@@ -1404,10 +1538,12 @@
         "action": {
          "navigate": "apps"
         }
-       }
+       },
+       "np_default": "hero"
       },
       {
        "id": "t_tr",
+       "unless": "physical_transport",
        "type": "transport",
        "entity": "$context.media_player",
        "label": "Transport",
@@ -1423,7 +1559,8 @@
        "buttons": [
         "back",
         "home"
-       ]
+       ],
+       "unless": "physical_back_home"
       },
       {
        "id": "t_pad",
@@ -1490,6 +1627,7 @@
   },
   "climate": {
    "name": "Climate",
+   "gen": 1,
    "tiles": [
     {
      "id": "dp",
@@ -1542,6 +1680,7 @@
   },
   "light": {
    "name": "Light",
+   "gen": 1,
    "tiles": [
     {
      "id": "dp",
@@ -1576,6 +1715,7 @@
   },
   "cover": {
    "name": "Cover",
+   "gen": 1,
    "tiles": [
     {
      "id": "dc",
@@ -1601,6 +1741,7 @@
   },
   "fan": {
    "name": "Fan",
+   "gen": 1,
    "tiles": [
     {
      "id": "dp",
@@ -1635,6 +1776,7 @@
   },
   "switch": {
    "name": "Switch",
+   "gen": 1,
    "tiles": [
     {
      "id": "dp",

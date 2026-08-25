@@ -16,6 +16,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 from .const import DEPLOY_DIR
+from .packaging import STOCK_SUBDIR, USER_SUBDIR
 from .store import HarmoniumStore, engine_fingerprint
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
@@ -115,8 +116,27 @@ class HarmoniumUploadView(HomeAssistantView):
             return self.json_message("that file does not look like an image",
                                      status_code=415)
         if skin:
-            target = Path(self.hass.config.path(DEPLOY_DIR)) / "skins" / (base + ext)
-            local = f"/local/harmonium/skins/{base}{ext}"
+            # THE PATH SPLIT (v0.84.6): a user's photo lands in
+            # skins/user/ — never beside, and never on top of, the
+            # stock skins in skins/stock/. Ownership is positional, so
+            # naming your photo "rs90.png" is now harmless.
+            skins_root = Path(self.hass.config.path(DEPLOY_DIR)) / "skins"
+            target = skins_root / USER_SUBDIR / (base + ext)
+            local = f"/local/harmonium/skins/{USER_SUBDIR}/{base}{ext}"
+            # THE PICKER REFUSES STOCK (structural belt-and-braces):
+            # nothing reaching this endpoint may resolve inside
+            # skins/stock/. This is a REFUSAL, not a 409 — there is no
+            # "overwrite anyway", because a clobbered stock file would
+            # be silently restored by the next deploy anyway.
+            try:
+                resolved = target.resolve()
+                stock_root = (skins_root / STOCK_SUBDIR).resolve()
+                if resolved == stock_root or stock_root in resolved.parents:
+                    return self.json_message(
+                        "stock skins are locked — upload your own photo "
+                        "instead; it lands in skins/user/", status_code=403)
+            except OSError:
+                pass
         else:
             target = Path(self.hass.config.path("www/images")) / (base + ext)
             local = f"/local/images/{base}{ext}"

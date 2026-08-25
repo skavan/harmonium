@@ -81,6 +81,48 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Current state (v0.85.3 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
+
+One long session, driven end-to-end by the first two beta reports
+(HANDOFF rounds 79–83 carry the detail). Shipping in-repo, untagged:
+
+- **Stock ownership**: stock controllers/domain pages/skins locked in
+  the Studio (fork to edit); skins split `stock/`/`user/` with
+  positional ownership, first-run adoption, compat window for flat
+  paths; the upload picker refuses stock outright (403, no overwrite).
+- **Apple TV**: `dpad_commands` rung in cmdFor + stock `appletv`
+  dialect (pyatv names; back→menu, menu→top_menu) + a D-pad commands
+  editor in the dialect fold + a 16-app launch map verified against
+  reporter #1's real `source_list` ("HBO Max" not "Max"; Apple's app
+  is "TV"). Vocabulary still needs his hardware confirmation.
+- **Now Playing rebuilt**: Slim/Basic/Compact/Art Hero/Large; live
+  style switching (tileSig now sees style/np_default/h — the fix that
+  ended four rounds of "picker does nothing"); locked heights (Large
+  408 music / 300 TV via .nptv); idle dims not blanks; black-art →
+  placeholder panel; app/source promoted to the title row on TVs;
+  queue language music-only; the matrix probe renders at the TRUE
+  device scale 350×582 (the harness had tested at 480 all along).
+- **The two-truths reckoning**: starter-config's stock controllers are
+  now GENERATED from stocklib and `probe-stock-sync` fails on any
+  drift — the split had shipped a bandless music controller to virgin
+  installs (reporter #2's first bug), hidden appletv, and let heal
+  delete the transport gate. `healStockDialects` plants dialects,
+  backfills empty app maps, and plants missing app identities.
+- **Also**: battery row on ⓘ (Fully sensors, per-profile pickers);
+  engine version on ⓘ; per-tile height; physical_back_home /
+  physical_transport gates; KeyMapper Expert-Mode docs; CSS joined the
+  Chromium-61 floor probe; his LAN IP scrubbed from the pair screen.
+- **Triage (beta-gaps §6)**: set_activity is routing-only (document,
+  then a `start:` option); room power button vanishing (suspect:
+  select unavailable after restart); orphan provisioning for remote
+  profiles remains the open structural round, with his
+  fingerprint/ask/slipstream healing idea on file.
+
+Stamps aligned at **0.85.3** (manifest = ENGINE_V = STUDIO_V b50).
+Release = make-release.bat → commit → tag v0.85.3; notes at
+docs/releases/release-notes-v0.85.3.md (upgrade ritual: restart HA,
+clear Fully cache + check ⓘ says 0.85.3, Studio Save & Deploy once).
+
 ## Current state (v0.84.1 RELEASED, 2026-08-21 — the community debut is live; beta watch begins)
 
 **(79) RELEASE + ANNOUNCEMENT DAY (no code — release ops, forum

@@ -71,13 +71,43 @@ config, which is why that file is pinned as the repo's test fixture.
 
 Beside the battery live the `probe-*.mjs` regression probes — one per
 shipped fix or feature, same harness pattern, run individually (e.g.
-`node probe-vol-ux.mjs`). Two worth knowing by name:
-`probe-activity-tabs.mjs` walks every tab of a real activity card
-(Svelte compiles unknown identifiers as globals, so a missed import
-in the per-tab components only fails at runtime — this is the net),
-and `tests/test-integration-split.py` (plain python, no pytest)
-imports the integration's modules against stubbed HA and exercises
-the pure seams — `validate_config`, `_bind_ws`, service wiring.
+`node probe-vol-ux.mjs`).
+
+**ENGINE probes need the server too** (2026-08-24 — the lesson that
+cost a round): a probe that loads `http://localhost:8482/index.html`
+fails with `ERR_CONNECTION_REFUSED` if you run it bare, and the
+failure looks exactly like a regression. Start the static server from
+the Run section first, or use `run.sh`, which starts and kills its
+own. STUDIO probes are different — they stub every request through
+Playwright routes and need nothing running.
+
+Worth knowing by name: `probe-activity-tabs.mjs` walks every tab of a
+real activity card (Svelte compiles unknown identifiers as globals, so
+a missed import in the per-tab components only fails at runtime — this
+is the net); `probe-stock-lock.mjs` (pure, no browser) proves a user's
+fork survives a stock heal byte-for-byte; `probe-stock-lock-ui.mjs`
+and `probe-skin-lock-ui.mjs` drive the Studio's stock lock (controller
+and skin); and `tests/test-integration-split.py` (plain python, no
+pytest) imports the integration's modules against stubbed HA and
+exercises the pure seams — `validate_config`, `_bind_ws`, service
+wiring.
+
+`test-asset-deploy.py` (plain python, no HA) is the filesystem
+contract for stock assets: fresh provision, stock updates flowing to
+existing installs, a user's own photo never overwritten, the pre-stamp
+adoption, and — since v0.84.6 — the stock/user path split and its
+migration (a user photo *named* like a stock one keeps its own
+fingerprint; a pre-split flat install adopts its stock while
+grandfathering the user's flat photo). `probe-skin-path-split.mjs` is
+its config-side twin: heal repoints a pre-split skin into
+`skins/stock/` and never claims anything under `skins/user/`.
+
+A probe that guards a RETIRED feature is worse than no probe — it
+reads as a regression forever. When a feature is parked, retire its
+probe in the same commit (`probe-battery.mjs` + `src/core/battery.js`
+went this way on 2026-08-24: the engine-side beeper was parked in
+favour of the HA blueprint, but the probe stayed and had been red
+ever since).
 
 ## Adding a suite
 

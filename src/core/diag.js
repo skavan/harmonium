@@ -16,7 +16,7 @@
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.84.1";
+const ENGINE_V = "0.85.3";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -80,6 +80,42 @@ function diagScreen() {
       "the engine's runtime · stock Astrion ships 61 · see hardware-keys"),
   ];
 
+  /* --- BATTERY (v0.84.8 — Suresh: "can we build battery level into
+     our info page"). The number comes from HOME ASSISTANT, not from
+     the webview: Fully's JS interface is deliberately off in our own
+     Fully profile (remotes/fully/README — "the engine talks to HA
+     directly"), and navigator.getBattery() needs a secure context,
+     which a plain http:// LAN install is not. The Fully Kiosk HA
+     integration already publishes both facts, and the battery-alerts
+     blueprint already consumes them — so this reads the SAME source
+     the alert does rather than inventing a second truth.
+       remotes.<id>.battery_sensor   e.g. sensor.<device>_battery
+       remotes.<id>.charging_sensor  e.g. binary_sensor.<device>_plugged_in
+     Naming the entities on the TILE subscribes them through the normal
+     entitiesFor path, and diagScreen re-runs on every renderStates, so
+     the row is live rather than a snapshot. Silent when unconfigured —
+     a remote with no sensor simply has no row. */
+  const prof = (cfg.remotes || {})[S.deviceName] || {};
+  if (prof.battery_sensor) {
+    const braw = st(prof.battery_sensor).s;
+    const pct = braw != null && braw !== "" && !isNaN(+braw)
+      ? Math.round(+braw) : null;
+    const charging = prof.charging_sensor
+      ? st(prof.charging_sensor).s === "on" : false;
+    const icon = charging ? "battery_charging_full"
+      : pct == null ? "battery_unknown"
+      : pct <= 15 ? "battery_alert"
+      : pct <= 50 ? "battery_5_bar" : "battery_full";
+    const row = diagRow("dg_batt", icon,
+      "Battery " + (pct == null ? "—" : pct + "%") +
+        (charging ? " · charging" : ""),
+      pct == null ? prof.battery_sensor + " · no reading yet"
+        : prof.battery_sensor);
+    row.entity = prof.battery_sensor;
+    if (prof.charging_sensor) row.entities = [prof.charging_sensor];
+    panel.push(row);
+  }
+
   /* --- band 2: THE BUILD --- */
   const build = [
     diagRow("dg_ver", "conveyor_belt", "Engine v" + ENGINE_V,
@@ -124,14 +160,26 @@ function diagScreen() {
       (navigator.userAgent || "").slice(0, 120)),
   ];
 
+  /* --- band 0: THE KEY-MAP CARD (spec §10.1) — what the physical
+     buttons do on the page you came from, snapshotted at ⓘ-tap time
+     (openKeymapCard in input.js). Present only when entered via ⓘ. --- */
+  const kc = (typeof S !== "undefined" && S.keymapCard) || null;
+  const keys = kc && kc.rows && kc.rows.length
+    ? kc.rows.map((r, i) => diagRow("dg_k" + i, "keyboard_command_key", r.k, r.d))
+    : null;
+
+  const sections = [];
+  if (keys) sections.push({ title: "Keys on " + kc.page,
+    hero_label: "Keys here", tiles: keys });
+  sections.push(
+    { title: "The panel", hero_label: "The panel", tiles: panel },
+    { title: "The build", hero_label: "The build", tiles: build },
+    { title: "Home Assistant", hero_label: "Home Assistant", tiles: link },
+    { title: "Tools", hero_label: "Tools", tiles: tools });
+
   return {
     name: "Diagnostics", class: "group", view_kind: "diag",
     grid: { columns: 1, max_width: 760 },
-    sections: [
-      { title: "The panel", hero_label: "The panel", tiles: panel },
-      { title: "The build", hero_label: "The build", tiles: build },
-      { title: "Home Assistant", hero_label: "Home Assistant", tiles: link },
-      { title: "Tools", hero_label: "Tools", tiles: tools },
-    ],
+    sections: sections,
   };
 }

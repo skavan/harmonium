@@ -20,6 +20,11 @@
     busy = true;
     try {
       let r = await uploadImage(file, kind);
+      if (r.refused) {          /* stock is locked — no overwrite door */
+        setStatus(r.message, "err");
+        busy = false;
+        return;
+      }
       if (r.exists) {
         if (!confirm(`"${file.name}" already exists on the box — replace it?`))
           { busy = false; return; }
@@ -44,7 +49,7 @@
   ondrop={(e) => { e.preventDefault(); over = false;
     send(e.dataTransfer?.files?.[0]); }}
   title={"Upload a picture to the box (or drop one here) — it saves under " +
-    (kind === "skin" ? "/local/harmonium/skins/" : "/local/images/") + " and fills the field"}
+    (kind === "skin" ? "/local/harmonium/skins/user/" : "/local/images/") + " and fills the field"}
   class={"flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border px-2 text-[11px] disabled:opacity-50 " +
     (over ? "border-accent bg-accent/15 text-ink"
       : "border-dashed border-line-strong bg-transparent text-dim hover:text-ink")}>

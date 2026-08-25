@@ -25,6 +25,43 @@ deep sleep and bleeding the battery. If it's already installed:
 `adb uninstall io.homeassistant.companion.android.minimal` — clean
 and reversible. Details in the wake-lock section below.
 
+⚠️ **One step to ADD to that guide: KeyMapper's Expert Mode.** The
+symptom, reported by a beta user on the HA forum (2026-08-24) and
+easy to lose an evening to: *"buttons controlling only the remote
+rather than being mapped through the browser."* The keys work — the
+launcher reacts — but they never reach Fully's webview, so Harmonium
+never sees them.
+
+KeyMapper's ordinary accessibility service can't reliably intercept
+keys inside a **browser/webview**. **Expert Mode** (KeyMapper 4.0+,
+briefly called "PRO mode"; it drives a *System Bridge* component)
+is what makes it work there. Enable it in KeyMapper under Settings,
+which needs the `WRITE_SECURE_SETTINGS` permission granted one of
+three ways:
+
+```sh
+# non-rooted, over ADB (what most people do):
+adb shell pm grant io.github.sds100.keymapper android.permission.WRITE_SECURE_SETTINGS
+```
+
+or via **Shizuku** (the recommended route on Android 11+), or with
+KeyMapper's root toggle on a rooted device. KeyMapper's own docs are
+the authority: <https://docs.keymapper.club/user-guide/adb-permissions/>.
+
+Two notes that save time:
+
+- **Expert Mode needs KeyMapper 4.0 or newer.** On 3.x there is no
+  such setting — check the version before hunting for the toggle.
+- **A KeyMapper backup does NOT record it.** The backup JSON carries
+  only `keymap_list`, `groups` and the default delays — no app
+  settings — so restoring a working backup onto a fresh remote will
+  *not* bring Expert Mode with it. Turn it on per device. To check
+  whether the permission is actually granted:
+
+  ```sh
+  adb shell dumpsys package io.github.sds100.keymapper | grep WRITE_SECURE_SETTINGS
+  ```
+
 ⚠️ **One step to ADD to that guide: check (and maybe update) the
 webview.** Every Astrion carries stock **Chromium 61** (2017) as
 its fallback webview; inspected units *run* a factory **Google

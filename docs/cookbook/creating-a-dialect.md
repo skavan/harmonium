@@ -17,7 +17,10 @@ describing how one *platform* does three things:
 2. **press keys the remote doesn't have** (`keys`) — Settings,
    Search, a screensaver key: each becomes a tile in the device-keys
    band;
-3. **wake up** (`wake`) — fired automatically before an app launch
+3. **speak the platform's own command vocabulary**
+   (`dpad_commands`) — what its `remote.send_command` actually
+   accepts. See the next section; this is the one that bites;
+4. **wake up** (`wake`) — fired automatically before an app launch
    when the player reports asleep (`off`/`idle`/`standby`). Since
    v0.84.1 this **defaults to `media_player.turn_on`** on the
    context player, so most dialects never declare it; set
@@ -30,8 +33,67 @@ and when the config has exactly one dialect it's assumed. App
 `apps` registry at the top level — a dialect entry only supplies
 the platform-specific launch.
 
-Today dialects are edited on the **Code tab** (System → the
-`dialects` map); a visual editor is on the roadmap.
+Dialects are edited under **Apps** in the Studio — each one is a
+"device class" fold with its name, id, wake, **D-pad commands** and
+its per-app launches. The **Code tab** (System → the `dialects` map)
+still shows the raw JSON if you prefer it.
+
+## The D-pad command vocabulary (`dpad_commands`)
+
+**The symptom:** every button press comes back *"command not
+recognized"* — and it happens in the Studio's preview too, which
+rules out remote/KeyMapper problems. It means the engine is sending
+command names your platform has never heard of.
+
+Harmonium's defaults are the Android/Fire TV names, because that is
+what most of the world speaks:
+
+```
+up UP · down DOWN · left LEFT · right RIGHT · select ENTER
+back BACK · home HOME · menu MENU · info INFO
+ch_up CHANNEL_UP · ch_down CHANNEL_DOWN
+```
+
+Apple TV doesn't. HA's `apple_tv` integration wraps **pyatv**, whose
+vocabulary is lowercase and differs in two places that are *not* a
+straight lowercasing — Apple TV's **back is `menu`**, and its main
+menu is **`top_menu`**. Declare it once on the dialect and every
+Apple TV in the house is fixed:
+
+```jsonc
+"dpad_commands": {
+  "up": "up", "down": "down", "left": "left", "right": "right",
+  "select": "select",
+  "back": "menu",        // NOT "back"
+  "menu": "top_menu",    // the main menu
+  "home": "home",
+  "ch_up": "channel_up", "ch_down": "channel_down"
+}
+```
+
+Only name the keys that differ — anything you leave out keeps the
+default above. The resolution ladder, weakest first:
+
+```
+built-in defaults  <  dialect.dpad_commands  <  a tile's own
+"commands"  <  the activity context's "dpad_commands"
+```
+
+So a dialect fixes a whole platform, while a single odd device can
+still be corrected on its own (a device's `traits.dpad_commands`)
+without disturbing the rest.
+
+## The source string must match EXACTLY
+
+A beta reporter with a real Apple TV put it best: *"The Apple TV
+source list is generally just the app name but sometimes it can vary
+a little bit."* The `source:` string is matched verbatim against the
+player's `source_list`, so when a launch does nothing, check
+**Developer Tools → States → your player → `source_list`** and copy
+the name from there. Known drifters: Warner's app reports **"HBO
+Max"** (not "Max") after the 2025 re-rebrand, and Apple's own app is
+just **"TV"**. Harmonium's stock Apple TV dialect ships with names
+verified against a real device — but your device's app versions rule.
 
 ## The launch grammar (one of four shapes per app)
 
@@ -61,6 +123,11 @@ key presses. So the dialect is short:
 "dialects": {
   "appletv": {
     "name": "Apple TV",
+    "dpad_commands": {
+      "up": "up", "down": "down", "left": "left", "right": "right",
+      "select": "select", "back": "menu", "menu": "top_menu",
+      "home": "home", "ch_up": "channel_up", "ch_down": "channel_down"
+    },
     "apps": {
       "netflix": { "source": "Netflix" },
       "disney":  { "source": "Disney+" },

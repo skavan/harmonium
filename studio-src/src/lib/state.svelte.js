@@ -157,7 +157,7 @@ export function clearCurrent() {
    build counter that never resets (b30 continues the old 0.83.NN
    line, so history stays ordered). The footer reads s0.83.8 b30:
    release first, fingerprint after. */
-export const STUDIO_V = "0.84.1 b49";
+export const STUDIO_V = "0.85.3 b50";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 
@@ -188,6 +188,13 @@ export async function uploadImage(file, kind = "image", overwrite = false) {
   let j = null;
   try { j = await r.json(); } catch { /* error bodies may be text */ }
   if (r.status === 409) return { exists: true, path: (j && j.path) || "" };
+  /* THE PICKER REFUSES STOCK (v0.84.6): 403 is a refusal, not a
+     collision — there is no "overwrite anyway" to offer, because the
+     next deploy would restore the stock file regardless. Surfaced as
+     its own outcome so the caller never prompts. */
+  if (r.status === 403)
+    return { refused: true,
+      message: (j && (j.message || j.error)) || "stock files are locked" };
   if (!r.ok || !j || !j.ok)
     throw new Error((j && (j.message || j.error)) || "upload failed (" + r.status + ")");
   return j;   /* { ok: true, path: "/local/harmonium/images/…" } */
@@ -413,10 +420,25 @@ export function getSlice(key) {
   }
   if (key.startsWith("screens.")) return d.screens[key.slice(8)];
   if (key.startsWith("controller.")) return d.controllers?.[key.slice(11)];
+  /* THE APPS PAGE IS TWO KEYS (v0.84.9 — Suresh: "the code button only
+     shows me the master list json, not the entire apps key"). The
+     visual editor on that page edits BOTH the master list and the
+     dialects, so the escape hatch has to show both or the dialects —
+     launch grammar, wake, D-pad commands — are invisible and
+     un-copyable exactly where a user goes looking for them. Composite,
+     like the "view." slice. */
+  if (key === "apps") return { apps: d.apps || {}, dialects: d.dialects || {} };
   return d[key];
 }
 export function setSlice(key, value) {
   const d = app.draft;
+  if (key === "apps" && value && typeof value === "object" &&
+      ("apps" in value || "dialects" in value)) {
+    if (value.apps) d.apps = value.apps;
+    if (value.dialects) d.dialects = value.dialects;
+    schedulePreview();
+    return;
+  }
   if (key.startsWith("view.")) {
     const r = key.slice(5);
     d.global = value.global;
@@ -710,9 +732,16 @@ export function duplicateController(cid) {
   while (d.controllers[nid]) nid = cid + "_variant" + n++;
   const copy = JSON.parse(JSON.stringify($state.snapshot(src)));
   copy.name = (copy.name || cid) + " variant";
+  /* OWNERSHIP (v0.84.5 — the stock lock): a copy of a NAMED stock
+     surface is the user's own — stamp variant_of so it reads as theirs
+     (Edited badge, ↺ Reset to stock, and heal keeps its hands off).
+     A copy of a custom copy already carries the root variant_of; a
+     domain stock's per-device copy has its own door (entity picker),
+     so only claim the named-stock case here. */
+  if (!copy.variant_of && !copy.domain) copy.variant_of = cid;
   d.controllers[nid] = copy;
   selectSlice("controller." + nid);
-  setStatus("variant '" + nid + "' created — rename and prune away", "ok");
+  setStatus("editable copy '" + nid + "' created — the stock stays locked", "ok");
   return nid;
 }
 export function deleteController(cid) {

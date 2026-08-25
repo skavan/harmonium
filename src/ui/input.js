@@ -201,8 +201,30 @@ function padArm() {
      the Input policy slice) beats the 8s default */
   const ms = (CONFIG && CONFIG.input && +CONFIG.input.pad_latch_seconds > 0)
     ? +CONFIG.input.pad_latch_seconds * 1000 : (TIMING.padLatch || 8000);
+  S.padWindow = ms;                 // the full window, for the countdown bar
   S.padLatch = Date.now() + ms;
   padStrip();
+  drawClaimBar();
+}
+/* THE CLAIM COUNTDOWN BAR (2026-08-24): an accent line on the focused
+   tile's bottom edge that starts full and shrinks to zero as the borrow
+   runs down — the per-element twin of the pad strip's drain. Re-seeks on
+   every call (negative animation-delay), so a grid re-render mid-claim
+   resumes at the right point instead of refilling. Cleared when the
+   claim ends or focus clears. TV pages only (padOwner === device). */
+function drawClaimBar() {
+  const old = document.getElementById("claimbar");
+  if (old) old.remove();
+  if (!padLatched() || padOwner() !== "device" || !S.focusId) return;
+  const el = (typeof focusEl === "function") && focusEl(S.focusId);
+  if (!el || !el.closest || !el.closest("#grid")) return;
+  const win = S.padWindow || 0, rem = S.padLatch - Date.now();
+  if (win <= 0 || rem <= 0) return;
+  const bar = document.createElement("div");
+  bar.id = "claimbar";
+  bar.style.animationDuration = win + "ms";
+  bar.style.animationDelay = (rem - win) + "ms";   // negative: seek to now
+  el.appendChild(bar);
 }
 function padClear() {
   if (!S.padLatch) return;
@@ -210,13 +232,24 @@ function padClear() {
   padStrip();
 }
 function padStrip() {
+  /* RING ⇔ CLAIM on TV pages (2026-08-24): when the borrow lapses,
+     drop the panel focus so the ring never outlives the claim — the
+     exit bookend of no-default-focus-on-TV-entry (render.js). */
+  if (!padLatched() && padOwner() === "device" && S.focusId) setFocus(null);
   const el = document.getElementById("padstrip");
   if (!el) return;
   const on = padLatched();
   el.classList.toggle("hidden", !on);
+  /* the final second is a VISIBLE DRAIN (spec §6.4): the strip warns
+     that the next press hands the pad back to the device */
+  el.classList.toggle("draining", on && (S.padLatch - Date.now()) <= 1000);
   clearTimeout(padStrip._t);
-  if (on) padStrip._t =
-    setTimeout(padStrip, Math.max(60, S.padLatch - Date.now() + 30));
+  if (on) {
+    const left = S.padLatch - Date.now();
+    /* wake at drain-start (1s before expiry), then at expiry */
+    const next = left > 1000 ? left - 1000 : left;
+    padStrip._t = setTimeout(padStrip, Math.max(60, next + 30));
+  }
 }
 /* hands on the glass = the panel is being TOUCHED; the pad returns
    to the activity immediately */
@@ -307,6 +340,66 @@ function blurRove(prevId) {
   if (!prevId || prevId === S.focusId) return;
   const t = tileDef(prevId);
   if (t && typeof navOf === "function" && navOf(t) === "options") renderStates();
+}
+
+/* THE KEY-MAP CARD (spec §10.1, 2026-08-24): "what do my buttons do
+   HERE?" — computed for the CURRENT page (so it must be snapshotted at
+   ⓘ-tap time, before opening diag, which navigates away). Contextual by
+   design; this is the pressure valve that lets routing be page-aware
+   without being mysterious. Returns [{k, d}] rows the diag page renders. */
+function keymapFriendly(eid) {
+  const s = eid && st(eid);
+  return (s && s.a && s.a.friendly_name) || eid || "";
+}
+function keymapActionDesc(a) {
+  if (!a) return "—";
+  if (a.navigate) {
+    const s = screenOf(a.navigate) || rawScreen(a.navigate);
+    return "Open " + ((s && s.name) || String(a.navigate).replace(/^.*:/, ""));
+  }
+  if (a.sequence) return "Run " + a.sequence;
+  if (a.service) {
+    const verb = a.service.split(".")[1] || a.service;
+    const cmd = a.data && a.data.command;
+    return deslug(verb) + (cmd ? " · " + cmd : "");
+  }
+  if (a.seek !== undefined) return (a.seek >= 0 ? "+" : "") + a.seek + "s";
+  return "action";
+}
+function keymapCardRows() {
+  const sc = screenOf(S.screen) || {};
+  const pt = passthroughActive();
+  const tuner = !!(sc.tuner || (sc.control_target && sc.control_target.tuner));
+  const bb = boundButtons();
+  const rows = [];
+  rows.push({ k: "▲ ▼ ◀ ▶ · OK",
+    d: pt ? "Drive the device" : "Move focus · OK activates" });
+  rows.push({ k: "CH + −",
+    d: tuner ? "Channel up / down (device)"
+      : pt ? "Reveal / walk the panel (borrows the pad)"
+      : "Walk the panel" });
+  rows.push({ k: "Back",
+    d: pt ? "Device back · hold = Harmonium" : "Harmonium back" });
+  rows.push({ k: "Home",
+    d: pt ? "Device home · hold = Harmonium" : "Harmonium home" });
+  const bm = bb.menu;
+  rows.push({ k: "Menu",
+    d: bm ? keymapActionDesc(bm) : (deviceKeyTarget() ? "Device menu" : "—") });
+  const vt = resolveEntity("$context.volume");
+  rows.push({ k: "Vol + − · Mute",
+    d: vt ? "→ " + keymapFriendly(vt) : "nothing wired" });
+  const mp = mediaCtx();
+  if (mp) rows.push({ k: "⏮ ⏯ ⏭", d: "→ " + keymapFriendly(mp) });
+  ["source", "settings", "screencast"].forEach(function (b) {
+    if (bb[b]) rows.push({ k: cap(b), d: keymapActionDesc(bb[b]) });
+  });
+  return rows;
+}
+/* snapshot the current page's key map, then hand off to the diag page */
+function openKeymapCard() {
+  const sc = screenOf(S.screen);
+  S.keymapCard = { page: (sc && barTitle(sc)) || "this page", rows: keymapCardRows() };
+  navigate("diag:");
 }
 
 function act(button, phys) {
@@ -502,10 +595,32 @@ function act(button, phys) {
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":
     case "mute": case "menu_hold": {
+      /* TUNER EXCEPTION (spec §5.6): the one case where Ch± LEAVES
+         Harmonium. A page whose subject is a tuner (`tuner: true` on
+         the screen or its control_target) sends channel up/down to the
+         device and does NOT walk the panel or arm the claim. */
+      if (button === "ch_up" || button === "ch_down") {
+        const sct = screenOf(S.screen) || {};
+        if (sct.tuner || (sct.control_target && sct.control_target.tuner)) {
+          const tt = deviceKeyTarget();
+          if (tt) { rc(tt, cmdFor({}, button)); break; }
+        }
+      }
       /* ANY CH press is panel intent — it borrows the pad (his #3:
          "Both Hold and short press") whether a binding wins or the
          focus-walk default runs */
       if (button === "ch_up" || button === "ch_down") padArm();
+      /* TV page, first Ch± after IDLE: REVEAL the ring at the top
+         element WITHOUT walking (2026-08-24 — "you need the first
+         ChUp/ChDn to see where we are on the panel"). padArm just
+         armed the claim; with no ring yet this press is orientation,
+         the next one walks. TV pages only (padOwner === device). */
+      if ((button === "ch_up" || button === "ch_down") &&
+          padOwner() === "device" && !S.focusId) {
+        const sc0 = screenOf(S.screen), a0 = sc0 && tilesOf(sc0);
+        const first0 = sc0 && (sc0.initial_focus || (a0 && a0[0] && a0[0].id));
+        if (first0) { setFocus(first0); break; }
+      }
       /* Exception to "VOL is always audio": on a device DETAIL
          screen, VOL nudges that device's primary range (brightness,
          setpoint, volume, position). Everywhere else: activity audio. */

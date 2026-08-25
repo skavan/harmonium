@@ -22,6 +22,16 @@
   const isLib = $derived(kind === "controller");
   const isCustomCopy = $derived(isLib && !!app.draft?.controllers?.[screenId]?.variant_of);
   const domainStock = $derived(isLib && !isCustomCopy ? app.draft?.controllers?.[screenId]?.domain : null);
+  /* THE STOCK LOCK (v0.84.5 — Suresh: "stock things should be locked;
+     if users want to edit it should be on local copies"). ANY stock
+     controller — named (tv/music/…) or a domain stock (climate/light/…)
+     — is read-only: its shape is heal-volatile, so an in-place edit
+     would be silently reverted on the next update. The body goes inert;
+     the door forward is a fork that is yours — ⧉ Duplicate to edit for
+     a named stock, or a per-device copy for a domain stock. The domain
+     stock's Per-device options (entity_options — invert & friends) are
+     NOT heal-volatile, so they stay live BELOW the lock boundary. */
+  const locked = $derived(isLib && !isCustomCopy);
   const copyEntity = $derived(isCustomCopy ? app.draft?.controllers?.[screenId]?.entity : null);
   let customFor = $state("");
   let optionsOpen = $state(false);
@@ -144,27 +154,36 @@
     {/if}
     {#if isLib}
       <div class={"flex flex-wrap items-center gap-3 rounded-[10px] border px-3 py-2 " +
-        (isCustomCopy ? "border-line bg-tile" : "border-accent/50 bg-accent/10")}>
+        (isCustomCopy || locked ? "border-line bg-tile" : "border-accent/50 bg-accent/10")}>
         {#if isCustomCopy}
           <span class="text-xs text-ink"><b>Custom copy</b> of {stockName}{copyEntity ? " — for " : " — yours alone."}{#if copyEntity}<b class="font-mono text-[11.5px]">{copyEntity}</b>{/if}</span>
           <Button size="sm" onclick={() => resetControllerToStock(screenId)}
             title="Replace this copy's content with the current stock surface">↺ Reset to stock</Button>
         {:else if domainStock}
-          <span class="text-xs text-ink"><b>Stock {app.draft.controllers[screenId].name}</b> —
-            every {domainStock} device's page. Edits here reach them ALL; pick a device
-            for a private copy:</span>
+          <span class="text-xs text-ink">🔒 <b>Stock {app.draft.controllers[screenId].name} — locked.</b>
+            Shared by every {domainStock} device, and updates keep it current. Pick a device
+            for an editable copy (per-device options stay live below):</span>
           <div class="w-64"><EntityPicker bind:value={customFor} domains={[domainStock]} placeholder={domainStock + " entity…"} /></div>
           <Button size="sm" disabled={!customFor}
             onclick={() => { instantiateDeviceController(domainStock, customFor); customFor = ""; }}
           >⧉ Custom copy for device</Button>
         {:else}
-          <span class="text-xs text-ink"><b>Stock controller</b> — shared: edits here reach
-            {usedBy.length ? "" : " every future user"}
-            {#each usedBy as u, i (u.aid)}{i > 0 ? " · " : " "}<b>{u.name}</b>{/each}.
-          </span>
+          <span class="text-xs text-ink">🔒 <b>Stock controller — locked.</b>
+            It's shared{#each usedBy as u, i (u.aid)}{i === 0 ? " by " : " · "}<b>{u.name}</b>{/each}{usedBy.length ? "" : " by every activity that lands here"},
+            and updates keep it current — so edits here would be reverted. To change it, edit a copy.</span>
+          <Button size="sm" onclick={() => duplicateController(screenId)}
+            title="Make an editable copy of this surface — the stock stays locked">⧉ Duplicate to edit</Button>
+          {#if usedBy.length === 1}
+            <span class="w-full text-[11px] text-dim">Just for <b>{usedBy[0].name}</b>? Customize it from that activity's card instead — that copies it for that one activity.</span>
+          {/if}
         {/if}
       </div>
     {/if}
+    <!-- LOCK BOUNDARY (v0.84.5): a locked stock surface goes inert —
+         the shape below is heal-volatile, so it's look-don't-touch
+         until Duplicate-to-edit forks a copy. -->
+    <div class="space-y-5" inert={locked}
+      class:opacity-50={locked} class:pointer-events-none={locked} class:select-none={locked}>
     <div class="grid grid-cols-2 gap-4">
       <Field label="View name"><Input bind:value={scr.name} /></Field>
       <Field label={isLib ? "Controller id" : "Page id"}
@@ -302,14 +321,18 @@
         {/each}
       </div>
     {/if}
+    <div class="border-t border-line pt-3">
+      <Button size="sm" variant="danger" onclick={delPage}>Delete this page</Button>
+      <span class="ml-2 text-[11px] text-dim">refuses while anything still points here</span>
+    </div>
+    </div><!-- /lock boundary -->
+    <!-- OUTSIDE the lock: a domain stock's per-device options edit
+         entity_options (invert & friends), not the heal-volatile shape,
+         so they stay live even while the stock layout is locked. -->
     {#if domainStock}
       <SectionFold label="Per-device options" badge="invert & friends — applies everywhere, not just this page" bind:open={optionsOpen}>
         <BuiltinEditor domain={domainStock} embedded />
       </SectionFold>
     {/if}
-    <div class="border-t border-line pt-3">
-      <Button size="sm" variant="danger" onclick={delPage}>Delete this page</Button>
-      <span class="ml-2 text-[11px] text-dim">refuses while anything still points here</span>
-    </div>
   </div>
 {/if}

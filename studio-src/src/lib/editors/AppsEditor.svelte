@@ -18,6 +18,17 @@
   import Button from "../components/Button.svelte";
 
   const apps = $derived(app.draft?.apps);
+  /* the buttons the engine can send, and the names it sends by default
+     (mirrors DPAD_DEFAULT in src/widgets/helpers.js — keep in sync;
+     tests/probe-dpad-dialect.mjs guards the pair) */
+  const DPAD_KEYS = ["up", "down", "left", "right", "select",
+    "back", "home", "menu", "info", "ch_up", "ch_down"];
+  const DPAD_FALLBACK = {
+    up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", select: "ENTER",
+    back: "BACK", home: "HOME", menu: "MENU", info: "INFO",
+    ch_up: "CHANNEL_UP", ch_down: "CHANNEL_DOWN",
+  };
+  let cmdOpen = $state({});
   const classes = $derived(app.draft?.dialects);
   const seqOptions = $derived(Object.entries(app.draft?.sequences || {})
     .map(([sid, s]) => ({ value: sid, label: s.name || sid })));
@@ -175,6 +186,40 @@
                 edit(); }} />
           </Field>
         </div>
+        <!-- D-PAD COMMANDS (v0.84.7 — forum report: an Apple TV
+             answered "command not recognized" to every press, and the
+             reporter went looking for command mapping exactly here and
+             found only app launching). The engine sends Android/Fire TV
+             names by default (UP/ENTER/BACK); a platform that speaks
+             its own vocabulary declares it ONCE here and every device
+             on this dialect is fixed. Blank = the default name. -->
+        <SectionFold label="D-pad commands"
+          badge={Object.keys(c.dpad_commands || {}).length
+            ? Object.keys(c.dpad_commands).length + " remapped"
+            : "defaults (Android / Fire TV names)"}
+          bind:open={() => cmdOpen[cid] ?? false, (v) => (cmdOpen[cid] = v)}>
+          <p class="m-0 mb-2 text-[11px] text-dim">
+            What this platform's <b>remote.send_command</b> actually accepts.
+            Leave blank to send the default name. Apple TV, for instance,
+            only understands lowercase pyatv names and calls
+            <code class="font-mono">UP</code> unrecognised.
+          </p>
+          <div class="grid grid-cols-3 gap-2">
+            {#each DPAD_KEYS as k (k)}
+              <Field label={k}>
+                <Input value={(c.dpad_commands || {})[k] ?? ""}
+                  placeholder={DPAD_FALLBACK[k]} class="font-mono text-[12px]"
+                  onchange={(ev) => {
+                    const v = ev.target.value.trim();
+                    if (!c.dpad_commands) c.dpad_commands = {};
+                    if (v) c.dpad_commands[k] = v; else delete c.dpad_commands[k];
+                    if (!Object.keys(c.dpad_commands).length) delete c.dpad_commands;
+                    edit();
+                  }} />
+              </Field>
+            {/each}
+          </div>
+        </SectionFold>
         <div class="space-y-2">
           {#each Object.entries(c.apps || {}) as [aid, e] (aid)}
             <div class="rounded-[8px] bg-inset p-2">

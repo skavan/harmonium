@@ -291,13 +291,19 @@
                          config that already says wash keeps showing
                          its truth here instead of silently lying -->
                     <Select value={a.surface?.np_style ?? ""} class="max-w-36"
-                      title="how Now Playing draws for this activity — standard card, slim one-liner, the artwork hero, or the big-art poster"
+                      title="how Now Playing draws for this activity — Basic card, Slim row, or the Art Hero family (Compact · Art Hero · Large). Every hero holds a fixed height, so nothing below it moves."
                       options={[
+                        /* RENAMED (v0.85 — Suresh: "this will likely be
+                           the #1 difference between users"). The stored
+                           VALUES are unchanged so every existing config
+                           keeps working; only the labels moved, into one
+                           family that reads as a size ladder. */
                         { value: "", label: "Auto" },
-                        { value: "plain", label: "Standard card" },
+                        { value: "plain", label: "Basic" },
                         { value: "slim", label: "Slim row" },
-                        { value: "art", label: "Art hero — side panel" },
-                        { value: "poster", label: "Poster — big art + progress" },
+                        { value: "art", label: "Art Hero — Compact" },
+                        { value: "hero", label: "Art Hero" },
+                        { value: "poster", label: "Art Hero — Large" },
                         ...(a.surface?.np_style === "wash"
                           ? [{ value: "wash", label: "Art wash — full-bleed (legacy)" }]
                           : []),

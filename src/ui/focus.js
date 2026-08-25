@@ -44,6 +44,10 @@ function setFocus(id) {
      propagates to ancestor scrollers — across the preview iframe it
      slid the whole Studio pane (render.js has the full story) */
   if (el && el.closest("#grid")) gridScrollTo(el, "nearest");
+  /* the claim countdown bar follows the ring (and re-seeks after a
+     grid re-render); no-op off a TV-page claim. Guarded: drawClaimBar
+     lives in input.js, later in the build. */
+  if (typeof drawClaimBar === "function") drawClaimBar();
 }
 
 function spatialMove(dir) {

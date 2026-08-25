@@ -33,7 +33,14 @@ function tilesOf(sc) {
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */
 function tileSig(sc) {
-  return JSON.stringify(tilesOf(sc).map(t => [t.id, t.label, t.icon_image, t.action]));
+  /* style / np_default / h joined the sig in v0.85.4 — THE reason the
+     Now Playing picker "did nothing": surfDressTile patches `style`
+     onto the tile, but the sig never saw it, so a style change pushed
+     from the Studio re-rendered NOTHING until the next navigation. A
+     tile's mode and height are structural — body() and wire() build
+     different DOM per mode — so they belong in the signature. */
+  return JSON.stringify(tilesOf(sc).map(t =>
+    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }

@@ -454,7 +454,17 @@ function navigate(screenId, isBack) {
      deeper in the page still scrolls to itself via setFocus */
   grid.scrollTop = 0;
   const all = tilesOf(sc);
-  setFocus(sc.initial_focus || (all[0] && all[0].id));
+  /* NO DEFAULT FOCUS ON TV PAGES (2026-08-24 — Suresh: "On TV we
+     should default to no tile selected. Because there is no OK until
+     we engage the channel buttons"). On a passthrough page the dpad
+     drives the television, so OK does nothing to a panel tile — a
+     focus ring there would be a lie. The ring appears only when Ch±
+     lends the pad to the panel (padArm reveals it) and clears when the
+     borrow lapses (padStrip). Ring visible ⇔ claim active, on TV pages.
+     Guarded: padOwner/padLatched live in input.js, later in the build. */
+  const tvNoFocus = typeof padOwner === "function" && padOwner() === "device"
+    && !(typeof padLatched === "function" && padLatched());
+  setFocus(tvNoFocus ? null : (sc.initial_focus || (all[0] && all[0].id)));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
   renderStates();
   scheduleFit();
@@ -467,6 +477,15 @@ function navigate(screenId, isBack) {
   const pt = passthroughActive();
   document.getElementById("bar").classList.toggle("pt", pt);
   document.getElementById("ptIc").classList.toggle("hidden", !pt);
+  /* §7 TV Back/Home strip: rides the same passthrough gate — on a TV
+     page the physical Back/Home drive the device, so Harmonium's pair
+     lives on this pinned strip. Absent on non-TV pages (the physical
+     buttons and the touch bar chrome already do that job). */
+  const tvstrip = document.getElementById("tvstrip");
+  if (tvstrip) {
+    tvstrip.classList.toggle("hidden", !pt);
+    document.getElementById("app").classList.toggle("tvstrip-on", pt);
+  }
   if (S.connected) subscribeFor(screenId);
 }
 

@@ -125,6 +125,71 @@ function showAuth(err) {
 document.getElementById("backBtn").addEventListener("click", () => act("back"));
 /* browser chrome (v0.48.1): app-level Home + End-activity in the bar */
 document.getElementById("homeBtn").addEventListener("click", () => act("home"));
+/* the §7 TV Back/Home strip (2026-08-24): Harmonium's own back/home on
+   TV pages, where the physical pair now drives the device. Touch only —
+   act(..., false) takes the Harmonium (UI) path, never the device. */
+document.getElementById("tvBack").addEventListener("click", () => act("back", false));
+document.getElementById("tvHome").addEventListener("click", () => act("home", false));
+
+/* EDGE-SWIPE DEPTH NAVIGATION (spec §8, 2026-08-24): left edge → right
+   = up to the parent; right edge → left = down into the page's detail.
+   Vertical is always scroll. Touch/pen only, and EDGE-ANCHORED so a
+   swipe never fights a slider drag or the vertical scroll. Swipes are
+   always Harmonium's — never routed to the device (touch drives the UI,
+   even on TV passthrough pages). No target → a rubber-band, so a swipe
+   into nothing springs back instead of reading as a missed gesture. */
+(function () {
+  var sx = 0, sy = 0, edge = 0, tracking = false;
+  var EDGE = 28, DIST = 55, RATIO = 1.4;
+  function detailTarget(sc) {
+    if (!sc) return null;
+    if (sc.detail) return sc.detail;                 // explicit key wins
+    /* else derive from the first tile's trailing navigate — stock TV
+       (→ apps) and music (→ library) get swipe-left for free */
+    var secs = sc.sections || (sc.tiles ? [{ tiles: sc.tiles }] : []);
+    for (var i = 0; i < secs.length; i++) {
+      var ts = secs[i].tiles || [];
+      for (var j = 0; j < ts.length; j++) {
+        var tr = ts[j] && ts[j].trailing;
+        if (tr && tr.action && tr.action.navigate) return tr.action.navigate;
+      }
+    }
+    return null;
+  }
+  function rubber(sign) {
+    var g = document.getElementById("grid");
+    if (!g) return;
+    g.classList.remove("rubber-l", "rubber-r");
+    void g.offsetWidth;                               // restart the animation
+    g.classList.add(sign > 0 ? "rubber-r" : "rubber-l");
+  }
+  document.addEventListener("pointerdown", function (e) {
+    tracking = false;
+    if (e.pointerType === "mouse") return;            // gestures are touch/pen
+    var w = window.innerWidth;
+    edge = (e.clientX <= EDGE) ? 1 : (e.clientX >= w - EDGE) ? -1 : 0;
+    if (!edge) return;
+    sx = e.clientX; sy = e.clientY; tracking = true;
+  }, true);
+  document.addEventListener("pointerup", function (e) {
+    if (!tracking) return;
+    tracking = false;
+    if (!CONFIG || !S.screen) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) < DIST || Math.abs(dx) < Math.abs(dy) * RATIO) return; // vertical = scroll
+    var sc = screenOf(S.screen) || {};
+    if (edge === 1 && dx > 0) {                        // left edge → right: parent
+      var par = (sc.parent && screenOf(sc.parent)) ? sc.parent
+        : (S.screen !== CONFIG.home_screen ? CONFIG.home_screen
+          : (CONFIG.global && CONFIG.global.main_home));
+      if (par && screenOf(par) && par !== S.screen) { S.stack = []; navigate(par, true); }
+      else rubber(1);
+    } else if (edge === -1 && dx < 0) {                // right edge → left: detail
+      var d = detailTarget(sc);
+      if (d && screenOf(d)) navigate(d); else rubber(-1);
+    }
+  }, true);
+})();
 document.getElementById("endBtn").addEventListener("click", () => {
   endCurrentActivity();
   renderStates();
@@ -146,7 +211,13 @@ document.getElementById("endBtn").addEventListener("click", () => {
   info.addEventListener("pointercancel", iEnd);
   info.addEventListener("pointerleave", iEnd);
   info.addEventListener("click", () => {
-    if (!iHeld) navigate(S.screen === "diag:" ? (CONFIG.home_screen || "") : "diag:");
+    if (!iHeld) {
+      /* tap on diag toggles back home; tap elsewhere snapshots THIS
+         page's key map (spec §10.1) then opens the diag/key-map card */
+      if (S.screen === "diag:") navigate(CONFIG.home_screen || "");
+      else if (typeof openKeymapCard === "function") openKeymapCard();
+      else navigate("diag:");
+    }
     iHeld = false;
   });
 }
@@ -193,7 +264,7 @@ document.getElementById("connectBtn").addEventListener("click", () => {
   };
   $("pairBtn").addEventListener("click", async () => {
     const host = $("hostIn").value.trim();
-    if (!host) { $("authErr").textContent = "Host required (e.g. 192.168.1.87:8123)"; return; }
+    if (!host) { $("authErr").textContent = "Host required (e.g. homeassistant.local:8123)"; return; }
     pairHost = baseOf(host);
     $("authErr").textContent = "";
     let made;
@@ -333,7 +404,7 @@ function previewListen() {
 
 (async () => {
   /* one-time provisioning for kiosk devices — open:
-     .../index.html#host=192.168.1.87:8123&token=LLAT
+     .../index.html#host=homeassistant.local:8123&token=LLAT
      (also accepted as ?host=…&token=… for loaders that drop fragments)
      Credentials are trimmed, stored to localStorage, and stripped from
      the URL, so you never type a token on a remote's keyboard. */

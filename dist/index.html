@@ -222,6 +222,83 @@
   #padstrip .material-symbols-outlined { font-size: 16px; }
   #padstrip.hidden { display: none; }
   @keyframes padpulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  /* FINAL-SECOND DRAIN (spec §6.4): the last second before the borrow
+     lapses, the strip fades out over ~1s so the user can see the pad
+     is about to return to the device — silent expiry is prohibited. */
+  #padstrip.draining {
+    animation: paddrain 1s linear forwards;
+  }
+  @keyframes paddrain { from { opacity: 1; } to { opacity: .1; } }
+
+  /* TV BACK/HOME STRIP (spec §7): pinned to the bottom of the panel on
+     TV pages, where the physical Back/Home now drive the device. Short
+     row, but the two buttons fill it so they're easy thumb/finger
+     targets on the LCD. Harmonium accent — deliberately calmer than the
+     LOUD padstrip (this one is always present, not a transient mode).
+     CH-61 floor: no color-mix, no flex gap — theme tokens + margins. */
+  #tvstrip {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 39;
+    display: flex; align-items: stretch;
+    padding: 4px 4px; box-sizing: border-box;
+    background: var(--bg, #0d0f12);
+    border-top: 1px solid var(--wash, rgba(255, 179, 0, .18));
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, .45);
+  }
+  #tvstrip.hidden { display: none; }
+  #tvstrip .tvname {
+    align-self: center; flex: 0 0 auto; min-width: 0;
+    padding: 0 8px; font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); opacity: .7;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #tvstrip .tvbtn {
+    flex: 1 1 0; min-height: 40px; margin: 0 3px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--accent); border-radius: 9px;
+    background: var(--wash, rgba(255, 179, 0, .12));
+    color: var(--accent);
+    font-size: 13px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  #tvstrip .tvbtn:active { background: var(--accent); color: var(--bg, #0d0f12); }
+  #tvstrip .tvbtn .material-symbols-outlined { font-size: 20px; margin-right: 5px; }
+  /* when the strip is present, keep the pad-borrow strip ABOVE it and
+     give the grid room so the last tiles clear the pinned strip
+     (Chromium-61 floor: no :has(), so #app carries the state class) */
+  #app.tvstrip-on #padstrip { bottom: 50px; }
+  #app.tvstrip-on #grid { padding-bottom: 54px; }
+
+  /* THE CLAIM COUNTDOWN BAR (2026-08-24 — Suresh: "a disappearing line
+     on the selected tile … like the now-playing progress, but reverse:
+     starts full and shrinks"). On TV pages the ring only lives while
+     the Ch±-claim is active; this accent line along the focused tile's
+     bottom edge shows exactly how long is left before the pad returns
+     to the device. It STARTS FULL and shrinks to nothing at expiry;
+     every press renews the claim and refills it. Robust to grid
+     re-renders: drawClaimBar() re-seeks with a negative animation-delay
+     so a mid-claim repaint resumes at the right point (no refill jump). */
+  .tile.focused { position: relative; }
+  #claimbar {
+    position: absolute; left: 0; bottom: 0; width: 100%; height: 3px;
+    border-bottom-left-radius: var(--radius);
+    background: var(--accent); pointer-events: none; z-index: 2;
+    animation-name: claimdrain; animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  /* width, not transform: unambiguously anchored at the left edge, so
+     it starts full and drains from the right — like the now-playing
+     progress bar, in reverse (Suresh's ask). */
+  @keyframes claimdrain { from { width: 100%; } to { width: 0%; } }
+
+  /* EDGE-SWIPE RUBBER-BAND (spec §8.3): a swipe with no target nudges
+     the content in the gesture's direction and springs back, so it
+     never reads as a missed swipe. Transform only — no layout, no
+     scroll disruption; returns to rest (no fill-mode). */
+  #grid.rubber-r { animation: rubberR .28s ease; }
+  #grid.rubber-l { animation: rubberL .28s ease; }
+  @keyframes rubberR { 50% { transform: translateX(18px); } }
+  @keyframes rubberL { 50% { transform: translateX(-18px); } }
 
 /* per-section column override (preset grids etc.) */
   .secgrid { grid-column: 1 / -1; display: grid; gap: var(--grid-gap, 10px); }
@@ -270,6 +347,10 @@
 
   /* now-playing art heroes (media tile, style "art" / "wash") */
   .tile.wgt-media.art .sub, .tile.wgt-media.wash .sub { display: none; }
+  /* hero too (v0.85.1): the chassis sub repeats state + source, which
+     is exactly the "Idle / Home / Idle / Home" duplication he caught —
+     and the extra lines were what pushed the card past its height. */
+  .tile.wgt-media.hero .sub { display: none; }
   /* ART HERO v2 (v0.83.7 follow-up — Suresh, mini-media-player shot:
      "With an album on one side and a library selector on the other,
      there's not much space left. ... See the fade into artwork."):
@@ -308,12 +389,138 @@
      we build this. With a Bar underneath for the Library"): stacked —
      big centered art, track text, progress + times, Library bar.
      Same child slots as the heroes; only the geometry differs. */
-  .tile.wgt-media.poster .top, .tile.wgt-media.poster .sub { display: none; }
+  /* Large keeps its HEADER (v0.85.2 — "All text is gone… it should
+     show idle/now playing etc"). Only the chassis sub goes: that is the
+     line that duplicated state + source. */
+  .tile.wgt-media.poster .sub { display: none; }
   .tile.wgt-media.poster { display: flex; flex-direction: column; }
   /* the chassis trailing becomes the bottom bar — cancel its
      right-edge reservation and geometry outright */
+  /* hero too (v0.85.2 — "that library tile should extend so we have
+     same padding as the left, on the right"): .has-trail reserves ~92px
+     of right padding for the SMALL trailing chip, but hero and poster
+     draw the trailing as a full-width bar, so that reservation just
+     left the bar short on one side. */
   .tile.wgt-media.poster.has-trail,
-  .tile.wgt-media.poster.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  .tile.wgt-media.poster.has-trail-acc,
+  .tile.wgt-media.hero.has-trail,
+  .tile.wgt-media.hero.has-trail-acc { padding-right: var(--tile-pad-x, 14px); }
+  /* DIMMED ART (v0.85): a paused/idle player keeps its cover, at half
+     strength — the card says "this is what's loaded" without pretending
+     to be playing. Art only; the words stay legible. */
+  /* .40 buried the art on a TV that idles at the launcher all day —
+     his "so dark its almost invisible". Dim must read as "paused",
+     not "gone". */
+  .tile.wgt-media.npdim .npimg { opacity: .60; filter: saturate(.75); }
+  .tile.wgt-media.npdim .npph { opacity: .7; }
+
+  /* THE HEIGHT IS LOCKED (v0.85 — Suresh: "I want the size locked in
+     and not jumping around"). These cards used to grow and shrink with
+     their content — art arriving, a title wrapping, a progress bar
+     appearing on play — so the whole page below them twitched on every
+     state change. Each hero style now states its height outright and
+     the content fits inside it. Nothing below a Now Playing card ever
+     moves again. */
+  .tile.wgt-media.art { height: var(--np-art-h, 150px); }
+  .tile.wgt-media.hero { height: var(--np-hero-h, 244px); }
+  .tile.wgt-media.art, .tile.wgt-media.hero { overflow: hidden; }
+  /* THE BAR SITS AT THE BOTTOM (v0.85.1 — his "the tile extends below
+     the fold, instead of stopping after the Library tile"). A locked
+     height and a variable amount of metadata pull against each other:
+     an idle player has no title/artist/album, so the content ended
+     ~100px short and the card looked like it had a hole in it. Rather
+     than un-lock the height (which is what makes the page stop
+     twitching), the content now FILLS the box — the trailing bar is
+     pushed to the bottom edge, so the card reads as deliberate at
+     every state. */
+  .tile.wgt-media.hero { display: flex; flex-direction: column; }
+
+  /* the progress meter holds its ROW even when hidden, so a track that
+     reports no duration doesn't shorten the card */
+  .tile.wgt-media.hero .npprog.hidden { visibility: hidden; display: block !important; }
+
+  /* ART HERO — the middle (v0.85). Large's chrome (the full-width
+     Library bar, the progress meter) with Compact's SIDE-PANEL art, so
+     it lands short enough that the Volume tile still clears the fold on
+     a 480x800 remote — the whole point of the size. */
+  .tile.wgt-media.hero { position: relative; }
+  .tile.wgt-media.hero .npimg {
+    position: absolute; top: 0; right: 0; height: 100%; width: 58%;
+    object-fit: cover; opacity: .95;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+  }
+  .tile.wgt-media.hero .top, .tile.wgt-media.hero .npwrap,
+  .tile.wgt-media.hero .npprog, .tile.wgt-media.hero .nptimes,
+  .tile.wgt-media.hero .trail {
+    position: relative; z-index: 1;
+  }
+  /* the words get the room (v0.85.2 — "we are cutting the text with
+     ... way too early: Head over Fe…"). The art is masked to a soft
+     edge, so the meta column may run under it and still read. */
+  .tile.wgt-media.hero .npmeta { max-width: 86%; }
+  .tile.wgt-media.hero .npmeta > div { text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  .tile.wgt-media.hero .npwrap { padding: 2px 0 6px; }
+  .tile.wgt-media.hero .npprog { width: 100%; margin-top: 4px; }
+
+  /* THE ROWS HOLD THEIR PLACE (v0.85.3). Large is content-sized again
+     — that layout was right and forcing a height on it was my mistake
+     — so "locked" has to come from the CONTENT not collapsing. An idle
+     player has no title/artist/album and no elapsed readout, which is
+     exactly the ~76px the card used to shed. Each line keeps its row
+     whether or not it has words in it, and the times row stays in
+     layout while invisible. Same card, every state, no forced height. */
+  .tile.wgt-media.poster .npt,
+  .tile.wgt-media.poster .npa,
+  .tile.wgt-media.poster .npb,
+  .tile.wgt-media.hero .npt,
+  .tile.wgt-media.hero .npa,
+  .tile.wgt-media.hero .npb {
+    /* line-height stated as well as min-height: without it an EMPTY
+       row falls back to min-height while a FILLED one uses the font's
+       normal line box, and the two differ by a pixel per row. */
+    line-height: 1.3; min-height: 1.3em;
+  }
+  /* the readout's own line box rounds a pixel differently when it is
+     empty; state the height outright rather than chase it. */
+  .tile.wgt-media.poster .nptimes { height: 1.3em; overflow: hidden; }
+  /* .hidden is `display:none !important` (auth.css), so reserving a
+     row has to say !important back — the row must keep its space while
+     showing nothing. */
+  .tile.wgt-media.poster .nptimes.hidden { visibility: hidden; display: flex !important; }
+  .tile.wgt-media.poster .npprog.hidden { visibility: hidden; display: block !important; }
+
+  /* THE PLACEHOLDER (v0.85.4 — his mock: a quiet grey panel with a
+     dim tv / music-note glyph). Takes the art's exact footprint in
+     each mode, so "no artwork" and "black-slab artwork" read as a
+     deliberate card, never a hole — and the card cannot shrink. */
+  .npph {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--tile-hi); color: var(--dim);
+  }
+  .npph .material-symbols-outlined { font-size: 64px; opacity: .55; }
+  .npposter .npph {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    border-radius: 14px;
+  }
+  /* v0.85.5 (his: "the TV looks weird hung into a random space…
+     probably need a lighter background"): the side-panel placeholders
+     are PANELS now — a lighter rounded block where the art would sit,
+     glyph centered in it. Reads as "this is the art slot, empty",
+     never as a floating icon. */
+  .tile.wgt-media.hero .npph {
+    /* clears the bottom-pinned Library bar — a photo may run under
+       the bar, a PANEL overlapping it is clutter */
+    position: absolute; right: 12px; top: 12px; bottom: 66px;
+    width: 42%; height: auto; border-radius: 12px;
+  }
+  .tile.wgt-media.hero .npph .material-symbols-outlined { font-size: 60px; opacity: .5; }
+  /* COMPACT gets NO placeholder (v0.85.6 — his screenshot: the panel
+     collided with the trailing chip and clipped the glyph). A 150px
+     card with a corner chip has no room for an art panel; missing art
+     there just means a text card, which reads fine. */
+  .tile.wgt-media.art .npph { display: none !important; }
+
   .npposter { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0 0; }
   /* ~12px SHORTER than the first cut (v0.83.8 follow-up — Suresh:
      "the Poster panel was too big, pushing the transport down so it
@@ -321,33 +528,67 @@
      art/progress margins 12→8, trail 12→10. The artwork itself is
      untouched, and an artless card simply shrinks — that was always
      fine. */
-  .npposter .npimg {
-    width: min(72%, 300px); height: auto; aspect-ratio: 1 / 1;
-    border-radius: 14px; object-fit: cover; margin: 2px auto 8px;
+  /* THE ART FRAME (v0.85.4). Round 3 of sizing this, and the honest
+     history matters: `aspect-ratio` is unsupported on Chromium 61, and
+     the fixed-height replacement was square ONLY at my test width —
+     the devices render at ~350 CSS px (480 physical / 1.5 DPR), where
+     72% ≈ 225px wide × 300 fixed = a huge PORTRAIT slab, which is
+     exactly the broken card in his screenshot. The padding hack is the
+     floor-safe way to say "square at ANY width": .npsq's padding-top
+     is a % of the FRAME's width, the image absolutely fills the frame.
+     The frame also hosts the placeholder, so a card with no art keeps
+     the identical footprint. */
+  .npposter .npart {
+    /* 66% (v0.85.5 — his devtools: 433px tall, wants ~410): the art is
+       the only honest vertical lever; ~6% narrower ≈ 20px shorter at
+       device width, and the square keeps itself. */
+    position: relative; width: 62%; max-width: 300px;
+    margin: 8px auto 6px;
+  }
+  .npposter .npsq { display: block; padding-top: 100%; }
+  .npposter .npart .npimg {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    border-radius: 14px; object-fit: cover; margin: 0;
   }
   .npposter .npt { font-size: calc(var(--fs-1) + 3px); max-width: 100%; text-align: center; }
   .npposter .npa { max-width: 100%; text-align: center; }
   .npposter .npb { max-width: 100%; text-align: center; }
   .npposter .npprog { width: 100%; margin-top: 8px; }
-  .npposter .nptimes {
+  .npposter .nptimes,
+  .tile.wgt-media.hero .nptimes {
     display: flex; justify-content: space-between; width: 100%;
     font-family: var(--font-2); font-size: calc(var(--fs-2) - 1px);
     font-weight: var(--fw-2); color: var(--dim); margin-top: 5px;
   }
   .tile.wgt-media.poster .trail,
-  .tile.wgt-media.poster .trail.tracc {
+  .tile.wgt-media.poster .trail.tracc,
+  .tile.wgt-media.hero .trail,
+  .tile.wgt-media.hero .trail.tracc {
     position: static; width: 100%; height: 46px; margin-top: 10px;
     border-radius: 12px; display: flex; align-items: center;
     justify-content: center; gap: 9px;
     background: var(--tile-hi); color: var(--text);
   }
-  .tile.wgt-media.poster .trail .trlbl {
+  /* over artwork the bar needs to READ (v0.85.1 — "the library button
+     background needs to be more opaque"): a solid, slightly lifted
+     ground instead of the translucent tile wash. */
+  .tile.wgt-media.hero .trail, .tile.wgt-media.hero .trail.tracc,
+  .tile.wgt-media.poster .trail, .tile.wgt-media.poster .trail.tracc {
+    background: rgba(22, 26, 32, .92);
+    box-shadow: 0 1px 10px rgba(0,0,0,.35);
+  }
+  .tile.wgt-media.poster .trail .trlbl,
+  .tile.wgt-media.hero .trail .trlbl {
     font-weight: var(--fw-1); font-size: var(--fs-2); letter-spacing: .02em;
   }
-  .tile.wgt-media.poster .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
-  .tile.wgt-media.poster .trail:active { background: var(--accent); color: #1a1400; }
-  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined { color: inherit; }
-  .tile.wgt-media.poster .trail.focused {
+  .tile.wgt-media.poster .trail .ic.material-symbols-outlined,
+  .tile.wgt-media.hero .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
+  .tile.wgt-media.poster .trail:active,
+  .tile.wgt-media.hero .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined,
+  .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
+  .tile.wgt-media.poster .trail.focused,
+  .tile.wgt-media.hero .trail.focused {
     box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   }
 
@@ -497,6 +738,26 @@
     font-size: 10.5px; margin-top: 3px; opacity: .85; overflow-wrap: anywhere;
   }
   .tile.wgt-kslot .hint { display: none; }
+
+  /* LAST WORD (v0.85.1): the poster/hero trailing bar block above sets
+     margin-top:10px at the same specificity, so the bottom-pin has to
+     come after it in source order to win. */
+  .tile.wgt-media.hero .trail, .tile.wgt-media.hero .trail.tracc {
+    margin-top: auto;
+  }
+
+  /* TV LARGE (v0.85.6 — his: "On TV make it 340px"). A TV never has
+     artist, album, or an elapsed readout — those reserves exist so a
+     MUSIC card cannot jump between states. On a TV they were 60px of
+     permanent air. .nptv is stamped from device_class/app_name (both
+     constant per player), so collapsing them here is just as
+     jump-proof — and the card lands at his 340. */
+  .tile.wgt-media.poster.nptv .npa,
+  .tile.wgt-media.poster.nptv .npb { min-height: 0; }
+  .tile.wgt-media.poster.nptv .nptimes { height: 0; overflow: hidden; margin: 0; }
+  /* 300px on a TV (v0.85.8, his number — was 340): the art gives the
+     ~40px back. */
+  .tile.wgt-media.poster.nptv .npart { width: 44.3%; margin-bottom: 4px; }
 
 /* screen grid */
   #grid {
@@ -1229,6 +1490,15 @@
        borrowed the physical D-pad for the panel; sits at the BOTTOM
        edge, pointing at the physical pad below the screen -->
   <div id="padstrip" class="hidden"><span class="material-symbols-outlined">gamepad</span><span>panel</span></div>
+  <!-- THE TV BACK/HOME STRIP (2026-08-24, spec §7): on TV pages the
+       physical Back/Home belong to the device, so Harmonium's Back/Home
+       move onto this pinned, app-labelled strip. Accent, never the
+       connection green. Touch targets fill the row; the row stays short. -->
+  <div id="tvstrip" class="hidden">
+    <button id="tvBack" class="tvbtn"><span class="material-symbols-outlined">arrow_back</span><span>Back</span></button>
+    <span id="tvName" class="tvname">Harmonium</span>
+    <button id="tvHome" class="tvbtn"><span class="material-symbols-outlined">home</span><span>Home</span></button>
+  </div>
 </div>
 
 <div id="auth" class="hidden">
@@ -1237,7 +1507,7 @@
     <p>Pair from the Harmonium Studio — no typing on this screen — or
        paste a long-lived token (HA Profile → Security). Stored only in
        this browser.</p>
-    <input id="hostIn" placeholder="Host (e.g. 192.168.1.87:8123)">
+    <input id="hostIn" placeholder="Host (e.g. homeassistant.local:8123)">
     <button id="pairBtn">Pair with Home Assistant</button>
     <input id="tokenIn" placeholder="…or paste a long-lived token" autocomplete="off">
     <button id="connectBtn" class="quiet">Connect with token</button>
@@ -3477,7 +3747,14 @@ function tilesOf(sc) {
 /* structural signature: generated tiles change when their source
    attribute does — renderStates re-renders the grid when this moves */
 function tileSig(sc) {
-  return JSON.stringify(tilesOf(sc).map(t => [t.id, t.label, t.icon_image, t.action]));
+  /* style / np_default / h joined the sig in v0.85.4 — THE reason the
+     Now Playing picker "did nothing": surfDressTile patches `style`
+     onto the tile, but the sig never saw it, so a style change pushed
+     from the Studio re-rendered NOTHING until the next navigation. A
+     tile's mode and height are structural — body() and wire() build
+     different DOM per mode — so they belong in the signature. */
+  return JSON.stringify(tilesOf(sc).map(t =>
+    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -5412,7 +5689,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.84.1";
+const ENGINE_V = "0.85.3";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5476,6 +5753,42 @@ function diagScreen() {
       "the engine's runtime · stock Astrion ships 61 · see hardware-keys"),
   ];
 
+  /* --- BATTERY (v0.84.8 — Suresh: "can we build battery level into
+     our info page"). The number comes from HOME ASSISTANT, not from
+     the webview: Fully's JS interface is deliberately off in our own
+     Fully profile (remotes/fully/README — "the engine talks to HA
+     directly"), and navigator.getBattery() needs a secure context,
+     which a plain http:// LAN install is not. The Fully Kiosk HA
+     integration already publishes both facts, and the battery-alerts
+     blueprint already consumes them — so this reads the SAME source
+     the alert does rather than inventing a second truth.
+       remotes.<id>.battery_sensor   e.g. sensor.<device>_battery
+       remotes.<id>.charging_sensor  e.g. binary_sensor.<device>_plugged_in
+     Naming the entities on the TILE subscribes them through the normal
+     entitiesFor path, and diagScreen re-runs on every renderStates, so
+     the row is live rather than a snapshot. Silent when unconfigured —
+     a remote with no sensor simply has no row. */
+  const prof = (cfg.remotes || {})[S.deviceName] || {};
+  if (prof.battery_sensor) {
+    const braw = st(prof.battery_sensor).s;
+    const pct = braw != null && braw !== "" && !isNaN(+braw)
+      ? Math.round(+braw) : null;
+    const charging = prof.charging_sensor
+      ? st(prof.charging_sensor).s === "on" : false;
+    const icon = charging ? "battery_charging_full"
+      : pct == null ? "battery_unknown"
+      : pct <= 15 ? "battery_alert"
+      : pct <= 50 ? "battery_5_bar" : "battery_full";
+    const row = diagRow("dg_batt", icon,
+      "Battery " + (pct == null ? "—" : pct + "%") +
+        (charging ? " · charging" : ""),
+      pct == null ? prof.battery_sensor + " · no reading yet"
+        : prof.battery_sensor);
+    row.entity = prof.battery_sensor;
+    if (prof.charging_sensor) row.entities = [prof.charging_sensor];
+    panel.push(row);
+  }
+
   /* --- band 2: THE BUILD --- */
   const build = [
     diagRow("dg_ver", "conveyor_belt", "Engine v" + ENGINE_V,
@@ -5520,15 +5833,27 @@ function diagScreen() {
       (navigator.userAgent || "").slice(0, 120)),
   ];
 
+  /* --- band 0: THE KEY-MAP CARD (spec §10.1) — what the physical
+     buttons do on the page you came from, snapshotted at ⓘ-tap time
+     (openKeymapCard in input.js). Present only when entered via ⓘ. --- */
+  const kc = (typeof S !== "undefined" && S.keymapCard) || null;
+  const keys = kc && kc.rows && kc.rows.length
+    ? kc.rows.map((r, i) => diagRow("dg_k" + i, "keyboard_command_key", r.k, r.d))
+    : null;
+
+  const sections = [];
+  if (keys) sections.push({ title: "Keys on " + kc.page,
+    hero_label: "Keys here", tiles: keys });
+  sections.push(
+    { title: "The panel", hero_label: "The panel", tiles: panel },
+    { title: "The build", hero_label: "The build", tiles: build },
+    { title: "Home Assistant", hero_label: "Home Assistant", tiles: link },
+    { title: "Tools", hero_label: "Tools", tiles: tools });
+
   return {
     name: "Diagnostics", class: "group", view_kind: "diag",
     grid: { columns: 1, max_width: 760 },
-    sections: [
-      { title: "The panel", hero_label: "The panel", tiles: panel },
-      { title: "The build", hero_label: "The build", tiles: build },
-      { title: "Home Assistant", hero_label: "Home Assistant", tiles: link },
-      { title: "Tools", hero_label: "Tools", tiles: tools },
-    ],
+    sections: sections,
   };
 }
 
@@ -6354,9 +6679,15 @@ WIDGETS.climate = {
    this new one should be the default!"): "art" = the RIGHT-PANEL hero
    (default for art:true); "wash" = the original full-bleed — dimmed
    artwork under the whole card, 64px thumb beside the text. */
+/* np_default vs style (v0.85.1 — Suresh: "Selecting any other cards
+   (Hero - Large etc) does nothing - we're locked out"). A stock tile
+   must NOT hardcode `style`: surfDressTile only applies the activity's
+   chosen np_style when `!t.style`, so a baked style silently disables
+   the picker. `np_default` states the shipped default WITHOUT taking
+   the slot, so the activity can always override it. */
 const npMode = t => t.style
   ? (t.style === "plain" ? "" : t.style)
-  : (t && t.art ? "art" : "");
+  : (t && (t.np_default || (t.art ? "art" : ""))) || "";
 WIDGETS.media = {
     /* Default = the plain card. "slim" = one line — a play indicator
        + "Title — Artist" — for controllers where music is background;
@@ -6392,15 +6723,32 @@ WIDGETS.media = {
          meter. The Library bar is the chassis TRAILING, restyled
          full-width in CSS — no second navigation grammar. */
       if (m === "poster") return `<div class="npposter">
-      <img class="npimg hidden" alt="">
+      <div class="npart"><i class="npsq"></i><img class="npimg hidden" alt="">
+        <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div></div>
       <div class="npt"></div>
       <div class="npa"></div>
       <div class="npb"></div>
       <div class="meter npprog hidden"><i></i></div>
       <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>
     </div>`;
+      /* ART HERO, the middle (v0.85): Compact's side-by-side wrap so
+         it stays short, plus Large's progress + elapsed/total readout
+         and its full-width Library bar (CSS). Sized to leave the
+         Volume tile above the fold on a 480x800 remote. */
+      if (m === "hero") return `<img class="npimg hidden" alt="">
+    <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div>
+    <div class="npwrap">
+      <div class="npmeta">
+        <div class="npt"></div>
+        <div class="npa"></div>
+        <div class="npb"></div>
+      </div>
+    </div>
+    <div class="meter npprog hidden"><i></i></div>
+    <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>`;
       if (m === "art" || m === "wash") return `<div class="npwrap">
       <img class="npimg hidden" alt="">
+      <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div>
       <div class="npmeta">
         <div class="npt"></div>
         <div class="npa"></div>
@@ -6417,10 +6765,48 @@ WIDGETS.media = {
     wire: (el, t) => {
       const m = npMode(t);
       if (m === "slim") { el.classList.add("slim"); return; }
-      if (m !== "art" && m !== "wash" && m !== "poster") return;
-      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster" : "art");
+      if (m !== "art" && m !== "wash" && m !== "poster" && m !== "hero") return;
+      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster"
+        : m === "hero" ? "hero" : "art");
       const img = el.querySelector(".npimg");
-      img.addEventListener("error", () => img.classList.add("hidden"));
+      img.addEventListener("error", () => {
+        img.dataset.bad = "1"; img.classList.add("hidden");
+        renderStates();
+      });
+      /* BLANK-ART DETECTION (v0.85.4 — his: "Some sources/players give
+         a blank, black image as their artwork, which looks wonky…
+         detect that its an all black image and substitute a
+         placeholder"). On load, sample the picture at 8×8 and average
+         the luminance; near-black means "not really artwork". A
+         cross-origin picture taints the canvas and getImageData
+         throws — those are assumed fine (HA-proxied art is
+         same-origin, which is the common case). Cached per URL so a
+         re-render never resamples. */
+      img.addEventListener("load", () => {
+        const url = img.dataset.src || img.src;
+        if (!url) return;
+        if (!window.NP_ART_DARK) window.NP_ART_DARK = {};
+        const cache = window.NP_ART_DARK;
+        if (url in cache) {
+          img.dataset.bad = cache[url] ? "1" : "";
+          if (cache[url]) renderStates();
+          return;
+        }
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = 8; cv.height = 8;
+          const cx = cv.getContext("2d");
+          cx.drawImage(img, 0, 0, 8, 8);
+          const d = cx.getImageData(0, 0, 8, 8).data;
+          let lum = 0;
+          for (let i = 0; i < d.length; i += 4)
+            lum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          lum /= 64;
+          cache[url] = lum < 12;          /* near-black, allowing noise */
+        } catch (err) { cache[url] = false; }
+        img.dataset.bad = cache[url] ? "1" : "";
+        if (cache[url]) renderStates();
+      });
     },
     render: (el, e, t) => {
       if (npMode(t) === "slim") {
@@ -6430,7 +6816,11 @@ WIDGETS.media = {
           ? (pend.label ? "Queuing “" + pend.label + "”…" : "Queuing…")
           : (s.a.media_title
             ? s.a.media_title + (s.a.media_artist ? " — " + s.a.media_artist : "")
-            : cap(s.s));
+            /* v0.85.4 (his TV list, #1): a TV shows no title, so the
+               row was a bare "Playing" — the APP is the story there:
+               "Playing • YouTube TV". Music with a title is unchanged. */
+            : cap(s.s) + ((s.a.app_name || s.a.source)
+              ? " • " + (s.a.app_name || s.a.source) : ""));
         const box = el.querySelector(".npst");
         const tx = el.querySelector(".npstx");
         el.querySelector(".npsind").classList.toggle("live", s.s === "playing");
@@ -6454,13 +6844,39 @@ WIDGETS.media = {
         return;
       }
       const mm = npMode(t);
-      if (mm !== "art" && mm !== "wash" && mm !== "poster") return;
+      /* BASIC (v0.85.4 — his spec, verbatim): the LABEL slot carries
+         the state ("Now Playing" while playing, "Idle" otherwise); the
+         line below carries the TRACK, then the ARTIST — the same facts
+         Compact shows, minus the album. An empty queue says so, with
+         the source underneath. The chassis wrote its default sub just
+         before this runs, so this pass owns both slots. */
+      if (mm === "") {
+        const s0 = st(e);
+        const lbl0 = el.querySelector(".lbl");
+        if (lbl0) lbl0.textContent =
+          s0.s === "playing" ? (t.label || "Now Playing") : cap(s0.s);
+        const sub0 = el.querySelector(".sub");
+        if (sub0) {
+          const src0 = s0.a.app_name || s0.a.source || "";
+          /* "On a TV, there is no queue" (v0.85.5): queue language is
+             music talk. A tv-class player (or anything reporting an
+             app) just says where it is — "YouTube TV". */
+          const tvish = s0.a.device_class === "tv" || !!s0.a.app_name;
+          sub0.textContent = s0.a.media_title
+            ? s0.a.media_title + "\n" +
+              (s0.a.media_artist || s0.a.media_series_title || "")
+            : tvish ? src0
+            : "No items in the queue" + (src0 ? "\n" + src0 : "");
+        }
+        return;
+      }
+      if (mm !== "art" && mm !== "wash" && mm !== "poster" && mm !== "hero") return;
       const s = st(e);
       el.dataset.eid = e || "";
       /* the poster's Library bar wants a WORD next to the trailing's
          icon — named after where it actually goes (the music
          library, the apps drawer…), read from the target screen */
-      if (mm === "poster") {
+      if (mm === "poster" || mm === "hero") {
         const trb = el.querySelector(".trail");
         if (trb && !trb.querySelector(".trlbl")) {
           const trg = trailingOf(t);
@@ -6494,8 +6910,19 @@ WIDGETS.media = {
       const img = el.querySelector(".npimg");
       const pic = s.a.entity_picture;
       const wash = npMode(t) === "wash";
-      if (pic && ACTIVE(s.s)) {
-        if (wash && el.dataset.bg !== pic) {
+      /* KEEP THE ART, DIM IT (v0.85 — Suresh: "When I pause the player
+         and it is in idle, all the artwork blanks, but I still see the
+         artwork in the player. Best result would be to keep it and dim
+         it"). The old rule blanked art the moment the player left
+         ACTIVE — but Music Assistant parks a paused Sonos in `idle`
+         while still publishing entity_picture, so a pause wiped the
+         cover and RESIZED the card. Art now follows the PICTURE, and
+         the card only dims: what's on screen stops jumping, and a
+         paused player still looks like the thing it is playing. */
+      const dimArt = !ACTIVE(s.s);
+      el.classList.toggle("npdim", !!pic && dimArt);
+      if (pic) {
+        if (wash && el.dataset.bg !== pic && !dimArt) {
           el.dataset.bg = pic;
           el.style.backgroundImage =
             `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
@@ -6503,18 +6930,68 @@ WIDGETS.media = {
           el.style.backgroundPosition = "center";
         }
         if (img.dataset.src !== pic) {
-          img.dataset.src = pic; img.src = pic;
-          img.classList.remove("hidden");
+          img.dataset.src = pic; img.src = pic; img.dataset.bad = "";
         }
       } else {
         if (wash) { el.dataset.bg = ""; el.style.backgroundImage = ""; }
-        img.classList.add("hidden"); img.dataset.src = "";
+        img.dataset.src = "";
       }
-      el.querySelector(".npt").textContent = s.a.media_title || cap(s.s);
+      /* ONE art decision (v0.85.4): the real picture when it exists
+         and is not a black slab; otherwise the PLACEHOLDER — a quiet
+         icon on the art's own footprint, so the card keeps its shape
+         with no artwork at all ("it shouldn't shrink when we're
+         missing artwork or in idle"). Icon matches the thing: a TV for
+         tv-class players, a note for the rest. */
+      /* nptv (v0.85.6): a TV-class card carries a class so CSS can
+         size it as a TV — no artist/album/times rows will EVER fill,
+         so Large collapses their reserves and runs shorter (his 340px
+         ask). device_class + app_name are constant for a player, so
+         this can never flip mid-activity and re-introduce the jump. */
+      el.classList.toggle("nptv",
+        s.a.device_class === "tv" || !!s.a.app_name);
+      const showImg = !!pic && img.dataset.bad !== "1";
+      img.classList.toggle("hidden", !showImg);
+      const ph = el.querySelector(".npph");
+      if (ph) {
+        ph.classList.toggle("hidden", showImg);
+        const ic = ph.querySelector(".material-symbols-outlined");
+        if (ic) ic.textContent = s.a.device_class === "tv" ? "tv" : "music_note";
+      }
+      /* ONE state label, and no source echo (v0.85.1 — his idle
+         screenshots: "One 'idle' label on the header Row, and get rid
+         of the second Idle… we also show the input source which we
+         shouldn't"). The chassis header already says Idle/Playing, so
+         npt carries the TITLE only and goes quiet when there isn't
+         one. `source` is dropped outright: on a Fire TV it reads
+         "Home", on Music Assistant "Music Assistant Queue" — the name
+         of a pipe, never of a thing you are watching. */
+      /* THE APP IS THE TITLE when there is no title (v0.85.4 — his TV
+         list #3/#4: the source was "way too small and dim" and
+         "orphaned in the middle"). A TV publishes no media_title, so
+         the title row was empty and "YouTube TV" sat in the small
+         album line. Promote it: it lands directly under the state
+         label, at title size and full brightness — and then it does
+         NOT repeat below. */
+      const hasTitle = !!s.a.media_title;
+      const appSrc = s.a.app_name || s.a.source || "";
+      /* v0.85.7 (his: "ALL artwork styles should say No items in the
+         queue when that is true"): a MUSIC player with an empty queue
+         says so in the title row, source below — the same words Basic
+         uses. A TV still promotes its app (a TV has no queue). */
+      const tvish = s.a.device_class === "tv" || !!s.a.app_name;
+      el.querySelector(".npt").textContent =
+        s.a.media_title || (tvish ? appSrc : "No items in the queue");
       el.querySelector(".npa").textContent =
         s.a.media_artist || s.a.media_series_title || "";
+      /* THE APP IS THE HEADLINE on a TV (v0.85.3 — Suresh: "The most
+         important bit of information the app/source is missing
+         completely (i.e. You Tube TV)"). Dropping `source` in v0.85.2
+         was an overcorrection: it was only ever DUPLICATE because the
+         chassis sub echoed it, and that sub is hidden now. A Fire TV
+         has no album — "YouTube TV" is the whole story. */
       el.querySelector(".npb").textContent =
-        s.a.media_album_name || s.a.app_name || s.a.source || "";
+        s.a.media_album_name ||
+        (hasTitle ? appSrc : (tvish ? "" : s.a.source || ""));
       npProgress(el, s);
     }
   };
@@ -7882,12 +8359,28 @@ const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
 const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
 const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
-/* command resolution: default < tile "commands" < activity context "dpad_commands" */
+/* command resolution (v0.84.7 — the DIALECT rung):
+     DPAD_DEFAULT < dialect.dpad_commands < tile "commands"
+                  < activity context "dpad_commands"
+   The defaults below are ANDROID/Fire TV names, which is what most of
+   the world speaks — but an Apple TV (pyatv) only accepts its own
+   lowercase vocabulary and answers "command not recognized" to every
+   one of these (forum report, 2026-08-24). The per-device escape hatch
+   (a device's traits.dpad_commands) always existed but was invisible
+   in the Studio; the DIALECT is where a platform's command vocabulary
+   belongs — same place its apps, channels and wake already live — so
+   one appletv dialect fixes every Apple TV in the house at once. */
 const DPAD_DEFAULT = {
   up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", select: "ENTER",
   back: "BACK", home: "HOME", menu: "MENU", info: "INFO",
   ch_up: "CHANNEL_UP", ch_down: "CHANNEL_DOWN"
 };
+/* the active surface's dialect command map ({} when it declares none) */
+function dialectCommands() {
+  var d = ctxFor(S.screen).dialect;
+  var dial = d && CONFIG.dialects && CONFIG.dialects[d];
+  return (dial && dial.dpad_commands) || {};
+}
 const BTN_ICON = {
   up: "keyboard_arrow_up", down: "keyboard_arrow_down",
   left: "keyboard_arrow_left", right: "keyboard_arrow_right",
@@ -7895,7 +8388,8 @@ const BTN_ICON = {
   ch_up: "add", ch_down: "remove", power: "power_settings_new"
 };
 function cmdFor(t, key) {
-  const m = Object.assign({}, DPAD_DEFAULT, t.commands || {}, ctxFor(S.screen).dpad_commands || {});
+  const m = Object.assign({}, DPAD_DEFAULT, dialectCommands(),
+    t.commands || {}, ctxFor(S.screen).dpad_commands || {});
   return m[key];
 }
 
@@ -8002,6 +8496,24 @@ function makeTile(t, row, spanCols) {
   /* .span2 carries the common case in CSS so compact output is
      unchanged; any other width is stated inline */
   if (!row && sp > 2) el.style.gridColumn = "span " + sp;
+  /* PER-TILE HEIGHT (v0.84.7 — forum request: "on the Watch TV
+     controller pages I'd like to have a nearly full screen
+     visualization with artwork for what's currently playing but I
+     don't see a way to adjust just that card's height"). `span` said
+     how WIDE a tile is; nothing said how TALL — height was a
+     per-SCREEN knob (grid.tile_h / row_h), so one big Now Playing card
+     beside normal ones was literally unsayable. `h` states it for THIS
+     tile: a number = px, or a css length ("40vh", "12rem"). The
+     per-screen knobs still carry every tile that stays silent. */
+  var th = t.h;
+  if (th != null && th !== "") {
+    var hv = typeof th === "number" || /^\d+$/.test(String(th))
+      ? parseInt(th, 10) + "px" : String(th);
+    if (/^[\d.]+(px|vh|vw|rem|em|%)$/.test(hv)) {
+      el.style.height = hv;
+      el.style.setProperty("--tile-h", hv);   /* row-mode + inner sizing */
+    }
+  }
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */
@@ -8566,7 +9078,17 @@ function navigate(screenId, isBack) {
      deeper in the page still scrolls to itself via setFocus */
   grid.scrollTop = 0;
   const all = tilesOf(sc);
-  setFocus(sc.initial_focus || (all[0] && all[0].id));
+  /* NO DEFAULT FOCUS ON TV PAGES (2026-08-24 — Suresh: "On TV we
+     should default to no tile selected. Because there is no OK until
+     we engage the channel buttons"). On a passthrough page the dpad
+     drives the television, so OK does nothing to a panel tile — a
+     focus ring there would be a lie. The ring appears only when Ch±
+     lends the pad to the panel (padArm reveals it) and clears when the
+     borrow lapses (padStrip). Ring visible ⇔ claim active, on TV pages.
+     Guarded: padOwner/padLatched live in input.js, later in the build. */
+  const tvNoFocus = typeof padOwner === "function" && padOwner() === "device"
+    && !(typeof padLatched === "function" && padLatched());
+  setFocus(tvNoFocus ? null : (sc.initial_focus || (all[0] && all[0].id)));
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
   renderStates();
   scheduleFit();
@@ -8579,6 +9101,15 @@ function navigate(screenId, isBack) {
   const pt = passthroughActive();
   document.getElementById("bar").classList.toggle("pt", pt);
   document.getElementById("ptIc").classList.toggle("hidden", !pt);
+  /* §7 TV Back/Home strip: rides the same passthrough gate — on a TV
+     page the physical Back/Home drive the device, so Harmonium's pair
+     lives on this pinned strip. Absent on non-TV pages (the physical
+     buttons and the touch bar chrome already do that job). */
+  const tvstrip = document.getElementById("tvstrip");
+  if (tvstrip) {
+    tvstrip.classList.toggle("hidden", !pt);
+    document.getElementById("app").classList.toggle("tvstrip-on", pt);
+  }
   if (S.connected) subscribeFor(screenId);
 }
 
@@ -8760,6 +9291,10 @@ function setFocus(id) {
      propagates to ancestor scrollers — across the preview iframe it
      slid the whole Studio pane (render.js has the full story) */
   if (el && el.closest("#grid")) gridScrollTo(el, "nearest");
+  /* the claim countdown bar follows the ring (and re-seeks after a
+     grid re-render); no-op off a TV-page claim. Guarded: drawClaimBar
+     lives in input.js, later in the build. */
+  if (typeof drawClaimBar === "function") drawClaimBar();
 }
 
 function spatialMove(dir) {
@@ -9020,8 +9555,30 @@ function padArm() {
      the Input policy slice) beats the 8s default */
   const ms = (CONFIG && CONFIG.input && +CONFIG.input.pad_latch_seconds > 0)
     ? +CONFIG.input.pad_latch_seconds * 1000 : (TIMING.padLatch || 8000);
+  S.padWindow = ms;                 // the full window, for the countdown bar
   S.padLatch = Date.now() + ms;
   padStrip();
+  drawClaimBar();
+}
+/* THE CLAIM COUNTDOWN BAR (2026-08-24): an accent line on the focused
+   tile's bottom edge that starts full and shrinks to zero as the borrow
+   runs down — the per-element twin of the pad strip's drain. Re-seeks on
+   every call (negative animation-delay), so a grid re-render mid-claim
+   resumes at the right point instead of refilling. Cleared when the
+   claim ends or focus clears. TV pages only (padOwner === device). */
+function drawClaimBar() {
+  const old = document.getElementById("claimbar");
+  if (old) old.remove();
+  if (!padLatched() || padOwner() !== "device" || !S.focusId) return;
+  const el = (typeof focusEl === "function") && focusEl(S.focusId);
+  if (!el || !el.closest || !el.closest("#grid")) return;
+  const win = S.padWindow || 0, rem = S.padLatch - Date.now();
+  if (win <= 0 || rem <= 0) return;
+  const bar = document.createElement("div");
+  bar.id = "claimbar";
+  bar.style.animationDuration = win + "ms";
+  bar.style.animationDelay = (rem - win) + "ms";   // negative: seek to now
+  el.appendChild(bar);
 }
 function padClear() {
   if (!S.padLatch) return;
@@ -9029,13 +9586,24 @@ function padClear() {
   padStrip();
 }
 function padStrip() {
+  /* RING ⇔ CLAIM on TV pages (2026-08-24): when the borrow lapses,
+     drop the panel focus so the ring never outlives the claim — the
+     exit bookend of no-default-focus-on-TV-entry (render.js). */
+  if (!padLatched() && padOwner() === "device" && S.focusId) setFocus(null);
   const el = document.getElementById("padstrip");
   if (!el) return;
   const on = padLatched();
   el.classList.toggle("hidden", !on);
+  /* the final second is a VISIBLE DRAIN (spec §6.4): the strip warns
+     that the next press hands the pad back to the device */
+  el.classList.toggle("draining", on && (S.padLatch - Date.now()) <= 1000);
   clearTimeout(padStrip._t);
-  if (on) padStrip._t =
-    setTimeout(padStrip, Math.max(60, S.padLatch - Date.now() + 30));
+  if (on) {
+    const left = S.padLatch - Date.now();
+    /* wake at drain-start (1s before expiry), then at expiry */
+    const next = left > 1000 ? left - 1000 : left;
+    padStrip._t = setTimeout(padStrip, Math.max(60, next + 30));
+  }
 }
 /* hands on the glass = the panel is being TOUCHED; the pad returns
    to the activity immediately */
@@ -9126,6 +9694,66 @@ function blurRove(prevId) {
   if (!prevId || prevId === S.focusId) return;
   const t = tileDef(prevId);
   if (t && typeof navOf === "function" && navOf(t) === "options") renderStates();
+}
+
+/* THE KEY-MAP CARD (spec §10.1, 2026-08-24): "what do my buttons do
+   HERE?" — computed for the CURRENT page (so it must be snapshotted at
+   ⓘ-tap time, before opening diag, which navigates away). Contextual by
+   design; this is the pressure valve that lets routing be page-aware
+   without being mysterious. Returns [{k, d}] rows the diag page renders. */
+function keymapFriendly(eid) {
+  const s = eid && st(eid);
+  return (s && s.a && s.a.friendly_name) || eid || "";
+}
+function keymapActionDesc(a) {
+  if (!a) return "—";
+  if (a.navigate) {
+    const s = screenOf(a.navigate) || rawScreen(a.navigate);
+    return "Open " + ((s && s.name) || String(a.navigate).replace(/^.*:/, ""));
+  }
+  if (a.sequence) return "Run " + a.sequence;
+  if (a.service) {
+    const verb = a.service.split(".")[1] || a.service;
+    const cmd = a.data && a.data.command;
+    return deslug(verb) + (cmd ? " · " + cmd : "");
+  }
+  if (a.seek !== undefined) return (a.seek >= 0 ? "+" : "") + a.seek + "s";
+  return "action";
+}
+function keymapCardRows() {
+  const sc = screenOf(S.screen) || {};
+  const pt = passthroughActive();
+  const tuner = !!(sc.tuner || (sc.control_target && sc.control_target.tuner));
+  const bb = boundButtons();
+  const rows = [];
+  rows.push({ k: "▲ ▼ ◀ ▶ · OK",
+    d: pt ? "Drive the device" : "Move focus · OK activates" });
+  rows.push({ k: "CH + −",
+    d: tuner ? "Channel up / down (device)"
+      : pt ? "Reveal / walk the panel (borrows the pad)"
+      : "Walk the panel" });
+  rows.push({ k: "Back",
+    d: pt ? "Device back · hold = Harmonium" : "Harmonium back" });
+  rows.push({ k: "Home",
+    d: pt ? "Device home · hold = Harmonium" : "Harmonium home" });
+  const bm = bb.menu;
+  rows.push({ k: "Menu",
+    d: bm ? keymapActionDesc(bm) : (deviceKeyTarget() ? "Device menu" : "—") });
+  const vt = resolveEntity("$context.volume");
+  rows.push({ k: "Vol + − · Mute",
+    d: vt ? "→ " + keymapFriendly(vt) : "nothing wired" });
+  const mp = mediaCtx();
+  if (mp) rows.push({ k: "⏮ ⏯ ⏭", d: "→ " + keymapFriendly(mp) });
+  ["source", "settings", "screencast"].forEach(function (b) {
+    if (bb[b]) rows.push({ k: cap(b), d: keymapActionDesc(bb[b]) });
+  });
+  return rows;
+}
+/* snapshot the current page's key map, then hand off to the diag page */
+function openKeymapCard() {
+  const sc = screenOf(S.screen);
+  S.keymapCard = { page: (sc && barTitle(sc)) || "this page", rows: keymapCardRows() };
+  navigate("diag:");
 }
 
 function act(button, phys) {
@@ -9321,10 +9949,32 @@ function act(button, phys) {
     }
     case "vol_up": case "vol_down": case "ch_up": case "ch_down":
     case "mute": case "menu_hold": {
+      /* TUNER EXCEPTION (spec §5.6): the one case where Ch± LEAVES
+         Harmonium. A page whose subject is a tuner (`tuner: true` on
+         the screen or its control_target) sends channel up/down to the
+         device and does NOT walk the panel or arm the claim. */
+      if (button === "ch_up" || button === "ch_down") {
+        const sct = screenOf(S.screen) || {};
+        if (sct.tuner || (sct.control_target && sct.control_target.tuner)) {
+          const tt = deviceKeyTarget();
+          if (tt) { rc(tt, cmdFor({}, button)); break; }
+        }
+      }
       /* ANY CH press is panel intent — it borrows the pad (his #3:
          "Both Hold and short press") whether a binding wins or the
          focus-walk default runs */
       if (button === "ch_up" || button === "ch_down") padArm();
+      /* TV page, first Ch± after IDLE: REVEAL the ring at the top
+         element WITHOUT walking (2026-08-24 — "you need the first
+         ChUp/ChDn to see where we are on the panel"). padArm just
+         armed the claim; with no ring yet this press is orientation,
+         the next one walks. TV pages only (padOwner === device). */
+      if ((button === "ch_up" || button === "ch_down") &&
+          padOwner() === "device" && !S.focusId) {
+        const sc0 = screenOf(S.screen), a0 = sc0 && tilesOf(sc0);
+        const first0 = sc0 && (sc0.initial_focus || (a0 && a0[0] && a0[0].id));
+        if (first0) { setFocus(first0); break; }
+      }
       /* Exception to "VOL is always audio": on a device DETAIL
          screen, VOL nudges that device's primary range (brightness,
          setpoint, volume, position). Everywhere else: activity audio. */
@@ -9698,6 +10348,71 @@ function showAuth(err) {
 document.getElementById("backBtn").addEventListener("click", () => act("back"));
 /* browser chrome (v0.48.1): app-level Home + End-activity in the bar */
 document.getElementById("homeBtn").addEventListener("click", () => act("home"));
+/* the §7 TV Back/Home strip (2026-08-24): Harmonium's own back/home on
+   TV pages, where the physical pair now drives the device. Touch only —
+   act(..., false) takes the Harmonium (UI) path, never the device. */
+document.getElementById("tvBack").addEventListener("click", () => act("back", false));
+document.getElementById("tvHome").addEventListener("click", () => act("home", false));
+
+/* EDGE-SWIPE DEPTH NAVIGATION (spec §8, 2026-08-24): left edge → right
+   = up to the parent; right edge → left = down into the page's detail.
+   Vertical is always scroll. Touch/pen only, and EDGE-ANCHORED so a
+   swipe never fights a slider drag or the vertical scroll. Swipes are
+   always Harmonium's — never routed to the device (touch drives the UI,
+   even on TV passthrough pages). No target → a rubber-band, so a swipe
+   into nothing springs back instead of reading as a missed gesture. */
+(function () {
+  var sx = 0, sy = 0, edge = 0, tracking = false;
+  var EDGE = 28, DIST = 55, RATIO = 1.4;
+  function detailTarget(sc) {
+    if (!sc) return null;
+    if (sc.detail) return sc.detail;                 // explicit key wins
+    /* else derive from the first tile's trailing navigate — stock TV
+       (→ apps) and music (→ library) get swipe-left for free */
+    var secs = sc.sections || (sc.tiles ? [{ tiles: sc.tiles }] : []);
+    for (var i = 0; i < secs.length; i++) {
+      var ts = secs[i].tiles || [];
+      for (var j = 0; j < ts.length; j++) {
+        var tr = ts[j] && ts[j].trailing;
+        if (tr && tr.action && tr.action.navigate) return tr.action.navigate;
+      }
+    }
+    return null;
+  }
+  function rubber(sign) {
+    var g = document.getElementById("grid");
+    if (!g) return;
+    g.classList.remove("rubber-l", "rubber-r");
+    void g.offsetWidth;                               // restart the animation
+    g.classList.add(sign > 0 ? "rubber-r" : "rubber-l");
+  }
+  document.addEventListener("pointerdown", function (e) {
+    tracking = false;
+    if (e.pointerType === "mouse") return;            // gestures are touch/pen
+    var w = window.innerWidth;
+    edge = (e.clientX <= EDGE) ? 1 : (e.clientX >= w - EDGE) ? -1 : 0;
+    if (!edge) return;
+    sx = e.clientX; sy = e.clientY; tracking = true;
+  }, true);
+  document.addEventListener("pointerup", function (e) {
+    if (!tracking) return;
+    tracking = false;
+    if (!CONFIG || !S.screen) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) < DIST || Math.abs(dx) < Math.abs(dy) * RATIO) return; // vertical = scroll
+    var sc = screenOf(S.screen) || {};
+    if (edge === 1 && dx > 0) {                        // left edge → right: parent
+      var par = (sc.parent && screenOf(sc.parent)) ? sc.parent
+        : (S.screen !== CONFIG.home_screen ? CONFIG.home_screen
+          : (CONFIG.global && CONFIG.global.main_home));
+      if (par && screenOf(par) && par !== S.screen) { S.stack = []; navigate(par, true); }
+      else rubber(1);
+    } else if (edge === -1 && dx < 0) {                // right edge → left: detail
+      var d = detailTarget(sc);
+      if (d && screenOf(d)) navigate(d); else rubber(-1);
+    }
+  }, true);
+})();
 document.getElementById("endBtn").addEventListener("click", () => {
   endCurrentActivity();
   renderStates();
@@ -9719,7 +10434,13 @@ document.getElementById("endBtn").addEventListener("click", () => {
   info.addEventListener("pointercancel", iEnd);
   info.addEventListener("pointerleave", iEnd);
   info.addEventListener("click", () => {
-    if (!iHeld) navigate(S.screen === "diag:" ? (CONFIG.home_screen || "") : "diag:");
+    if (!iHeld) {
+      /* tap on diag toggles back home; tap elsewhere snapshots THIS
+         page's key map (spec §10.1) then opens the diag/key-map card */
+      if (S.screen === "diag:") navigate(CONFIG.home_screen || "");
+      else if (typeof openKeymapCard === "function") openKeymapCard();
+      else navigate("diag:");
+    }
     iHeld = false;
   });
 }
@@ -9766,7 +10487,7 @@ document.getElementById("connectBtn").addEventListener("click", () => {
   };
   $("pairBtn").addEventListener("click", async () => {
     const host = $("hostIn").value.trim();
-    if (!host) { $("authErr").textContent = "Host required (e.g. 192.168.1.87:8123)"; return; }
+    if (!host) { $("authErr").textContent = "Host required (e.g. homeassistant.local:8123)"; return; }
     pairHost = baseOf(host);
     $("authErr").textContent = "";
     let made;
@@ -9906,7 +10627,7 @@ function previewListen() {
 
 (async () => {
   /* one-time provisioning for kiosk devices — open:
-     .../index.html#host=192.168.1.87:8123&token=LLAT
+     .../index.html#host=homeassistant.local:8123&token=LLAT
      (also accepted as ?host=…&token=… for loaders that drop fragments)
      Credentials are trimmed, stored to localStorage, and stripped from
      the URL, so you never type a token on a remote's keyboard. */

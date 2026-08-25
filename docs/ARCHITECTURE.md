@@ -139,6 +139,54 @@ orphans; "Reset to stock" re-copies preserving identity. Per-device
 copies of domain stocks (`variant_of: cover, entity: …`) override that
 one device's generated detail page.
 
+**STOCK IS LOCKED** (v0.84.5 — Suresh: "stock things like controllers,
+skins and so on should be locked; if users want to edit it should be
+on local copies"). Stock is *heal-volatile*: `healStockGen` /
+`healStockSkins` refresh a behind-`gen` stock item on update, so an
+in-place edit of stock would be silently reverted — the worst failure
+mode there is. The lock makes that impossible by construction rather
+than by inference: a stock surface renders read-only (`inert`) in
+`ViewEditor.svelte`, and the only way forward is a fork that is
+provably the user's — **⧉ Duplicate to edit** (stamps `variant_of`)
+for a named stock, the per-device entity picker for a domain stock. A
+domain stock's *Per-device options* (`entity_options`) are NOT
+heal-volatile and stay live outside the lock. The same doctrine covers
+skins in `SkinPreview.svelte`: a skin still pointing at our stock
+image is read-only in the map, and forks via the **"use my photo…"**
+upload (repointing `skin.image` makes it theirs, and the map unlocks
+with the stock hotspots kept as a starting point).
+
+**OWNERSHIP IS POSITIONAL** (v0.84.6 — the file-layer half). Skins used
+to land flat in `www/harmonium/skins/`, so only a content fingerprint
+told a stock skin from a user's photo — a guess. The tree is split now:
+
+- `skins/stock/` — integration-owned. Only the deploy writes here; the
+  upload endpoint **refuses** it outright (403, not a 409 with an
+  "overwrite anyway", because the next deploy would restore the file).
+- `skins/user/` — where every upload lands. Naming your photo
+  `rs90.png` is harmless: the path, not the name, decides.
+
+`isStockSkinImage()` in `stocklib.js` is the ONE ownership test —
+`/skins/stock/` is ours, `/skins/user/` is theirs, and a bare flat name
+is claimed only as the pre-split migration path. The healer, the
+Studio's skin lock and the cache-bust all call it, so they cannot
+disagree. `manifest.json` is keyed by path relative to `skins/`
+(`stock/rs90.png`, `user/rs90.png`) for the same reason.
+
+**The migration** rides heal, and keeps a compat window: the deploy
+writes `skins/stock/` *and* keeps refreshing the legacy flat copies for
+one release, because configs written before the split still point at
+the flat path and only heal (Studio load/save) repoints them —
+dropping the flat copies immediately would blank those skins in the
+gap. A user's own flat photo is grandfathered where it is, never swept:
+rewriting its reference is exactly the silent breakage the split
+exists to end. Covered by `tests/test-asset-deploy.py` (fresh install,
+stock update, user-photo-named-like-stock, pre-split migration) and
+`tests/probe-skin-path-split.mjs` (the config-side heal + repoint).
+
+Still on paper: the fork-outdated **"shout"** and an auto-migrator for
+forks — see the project's `design-stock-ownership.md`.
+
 ## The integration (`custom_components/harmonium/`)
 
 Split by concern (v0.83.11): `__init__.py` is setup/unload wiring

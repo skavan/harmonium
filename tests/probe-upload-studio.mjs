@@ -23,11 +23,16 @@ await ctx.route('**/api/harmonium/workspaces', r =>
   r.fulfill({ json: { order: ['main'], workspaces: { main: { name: 'Main', file: 'x', path: '/x/' } } } }));
 await ctx.route('**/api/harmonium/pair_admin*', r => r.fulfill({ json: { pending: [] } }));
 await ctx.route('**/api/harmonium/engine_version', r => r.fulfill({ json: { version: 'x' } }));
+let refuseStock = false;   // stage 3 flips this (v0.84.6 rung 2)
 await ctx.route('**/api/harmonium/upload', async r => {
   const req = r.request();
   const body = req.postData() || '';
   const overwrite = body.includes('name="overwrite"');
   uploads.push({ overwrite, hasFile: body.includes('filename=') });
+  if (refuseStock)
+    return r.fulfill({ status: 403, json: { ok: false,
+      message: 'stock skins are locked — upload your own photo instead; '
+        + 'it lands in skins/user/' } });
   if (!overwrite)
     return r.fulfill({ status: 409, json: { ok: false, exists: true,
       path: '/local/images/sunset_photo.png' } });
@@ -103,6 +108,32 @@ r.npSelect = await p.evaluate(() => {
   const vals = [...sel.options].map(o => o.value);
   return { found: true, poster: vals.includes('poster'), wash: vals.includes('wash') };
 });
+
+/* 3. THE PICKER REFUSES STOCK (v0.84.6 rung 2): a 403 is a REFUSAL,
+   not a collision — the Studio must NOT offer "replace it?", must not
+   retry with overwrite, and must say why. */
+refuseStock = true;
+const callsBefore = uploads.length;
+await p.evaluate(() => { window._confirmed = false; });
+await p.evaluate(() => {
+  const btn = [...document.querySelectorAll('button')]
+    .find(x => (x.title || '').startsWith('Upload a picture'));
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const dt = new DataTransfer();
+  dt.items.add(new File([png], 'rs90.png', { type: 'image/png' }));
+  btn.dispatchEvent(new DragEvent('drop',
+    { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+await p.waitForTimeout(1000);
+r.refusal = {
+  oneCallOnly: uploads.length === callsBefore + 1,   // no overwrite retry
+  noConfirmAsked: await p.evaluate(() => !window._confirmed),
+  saysWhy: await p.evaluate(() =>
+    document.body.textContent.includes('stock skins are locked')),
+};
+if (!r.refusal.oneCallOnly) errs.push('refusal: Studio retried with overwrite');
+if (!r.refusal.noConfirmAsked) errs.push('refusal: Studio offered to replace stock');
+if (!r.refusal.saysWhy) errs.push('refusal: no explanation surfaced');
 
 console.log(JSON.stringify({ ...r,
   uploadCalls: uploads.length, firstPlain: uploads[0] && !uploads[0].overwrite,

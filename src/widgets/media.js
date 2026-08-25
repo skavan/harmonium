@@ -15,9 +15,15 @@
    this new one should be the default!"): "art" = the RIGHT-PANEL hero
    (default for art:true); "wash" = the original full-bleed — dimmed
    artwork under the whole card, 64px thumb beside the text. */
+/* np_default vs style (v0.85.1 — Suresh: "Selecting any other cards
+   (Hero - Large etc) does nothing - we're locked out"). A stock tile
+   must NOT hardcode `style`: surfDressTile only applies the activity's
+   chosen np_style when `!t.style`, so a baked style silently disables
+   the picker. `np_default` states the shipped default WITHOUT taking
+   the slot, so the activity can always override it. */
 const npMode = t => t.style
   ? (t.style === "plain" ? "" : t.style)
-  : (t && t.art ? "art" : "");
+  : (t && (t.np_default || (t.art ? "art" : ""))) || "";
 WIDGETS.media = {
     /* Default = the plain card. "slim" = one line — a play indicator
        + "Title — Artist" — for controllers where music is background;
@@ -53,15 +59,32 @@ WIDGETS.media = {
          meter. The Library bar is the chassis TRAILING, restyled
          full-width in CSS — no second navigation grammar. */
       if (m === "poster") return `<div class="npposter">
-      <img class="npimg hidden" alt="">
+      <div class="npart"><i class="npsq"></i><img class="npimg hidden" alt="">
+        <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div></div>
       <div class="npt"></div>
       <div class="npa"></div>
       <div class="npb"></div>
       <div class="meter npprog hidden"><i></i></div>
       <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>
     </div>`;
+      /* ART HERO, the middle (v0.85): Compact's side-by-side wrap so
+         it stays short, plus Large's progress + elapsed/total readout
+         and its full-width Library bar (CSS). Sized to leave the
+         Volume tile above the fold on a 480x800 remote. */
+      if (m === "hero") return `<img class="npimg hidden" alt="">
+    <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div>
+    <div class="npwrap">
+      <div class="npmeta">
+        <div class="npt"></div>
+        <div class="npa"></div>
+        <div class="npb"></div>
+      </div>
+    </div>
+    <div class="meter npprog hidden"><i></i></div>
+    <div class="nptimes hidden"><span class="npel"></span><span class="npdu"></span></div>`;
       if (m === "art" || m === "wash") return `<div class="npwrap">
       <img class="npimg hidden" alt="">
+      <div class="npph hidden"><span class="material-symbols-outlined">music_note</span></div>
       <div class="npmeta">
         <div class="npt"></div>
         <div class="npa"></div>
@@ -78,10 +101,48 @@ WIDGETS.media = {
     wire: (el, t) => {
       const m = npMode(t);
       if (m === "slim") { el.classList.add("slim"); return; }
-      if (m !== "art" && m !== "wash" && m !== "poster") return;
-      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster" : "art");
+      if (m !== "art" && m !== "wash" && m !== "poster" && m !== "hero") return;
+      el.classList.add(m === "wash" ? "wash" : m === "poster" ? "poster"
+        : m === "hero" ? "hero" : "art");
       const img = el.querySelector(".npimg");
-      img.addEventListener("error", () => img.classList.add("hidden"));
+      img.addEventListener("error", () => {
+        img.dataset.bad = "1"; img.classList.add("hidden");
+        renderStates();
+      });
+      /* BLANK-ART DETECTION (v0.85.4 — his: "Some sources/players give
+         a blank, black image as their artwork, which looks wonky…
+         detect that its an all black image and substitute a
+         placeholder"). On load, sample the picture at 8×8 and average
+         the luminance; near-black means "not really artwork". A
+         cross-origin picture taints the canvas and getImageData
+         throws — those are assumed fine (HA-proxied art is
+         same-origin, which is the common case). Cached per URL so a
+         re-render never resamples. */
+      img.addEventListener("load", () => {
+        const url = img.dataset.src || img.src;
+        if (!url) return;
+        if (!window.NP_ART_DARK) window.NP_ART_DARK = {};
+        const cache = window.NP_ART_DARK;
+        if (url in cache) {
+          img.dataset.bad = cache[url] ? "1" : "";
+          if (cache[url]) renderStates();
+          return;
+        }
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = 8; cv.height = 8;
+          const cx = cv.getContext("2d");
+          cx.drawImage(img, 0, 0, 8, 8);
+          const d = cx.getImageData(0, 0, 8, 8).data;
+          let lum = 0;
+          for (let i = 0; i < d.length; i += 4)
+            lum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          lum /= 64;
+          cache[url] = lum < 12;          /* near-black, allowing noise */
+        } catch (err) { cache[url] = false; }
+        img.dataset.bad = cache[url] ? "1" : "";
+        if (cache[url]) renderStates();
+      });
     },
     render: (el, e, t) => {
       if (npMode(t) === "slim") {
@@ -91,7 +152,11 @@ WIDGETS.media = {
           ? (pend.label ? "Queuing “" + pend.label + "”…" : "Queuing…")
           : (s.a.media_title
             ? s.a.media_title + (s.a.media_artist ? " — " + s.a.media_artist : "")
-            : cap(s.s));
+            /* v0.85.4 (his TV list, #1): a TV shows no title, so the
+               row was a bare "Playing" — the APP is the story there:
+               "Playing • YouTube TV". Music with a title is unchanged. */
+            : cap(s.s) + ((s.a.app_name || s.a.source)
+              ? " • " + (s.a.app_name || s.a.source) : ""));
         const box = el.querySelector(".npst");
         const tx = el.querySelector(".npstx");
         el.querySelector(".npsind").classList.toggle("live", s.s === "playing");
@@ -115,13 +180,39 @@ WIDGETS.media = {
         return;
       }
       const mm = npMode(t);
-      if (mm !== "art" && mm !== "wash" && mm !== "poster") return;
+      /* BASIC (v0.85.4 — his spec, verbatim): the LABEL slot carries
+         the state ("Now Playing" while playing, "Idle" otherwise); the
+         line below carries the TRACK, then the ARTIST — the same facts
+         Compact shows, minus the album. An empty queue says so, with
+         the source underneath. The chassis wrote its default sub just
+         before this runs, so this pass owns both slots. */
+      if (mm === "") {
+        const s0 = st(e);
+        const lbl0 = el.querySelector(".lbl");
+        if (lbl0) lbl0.textContent =
+          s0.s === "playing" ? (t.label || "Now Playing") : cap(s0.s);
+        const sub0 = el.querySelector(".sub");
+        if (sub0) {
+          const src0 = s0.a.app_name || s0.a.source || "";
+          /* "On a TV, there is no queue" (v0.85.5): queue language is
+             music talk. A tv-class player (or anything reporting an
+             app) just says where it is — "YouTube TV". */
+          const tvish = s0.a.device_class === "tv" || !!s0.a.app_name;
+          sub0.textContent = s0.a.media_title
+            ? s0.a.media_title + "\n" +
+              (s0.a.media_artist || s0.a.media_series_title || "")
+            : tvish ? src0
+            : "No items in the queue" + (src0 ? "\n" + src0 : "");
+        }
+        return;
+      }
+      if (mm !== "art" && mm !== "wash" && mm !== "poster" && mm !== "hero") return;
       const s = st(e);
       el.dataset.eid = e || "";
       /* the poster's Library bar wants a WORD next to the trailing's
          icon — named after where it actually goes (the music
          library, the apps drawer…), read from the target screen */
-      if (mm === "poster") {
+      if (mm === "poster" || mm === "hero") {
         const trb = el.querySelector(".trail");
         if (trb && !trb.querySelector(".trlbl")) {
           const trg = trailingOf(t);
@@ -155,8 +246,19 @@ WIDGETS.media = {
       const img = el.querySelector(".npimg");
       const pic = s.a.entity_picture;
       const wash = npMode(t) === "wash";
-      if (pic && ACTIVE(s.s)) {
-        if (wash && el.dataset.bg !== pic) {
+      /* KEEP THE ART, DIM IT (v0.85 — Suresh: "When I pause the player
+         and it is in idle, all the artwork blanks, but I still see the
+         artwork in the player. Best result would be to keep it and dim
+         it"). The old rule blanked art the moment the player left
+         ACTIVE — but Music Assistant parks a paused Sonos in `idle`
+         while still publishing entity_picture, so a pause wiped the
+         cover and RESIZED the card. Art now follows the PICTURE, and
+         the card only dims: what's on screen stops jumping, and a
+         paused player still looks like the thing it is playing. */
+      const dimArt = !ACTIVE(s.s);
+      el.classList.toggle("npdim", !!pic && dimArt);
+      if (pic) {
+        if (wash && el.dataset.bg !== pic && !dimArt) {
           el.dataset.bg = pic;
           el.style.backgroundImage =
             `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
@@ -164,18 +266,68 @@ WIDGETS.media = {
           el.style.backgroundPosition = "center";
         }
         if (img.dataset.src !== pic) {
-          img.dataset.src = pic; img.src = pic;
-          img.classList.remove("hidden");
+          img.dataset.src = pic; img.src = pic; img.dataset.bad = "";
         }
       } else {
         if (wash) { el.dataset.bg = ""; el.style.backgroundImage = ""; }
-        img.classList.add("hidden"); img.dataset.src = "";
+        img.dataset.src = "";
       }
-      el.querySelector(".npt").textContent = s.a.media_title || cap(s.s);
+      /* ONE art decision (v0.85.4): the real picture when it exists
+         and is not a black slab; otherwise the PLACEHOLDER — a quiet
+         icon on the art's own footprint, so the card keeps its shape
+         with no artwork at all ("it shouldn't shrink when we're
+         missing artwork or in idle"). Icon matches the thing: a TV for
+         tv-class players, a note for the rest. */
+      /* nptv (v0.85.6): a TV-class card carries a class so CSS can
+         size it as a TV — no artist/album/times rows will EVER fill,
+         so Large collapses their reserves and runs shorter (his 340px
+         ask). device_class + app_name are constant for a player, so
+         this can never flip mid-activity and re-introduce the jump. */
+      el.classList.toggle("nptv",
+        s.a.device_class === "tv" || !!s.a.app_name);
+      const showImg = !!pic && img.dataset.bad !== "1";
+      img.classList.toggle("hidden", !showImg);
+      const ph = el.querySelector(".npph");
+      if (ph) {
+        ph.classList.toggle("hidden", showImg);
+        const ic = ph.querySelector(".material-symbols-outlined");
+        if (ic) ic.textContent = s.a.device_class === "tv" ? "tv" : "music_note";
+      }
+      /* ONE state label, and no source echo (v0.85.1 — his idle
+         screenshots: "One 'idle' label on the header Row, and get rid
+         of the second Idle… we also show the input source which we
+         shouldn't"). The chassis header already says Idle/Playing, so
+         npt carries the TITLE only and goes quiet when there isn't
+         one. `source` is dropped outright: on a Fire TV it reads
+         "Home", on Music Assistant "Music Assistant Queue" — the name
+         of a pipe, never of a thing you are watching. */
+      /* THE APP IS THE TITLE when there is no title (v0.85.4 — his TV
+         list #3/#4: the source was "way too small and dim" and
+         "orphaned in the middle"). A TV publishes no media_title, so
+         the title row was empty and "YouTube TV" sat in the small
+         album line. Promote it: it lands directly under the state
+         label, at title size and full brightness — and then it does
+         NOT repeat below. */
+      const hasTitle = !!s.a.media_title;
+      const appSrc = s.a.app_name || s.a.source || "";
+      /* v0.85.7 (his: "ALL artwork styles should say No items in the
+         queue when that is true"): a MUSIC player with an empty queue
+         says so in the title row, source below — the same words Basic
+         uses. A TV still promotes its app (a TV has no queue). */
+      const tvish = s.a.device_class === "tv" || !!s.a.app_name;
+      el.querySelector(".npt").textContent =
+        s.a.media_title || (tvish ? appSrc : "No items in the queue");
       el.querySelector(".npa").textContent =
         s.a.media_artist || s.a.media_series_title || "";
+      /* THE APP IS THE HEADLINE on a TV (v0.85.3 — Suresh: "The most
+         important bit of information the app/source is missing
+         completely (i.e. You Tube TV)"). Dropping `source` in v0.85.2
+         was an overcorrection: it was only ever DUPLICATE because the
+         chassis sub echoed it, and that sub is hidden now. A Fire TV
+         has no album — "YouTube TV" is the whole story. */
       el.querySelector(".npb").textContent =
-        s.a.media_album_name || s.a.app_name || s.a.source || "";
+        s.a.media_album_name ||
+        (hasTitle ? appSrc : (tvish ? "" : s.a.source || ""));
       npProgress(el, s);
     }
   };

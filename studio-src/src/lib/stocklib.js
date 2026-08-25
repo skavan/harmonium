@@ -19,7 +19,8 @@
    in every workspace so Navigate-to always offers a controller. */
 export const GENERIC_MEDIA_CONTROLLER = {
   name: "Media Player",
-  gen: 2,   /* gen 2 (v0.83.8): the Apps section went 2-up */
+  gen: 3,   /* gen 3 (v0.85.7): t_tr gated unless physical_transport;
+               gen 2 (v0.83.8): the Apps section went 2-up */
   class: "activity", view_kind: "controller", type: "controller",
   control_target: {
     label: "$activity.name", navigation: "$context.dpad",
@@ -32,7 +33,7 @@ export const GENERIC_MEDIA_CONTROLLER = {
       { id: "t_np", type: "media", entity: "$context.media_player",
         icon: "material:smart_display", label: "Now Playing", span: 2 },
       { id: "t_tr", type: "transport", entity: "$context.media_player",
-        label: "Transport", span: 2 },
+        label: "Transport", span: 2, unless: "physical_transport" },
       { id: "t_btns", type: "buttons", entity: "$context.dpad",
         label: "On-screen device buttons", span: 2, only: "physical_dpad",
         buttons: ["back", "home"] },
@@ -156,7 +157,15 @@ export const STOCK_MUSIC = {
      struck. gen 3 (2026-08-19): ch_up/ch_down track-skip removed.
      gen 2 (v0.83.7): the SPEAKERS grouping card joined the band —
      renders only when the running activity casts 2+ players. */
-  gen: 5,
+  /* gen 8 (v0.85.7): m_tr gained unless:physical_transport — a remote
+     with real transport keys hides the on-screen bar.
+     gen 7 (v0.85.2): the gen HAD to move again. v0.85 shipped this
+     tile with a baked `style: "hero"`, which silently disabled the
+     activity's Now Playing picker — and because the fix landed at the
+     same gen 6, heal skipped every config that had already saved the
+     broken shape. A fix that cannot reach the configs it broke is not
+     a fix; the gen is the only thing that carries it. */
+  gen: 8,
   class: "activity", view_kind: "controller", type: "controller",
   buttons: {
     menu: { navigate: "music_library" },
@@ -166,12 +175,24 @@ export const STOCK_MUSIC = {
   font_scope: "music",
   sections: [
     { tiles: [
-      { id: "m_np", type: "media", art: true, entity: "$context.media_player",
+      /* ART HERO is the music default (v0.85 — Suresh: "middle art
+         hero should be the default for music"). style beats the legacy
+         art:true flag; the fixed height means the Modes and Volume
+         tiles below never move. */
+      { id: "m_np", type: "media", art: true, np_default: "hero",
+        entity: "$context.media_player",
         icon: "material:music_note", label: "Now Playing", span: 2,
         trailing: { icon: "material:library_music",
           action: { navigate: "music_library" }, emphasis: "accent" } },
+      /* unless physical_transport (v0.85.7 — his: "How do I prevent
+         the transport bar from showing for the Astrion 2 and RS90?"
+         He shouldn't have to: those profiles DECLARE transport keys.
+         The gate was added to starter-config long ago but never to
+         THIS shape — so gen-heal kept writing the ungated tile back
+         over every install. The stock shapes are the truth heal
+         enforces; a fix that skips them is a fix heal deletes. */
       { id: "m_tr", type: "transport", entity: "$context.media_player",
-        label: "Transport", span: 2 },
+        label: "Transport", span: 2, unless: "physical_transport" },
       { id: "m_cmd", type: "mediabtns", entity: "$context.media_player",
         label: "Modes", span: 2 },
       { id: "vol", type: "volumes" },
@@ -215,6 +236,685 @@ export function healStockGen(cfg) {
   for (const [dom, stock] of Object.entries(DOMAIN_STOCKS))
     heal(dom, stock, { domain: dom, class: "activity",
       view_kind: "controller", type: "controller" });
+}
+
+
+/* STOCK SKINS (v0.84.4) — device-photo geometry for the built-in
+   remote profiles, gen-stamped like the stock controllers.
+   healStockSkins refreshes a stock profile's skin when ours is newer,
+   UNLESS the profile points at the user's OWN photo (a non-stock image
+   path is theirs, never touched) — the skin twin of healStockGen. Kept
+   in sync with custom_components/harmonium/starter-config.json by
+   tests/probe-stock-skins-sync.mjs (a drift guard). */
+export const STOCK_SKINS = {
+  "astrion": {
+    "gen": 2,
+    "image": "/local/harmonium/skins/stock/astrion.png",
+    "viewport": {
+      "w": 349,
+      "h": 581
+    },
+    "screen": {
+      "x": 10.07,
+      "y": 3.764,
+      "w": 80.59,
+      "h": 41.77
+    },
+    "buttons": [
+      {
+        "btn": "back",
+        "x": 9.84,
+        "y": 52.2,
+        "w": 20.3,
+        "h": 5.3
+      },
+      {
+        "btn": "home",
+        "x": 30.14,
+        "y": 52.2,
+        "w": 39.1,
+        "h": 5.3
+      },
+      {
+        "btn": "power",
+        "x": 69.24,
+        "y": 52.2,
+        "w": 20.6,
+        "h": 5.3
+      },
+      {
+        "btn": "vol_up",
+        "x": 9.84,
+        "y": 59.7,
+        "w": 17,
+        "h": 9.5
+      },
+      {
+        "btn": "ch_up",
+        "x": 73.24,
+        "y": 59.7,
+        "w": 17,
+        "h": 9.5
+      },
+      {
+        "btn": "vol_down",
+        "x": 9.84,
+        "y": 69.5,
+        "w": 17,
+        "h": 9.2
+      },
+      {
+        "btn": "ch_down",
+        "x": 73.24,
+        "y": 69.5,
+        "w": 17,
+        "h": 9.2
+      },
+      {
+        "btn": "up",
+        "x": 39.74,
+        "y": 60.0,
+        "w": 20,
+        "h": 5.5
+      },
+      {
+        "btn": "left",
+        "x": 27.24,
+        "y": 65.5,
+        "w": 12.5,
+        "h": 7.5
+      },
+      {
+        "btn": "select",
+        "x": 39.74,
+        "y": 65.5,
+        "w": 20,
+        "h": 7.3
+      },
+      {
+        "btn": "right",
+        "x": 59.74,
+        "y": 65.5,
+        "w": 13.5,
+        "h": 7.5
+      },
+      {
+        "btn": "down",
+        "x": 39.74,
+        "y": 72.8,
+        "w": 20,
+        "h": 5.6
+      },
+      {
+        "btn": "mute",
+        "x": 9.84,
+        "y": 81.2,
+        "w": 20.3,
+        "h": 5.3
+      },
+      {
+        "btn": "voice",
+        "x": 30.14,
+        "y": 81.2,
+        "w": 39.1,
+        "h": 5.3
+      },
+      {
+        "btn": "menu",
+        "x": 69.24,
+        "y": 81.2,
+        "w": 20.6,
+        "h": 5.3
+      },
+      {
+        "btn": "light",
+        "x": 9.84,
+        "y": 86.7,
+        "w": 20.2,
+        "h": 5.2
+      },
+      {
+        "btn": "cover",
+        "x": 30.04,
+        "y": 86.7,
+        "w": 20.2,
+        "h": 5.2
+      },
+      {
+        "btn": "music",
+        "x": 50.24,
+        "y": 86.7,
+        "w": 20.2,
+        "h": 5.2
+      },
+      {
+        "btn": "climate",
+        "x": 70.44,
+        "y": 86.7,
+        "w": 20.2,
+        "h": 5.2
+      },
+      {
+        "btn": "red",
+        "x": 9.84,
+        "y": 93.9,
+        "w": 20.2,
+        "h": 4.4
+      },
+      {
+        "btn": "green",
+        "x": 30.04,
+        "y": 93.9,
+        "w": 20.2,
+        "h": 4.4
+      },
+      {
+        "btn": "blue",
+        "x": 50.24,
+        "y": 93.9,
+        "w": 20.2,
+        "h": 4.4
+      },
+      {
+        "btn": "yellow",
+        "x": 70.44,
+        "y": 93.9,
+        "w": 20.2,
+        "h": 4.4
+      }
+    ]
+  },
+  "astrion2": {
+    "gen": 2,
+    "image": "/local/harmonium/skins/stock/astrion2.png",
+    "viewport": {
+      "w": 349,
+      "h": 581
+    },
+    "screen": {
+      "x": 9.84,
+      "y": 3.795,
+      "w": 79.92,
+      "h": 41.77
+    },
+    "buttons": [
+      {
+        "btn": "back",
+        "x": 10.0,
+        "y": 52.3,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "home",
+        "x": 33.0,
+        "y": 52.3,
+        "w": 34,
+        "h": 4.6
+      },
+      {
+        "btn": "power",
+        "x": 71.0,
+        "y": 52.3,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "vol_up",
+        "x": 9.5,
+        "y": 59.5,
+        "w": 14,
+        "h": 6.0
+      },
+      {
+        "btn": "ch_up",
+        "x": 70.0,
+        "y": 59.5,
+        "w": 18,
+        "h": 6.0
+      },
+      {
+        "btn": "up",
+        "x": 40,
+        "y": 60.0,
+        "w": 20,
+        "h": 4.5
+      },
+      {
+        "btn": "left",
+        "x": 26,
+        "y": 66.5,
+        "w": 12,
+        "h": 6.0
+      },
+      {
+        "btn": "select",
+        "x": 40,
+        "y": 65.7,
+        "w": 20,
+        "h": 7.0
+      },
+      {
+        "btn": "right",
+        "x": 62,
+        "y": 66.5,
+        "w": 12,
+        "h": 6.0
+      },
+      {
+        "btn": "down",
+        "x": 40,
+        "y": 73.8,
+        "w": 20,
+        "h": 4.5
+      },
+      {
+        "btn": "vol_down",
+        "x": 9.5,
+        "y": 73.5,
+        "w": 14,
+        "h": 6.0
+      },
+      {
+        "btn": "ch_down",
+        "x": 70.0,
+        "y": 73.5,
+        "w": 18,
+        "h": 6.0
+      },
+      {
+        "btn": "mute",
+        "x": 10,
+        "y": 81.0,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "voice",
+        "x": 33,
+        "y": 81.0,
+        "w": 34,
+        "h": 4.6
+      },
+      {
+        "btn": "menu",
+        "x": 71,
+        "y": 81.0,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "prev",
+        "x": 10.3,
+        "y": 86.6,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "play_pause",
+        "x": 30.1,
+        "y": 86.6,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "stop",
+        "x": 49.8,
+        "y": 86.6,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "next",
+        "x": 69.9,
+        "y": 86.6,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "red",
+        "x": 10.3,
+        "y": 93.4,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "green",
+        "x": 30.1,
+        "y": 93.4,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "blue",
+        "x": 50.4,
+        "y": 93.4,
+        "w": 19,
+        "h": 4.6
+      },
+      {
+        "btn": "yellow",
+        "x": 69.4,
+        "y": 93.4,
+        "w": 19,
+        "h": 4.6
+      }
+    ]
+  },
+  "rs90": {
+    "gen": 3,
+    "image": "/local/harmonium/skins/stock/rs90.png",
+    "viewport": {
+      "w": 350,
+      "h": 582
+    },
+    "screen": {
+      "x": 12.97,
+      "y": 4.14,
+      "w": 73.939,
+      "h": 40.103
+    },
+    "buttons": [
+      {
+        "btn": "power",
+        "x": 8,
+        "y": 47.5,
+        "w": 24,
+        "h": 6
+      },
+      {
+        "btn": "home",
+        "x": 38,
+        "y": 47.5,
+        "w": 24,
+        "h": 6
+      },
+      {
+        "btn": "mic",
+        "x": 67,
+        "y": 47.5,
+        "w": 24,
+        "h": 6
+      },
+      {
+        "btn": "ch_up",
+        "x": 5,
+        "y": 56.5,
+        "w": 17,
+        "h": 7
+      },
+      {
+        "btn": "up",
+        "x": 40,
+        "y": 57,
+        "w": 18,
+        "h": 6
+      },
+      {
+        "btn": "vol_up",
+        "x": 78,
+        "y": 56.5,
+        "w": 16,
+        "h": 7
+      },
+      {
+        "btn": "left",
+        "x": 25,
+        "y": 64,
+        "w": 13,
+        "h": 6
+      },
+      {
+        "btn": "select",
+        "x": 42,
+        "y": 63,
+        "w": 16,
+        "h": 8
+      },
+      {
+        "btn": "right",
+        "x": 62,
+        "y": 64,
+        "w": 13,
+        "h": 6
+      },
+      {
+        "btn": "ch_down",
+        "x": 5,
+        "y": 70,
+        "w": 17,
+        "h": 7
+      },
+      {
+        "btn": "down",
+        "x": 40,
+        "y": 71,
+        "w": 18,
+        "h": 6
+      },
+      {
+        "btn": "vol_down",
+        "x": 78,
+        "y": 70,
+        "w": 16,
+        "h": 7
+      },
+      {
+        "btn": "back",
+        "x": 8,
+        "y": 76.5,
+        "w": 24,
+        "h": 5.5
+      },
+      {
+        "btn": "menu",
+        "x": 38,
+        "y": 76.5,
+        "w": 24,
+        "h": 5.5
+      },
+      {
+        "btn": "mute",
+        "x": 67,
+        "y": 76.5,
+        "w": 24,
+        "h": 5.5
+      },
+      {
+        "btn": "left_hold",
+        "x": 8,
+        "y": 82.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "play_pause",
+        "x": 38,
+        "y": 82.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "right_hold",
+        "x": 67,
+        "y": 82.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "screencast",
+        "x": 8,
+        "y": 88.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "source",
+        "x": 38,
+        "y": 88.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "settings",
+        "x": 67,
+        "y": 88.5,
+        "w": 24,
+        "h": 5
+      },
+      {
+        "btn": "app_fully",
+        "x": 8,
+        "y": 94,
+        "w": 24,
+        "h": 4
+      },
+      {
+        "btn": "app_haptique",
+        "x": 38,
+        "y": 94,
+        "w": 24,
+        "h": 4
+      },
+      {
+        "btn": "app_keymapper",
+        "x": 67,
+        "y": 94,
+        "w": 24,
+        "h": 4
+      }
+    ]
+  }
+};
+
+/* IS THIS SKIN OURS? (v0.84.6 — the stock/user path split). Ownership
+   is POSITIONAL now: anything under /skins/stock/ is ours, anything
+   under /skins/user/ is theirs, full stop. The basename fallback is
+   the MIGRATION path only — a pre-split config still points at the
+   flat /skins/<name>.png, and we may claim that iff the name matches a
+   stock skin. A user photo that happens to be called rs90.png is
+   protected the moment it sits in user/, which is where every upload
+   lands now.
+
+   The engine, the Studio's lock and this healer all read ownership
+   through THIS function, so they can never disagree. */
+export function isStockSkinImage(image, stockImage) {
+  const img = String(image || "");
+  if (img.indexOf("/skins/user/") >= 0) return false;   // theirs, always
+  if (img.indexOf("/skins/stock/") >= 0) return true;   // ours, always
+  const a = img.split("/").pop();
+  const b = String(stockImage || "").split("/").pop();
+  return !!a && a === b;                                // pre-split flat
+}
+
+export function healStockSkins(cfg) {
+  if (!cfg || !cfg.remotes) return;
+  for (const id in STOCK_SKINS) {
+    const stock = STOCK_SKINS[id];
+    const r = cfg.remotes[id];
+    if (!r || !r.skin) continue;                     // profile absent / no skin
+    const sk = r.skin;
+    if ((sk.gen || 0) >= (stock.gen || 0)) continue; // already current
+    if (!isStockSkinImage(sk.image, stock.image)) continue;  // user photo — theirs
+    /* refresh geometry + gen AND repoint the image at skins/stock/ —
+       the path move is just another thing heal fixes (v0.84.6). */
+    r.skin = JSON.parse(JSON.stringify(stock));
+  }
+}
+
+/* STOCK DIALECTS (v0.84.9 — Suresh: "I don't see a stock appletv
+   dialect? did I misunderstand?"). He did not: starter-config.json is
+   only read on a VIRGIN install, and starterConfig() copies dialects
+   from the LIVE config — so a new stock dialect never reached an
+   existing house. Controllers heal (healStockGen) and skins heal
+   (healStockSkins); dialects had NO healer at all, which is why
+   shipping `appletv` in the starter changed nothing for anyone
+   already running.
+
+   PLANT-IF-ABSENT, never overwrite: a dialect the user has edited (or
+   deliberately pruned down) is theirs — same doctrine as the stock
+   drawers in ensureStockControllers. Adding an entry here is how a new
+   platform reaches every existing install. */
+export const STOCK_DIALECTS = {
+  appletv: {
+    name: "Apple TV",
+    /* pyatv's vocabulary — HA's apple_tv rejects anything else with
+       "command not recognized". Two are NOT a straight lowercasing:
+       Apple TV's back IS `menu`, and its main menu is `top_menu`. */
+    dpad_commands: {
+      up: "up", down: "down", left: "left", right: "right",
+      select: "select", back: "menu", home: "home", menu: "top_menu",
+      ch_up: "channel_up", ch_down: "channel_down",
+    },
+    /* the launchable APPS (v0.85.8 — the forum reporter's own table +
+       the HA apple_tv docs): pyatv launches by select_source with the
+       app's NAME from source_list, so the entry IS the source string.
+       Note Apple's own app is just "TV", and Warner's is "HBO Max" —
+       NOT "Max" — per a real device's source_list (forum reporter,
+       2026-08-25). Names drift with app rebrands: the string must
+       match the player's source_list attribute EXACTLY, so a user
+       whose launch fails should check Developer Tools → States.
+       Only master-list identities appear here (the dialect carries
+       launch, never identity). */
+    apps: {
+      netflix: { source: "Netflix" },
+      youtube: { source: "YouTube" },
+      youtubetv: { source: "YouTube TV" },
+      disney: { source: "Disney+" },
+      hulu: { source: "Hulu" },
+      max: { source: "HBO Max" },
+      prime: { source: "Prime Video" },
+      appletv: { source: "TV" },
+      peacock: { source: "Peacock" },
+      paramount: { source: "Paramount+" },
+      /* v0.85.3 (his call: "add them to the stock — users (a) won't
+         have them all or (b) care for them all"): the drawer offers
+         what the dialect lists; pruning is one delete, and a pruned
+         map is the user's (the backfill only ever fills an EMPTY one). */
+      spotify: { source: "Spotify" },
+      plex: { source: "Plex" },
+      plutotv: { source: "Pluto TV" },
+      tubi: { source: "Tubi" },
+      pbs: { source: "PBS" },
+      philo: { source: "Philo" },
+    },
+  },
+};
+
+/* identities for stock-dialect apps that postdate a house's master
+   list (the list is copied from live at workspace-mint and never
+   healed) — planted-if-absent so a backfilled dialect never points at
+   a missing identity and the drawer never shows a raw id. */
+export const STOCK_APP_IDENTITIES = {
+  spotify: { name: "Spotify", icon: "material:equalizer" },
+  plex:    { name: "Plex", icon: "material:play_circle" },
+  plutotv: { name: "Pluto TV", icon: "material:live_tv" },
+  tubi:    { name: "Tubi", icon: "material:smart_display" },
+  pbs:     { name: "PBS", icon: "material:account_balance" },
+  philo:   { name: "Philo", icon: "material:connected_tv" },
+};
+
+export function healStockDialects(cfg) {
+  if (!cfg) return cfg;
+  if (!cfg.dialects) cfg.dialects = {};
+  for (const id in STOCK_DIALECTS) {
+    if (!cfg.dialects[id]) {
+      cfg.dialects[id] = JSON.parse(JSON.stringify(STOCK_DIALECTS[id]));
+      continue;
+    }
+    /* an EMPTY apps map is untouched by definition — installs that got
+       appletv planted before the app catalog existed (v0.85.8) may
+       safely receive it; one curated entry and it is theirs. */
+    const cur = cfg.dialects[id];
+    if ((!cur.apps || !Object.keys(cur.apps).length) &&
+        Object.keys(STOCK_DIALECTS[id].apps || {}).length)
+      cur.apps = JSON.parse(JSON.stringify(STOCK_DIALECTS[id].apps));
+  }
+  if (!cfg.apps) cfg.apps = {};
+  for (const aid in STOCK_APP_IDENTITIES)
+    if (!cfg.apps[aid])
+      cfg.apps[aid] = JSON.parse(JSON.stringify(STOCK_APP_IDENTITIES[aid]));
+  return cfg;
 }
 
 /* every config gets the generic media stock + the domain stocks */
@@ -280,7 +980,28 @@ export function ensureStockControllers(cfg) {
     const c = cfg.controllers[cid];
     if (c && !c.variant_of && !c.domain && c.context) delete c.context;
   }
+  /* THE BAKED-STYLE REPAIR (v0.85.2). v0.85 wrote `style` onto the
+     stock Now Playing tiles of `music` AND `tv`. On music the gen bump
+     above carries the repair, but `tv` is NOT gen-healed at all — it
+     would stay locked forever. So strip the key surgically instead:
+     remove `style` from a stock np tile that still carries `np_default`
+     alongside it, or from the known stock ids on a non-variant
+     controller. One key, no controller replaced, nothing a user typed
+     is touched — the same targeted shape as the music_library heals. */
+  for (const cid of ["tv", "music", "media"]) {
+    const c = cfg.controllers[cid];
+    if (!c || c.variant_of) continue;
+    const groups = [c.tiles || []];
+    for (const sec of (c.sections || [])) groups.push(sec.tiles || []);
+    for (const g of groups)
+      for (const t of g)
+        if (t && t.type === "media" && t.style &&
+            (t.id === "t_np" || t.id === "m_np" || t.np_default))
+          delete t.style;      /* np_default (or the stock default) rules again */
+  }
   healStockGen(cfg);
+  healStockSkins(cfg);
+  healStockDialects(cfg);
   return cfg;
 }
 

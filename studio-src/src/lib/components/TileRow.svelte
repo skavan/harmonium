@@ -563,6 +563,13 @@
 
     {#if tab === "styling"}
       <div class="grid grid-cols-2 gap-3">
+        <Field label="Card height"
+          hint={'this card only — px (420) or a css length (40vh). Blank = the page\'s tile height'}>
+          <Input value={tile.h ?? ""} placeholder="auto"
+            class="font-mono text-[12px]"
+            onchange={(e) => { const v = String(e.target.value).trim();
+              if (v) tile.h = /^\d+$/.test(v) ? +v : v; else delete tile.h; }} />
+        </Field>
         <Field label="Column span" hint="how many grid columns this item spans">
           <Segmented value={+(tile.span ?? 1)} options={[1, 2, 3, 4]}
             onchange={(v) => (tile.span = v)} />

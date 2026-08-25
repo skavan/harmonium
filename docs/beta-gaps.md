@@ -34,6 +34,72 @@ resolved and tracked in §6.)*
 
 ## 6. THE LIVING ROADMAP (rewritten 2026-08-21, v0.84.1 day)
 
+**INCOMING (2026-08-24, forum beta reports — triage. Both reporters
+are on v0.84.1; NOTHING from the 2026-08-24 session has shipped.):**
+
+- **Stock bands missing on a virgin install (user #2: "presets,
+  speakers, groups, devices… nevermind, now it works").** Root-caused:
+  the deployed starter-config reaches the ENGINE unhealed — the heal
+  chain (ensureStockControllers) runs only in the STUDIO — and
+  v0.84.1's starter carried an ancient 5-tile flat music controller.
+  So a fresh install renders without those bands until the user first
+  opens the Studio and Save & Deploys (his "now it works" moment).
+  FIXED in-repo 2026-08-24: the starter's stock controllers are now
+  GENERATED from stocklib, and `probe-stock-sync` fails the battery on
+  any starter/stocklib drift (the same split also hid the appletv
+  dialect and un-gated the transport bar). Ships with the next release.
+- **`set_activity` "did nothing" (user #2).** Working as designed but
+  the design surprises: it flips the ROUTING select only — it does not
+  run the activity's Start sequence, so no device powers on. The
+  HA-side full start is `harmonium.run` with the activity's Start
+  sequence (whose generated steps include the set_activity,
+  workspace-stamped by `_bind_ws`). ACTION: document both entry points
+  (services.yaml + cookbook); then DECIDE whether set_activity grows a
+  `start: true` option — probably yes, it is what every caller expects.
+- **Room-page power button intermittently missing while an activity
+  runs (user #2, no repro).** `updateBarChrome` hides `#endBtn` when
+  `currentActivityId()` is null; prime suspects: (a) the standing
+  room's select briefly `unknown/unavailable` after an HA restart /
+  integration reload — button vanishes until the next state diff;
+  (b) multi-room: standing on a room whose OWN select is off while
+  another room runs (per-room by design, reads as a bug). ACTION:
+  reproduce select-unavailable in a probe; consider holding the button
+  while the select is merely unavailable.
+- **User #1's items** (KeyMapper Expert-Mode docs; the Apple TV dialect
+  + D-pad commands editor + his app-source table now the stock appletv
+  app map; per-card height + the NP style family) are all in-repo,
+  UNRELEASED. The Apple TV vocabulary is doc-derived — ask him to
+  confirm on hardware in the release thread.
+
+
+**INCOMING (2026-08-24, forum beta reports — triage):**
+
+- **`set_activity` "did nothing" (user #2).** The service is working as
+  designed but the design surprises: it flips the ROUTING select only —
+  it does not run the activity's Start sequence, so no device powers on
+  and "nothing seemed to happen." The HA-side full start is
+  `harmonium.run` with the activity's Start sequence (whose generated
+  steps include the `set_activity`, workspace-stamped by `_bind_ws`).
+  ACTION: document both entry points in services.yaml + cookbook; then
+  DECIDE whether `set_activity` should grow a `start: true` option that
+  runs the sequence — probably yes, it is what every caller expects.
+- **Room-page power button intermittently missing while an activity
+  runs (user #2, no repro yet).** `updateBarChrome` hides `#endBtn`
+  when `currentActivityId()` is null; prime suspects: (a) the standing
+  room's select briefly `unknown/unavailable` after an HA restart or
+  integration reload — the button vanishes until the next state diff;
+  (b) multi-room: standing on a room whose OWN select is off while
+  another room runs (per-room by design, but reads as a bug). ACTION:
+  reproduce via select-unavailable in a probe; consider keeping the
+  button while the select is merely unavailable.
+- **Both users' shipped fixes** (Expert-Mode docs, the Apple TV dialect
+  + D-pad commands editor + stock app map, per-card height + the NP
+  style family, stock bands on virgin installs via the starter
+  regeneration + `probe-stock-sync` drift guard) ride the next release.
+  The Apple TV command vocabulary is doc-derived — ask reporter #1 to
+  confirm on hardware in the release thread.
+
+
 ### 6.0 Shipped since the last update (v0.83.10 → v0.84.1)
 
 Pad doctrine final form (pad navigates; passthrough + CH-borrow on

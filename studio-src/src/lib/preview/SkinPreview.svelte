@@ -10,6 +10,9 @@
      physical keys, sharing softPress + the wash brain with the grid
      soft remote (which remains the no-skin fallback). */
   import UploadBtn from "../components/UploadBtn.svelte";
+  import { onMount } from "svelte";
+  import { app } from "../state.svelte.js";
+  import { STOCK_SKINS, isStockSkinImage } from "../stocklib.js";
 
   /* `pv` is PreviewPane's context (skin, wash + key brains, hold
      latch, iframe hand-off); `mapping` is the parent's — the footer's
@@ -21,10 +24,61 @@
   const { keyFor, holdKeyFor, softPress, keyTitle, washed, holdWashed,
     toggleHold, setIframe } = pv;
 
+  /* THE STOCK-SKIN LOCK (v0.84.5 — Suresh: "stock things should be
+     locked; if users want to edit it should be on local copies"). A
+     skin that still points at OUR stock image is heal-volatile —
+     healStockSkins refreshes its geometry on an update, so hand-nudged
+     hotspots would be reverted. Ownership is read through the healer's
+     OWN test (isStockSkinImage) so the two can never disagree — since
+     v0.84.6 that is positional: /skins/stock/ is ours, /skins/user/ is
+     theirs. Locked ⇒ the map is look-don't-touch; the only door forward
+     is "use my photo…" (uploads into skins/user/ → the skin becomes
+     yours and the map unlocks, stock hotspots kept as a start). */
+  const stockLocked = $derived.by(() => {
+    const st = STOCK_SKINS[app.device];
+    if (!st || !skin || !skin.image) return false;
+    /* POSITIONAL since v0.84.6 — shares isStockSkinImage with the
+       healer, so the lock and the heal can never disagree (and a user
+       photo named rs90.png under /skins/user/ is never wrongly
+       locked). */
+    return isStockSkinImage(skin.image, st.image);
+  });
+  const editable = $derived(mapping && !stockLocked);
+
   /* the engine iframe is OURS while the skin shows — hand it up so
      the pane's ↻ button and bindPreview keep working */
   let pvEl = $state(null);
   $effect(() => { if (pvEl) setIframe(pvEl); });
+
+  /* CACHE-BUST THE SKIN (v0.84.4 — Suresh: "upload gets confused,
+     often showing the wrong skin"). Fully/the browser hard-cache
+     /local/, so overwriting rs90.png in place still shows the old
+     bytes. The integration writes skins/manifest.json = {relpath: fp}
+     (content fingerprints); we append ?v=<fp> so a content change is a
+     new URL. A just-uploaded skin isn't in the manifest yet, so an
+     upload also bumps a session nonce (&u=) to force a fresh fetch. */
+  let skinManifest = $state({});
+  let uploadNonce = $state(0);
+  onMount(async () => {
+    try {
+      const r = await fetch("/local/harmonium/skins/manifest.json", { cache: "no-store" });
+      if (r.ok) skinManifest = await r.json();
+    } catch (e) { /* no manifest (older integration) → no bust, harmless */ }
+  });
+  function bustSkin(url) {
+    if (!url) return url;
+    const base = String(url).split("?")[0];
+    /* manifest is keyed by the path RELATIVE to skins/ since v0.84.6
+       ("rs90.png", "stock/rs90.png", "user/mine.png") — a user photo
+       must not inherit the stock file's fingerprint. */
+    const cut = base.indexOf("/skins/");
+    const name = cut >= 0 ? base.slice(cut + 7) : base.split("/").pop();
+    const fp = skinManifest[name];
+    let q = fp ? "?v=" + fp : "";
+    if (uploadNonce) q += (q ? "&" : "?") + "u=" + uploadNonce;
+    return base + q;
+  }
+  const bustedImg = $derived(bustSkin(skin && skin.image));
   /* leaving ✎ (from either door) clears the selection */
   $effect(() => { if (!mapping) { selHot = -1; selScreen = false; } });
 
@@ -106,7 +160,7 @@
       y: Math.max(0, Math.min(100, (ev.clientY - r.top) / r.height * 100)) };
   };
   function mapDown(ev) {
-    if (!mapping || ev.target.closest(".hotspot")) return;
+    if (!editable || ev.target.closest(".hotspot")) return;
     const p = pctOf(ev);
     drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
     ev.preventDefault();
@@ -139,27 +193,29 @@
     drag = null;
   }
   function hotDown(ev, i) {
-    if (!mapping) return;
+    if (!editable) return;
     selHot = i; selScreen = false;
     const p = pctOf(ev);
     hotDrag = { kind: "hot", i, dx: p.x - skin.buttons[i].x, dy: p.y - skin.buttons[i].y };
     ev.stopPropagation(); ev.preventDefault();
   }
   function scrDown(ev) {
-    if (!mapping) return;
+    if (!editable) return;
     selScreen = true; selHot = -1;
     const p = pctOf(ev);
     hotDrag = { kind: "screen", dx: p.x - skin.screen.x, dy: p.y - skin.screen.y };
     ev.stopPropagation(); ev.preventDefault();
   }
   function rszDown(ev, kind, i) {
+    if (!editable) return;
     rsz = { kind, i };
     ev.stopPropagation(); ev.preventDefault();
   }
-  function delHot(i) { skin.buttons.splice(i, 1); selHot = -1; }
+  function delHot(i) { if (!editable) return; skin.buttons.splice(i, 1); selHot = -1; }
   /* ⌖ nudge EVERY hotspot together (v0.80.1 — "one pixel off"):
      0.1% steps ≈ a third of a pixel x, one pixel y at display width */
   function nudgeAll(dx, dy) {
+    if (!editable) return;
     for (const b of skin.buttons) {
       b.x = +Math.max(0, Math.min(100 - b.w, b.x + dx)).toFixed(2);
       b.y = +Math.max(0, Math.min(100 - b.h, b.y + dy)).toFixed(2);
@@ -173,7 +229,7 @@
      mushy on the other. Now the step is computed from the rendered
      image size per axis; shift = resize by the same pixel. */
   function mapKeydown(ev) {
-    if (!mapping || (!selScreen && selHot < 0)) return;
+    if (!editable || (!selScreen && selHot < 0)) return;
     const o = selScreen ? skin.screen : skin.buttons[selHot];
     if (!o) return;
     const r = skinEl?.getBoundingClientRect();
@@ -262,11 +318,11 @@
           class="border-0 bg-bg"
           style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(clipW || (skin.screen.w / 100 * (imgW || 340) + 2)) / (skin.viewport?.w || 320)}, {(clipH || (skin.screen.h / 100 * (imgW || 340) * (imgNat.h / imgNat.w) + 2)) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
       </div>
-      <img src={skin.image} alt="" draggable="false"
+      <img src={bustedImg} alt="" draggable="false"
         onload={(e) => (imgNat = { w: e.target.naturalWidth, h: e.target.naturalHeight })}
         bind:clientWidth={imgW}
         class="pointer-events-none relative z-10 w-full" />
-      {#if mapping}
+      {#if editable}
         <!-- the LCD rect is a first-class map object (v0.80.1 — "the
              LCD section has lost its aspect ratio"): drag to move,
              corner handle / shift+arrows to resize; the toolbar's
@@ -285,7 +341,7 @@
         </div>
       {/if}
       {#each skin.buttons as b, i (i)}
-        {#if mapping}
+        {#if editable}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class={"hotspot absolute z-20 cursor-move rounded-[8px] border " +
               (selHot === i ? "border-accent bg-accent/25" : "border-accent/50 bg-accent/10")}
@@ -329,6 +385,17 @@
     {/if}
     {#if mapping}
       <div class="mt-2 flex w-[340px] flex-wrap items-center gap-1.5">
+        {#if stockLocked}
+          <!-- STOCK SKIN LOCK (v0.84.5): look-don't-touch; the door
+               forward is uploading your own photo (repoints the skin,
+               which unlocks the map with the stock hotspots kept). -->
+          <span class="text-[10.5px] text-ink">🔒 <b>Stock skin — locked.</b> Its hotspots refresh with the app, so edits here would be reverted. To customize, upload your own photo.</span>
+          <span class="flex-1"></span>
+          <UploadBtn kind="skin" label="use my photo…"
+            onDone={(p) => { if (skin) skin.image = p; uploadNonce = Date.now(); }} />
+          <button onclick={() => { mapping = false; selHot = -1; selScreen = false; }}
+            class="cursor-pointer rounded-[6px] border-0 bg-accent px-3 py-1 text-[11px] font-bold text-accent-ink">Done</button>
+        {:else}
         {#if selHot >= 0 && skin.buttons[selHot]}
           <input list="softbtns" value={skin.buttons[selHot].btn}
             onchange={(e) => { const b2 = skin.buttons[selHot];
@@ -366,7 +433,7 @@
              touching the filesystem — uploads to www/harmonium/skins/
              and points this skin at it -->
         <UploadBtn kind="skin" label="photo…"
-          onDone={(p) => { if (skin) skin.image = p; }} />
+          onDone={(p) => { if (skin) skin.image = p; uploadNonce = Date.now(); }} />
         <button id="skinMapDone" onclick={() => { mapping = false; selHot = -1; selScreen = false; }}
           class="cursor-pointer rounded-[6px] border-0 bg-accent px-3 py-1 text-[11px] font-bold text-accent-ink">Done</button>
         <div class="flex w-full items-center gap-1">
@@ -380,6 +447,7 @@
             title="The LCD rect's pixel aspect on this image — the HA100 panel is 480×800 (0.600)">
             screen {scrRatio().toFixed(3)} {Math.abs(scrRatio() - 0.6) < 0.006 ? "✓ 480×800" : "→ want 0.600"}</span>
         </div>
+        {/if}
       </div>
     {:else if anyHoldable}
       <button id="softHold" onclick={toggleHold}
