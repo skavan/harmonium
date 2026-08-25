@@ -2,11 +2,13 @@
    being a guess about bytes and became POSITIONAL — /skins/stock/ is
    ours, /skins/user/ is theirs. This guards the three things that
    must hold for the migration to be safe:
-     1. a PRE-SPLIT config (flat /skins/rs90.png) heals — geometry AND
-        the image path move to skins/stock/;
-     2. a user photo is never claimed, and specifically a user photo
-        NAMED rs90.png under /skins/user/ is not (the exact case the
-        old basename test got wrong);
+     1. a PRE-SPLIT config (flat /skins/astrion.png — a name we DID
+        ship flat) heals — geometry AND the image path move to stock/;
+     2. a user photo is never claimed: not one under /skins/user/
+        whatever its name, and NOT a flat /skins/rs90.png — no release
+        ever shipped a flat rs90.png, so every one in the wild is a
+        user's own photo (v0.85.3, the case that would have eaten
+        beta RS90 skins);
      3. heal is idempotent once current.
    isStockSkinImage is shared by the healer and the Studio's skin lock,
    so this also pins the lock's behaviour. */
@@ -15,17 +17,28 @@ import { STOCK_SKINS, healStockSkins, isStockSkinImage } from "../studio-src/src
 const errs = [];
 const ck = (name, cond) => { if (!cond) errs.push(name); };
 
-/* --- 1. pre-split flat stock heals + repoints --- */
-const cfgA = { remotes: { rs90: { skin: {
-  gen: 2, image: "/local/harmonium/skins/rs90.png",
+/* --- 1. pre-split flat stock heals + repoints (astrion shipped flat) --- */
+const cfgA = { remotes: { astrion: { skin: {
+  gen: 0, image: "/local/harmonium/skins/astrion.png",
   screen: { x: 1, y: 1, w: 1, h: 1 }, buttons: [] } } } };
 healStockSkins(cfgA);
-const a = cfgA.remotes.rs90.skin;
+const a = cfgA.remotes.astrion.skin;
 ck("flat stock repointed into skins/stock/",
-  a.image === "/local/harmonium/skins/stock/rs90.png");
-ck("flat stock geometry healed", a.screen.w === STOCK_SKINS.rs90.screen.w);
-ck("flat stock gen stamped", a.gen === STOCK_SKINS.rs90.gen);
-ck("flat stock hotspots restored", a.buttons.length === STOCK_SKINS.rs90.buttons.length);
+  a.image === "/local/harmonium/skins/stock/astrion.png");
+ck("flat stock geometry healed", a.screen.w === STOCK_SKINS.astrion.screen.w);
+ck("flat stock gen stamped", a.gen === STOCK_SKINS.astrion.gen);
+ck("flat stock hotspots restored", a.buttons.length === STOCK_SKINS.astrion.buttons.length);
+
+/* --- 1b. THE RS90 TRAP: flat rs90.png is a USER photo — we never
+   shipped one flat. Their image, their geometry, their hotspots stay. --- */
+const cfgA2 = { remotes: { rs90: { skin: {
+  image: "/local/harmonium/skins/rs90.png",
+  screen: { x: 9, y: 9, w: 9, h: 9 }, buttons: [{ btn: "up", x: 1, y: 1, w: 2, h: 2 }] } } } };
+healStockSkins(cfgA2);
+const a2 = cfgA2.remotes.rs90.skin;
+ck("flat rs90.png (user photo) NOT claimed by heal",
+  a2.image === "/local/harmonium/skins/rs90.png" && a2.screen.w === 9 &&
+  a2.buttons.length === 1);
 
 /* --- 2a. a user photo elsewhere is theirs --- */
 const cfgB = { remotes: { rs90: { skin: {
@@ -56,8 +69,11 @@ const S = "/local/harmonium/skins/stock/rs90.png";
 ck("ownership: stock path is ours", isStockSkinImage(S, S) === true);
 ck("ownership: user path is theirs",
   isStockSkinImage("/local/harmonium/skins/user/rs90.png", S) === false);
-ck("ownership: pre-split flat name is ours",
-  isStockSkinImage("/local/harmonium/skins/rs90.png", S) === true);
+ck("ownership: flat astrion.png (shipped flat) is ours",
+  isStockSkinImage("/local/harmonium/skins/astrion.png",
+    "/local/harmonium/skins/stock/astrion.png") === true);
+ck("ownership: flat rs90.png (NEVER shipped flat) is theirs",
+  isStockSkinImage("/local/harmonium/skins/rs90.png", S) === false);
 ck("ownership: unrelated photo is theirs",
   isStockSkinImage("/local/images/mine.png", S) === false);
 

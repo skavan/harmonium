@@ -798,13 +798,23 @@ export const STOCK_SKINS = {
 
    The engine, the Studio's lock and this healer all read ownership
    through THIS function, so they can never disagree. */
+/* Names that ever shipped FLAT (pre-split, v0.83.6–v0.84.1). Only
+   these may be claimed by bare basename. rs90.png is deliberately
+   absent: no release ever shipped a flat rs90.png, so a config pointing
+   at flat rs90.png is a USER'S OWN photo skin (the cookbook told RS90
+   owners to put one exactly there) — heal must keep its hands off it,
+   and the Studio must show it unlocked (v0.85.3, caught pre-tag).
+   Twin of packaging.py's PRE_SPLIT_FLAT_FPS. */
+const PRE_SPLIT_FLAT = ["astrion.png", "astrion2.png"];
+
 export function isStockSkinImage(image, stockImage) {
   const img = String(image || "");
   if (img.indexOf("/skins/user/") >= 0) return false;   // theirs, always
   if (img.indexOf("/skins/stock/") >= 0) return true;   // ours, always
   const a = img.split("/").pop();
   const b = String(stockImage || "").split("/").pop();
-  return !!a && a === b;                                // pre-split flat
+  /* pre-split flat claim — only names we actually shipped flat */
+  return !!a && a === b && PRE_SPLIT_FLAT.indexOf(a) >= 0;
 }
 
 export function healStockSkins(cfg) {
@@ -919,6 +929,178 @@ export function healStockDialects(cfg) {
 
 /* every config gets the generic media stock + the domain stocks */
 
+
+/* STOCK REMOTE PROFILES (v0.85.3 — Suresh's .88 box: "updated via HACS
+   and it doesn't even show the RS90"). Same disease healStockDialects
+   cured for dialects: the rs90 profile was born in starter-config.json,
+   and the starter is read ONLY by a virgin install — so a new stock
+   remote profile never reaches an existing house. Controllers heal,
+   skins heal, dialects heal; remote profiles had NO healer.
+
+   PLANT-IF-ABSENT, never overwrite: an existing profile — including a
+   remapped keymap or trimmed capabilities — is the user's, same
+   doctrine as dialects. The skin is NOT stored here; it is planted
+   from STOCK_SKINS so there is exactly one skin truth. `default` is
+   deliberately absent (it has existed since v0.x and carries no skin).
+   probe-stock-sync holds this equal to the starter's profiles. */
+export const STOCK_REMOTE_PROFILES = {
+  "astrion": {
+    "fully": true,
+    "capabilities": [
+      "physical_dpad",
+      "physical_volume",
+      "touch",
+      "physical_back_home"
+    ],
+    "keymap": {
+      "ArrowUp": "up",
+      "ArrowDown": "down",
+      "Tab": "down",
+      "ArrowLeft": "left",
+      "ArrowRight": "right",
+      "Enter": "select",
+      " ": "select",
+      "+": "vol_up",
+      "=": "power_hold",
+      "-": "vol_down",
+      "PageUp": "ch_up",
+      "PageDown": "ch_down",
+      "m": "mute",
+      "M": "mute",
+      "`": "mute",
+      "AudioVolumeMute": "mute",
+      "[": "back",
+      "Escape": "back",
+      "Backspace": "back",
+      "F1": "home",
+      "BrowserHome": "home",
+      "F4": "light",
+      "F5": "cover",
+      "F6": "music",
+      "F7": "climate",
+      "#": "menu",
+      "@": "menu_hold",
+      "'": "ch_up_hold",
+      "/": "ch_down_hold",
+      "F2": "power",
+      "p": "power",
+      "P": "power",
+      "o": "power_hold",
+      "O": "power_hold",
+      ",": "left_hold",
+      ".": "right_hold"
+    }
+  },
+  "astrion2": {
+    "fully": true,
+    "capabilities": [
+      "physical_dpad",
+      "physical_volume",
+      "physical_transport",
+      "touch",
+      "physical_back_home"
+    ],
+    "keymap": {
+      "ArrowUp": "up",
+      "ArrowDown": "down",
+      "Tab": "down",
+      "ArrowLeft": "left",
+      "ArrowRight": "right",
+      "Enter": "select",
+      " ": "select",
+      "+": "vol_up",
+      "=": "power_hold",
+      "-": "vol_down",
+      "PageUp": "ch_up",
+      "PageDown": "ch_down",
+      "m": "mute",
+      "M": "mute",
+      "`": "mute",
+      "AudioVolumeMute": "mute",
+      "[": "back",
+      "Escape": "back",
+      "Backspace": "back",
+      "F1": "home",
+      "BrowserHome": "home",
+      "F4": "prev",
+      "F5": "play_pause",
+      "F6": "stop",
+      "F7": "next",
+      "#": "menu",
+      "@": "menu_hold",
+      "'": "ch_up_hold",
+      "/": "ch_down_hold",
+      "F2": "power",
+      "p": "power",
+      "P": "power",
+      "o": "power_hold",
+      "O": "power_hold",
+      ",": "left_hold",
+      ".": "right_hold"
+    }
+  },
+  "rs90": {
+    "capabilities": [
+      "physical_dpad",
+      "physical_volume",
+      "physical_transport",
+      "touch",
+      "physical_back_home"
+    ],
+    "keymap": {
+      "ArrowUp": "up",
+      "ArrowDown": "down",
+      "Tab": "down",
+      "ArrowLeft": "left",
+      "ArrowRight": "right",
+      "Enter": "select",
+      " ": "select",
+      "+": "vol_up",
+      "-": "vol_down",
+      "=": "power_hold",
+      "PageUp": "ch_up",
+      "PageDown": "ch_down",
+      "`": "mute",
+      "AudioVolumeMute": "mute",
+      "[": "back",
+      "Escape": "back",
+      "Backspace": "back",
+      "]": "back_hold",
+      "F2": "home",
+      "BrowserHome": "home",
+      "F1": "power",
+      "F5": "mic",
+      "F6": "screencast",
+      "F7": "source",
+      "F8": "settings",
+      "#": "menu",
+      "@": "menu_hold",
+      "'": "ch_up_hold",
+      "/": "ch_down_hold",
+      ",": "left_hold",
+      ".": "right_hold",
+      "\\": "play_pause",
+      "MediaPlayPause": "play_pause",
+      "MediaRewind": "prev",
+      "MediaFastForward": "next",
+      "MediaTrackPrevious": "prev",
+      "MediaTrackNext": "next",
+      "MediaStop": "stop"
+    }
+  }
+};
+
+export function healStockRemotes(cfg) {
+  if (!cfg) return;
+  if (!cfg.remotes) cfg.remotes = {};
+  for (const id in STOCK_REMOTE_PROFILES) {
+    if (cfg.remotes[id]) continue;                 // theirs (or already planted)
+    const p = JSON.parse(JSON.stringify(STOCK_REMOTE_PROFILES[id]));
+    if (STOCK_SKINS[id]) p.skin = JSON.parse(JSON.stringify(STOCK_SKINS[id]));
+    cfg.remotes[id] = p;
+  }
+}
+
 export function ensureStockControllers(cfg) {
   if (!cfg.controllers) cfg.controllers = {};
   /* v0.47.4: plant the apps drawer where it's missing (workspaces
@@ -1002,6 +1184,7 @@ export function ensureStockControllers(cfg) {
   healStockGen(cfg);
   healStockSkins(cfg);
   healStockDialects(cfg);
+  healStockRemotes(cfg);
   return cfg;
 }
 

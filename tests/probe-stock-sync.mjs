@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { STOCK_MUSIC, STOCK_APPS_DRAWER, STOCK_MUSIC_LIBRARY,
   DOMAIN_STOCKS, STOCK_DIALECTS, STOCK_APP_IDENTITIES,
-  GENERIC_MEDIA_CONTROLLER }
+  GENERIC_MEDIA_CONTROLLER, STOCK_REMOTE_PROFILES, STOCK_SKINS }
   from "../studio-src/src/lib/stocklib.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -79,12 +79,30 @@ for (const id of Object.keys(STOCK_DIALECTS))
     if (!(starter.apps || {})[aid])
       errs.push("dialect " + id + " launches '" + aid + "' — not in the master list");
 
+/* stock REMOTE PROFILES: the starter's astrion/astrion2/rs90 must BE
+   stocklib's profile + STOCK_SKINS skin — the rs90 profile shipping in
+   the starter ONLY is exactly how the .88 box updated and "didn't even
+   show the RS90" (starter is virgin-only; healStockRemotes now plants
+   these into existing installs). */
+for (const [id, prof] of Object.entries(STOCK_REMOTE_PROFILES)) {
+  const st = (starter.remotes || {})[id];
+  if (!st) { errs.push("starter lacks stock remote profile '" + id + "'"); continue; }
+  const expect = JSON.parse(JSON.stringify(prof));
+  if (STOCK_SKINS[id]) expect.skin = JSON.parse(JSON.stringify(STOCK_SKINS[id]));
+  const stStrip = JSON.parse(JSON.stringify(st));
+  if (stStrip.skin) delete stStrip.skin.gen;      // starter skins carry no gen
+  if (expect.skin) delete expect.skin.gen;
+  if (JSON.stringify(stStrip) !== JSON.stringify(expect))
+    errs.push("remotes." + id + " drifted between starter and stocklib");
+}
+
 /* the tv controller has NO stocklib twin (known gap, never gen-healed);
    say so if that ever changes so this probe gets extended */
 if (typeof GENERIC_MEDIA_CONTROLLER === "undefined")
   errs.push("stocklib no longer exports GENERIC_MEDIA_CONTROLLER");
 
 console.log(JSON.stringify({
-  checked: pairs.map(p => p[0]).concat(Object.keys(STOCK_DIALECTS).map(d => "dialect:" + d)),
+  checked: pairs.map(p => p[0]).concat(Object.keys(STOCK_DIALECTS).map(d => "dialect:" + d))
+    .concat(Object.keys(STOCK_REMOTE_PROFILES).map(r => "remote:" + r)),
   ok: errs.length === 0, errs }, null, 1));
 if (errs.length) process.exit(1);

@@ -9,6 +9,11 @@ import { readFileSync } from 'node:fs';
 const engine = readFileSync('/root/work/harmonium/dist/index.html', 'utf8');
 const studio = readFileSync('/tmp/studio-test/build/index.html', 'utf8');
 const config = JSON.parse(readFileSync('/root/work/harmonium/dist/config.json', 'utf8'));
+/* the live fixture predates the split (flat rs90 path). A flat rs90.png
+   is a USER photo since v0.85.3 (never shipped flat) and must NOT lock —
+   this probe tests the STOCK lock, so point the fixture at stock/. */
+if (config.remotes && config.remotes.rs90 && config.remotes.rs90.skin)
+  config.remotes.rs90.skin.image = '/local/harmonium/skins/stock/rs90.png';
 const rs90 = readFileSync('/root/work/harmonium/skins/rs90.png');
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await b.newContext({ viewport: { width: 1680, height: 1400 } });

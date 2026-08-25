@@ -1,9 +1,16 @@
-# Harmonium v0.85.3
+# Harmonium v0.85.4
 
 This release is dominated by two things: a ground-up rework of **what
 the physical buttons do**, and a long list of fixes and features driven
 directly by the first beta reports. Thank you to both reporters — most
 of this release exists because you wrote things down.
+
+*(v0.85.4 replaces a short-lived v0.85.3 release, withdrawn the same
+day: it could overwrite a user-made RS90 photo skin during migration,
+and updated installs never received the RS90 remote profile. If you
+installed 0.85.3, update normally. One check for RS90 owners who made
+their own photo skin: if 0.85.3's restart replaced your photo with the
+stock one, re-upload your photo — 0.85.4 will never touch it again.)*
 
 ## ⚠ Upgrading from v0.84.1 — three steps
 
@@ -13,7 +20,7 @@ of this release exists because you wrote things down.
    caches aggressively — if the remote looks unchanged, press **Clear
    browser cache** on the Fully device page in HA and reload. The ⓘ
    page now shows the engine version at the top; it should say
-   **0.85.3**. If it doesn't, you're still on the old engine.
+   **0.85.4**. If it doesn't, you're still on the old engine.
 3. **Open the Studio and press Save & Deploy once.** Updates to the
    built-in pages (controllers, skins, the Apple TV support) are
    applied when *you* save — never behind your back. One save brings
@@ -104,12 +111,24 @@ on TV pages, which have less to say). Along the way:
 - The **Astrion v2** and **Haptique RS90** get proper photo skins with
   a transparent screen cutout — the live remote shows through the
   device photo, with every physical key mapped.
+- The **RS90 remote profile itself now reaches existing installs**.
+  Until now a new built-in remote profile only reached fresh installs,
+  so an updated system wouldn't even list the RS90 under Remotes &
+  keymaps. After the update, one Save & Deploy in the Studio plants it
+  — keymap, capabilities and skin — without touching any profile you
+  already have.
 - The Studio bug where **uploading a skin showed the wrong image** is
   fixed (it was a caching problem, not you).
 - Skin storage is reorganised: the skins we ship live in their own
   `stock` folder and your uploaded photos in `user`. Updates can now
   refresh the shipped skins **without ever touching your photos** —
   even a photo named `rs90.png` is safe.
+- If you made your **own RS90 photo skin** on v0.84.1 (a `rs90.png`
+  dropped into the skins folder, per the cookbook): it is explicitly
+  protected. No earlier release ever shipped a file by that name, so
+  the updater refuses to claim yours — the photo, your key mapping
+  and your screen cutout stay exactly as you made them. The new
+  built-in RS90 skin is in the Studio whenever you want to switch.
 
 ## Your changes are yours — stock is locked
 

@@ -28,8 +28,10 @@ for (const id of Object.keys(STOCK_SKINS)) {
 
 // 2. HEAL BEHAVIOR
 // a) stock-image skin with no gen → healed to current geometry + gen
+//    (stock/ path — a FLAT rs90.png is a user photo and must NOT heal,
+//    guarded in probe-skin-path-split)
 const cfgA = { remotes: { rs90: { skin: { gen: 0,
-  image: "/local/harmonium/skins/rs90.png",
+  image: "/local/harmonium/skins/stock/rs90.png",
   screen: { x: 99, y: 99, w: 1, h: 1 }, buttons: [] } } } };
 healStockSkins(cfgA);
 const healed = cfgA.remotes.rs90.skin;

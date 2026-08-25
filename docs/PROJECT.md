@@ -81,7 +81,14 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
-## Current state (v0.85.3 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
+## Current state (v0.85.4 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
+
+**v0.85.3 was tagged and released BEFORE the three pre-tag catches
+below landed, then withdrawn (release + tag deleted). It is superseded
+by v0.85.4 — same content plus the flat-photo protection and the
+remote-profile healer. The number was burned, not reused: at least one
+install (the .88 box) pulled 0.85.3, and HACS only offers a fix if the
+version moves.**
 
 One long session, driven end-to-end by the first two beta reports
 (HANDOFF rounds 79–83 carry the detail). Shipping in-repo, untagged:
@@ -90,6 +97,31 @@ One long session, driven end-to-end by the first two beta reports
   the Studio (fork to edit); skins split `stock/`/`user/` with
   positional ownership, first-run adoption, compat window for flat
   paths; the upload picker refuses stock outright (403, no overwrite).
+  **Pre-tag catch (2026-08-25): adoption is now CONSERVATIVE.** No
+  release ever shipped a flat `rs90.png`, so every flat one in the wild
+  is a beta user's own photo (the cookbook told RS90 owners to put it
+  there) — but first-run adoption claimed ANY bundled-named flat file
+  and would have overwritten it, and the flat-basename rule would have
+  let heal wipe their hotspot map on top. Fixed both rungs at the
+  shared truth: `PRE_SPLIT_FLAT_FPS` in packaging.py (flat pass only
+  touches names we shipped flat, adopts only fingerprints we shipped
+  — astrion 5ea401cb; astrion2 da39a3ee/f54a7a94) and its twin
+  `PRE_SPLIT_FLAT` whitelist in `isStockSkinImage`. Guarded in
+  test-asset-deploy.py ("user's flat rs90.png photo NOT eaten") and
+  probe-skin-path-split ("THE RS90 TRAP"). **Second pre-tag catch,
+  same day (the .88 box: "updated via HACS and it doesn't even show
+  the RS90"): stock REMOTE PROFILES had no healer** — rs90 lived in
+  starter-config only, and the starter is virgin-only, the exact
+  disease healStockDialects cured for dialects. Now:
+  `STOCK_REMOTE_PROFILES` (astrion/astrion2/rs90; keymap +
+  capabilities; skin planted from STOCK_SKINS so there is one skin
+  truth) + `healStockRemotes` (plant-if-absent, never overwrite) in
+  the ensureStockControllers chain; probe-stock-sync holds starter ≡
+  stocklib for profiles too; probe-stock-remotes.mjs pins plant /
+  no-overwrite / idempotence / deep-copy. Side effect on OUR house:
+  dist/config.json's rs90 skin still points at the flat path, which
+  now reads as a user photo — re-pick the built-in RS90 skin in the
+  Studio once (astrion2's flat path still heals; it shipped flat).
 - **Apple TV**: `dpad_commands` rung in cmdFor + stock `appletv`
   dialect (pyatv names; back→menu, menu→top_menu) + a D-pad commands
   editor in the dialect fold + a 16-app launch map verified against

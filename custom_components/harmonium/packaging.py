@@ -93,7 +93,9 @@ def file_fp(path: Path) -> str:
         return ""
 
 
-def deploy_bundled_assets(bundled_dir: Path, dest: Path, manifest: bool = False) -> list:
+def deploy_bundled_assets(bundled_dir: Path, dest: Path, manifest: bool = False,
+                          only: set | None = None,
+                          adopt_fps: dict | None = None) -> list:
     """Deploy a dir of bundled assets (skins, sounds) with the engine's
     OWNERSHIP contract, per file (v0.84.4). Overwrite a file we recognise
     as our own (stock updates flow); keep our hands off a file whose bytes
@@ -102,8 +104,17 @@ def deploy_bundled_assets(bundled_dir: Path, dest: Path, manifest: bool = False)
     FIRST-RUN ADOPTION: pre-stamp installs have our stock assets on disk
     with no stamp — should_deploy would read them as the user's and freeze
     them forever. On the first stamped run (no .assets.stamp) we claim the
-    bundled-named files (they came from our old deploy), bringing everyone
-    current; thereafter the stamp governs.
+    bundled-named files, bringing everyone current; thereafter the stamp
+    governs. When `adopt_fps` is given ({name: (fp, ...)}), adoption is
+    CONSERVATIVE: a pre-stamp file is claimed only when its bytes match a
+    fingerprint we KNOW we shipped — anything else, whatever its name, is
+    the user's and is frozen, exactly as should_deploy would. Without
+    adopt_fps the old name-based heuristic stands (correct for dirs that
+    are positionally ours, like skins/stock/).
+
+    `only` restricts which bundled names this pass will touch at all —
+    the flat compat pass uses it so names that never existed flat (rs90)
+    are never created flat.
 
     manifest=True also writes manifest.json {name: fp} (content
     fingerprints of every image present) so the Studio can append ?v=<fp>
@@ -118,10 +129,16 @@ def deploy_bundled_assets(bundled_dir: Path, dest: Path, manifest: bool = False)
     for src in sorted(bundled_dir.iterdir()):
         if not src.is_file():
             continue
+        if only is not None and src.name not in only:
+            continue
         b_fp = file_fp(src)
         dep = dest / src.name
         d_fp = file_fp(dep) if dep.exists() else ""
-        adopt = first_run and dep.exists() and d_fp != b_fp
+        if adopt_fps is None:
+            adopt = first_run and dep.exists() and d_fp != b_fp
+        else:
+            adopt = (first_run and dep.exists() and d_fp != b_fp
+                     and d_fp in adopt_fps.get(src.name, ()))
         if adopt or should_deploy(b_fp, d_fp, stamps.get(src.name, "")):
             dep.write_bytes(src.read_bytes())
             stamps[src.name] = b_fp
@@ -153,6 +170,18 @@ def deploy_bundled_assets(bundled_dir: Path, dest: Path, manifest: bool = False)
 # for the compat window and for noticing tampering inside stock/.
 STOCK_SUBDIR = "stock"
 USER_SUBDIR = "user"
+
+# EVERY fingerprint we ever shipped FLAT (pre-split, v0.83.6–v0.84.1).
+# The flat compat pass may adopt ONLY these bytes, and may deploy ONLY
+# these names. rs90.png is deliberately absent: no release ever shipped
+# a flat rs90.png, so every flat rs90.png in the wild is a USER'S OWN
+# photo of their own remote (the device-photo cookbook told them to put
+# it exactly there) — first-run adoption must never claim it, or the
+# update destroys their photo (v0.85.3, caught pre-tag).
+PRE_SPLIT_FLAT_FPS = {
+    "astrion.png":  ("5ea401cb",),               # v0.83.6 → v0.84.1, unchanged
+    "astrion2.png": ("da39a3ee", "f54a7a94"),    # v0.83.x placeholder; v0.84.1
+}
 
 
 def skin_manifest(skins_root: Path) -> dict:
@@ -186,7 +215,8 @@ def write_skin_manifest(skins_root: Path) -> dict:
     return man
 
 
-def deploy_skins_split(bundled_dir: Path, skins_root: Path) -> dict:
+def deploy_skins_split(bundled_dir: Path, skins_root: Path,
+                       adopt_fps: dict | None = None) -> dict:
     """Deploy bundled skins into skins/stock/ AND, for one release,
     keep refreshing the legacy FLAT copies (v0.84.6 migration).
 
@@ -195,13 +225,20 @@ def deploy_skins_split(bundled_dir: Path, skins_root: Path) -> dict:
     stock/, but heal only runs when the Studio next loads and saves —
     until then the engine is still reading the flat path. Dropping the
     flat copies immediately would blank those remotes' skins in the
-    gap. So the flat copies stay CURRENT during the compat window
-    (same ownership stamp, so a user's own flat photo is still never
-    touched), and a later release can sweep them.
+    gap. So the flat copies stay CURRENT during the compat window,
+    and a later release can sweep them.
+
+    THE FLAT PASS IS FENCED (v0.85.3): it touches only names that ever
+    shipped flat, and adopts only bytes we know we shipped
+    (PRE_SPLIT_FLAT_FPS) — so a user's own flat photo is never eaten,
+    even one named exactly like a NEW stock skin (rs90.png).
+    `adopt_fps` is injectable for tests; None means the real registry.
 
     Returns {"stock": [...], "legacy": [...], "manifest": {...}}."""
+    fps = PRE_SPLIT_FLAT_FPS if adopt_fps is None else adopt_fps
     stock = deploy_bundled_assets(bundled_dir, skins_root / STOCK_SUBDIR)
-    legacy = deploy_bundled_assets(bundled_dir, skins_root)
+    legacy = deploy_bundled_assets(bundled_dir, skins_root,
+                                   only=set(fps), adopt_fps=fps)
     (skins_root / USER_SUBDIR).mkdir(parents=True, exist_ok=True)
     return {"stock": stock, "legacy": legacy,
             "manifest": write_skin_manifest(skins_root)}
