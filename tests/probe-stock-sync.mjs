@@ -19,8 +19,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { STOCK_MUSIC, STOCK_APPS_DRAWER, STOCK_MUSIC_LIBRARY,
   DOMAIN_STOCKS, STOCK_DIALECTS, STOCK_APP_IDENTITIES,
-  GENERIC_MEDIA_CONTROLLER, STOCK_TV, STOCK_REMOTE_PROFILES, STOCK_SKINS }
+  GENERIC_MEDIA_CONTROLLER, STOCK_TV, STOCK_REMOTE_PROFILES, STOCK_SKINS,
+  currentStockController, STOCK_INPUT_POLICY }
   from "../studio-src/src/lib/stocklib.js";
+import { controllerFp, unitFp } from "../studio-src/src/lib/ownership.js";
+import STOCK_HISTORY from "../studio-src/src/lib/stock-history.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const starter = JSON.parse(readFileSync(
@@ -103,6 +106,36 @@ for (const [id, prof] of Object.entries(STOCK_REMOTE_PROFILES)) {
    media controller must also still exist. */
 if (typeof GENERIC_MEDIA_CONTROLLER === "undefined")
   errs.push("stocklib no longer exports GENERIC_MEDIA_CONTROLLER");
+
+/* THE HISTORY REGEN GUARD (v0.85.7): stock-history.js is GENERATED
+   (tools/gen-stock-history.mjs) and the ownership referee reads it —
+   if a stock shape changes and the history is not regenerated, the
+   CURRENT shape is missing from its own history and pristine copies
+   at the new shape would classify "edited" on someone's machine.
+   Fail the battery instead: current fp must be in the history for
+   every unit the referee judges. */
+for (const cid of ["music", "tv", "apps", "music_library", "media"]
+  .concat(Object.keys(DOMAIN_STOCKS)))
+  if ((STOCK_HISTORY.controllers[cid] || []).indexOf(
+      controllerFp(currentStockController(cid))) < 0)
+    errs.push("stock-history stale: current '" + cid +
+      "' fp missing — run tools/gen-stock-history.mjs");
+for (const [rid, prof] of Object.entries(STOCK_REMOTE_PROFILES))
+  if (prof.keymap && (STOCK_HISTORY.remoteKeymaps[rid] || [])
+      .indexOf(unitFp(prof.keymap)) < 0)
+    errs.push("stock-history stale: keymap '" + rid + "' — regen");
+for (const [did, d] of Object.entries(STOCK_DIALECTS))
+  if (d.dpad_commands && (STOCK_HISTORY.dialectDpad[did] || [])
+      .indexOf(unitFp(d.dpad_commands)) < 0)
+    errs.push("stock-history stale: dpad_commands '" + did + "' — regen");
+/* INPUT POLICY (v0.85.7 round 2): starter ≡ stocklib, and current in
+   its own history — healInputPolicy judges by this list */
+if (unitFp(starter.input && starter.input.physical_buttons) !==
+    unitFp(STOCK_INPUT_POLICY))
+  errs.push("input.physical_buttons drifted between starter and stocklib");
+if (((STOCK_HISTORY.inputPolicy || {}).physical_buttons || [])
+    .indexOf(unitFp(STOCK_INPUT_POLICY)) < 0)
+  errs.push("stock-history stale: input policy — regen");
 
 console.log(JSON.stringify({
   checked: pairs.map(p => p[0]).concat(Object.keys(STOCK_DIALECTS).map(d => "dialect:" + d))

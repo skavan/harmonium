@@ -17,6 +17,9 @@
 /* the GUARANTEED stock: a house-neutral Media Player controller —
    pure $context (zero entity ids), the v0.20.1 mint anatomy. Present
    in every workspace so Navigate-to always offers a controller. */
+import { refereeController, unitFp } from "./ownership.js";
+import STOCK_HISTORY from "./stock-history.js";
+
 export const GENERIC_MEDIA_CONTROLLER = {
   name: "Media Player",
   gen: 3,   /* gen 3 (v0.85.7): t_tr gated unless physical_transport;
@@ -380,16 +383,35 @@ export const STOCK_TV = {
   ]
 };
 
+/* the current shipped shape for a stock controller id (deep copy,
+   domain extras applied) — the Studio's "Reset to built-in" uses it
+   to un-fork a legitimized copy (v0.85.7). null for non-stock ids. */
+export function currentStockController(cid) {
+  const named = { music: STOCK_MUSIC, apps: STOCK_APPS_DRAWER,
+    music_library: STOCK_MUSIC_LIBRARY, tv: STOCK_TV,
+    media: GENERIC_MEDIA_CONTROLLER };
+  if (named[cid]) return JSON.parse(JSON.stringify(named[cid]));
+  if (DOMAIN_STOCKS[cid])
+    return Object.assign(JSON.parse(JSON.stringify(DOMAIN_STOCKS[cid])),
+      { domain: cid, class: "activity", view_kind: "controller", type: "controller" });
+  return null;
+}
+
 export function healStockGen(cfg) {
-  const heal = (cid, stock, extra) => {
-    const c = cfg.controllers[cid];
-    if (!c || c.variant_of) return;
-    if ((c.gen || 0) >= (stock.gen || 0)) return;
-    const fresh = JSON.parse(JSON.stringify(stock));
-    if (c.parent) fresh.parent = c.parent;
-    Object.assign(fresh, extra || {});
-    cfg.controllers[cid] = fresh;
-  };
+  /* v0.85.7 — THE REFEREE replaces the blind gen check. The old rule
+     ("gen behind → replace wholesale") was correct for pristine
+     copies and DESTRUCTIVE for pre-lock in-place edits: a v0.84.1
+     user who reshaped their music controller would have lost it at
+     first save. Now ownership.js decides by content fingerprint
+     against stock-history.js: any shape we ever shipped heals
+     silently (repo wins — it was always ours); anything else under a
+     stock id is LEGITIMIZED as the user's fork (variant_of stamped,
+     unlocked, forked_by_update note for the Studio's notice + Reset
+     to built-in). Nothing is ever silently overwritten, nothing is
+     ever silently stranded. */
+  const heal = (cid, stock, extra) =>
+    refereeController(cfg, cid, stock, STOCK_HISTORY.controllers[cid] || [],
+      extra);
   heal("apps", STOCK_APPS_DRAWER);
   heal("music_library", STOCK_MUSIC_LIBRARY);
   heal("music", STOCK_MUSIC);
@@ -1007,7 +1029,335 @@ export function healStockSkins(cfg) {
    deliberately pruned down) is theirs — same doctrine as the stock
    drawers in ensureStockControllers. Adding an entry here is how a new
    platform reaches every existing install. */
+/* firetv/tizen/googletv joined STOCK_DIALECTS in v0.85.7 — they were
+   starter-only since v0.83.5 (the LAST starter-only organ found by the
+   ownership sweep): a content fix to any of them would never have
+   reached an existing install. Copied verbatim from the starter;
+   probe-stock-sync holds the two equal. */
 export const STOCK_DIALECTS = {
+  "firetv": {
+    "name": "Fire TV",
+    "channels": {
+      "commands": {
+        "integration": "androidtv",
+        "domain": "media_player",
+        "label": "ADB channel"
+      }
+    },
+    "apps": {
+      "netflix": {
+        "source": "com.netflix.ninja"
+      },
+      "prime": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.media_player",
+        "data": {
+          "command": "am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity"
+        }
+      },
+      "youtube": {
+        "source": "com.amazon.firetv.youtube"
+      },
+      "youtubetv": {
+        "source": "com.amazon.firetv.youtube.tv"
+      },
+      "peacock": {
+        "source": "com.peacock.peacockfiretv"
+      },
+      "paramount": {
+        "source": "com.cbs.ott"
+      },
+      "max": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.media_player",
+        "data": {
+          "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
+        }
+      },
+      "appletv": {
+        "source": "com.apple.atve.amazon.appletv"
+      }
+    },
+    "wake": {
+      "service": "media_player.turn_on",
+      "entity": "$context.media_player"
+    },
+    "capabilities": {
+      "settings": {
+        "service": "androidtv.adb_command",
+        "entity": "$context.media_player",
+        "data": {
+          "command": "input keyevent --longpress 3"
+        }
+      }
+    }
+  },
+  "tizen": {
+    "name": "Samsung Tizen",
+    "apps": {
+      "netflix": {
+        "source": "Netflix"
+      },
+      "prime": {
+        "source": "Prime Video"
+      },
+      "youtube": {
+        "source": "YouTube"
+      },
+      "youtubetv": {
+        "source": "YouTube TV"
+      },
+      "hulu": {
+        "source": "Hulu"
+      },
+      "disney": {
+        "source": "Disney+"
+      },
+      "appletv": {
+        "source": "Apple TV"
+      },
+      "max": {
+        "source": "Max"
+      },
+      "peacock": {
+        "source": "Peacock TV"
+      },
+      "paramount": {
+        "source": "Paramount+"
+      }
+    }
+  },
+  "googletv": {
+    "name": "Google TV",
+    "channels": {
+      "commands": {
+        "integration": "androidtv",
+        "domain": "media_player",
+        "label": "ADB channel"
+      }
+    },
+    "keys": {
+      "settings": {
+        "name": "Settings",
+        "icon": "material:settings",
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell input keyevent 176"
+        }
+      },
+      "search": {
+        "name": "Search",
+        "icon": "material:search",
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell input keyevent 117"
+        }
+      },
+      "allapps": {
+        "name": "All apps",
+        "icon": "material:apps",
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell input keyevent 284"
+        }
+      },
+      "quicksettings": {
+        "name": "Quick settings",
+        "icon": "material:tune",
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell input keyevent 83"
+        }
+      },
+      "livetv": {
+        "name": "Live TV",
+        "icon": "material:live_tv",
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell input keyevent 170"
+        }
+      }
+    },
+    "forbidden": [
+      {
+        "name": "SEARCH",
+        "code": 84,
+        "why": "voice search \u2014 activates the microphone"
+      },
+      {
+        "name": "MUTE",
+        "code": 91,
+        "why": "mutes the MICROPHONE (use VOLUME_MUTE 164)"
+      },
+      {
+        "name": "POWER",
+        "code": 26,
+        "why": "powers the device off"
+      },
+      {
+        "name": "TV_POWER",
+        "code": 177,
+        "why": "powers the device off"
+      },
+      {
+        "name": "SLEEP",
+        "code": 223,
+        "why": "powers the device off"
+      },
+      {
+        "name": "SOFT_SLEEP",
+        "code": 276,
+        "why": "powers the device off"
+      },
+      {
+        "name": "TV_INPUT",
+        "code": 178,
+        "why": "kills the picture"
+      },
+      {
+        "name": "TV_INPUT_HDMI_1",
+        "code": 243,
+        "why": "kills the picture"
+      },
+      {
+        "name": "TV_INPUT_HDMI_2",
+        "code": 244,
+        "why": "kills the picture"
+      },
+      {
+        "name": "TV_INPUT_HDMI_3",
+        "code": 245,
+        "why": "kills the picture"
+      },
+      {
+        "name": "TV_INPUT_HDMI_4",
+        "code": 246,
+        "why": "kills the picture"
+      },
+      {
+        "name": "PAIRING",
+        "code": 225,
+        "why": "drops into Bluetooth pairing"
+      },
+      {
+        "name": "PROFILE_SWITCH",
+        "code": 288,
+        "why": "changes the Google TV profile"
+      },
+      {
+        "name": "STB_POWER",
+        "code": 179,
+        "why": "power-cycles OTHER devices over CEC"
+      },
+      {
+        "name": "AVR_POWER",
+        "code": 181,
+        "why": "power-cycles OTHER devices over CEC"
+      }
+    ],
+    "apps": {
+      "netflix": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.netflix.ninja/.MainActivity"
+        }
+      },
+      "prime": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity"
+        }
+      },
+      "youtube": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity"
+        }
+      },
+      "youtubetv": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity"
+        }
+      },
+      "peacock": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity"
+        }
+      },
+      "paramount": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity"
+        }
+      },
+      "max": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.wbd.stream/com.wbd.beam.BeamActivity"
+        }
+      },
+      "appletv": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.apple.atve.androidtv.appletv/.MainActivity"
+        }
+      },
+      "hulu": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.hulu.livingroomplus/.WKFactivity"
+        }
+      },
+      "disney": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity"
+        }
+      },
+      "fubo": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity"
+        }
+      },
+      "espn": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity"
+        }
+      },
+      "britbox": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.commands",
+        "data": {
+          "command": "adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity"
+        }
+      }
+    },
+    "wake": {
+      "service": "media_player.turn_on",
+      "entity": "$context.media_player"
+    }
+  },
   appletv: {
     name: "Apple TV",
     /* pyatv's vocabulary — HA's apple_tv rejects anything else with
@@ -1074,6 +1424,25 @@ export function healStockDialects(cfg) {
       cfg.dialects[id] = JSON.parse(JSON.stringify(STOCK_DIALECTS[id]));
       continue;
     }
+    /* WHOLE-DIALECT TRACKING (v0.85.7 — Suresh: "stock dialects; if
+       edited that becomes a user dialect. They can revert to stock at
+       any time or at least look at it and copy paste what they need").
+       The fingerprint decides: a dialect matching ANY shipped shape is
+       provably untouched — deletions included — so it may track stock
+       WHOLESALE, which is how new stock apps finally reach existing
+       installs (the tombstone problem dissolves: an edited dialect is
+       the user's and is left alone entirely; the Studio shows its
+       state and offers View stock / Reset to stock). */
+    {
+      const cur0 = cfg.dialects[id];
+      const stockFp = unitFp(STOCK_DIALECTS[id]);
+      const hist = (STOCK_HISTORY.dialects || {})[id] || [];
+      const myFp = unitFp(cur0);
+      if (myFp !== stockFp && hist.indexOf(myFp) >= 0) {
+        cfg.dialects[id] = JSON.parse(JSON.stringify(STOCK_DIALECTS[id]));
+        continue;                       // fully current — sub-heals moot
+      }
+    }
     /* an EMPTY apps map is untouched by definition — installs that got
        appletv planted before the app catalog existed (v0.85.8) may
        safely receive it; one curated entry and it is theirs. */
@@ -1081,6 +1450,18 @@ export function healStockDialects(cfg) {
     if ((!cur.apps || !Object.keys(cur.apps).length) &&
         Object.keys(STOCK_DIALECTS[id].apps || {}).length)
       cur.apps = JSON.parse(JSON.stringify(STOCK_DIALECTS[id].apps));
+    /* dpad_commands heal by fingerprint (v0.85.7): if the platform's
+       command names get corrected upstream, the fix must reach every
+       install that never touched them. Pristine (any shipped shape,
+       or absent) → refresh to current; edited → the user's, kept. */
+    const stockDpad = STOCK_DIALECTS[id].dpad_commands;
+    if (stockDpad) {
+      const hist = (STOCK_HISTORY.dialectDpad || {})[id] || [];
+      const mine = cur.dpad_commands;
+      if (!mine || unitFp(mine) === unitFp(stockDpad) ||
+          hist.indexOf(unitFp(mine)) >= 0)
+        cur.dpad_commands = JSON.parse(JSON.stringify(stockDpad));
+    }
   }
   if (!cfg.apps) cfg.apps = {};
   for (const aid in STOCK_APP_IDENTITIES)
@@ -1123,7 +1504,7 @@ export const STOCK_REMOTE_PROFILES = {
       "Enter": "select",
       " ": "select",
       "+": "vol_up",
-      "=": "power_hold",
+      "=": "home_hold",
       "-": "vol_down",
       "PageUp": "ch_up",
       "PageDown": "ch_down",
@@ -1134,6 +1515,7 @@ export const STOCK_REMOTE_PROFILES = {
       "[": "back",
       "Escape": "back",
       "Backspace": "back",
+      "]": "back_hold",
       "F1": "home",
       "BrowserHome": "home",
       "F4": "light",
@@ -1148,6 +1530,7 @@ export const STOCK_REMOTE_PROFILES = {
       "p": "power",
       "P": "power",
       "o": "power_hold",
+      "F12": "power_hold",
       "O": "power_hold",
       ",": "left_hold",
       ".": "right_hold"
@@ -1171,7 +1554,7 @@ export const STOCK_REMOTE_PROFILES = {
       "Enter": "select",
       " ": "select",
       "+": "vol_up",
-      "=": "power_hold",
+      "=": "home_hold",
       "-": "vol_down",
       "PageUp": "ch_up",
       "PageDown": "ch_down",
@@ -1182,6 +1565,7 @@ export const STOCK_REMOTE_PROFILES = {
       "[": "back",
       "Escape": "back",
       "Backspace": "back",
+      "]": "back_hold",
       "F1": "home",
       "BrowserHome": "home",
       "F4": "prev",
@@ -1196,6 +1580,7 @@ export const STOCK_REMOTE_PROFILES = {
       "p": "power",
       "P": "power",
       "o": "power_hold",
+      "F12": "power_hold",
       "O": "power_hold",
       ",": "left_hold",
       ".": "right_hold"
@@ -1219,7 +1604,11 @@ export const STOCK_REMOTE_PROFILES = {
       " ": "select",
       "+": "vol_up",
       "-": "vol_down",
-      "=": "power_hold",
+      "=": "home_hold",
+      "o": "power_hold",
+      "F12": "power_hold",
+      "O": "power_hold",
+      ";": "home_hold",
       "PageUp": "ch_up",
       "PageDown": "ch_down",
       "`": "mute",
@@ -1278,6 +1667,18 @@ export function healStockRemotes(cfg) {
     if (!Array.isArray(r.capabilities)) r.capabilities = [];
     for (const cap of stock)
       if (r.capabilities.indexOf(cap) < 0) r.capabilities.push(cap);
+    /* keymap heal by fingerprint (v0.85.7): a keymap matching ANY
+       shipped shape is pristine — refresh it so new stock keys (the
+       hold pairs, new buttons) reach existing installs. One remapped
+       key and it is the user's, kept verbatim (the engine still
+       backfills the hold keys only-if-absent at runtime). */
+    const stockMap = STOCK_REMOTE_PROFILES[id].keymap;
+    if (stockMap) {
+      const hist = (STOCK_HISTORY.remoteKeymaps || {})[id] || [];
+      if (!r.keymap || unitFp(r.keymap) === unitFp(stockMap) ||
+          hist.indexOf(unitFp(r.keymap)) >= 0)
+        r.keymap = JSON.parse(JSON.stringify(stockMap));
+    }
   }
 }
 
@@ -1366,6 +1767,40 @@ export function ensureStockControllers(cfg) {
   healStockSkins(cfg);
   healStockDialects(cfg);
   healStockRemotes(cfg);
+  healInputPolicy(cfg);
+  return cfg;
+}
+
+/* THE CURRENT INPUT POLICY (one truth, mirrored by the starter —
+   probe-stock-sync holds them equal). v0.85 flipped the doctrine to
+   Suresh's agreed navigation: SHORT Back/Home go to the control
+   target where the view passes them through (the TV), the app
+   everywhere else; HOLD Back/Home ALWAYS target the app. */
+export const STOCK_INPUT_POLICY = {
+  short_press: "control_target",
+  hold: { back: "app_back", home: "room_home", power: "all_off" },
+  hold_ms: { navigation: 500, power: 1200 },
+};
+
+/* INPUT POLICY REFEREE (v0.85.7 round 2 — Suresh: "I want the
+   navigation we agreed. Home and Back target the app except on TV
+   where they target the TV. Long Press Back and Home always target
+   the App."). His own install disagreed: it still carried the
+   pre-v0.85 policy verbatim (short "app", hold "control_target" —
+   long-press sent DEVICE keys), because the input policy had no
+   healer — the same stranded-on-legacy disease every other organ
+   already cured. Fingerprint doctrine: a policy matching ANY shipped
+   shape is pristine and heals to current; one edited key and it is
+   the user's, untouched. */
+export function healInputPolicy(cfg) {
+  const pb = cfg && cfg.input && cfg.input.physical_buttons;
+  if (!pb) return cfg;                     /* absent: engine v1 defaults */
+  const cur = unitFp(STOCK_INPUT_POLICY);
+  const mine = unitFp(pb);
+  if (mine === cur) return cfg;
+  const hist = (STOCK_HISTORY.inputPolicy || {}).physical_buttons || [];
+  if (hist.indexOf(mine) >= 0)
+    cfg.input.physical_buttons = JSON.parse(JSON.stringify(STOCK_INPUT_POLICY));
   return cfg;
 }
 
@@ -1436,7 +1871,16 @@ export function starterConfig(base, ws) {
    imports) so the engine never needs legacy aliases. */
 
 export function normalizeNavTiles(cfg) {
-  const MAP = { group: "summary", room: "image", nav: "plain" };
+  /* v0.85.7 (Suresh's ghost-position report): `nav` is the CURRENT
+     type, not a legacy alias — stamping style:"plain" onto every
+     style-less nav card here was silently killing the engine's `auto`
+     ladder (borrow the target page's banner photo → image; page has
+     devices → summary; else plain) for anything authored in the
+     Studio. Only the truly legacy types migrate; a modern nav card
+     without `style` stays auto, exactly as authored. Pre-v0.25
+     configs whose bare `nav` meant the icon button still render
+     sanely — auto's own ladder ends at plain. */
+  const MAP = { group: "summary", room: "image" };
   const surfaces = [...Object.values(cfg?.screens || {}), ...Object.values(cfg?.controllers || {})];
   for (const scr of surfaces)
     for (const g of [scr.tiles || [], ...(scr.sections || []).map((s) => s.tiles || [])])

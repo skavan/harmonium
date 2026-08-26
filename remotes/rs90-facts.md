@@ -79,9 +79,14 @@ doctrine) swallows volume — "volume does nothing at all" was TWO
 configs interlocking, not a second thief. cantata is fully
 acquitted of media-session theft.
 
-Doctrine note:
-Back is FLIPPED vs the Astrion — tap = device back (`]` → `back_hold`,
-degrades to UI back), long-press = Harmonium back (`[`) — because on
-this face Back lives with Menu/Mute (device cluster) and the LCD
-header carries on-screen ←/⌂. Escape hatch: Home long-press →
-Android *Go home*.
+Doctrine note (rewritten 2026-08-26 — the original "Back is
+FLIPPED vs the Astrion" scheme predates the input-routing doctrine
+and was never what shipped):
+Back is IDENTICAL to the Astrion — tap emits `[` (back: routed by
+page, device on TV pages, app elsewhere), long-press emits `]`
+(back_hold: always the app). Hold gestures likewise match the
+Astrion's outputs: Home long → `=` (home_hold), Power long → `F12`
+(power_hold / All Off). The ONE thing that never matches is the
+trigger side: **Power=F1, Home=F2 here — mirrored** — so the
+KeyMapper rules bind the holds to the opposite F-keys from the
+Astrion's. Full doctrine: `docs/HARMONIUM-INPUT-ROUTING.md`.

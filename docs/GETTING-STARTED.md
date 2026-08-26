@@ -69,6 +69,37 @@ webview. Hardware remotes just open the same page in a kiosk. Keep
 it bookmarked; it's also the fastest way to sanity-check a config
 change without leaving your desk.
 
+**For a permanent kiosk or hardware remote** (an Astrion, a wall
+tablet, Fully Kiosk), the question everyone asks is *"does the
+Start URL include the `#device=` part, or not?"* **It does. Set
+the Start URL to the full form, pin included:**
+
+    http://<your-ha>:8123/local/harmonium/main/index.html#device=astrion
+
+Swap `astrion` for the profile this device wears (astrion2, rs90 —
+or one you created). Two things make this the right Start URL:
+
+- The `main/` form re-checks the engine version on every boot, so
+  a webview that stays up for months never wakes on a stale cached
+  engine after an update.
+- `#device=<profile>` is a provisioning pin — stored on first
+  load, then stripped from the address bar. That makes it
+  *technically* optional after the first open, which is why people
+  wonder whether to keep it. Keep it: left in the configured URL
+  it re-pins on every boot, so the remote heals itself after
+  cleared browser storage or a factory reset, and it costs nothing
+  when the pin is already set.
+
+Other workspaces follow the same shape
+(`/local/harmonium/<id>/index.html#device=…`). You never have to
+assemble this address by hand: the ⓘ page on the remote you're
+holding shows the exact line near the top ("This page ·") — copy
+that into Fully. The Studio's page settings also show copyable
+links under each page's Name; the device-pinned one there is a
+*page deep link* (`#page=<id>&device=<profile>`) — same pin, but
+it boots to that page, so use the plain `#device=` form above for
+a kiosk that should start at home.
+
 1. Tap **Pair with Home Assistant** (the host field is prefilled when
    you're on the same origin).
 2. The device shows a short code, big: `FIG-482`.
@@ -90,8 +121,16 @@ finish by Brad Sanders' community guide:
 [Astrion Remote for Home Assistant — sideloading, Fully Kiosk, button
 remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570).
 
-When Fully Kiosk is running: set its Start URL to the address above,
-pair as in step 4, then come back to
+One profile fact worth knowing up front: the **RS90 and the Astrion
+"v2" profile declare physical transport keys**, so the stock music
+controller drops the on-screen transport bar from the LCD on those
+remotes — the real REW/Play-Pause/FWD buttons drive the player, and
+the screen space goes to the Now Playing card (styles and pictures:
+`docs/cookbook/now-playing-styles.md`).
+
+When Fully Kiosk is running: set its Start URL to the address from
+step 4 — the full form **with** `#device=astrion` on the end — then
+pair as in step 4, and come back to
 [our hardware-keys guide](cookbook/hardware-keys.md) to make every
 physical button do the right thing — and to
 [the device-photo guide](cookbook/device-photo-skin.md) to get the
@@ -209,3 +248,15 @@ and wire your own entities in.
 `/local/` hard: Fully settings → *Web Content* → clear cache, then
 reload. (The Studio's ⋯ menu has *Save + Reload Astrion* which does
 this remotely for paired Fully devices.)
+
+## Deep links — open a page by URL
+
+In a browser, append `#page=<page id>` to the engine URL to land
+directly on that page:
+
+    http://<ha>:8123/local/harmonium/main/index.html#page=porch
+
+The page id is the one shown in the Studio (Pages list). It combines
+with a workspace (`#ws=guest&page=porch`), it is bookmarkable, and it
+affects that load only — nothing is pinned, so kiosks and remotes are
+unaffected. An unknown id shows a brief notice and lands on home.

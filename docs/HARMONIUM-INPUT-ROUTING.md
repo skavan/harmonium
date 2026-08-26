@@ -89,7 +89,7 @@ does not fit these flags, extend the flags, not the rules.
 | Power (short) | Page's device or activity | Page's device or activity |
 | Power (long) | Activity off / all-off macro | Activity off / all-off macro |
 | Mic | Device voice service if any, else Harmonium search | Device voice service |
-| Menu | Device menu if declared, else page overflow | Device menu |
+| Menu | Binding → device menu if declared → the FOCUSED tile's own page (nav target · activity controller · device page), else nothing | Device menu |
 | Colour keys | Existing global assignments — **out of scope, do not rebind** | Same |
 
 ### 4.1 Hard invariants
@@ -116,14 +116,31 @@ every panel page MUST be fully operable without touching the glass.
 Short-press routes per §4. It is the highest-frequency press on TV pages (backing
 out of device menus), which is why the device gets it there.
 
+Harmonium's Back means **prior page** — it retraces the navigation history,
+sideways jumps included. When no history exists (a boot or deep link straight
+onto a child page), Back climbs **up one level** instead of doing nothing,
+stopping at the boot view — it never jumps past it to the overview; that is
+Home's job (v0.85.7).
+
 ### 5.3 Home
 Short-press routes per §4. On TV pages, Harmonium's home is reachable via the
 panel strip (§7) or long-press.
 
 ### 5.4 Ch±
-Moves panel focus. When `sections: true`, ch± moves to the first element of the
-next/previous section rather than the next element. When `sections: false`, it
-steps element to element.
+Moves panel focus. Implemented v0.85.7 (Suresh: "On a Page like Porch, ChUp
+and ChDn should jump sections. Since we have them."): on any panel-native page
+whose sections carry a `hero_label` OR a `title`, short ch± jumps to the
+next/previous section's first tile (with a named flash); a page without jump
+stops steps element to element. Titled sections become jump stops WITHOUT
+gaining a banner chip — only `hero_label` sections show in the strip. TV/
+passthrough pages keep the element walk (there ch± is the panel's only walk).
+The jump scroll leaves ~10px of air above the section anchor.
+
+In the MUSIC LIBRARY, the D-pad also reaches the bar (v0.85.7): ▲ from the top
+of the grid enters the category chips, ▲ again the roots row (Favorites · Music
+Library · Search · ⟳); ◀▶ walk the row, OK presses, ▼ walks back down and lands
+on the first item tile. Library-only — the hero chips of ordinary pages remain
+"not a D-pad stop" (2026-08-19).
 
 On TV pages, ch± additionally arms the claim (§6). This is what makes law 1 safe:
 the user can move panel focus without ever taking the dpad away from the TV.

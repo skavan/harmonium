@@ -58,6 +58,27 @@ UPLOAD_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 UPLOAD_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"RIFF")
 
 
+class HarmoniumWhoamiView(HomeAssistantView):
+    """GET /api/harmonium/whoami -> {"ip": "<caller's address>"}
+
+    v0.85.7 — Suresh: "Put the ip address in the [ⓘ] page". A webview
+    cannot learn its own LAN address (no Fully JS interface in our
+    profile; WebRTC candidates are mDNS-obfuscated; getBattery-style
+    APIs need a secure context) — but HOME ASSISTANT sees the caller's
+    address on every request, so the integration just tells it back.
+    The ⓘ page shows it with the Fully remote-admin hint (:2323),
+    which is the sanctioned door to Fully's settings on a kiosk.
+    Authenticated: an address is mildly sensitive and the engine
+    always has its token by the time ⓘ renders."""
+
+    url = "/api/harmonium/whoami"
+    name = "api:harmonium:whoami"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        return self.json({"ip": request.remote or ""})
+
+
 class HarmoniumUploadView(HomeAssistantView):
     """POST /api/harmonium/upload — a picture for the deployed tree.
 

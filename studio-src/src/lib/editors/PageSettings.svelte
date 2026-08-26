@@ -13,6 +13,7 @@
   import Segmented from "../components/Segmented.svelte";
   import SourceChip from "../components/SourceChip.svelte";
   import NumberField from "../components/NumberField.svelte";
+  import Input from "../components/Input.svelte";
 
   let { screenId, keysCount } = $props();
   const d = $derived(app.draft);
@@ -177,9 +178,11 @@
       <div class="grid grid-cols-[64px_1fr] items-center gap-x-3 gap-y-2">
         <span class="text-xs font-bold text-dim">Home</span>
         <div class="flex items-center gap-2">
-          <span class="font-mono text-[11px] text-dim">page:</span>
+          <span class="font-mono text-[11px] text-dim">parent:</span>
           <Select bind:value={scr.parent} options={homeTargets} allowEmpty class="max-w-56" />
-          <span class="text-[11px] text-dim">also nests this view under it</span>
+          <span class="text-[11px] text-dim">the Home key steps up to this page's parent
+            (and the sidebar nests it there) — blank = top-level; the final stop is set
+            once, in Advanced</span>
         </div>
         <span class="text-xs font-bold text-dim">Back</span>
         <span class="text-xs text-dim">UI back — unwinds history (chevron in the status bar)</span>
@@ -271,33 +274,27 @@
 
         {#if pgTab === "advanced"}
           <div class="space-y-3 rounded-[9px] border border-line bg-glass p-3">
-            {#if isOwnerRoom}
-              <div class="grid grid-cols-2 gap-3">
-                <Field label="Boot view" hint="where a remote lands on startup and Home — normally this page">
-                  <Select bind:value={d.home_screen} options={Object.keys(d.screens)} onchange={edit} />
-                </Field>
-                <Field label="Home hub" hint="top of the Home ladder (the overview of all pages)">
-                  <Select bind:value={d.global.main_home} options={Object.keys(d.screens)} allowEmpty onchange={edit} />
-                </Field>
-              </div>
-              <Field label="View paging order" hint="what the CH◀▶ / page keys flip through, left to right — NOT tile or activity order">
-                <Chips bind:items={d.screen_order} suggestions={Object.keys(d.screens)} placeholder="add view…" />
-              </Field>
-              <Field label="Activity state select"
-                hint="The routing cache. The integration MINTS select.harmonium_<page>_activity per activity-owning page — point here at the minted one (input_select still accepted for legacy configs).">
-                <EntityPicker bind:value={d.global.activity_select} domains={["select", "input_select"]} onchange={edit} />
-              </Field>
-              <Field label="Page-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
-                <div class="rounded-[8px] border border-line bg-field p-2 font-mono text-[11px] text-dim">
-                  {Object.keys(d.global.buttons || {}).join(" · ") || "none"}
-                </div>
-              </Field>
-            {:else}
-              <p class="m-0 text-xs text-dim">
-                Config-level knobs (boot view, paging order, routing) live
-                on the owner page's Page settings.
-              </p>
-            {/if}
+            <!-- ROOM NAME (v0.85.7 — Suresh, on his new Home page reading
+                 "Porch · Home": "Where is the word porch coming from!").
+                 The title bar is Room · Page, and the Room half falls
+                 back to global.room when a page names none — so every
+                 new page inherits the first room's name. This field was
+                 a Code-tab secret (room_name); now it's a knob. Set it
+                 equal to the page's name and the duplicate collapses
+                 (the engine shows just "Home"). -->
+            <Field label="Room name" hint={'the title-bar prefix ("' +
+              (scr?.room_name || d?.global?.room || "…") + ' · ' + (scr?.name || screenId) +
+              '") — blank inherits the workspace room (' + (d?.global?.room || "unset") +
+              '); same as the page name collapses to just the name'}>
+              <Input bind:value={scr.room_name} onchange={edit}
+                placeholder={d?.global?.room || "room shown before the page name"} />
+            </Field>
+            <p class="m-0 text-xs text-dim">
+              Workspace-wide navigation — <b>Boot view</b>, <b>Home — final
+              stop</b>, <b>View paging order</b>, the <b>Activity state
+              select</b> — moved to <b>System → Startup &amp; Home</b>
+              (v0.85.7): one workspace, one place, said once.
+            </p>
           </div>
         {/if}
       </div>

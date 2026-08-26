@@ -179,9 +179,17 @@ function genBrowse(t) {
            the speaker is suppressed, not offered-and-disabled */
         if (route === "none") return;
         const play = playOf(c, via, route);
+        const svc0 = brSvcOf(c.media_content_id, c._thumb || c.thumbnail);
+        const src0 = brSysOf(c.media_content_id);
         out.push({
           type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
-          ...(listv ? { brRow: true } : g2 ? { brCols: 2 } : {}),
+          ...(listv ? { brRow: true,
+            /* the LIST ROW's words + drill chevron (v0.85.7 — his
+               mock): sub line says service · kind; expandables wear
+               the › door. cls rides the chassis passthrough. */
+            ...(brSubOf(c, svc0, src0) ? { sub_label: brSubOf(c, svc0, src0) } : {}),
+            ...(c.can_expand ? { cls: "drill" } : {}) }
+            : g2 ? { brCols: 2 } : {}),
           icon: BROWSE_ICON[c.media_class] || "material:library_music",
           /* the badge is set only where the kind ISN'T implied by the
              chip you're standing on — i.e. the All grid */

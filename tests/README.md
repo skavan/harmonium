@@ -116,3 +116,15 @@ fixture, assert through the DOM, print the JSON, and add nothing to
 any shared state another suite reads. If your feature bounds coverage
 (caps, retries, sampling), print what was dropped — the battery's
 job is to make silence impossible.
+
+## The ownership referee (v0.85.7)
+
+`probe-ownership.mjs` pins the bucket contract (pristine heals, edited
+legitimizes, forks untouched) against the REAL v0.84.1 starter from
+`tools/starter-history/`; `probe-ownership-ui.mjs` drives the Studio
+banner + Reset to built-in. When you change ANY stock shape: bump its
+gen in stocklib, regenerate the starter, then run
+`node tools/gen-stock-history.mjs` — probe-stock-sync fails the battery
+if you forget (history staleness). When you add a SURGICAL heal, add
+its key to the safe-drift normalizers in ownership.js, or its output
+will read as a user edit.

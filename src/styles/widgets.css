@@ -7,13 +7,26 @@
   }
   .tile.wgt-nav.nav-image .roomimg {
     position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: .85;
+    object-fit: cover; opacity: var(--img-op, .85);
+    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
+       photo cards. tile.image_opacity sets it in nav wire; css_vars
+       can set it too, per tile or section-wide. Dark card = the dim. */
   }
   .tile.wgt-nav.nav-image .top {
     position: absolute; left: 12px; bottom: 10px; z-index: 1;
     text-shadow: 0 1px 8px rgba(0,0,0,.8);
   }
   .tile.wgt-nav.nav-image .lbl { font-size: calc(var(--fs-1) + 2px); }
+  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
+     bottom-left is the unstated default above. "center" = dead center. */
+  .tile.wgt-nav.nav-image.lp-top-left .top { top: 10px; bottom: auto; }
+  .tile.wgt-nav.nav-image.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.wgt-nav.nav-image.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
+  .tile.wgt-nav.nav-image.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.wgt-nav.nav-image.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
+  .tile.wgt-nav.nav-image.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.wgt-nav.nav-image.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.wgt-nav.nav-image.lp-bottom-right .top { left: auto; right: 12px; }
   .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
   .tile.wgt-nav.nav-image .hint { display: none; }
   .tile.wgt-nav.nav-image.on { border-color: var(--accent); }

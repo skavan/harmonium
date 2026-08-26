@@ -90,6 +90,7 @@ This is where Harmonium earns its keep — and the physical buttons are half of 
   anything — if the HA100's factory display density of 220 has been lost), then `push-keymapper.bat` — it pushes the bundled profile from [`remotes/keymapper/astrion/`](remotes/keymapper/astrion/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
    [`astrion-remote-map.md`](remotes/keymapper/astrion/astrion-remote-map.md), and the community guide's screenshots show where everything lives.
 3. **Point Fully Kiosk at the URL above**, pair, and pick up at [our hardware-keys cookbook](docs/cookbook/hardware-keys.md) for what every key does — including the glyph row you can bind to anything in the Studio.
+4. **Turn on Remote Administration in Fully** (Settings → Remote Administration → enable, set a password). Then you never touch the remote's tiny settings screens again: manage every Fully setting from a desktop browser at `http://<remote-ip>:2323` (the remote's IP is on Harmonium's ⓘ screen), and HA's Fully Kiosk integration gets its device buttons — *Clear browser cache*, *Load Start URL* — which are also Harmonium's update failsafe.
 
 ## Cookbook
 
@@ -143,7 +144,7 @@ Fork setup, deploy scripts (`build-push.bat` and friends, driven by `houses\defa
 
 ## Status
 
-Beta (v0.83.9). Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully Kiosk) across two houses. Recent: the per-activity Controller tab (band switches, ordering, labels, four Now Playing renderers), Speaker Groups with per-player volume link, code-match pairing, device-photo skins with button mapping, in-Studio image upload, import with a destination chooser, and dialect-level wake before app launches. Roadmap and open items:  
+Beta (v0.85.7). Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully Kiosk) across two houses. Recent: a config ownership system (updates refresh built-ins without ever touching your edits), the physical-key routing doctrine with a fixed hold-key vocabulary, a redesigned Music Library and queue, engine self-update on deployed remotes, per-activity Now Playing styles with a [picture menu](docs/cookbook/now-playing-styles.md), and page deep links. Release notes: [docs/releases](docs/releases). Roadmap and open items:  
 [docs/PROJECT.md](docs/PROJECT.md).
 
 ## Asks
@@ -155,6 +156,7 @@ Really need some testers to:
 3. Help wire up the dialects needed for Apple TV and other popular platforms
 4. Identify bugs, warts and inconsistencies
 5. Identify missing Tile types and how they should work (i.e. Conditional Tiles)
+6. **Weigh in on the D-pad targeting model** — D-pad/Back/Home drive the on-screen remote everywhere *except* TV pages, where taps drive the television. Does that resonate, or does it fight your thumbs? The discussion: [issue #5](https://github.com/skavan/harmonium/issues/5).
 
 ## License
 

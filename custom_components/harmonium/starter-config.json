@@ -50,7 +50,8 @@
     "o": "power_hold",
     "O": "power_hold",
     ",": "left_hold",
-    ".": "right_hold"
+    ".": "right_hold",
+    "F12": "power_hold"
    }
   },
   "astrion": {
@@ -70,7 +71,7 @@
     "Enter": "select",
     " ": "select",
     "+": "vol_up",
-    "=": "power_hold",
+    "=": "home_hold",
     "-": "vol_down",
     "PageUp": "ch_up",
     "PageDown": "ch_down",
@@ -81,6 +82,7 @@
     "[": "back",
     "Escape": "back",
     "Backspace": "back",
+    "]": "back_hold",
     "F1": "home",
     "BrowserHome": "home",
     "F4": "light",
@@ -95,6 +97,7 @@
     "p": "power",
     "P": "power",
     "o": "power_hold",
+    "F12": "power_hold",
     "O": "power_hold",
     ",": "left_hold",
     ".": "right_hold"
@@ -164,7 +167,7 @@
      {
       "btn": "up",
       "x": 39.74,
-      "y": 60.0,
+      "y": 60,
       "w": 20,
       "h": 5.5
      },
@@ -294,7 +297,7 @@
     "Enter": "select",
     " ": "select",
     "+": "vol_up",
-    "=": "power_hold",
+    "=": "home_hold",
     "-": "vol_down",
     "PageUp": "ch_up",
     "PageDown": "ch_down",
@@ -305,6 +308,7 @@
     "[": "back",
     "Escape": "back",
     "Backspace": "back",
+    "]": "back_hold",
     "F1": "home",
     "BrowserHome": "home",
     "F4": "prev",
@@ -319,6 +323,7 @@
     "p": "power",
     "P": "power",
     "o": "power_hold",
+    "F12": "power_hold",
     "O": "power_hold",
     ",": "left_hold",
     ".": "right_hold"
@@ -338,21 +343,21 @@
     "buttons": [
      {
       "btn": "back",
-      "x": 10.0,
+      "x": 10,
       "y": 52.3,
       "w": 19,
       "h": 4.6
      },
      {
       "btn": "home",
-      "x": 33.0,
+      "x": 33,
       "y": 52.3,
       "w": 34,
       "h": 4.6
      },
      {
       "btn": "power",
-      "x": 71.0,
+      "x": 71,
       "y": 52.3,
       "w": 19,
       "h": 4.6
@@ -362,19 +367,19 @@
       "x": 9.5,
       "y": 59.5,
       "w": 14,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "ch_up",
-      "x": 70.0,
+      "x": 70,
       "y": 59.5,
       "w": 18,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "up",
       "x": 40,
-      "y": 60.0,
+      "y": 60,
       "w": 20,
       "h": 4.5
      },
@@ -383,21 +388,21 @@
       "x": 26,
       "y": 66.5,
       "w": 12,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "select",
       "x": 40,
       "y": 65.7,
       "w": 20,
-      "h": 7.0
+      "h": 7
      },
      {
       "btn": "right",
       "x": 62,
       "y": 66.5,
       "w": 12,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "down",
@@ -411,33 +416,33 @@
       "x": 9.5,
       "y": 73.5,
       "w": 14,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "ch_down",
-      "x": 70.0,
+      "x": 70,
       "y": 73.5,
       "w": 18,
-      "h": 6.0
+      "h": 6
      },
      {
       "btn": "mute",
       "x": 10,
-      "y": 81.0,
+      "y": 81,
       "w": 19,
       "h": 4.6
      },
      {
       "btn": "voice",
       "x": 33,
-      "y": 81.0,
+      "y": 81,
       "w": 34,
       "h": 4.6
      },
      {
       "btn": "menu",
       "x": 71,
-      "y": 81.0,
+      "y": 81,
       "w": 19,
       "h": 4.6
      },
@@ -518,7 +523,11 @@
     " ": "select",
     "+": "vol_up",
     "-": "vol_down",
-    "=": "power_hold",
+    "=": "home_hold",
+    "o": "power_hold",
+    "F12": "power_hold",
+    "O": "power_hold",
+    ";": "home_hold",
     "PageUp": "ch_up",
     "PageDown": "ch_down",
     "`": "mute",
@@ -768,7 +777,8 @@
   "o": "power_hold",
   "O": "power_hold",
   ",": "left_hold",
-  ".": "right_hold"
+  ".": "right_hold",
+  "F12": "power_hold"
  },
  "home_screen": "home",
  "screen_order": [
@@ -1052,7 +1062,7 @@
     {
      "name": "SEARCH",
      "code": 84,
-     "why": "voice search \u2014 activates the microphone"
+     "why": "voice search — activates the microphone"
     },
     {
      "name": "MUTE",

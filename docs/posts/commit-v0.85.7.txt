@@ -1,0 +1,8 @@
+v0.85.7: config ownership, key doctrine, Music Library redesign, engine self-update
+
+- Ownership referee: built-ins heal by content fingerprint; edited copies become yours (variant_of), never touched
+- Keys: tap Back/Home -> device on TV pages, app elsewhere; holds always app; hold vocabulary ] / = / F12 across astrion, astrion2, rs90 (KeyMapper backups + generated maps updated); back-key moat; CH section jumps; Menu = focused tile's page; Back = prior page else up one level
+- Music Library + queue: art-forward grids (br-lbl knob), compact rows, queue mirrors library and opens on the playing track; pre-auth send queue fixes the loading hang
+- Engine self-update: deployed remotes check the engine version on reconnect/wake and reload through the versioned stub
+- Studio: preview version-busted, screenshots fixed (transition kill + image placeholder), full-width page links with http-safe copy, styling stack (label position, opacity, css vars), NP style picker with picture menu
+- Docs: v0.85.7 release notes + GitHub body (breaking changes, KeyMapper table), now-playing-styles cookbook, test checklist, README refreshed

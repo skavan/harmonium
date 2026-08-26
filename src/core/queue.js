@@ -123,5 +123,9 @@ function queueScreen(eid) {
     grid: { columns: 1 },
     tiles,
     initial_focus: (nowRow || tiles[0]).id,
+    /* land the playing row as ~the third visible row — two played
+       above, the upcoming below (Suresh: it parked at the bottom,
+       clipped) */
+    focus_context: true,
   };
 }

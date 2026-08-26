@@ -46,8 +46,9 @@ const ck = (n, c) => { if (!c) errs.push(n); };
   const empty = {};
   healStockDialects(empty);
   ck('heal mints dialects{} when absent', !!empty.dialects.appletv);
-  ck('every stock dialect declares commands',
-    Object.values(STOCK_DIALECTS).every(d => !!d.dpad_commands));
+  /* v0.85.7: firetv/tizen/googletv joined STOCK_DIALECTS — Android
+     speaks DPAD_DEFAULT, so only appletv NEEDS declared commands */
+  ck('appletv declares commands', !!STOCK_DIALECTS.appletv.dpad_commands);
 }
 
 /* --- the stock appletv dialect speaks pyatv --- */
@@ -90,10 +91,20 @@ ck('Studio DPAD_FALLBACK matches the engine DPAD_DEFAULT',
 {
   const { STOCK_MUSIC, STOCK_TV, ensureStockControllers } =
     await import('../studio-src/src/lib/stocklib.js');
+  /* v0.85.7: the referee heals by fingerprint — the broken-tv fixture
+     is the CURRENT stock shape with the v0.85.0 style baked in (the
+     normalizers make that read pristine, so it heals); a fabricated
+     shape would now be preserved as the user's, which probe-stock-lock
+     covers. */
+  const brokenTv = JSON.parse(JSON.stringify(STOCK_TV));
+  delete brokenTv.gen;                          // 2026-era: no gen at all
+  { const g = [].concat(brokenTv.tiles || [],
+      ...(brokenTv.sections || []).map(x => x.tiles || []));
+    const np = g.find(t => t.id === 't_np');
+    np.style = 'poster'; delete np.np_default; }
   const broken = { controllers: {
     music: Object.assign(JSON.parse(JSON.stringify(STOCK_MUSIC)), { gen: 6 }),
-    tv: { name: 'TV', type: 'controller',       // 2026-era: no gen at all
-      sections: [{ tiles: [{ id: 't_np', type: 'media', style: 'poster', entity: 'x' }] }] },
+    tv: brokenTv,
   } };
   const mnp = broken.controllers.music.sections[0].tiles[0];
   delete mnp.np_default; mnp.style = 'hero';       // the shape v0.85 shipped

@@ -1,26 +1,13 @@
 /* BUTTONS strip — a row of named device keys (back/home/menu/…)
    sent via remote.send_command through cmdFor's command map. */
-WIDGETS.buttons = {
-    /* device button bar (2-4 slots): each slot is a logical dpad key
-       sent to `entity` through cmdFor — so the same bar emits UP vs
-       KEY_UP etc. per the active activity's dpad_commands. */
-    sub: () => "", isOn: () => false,
-    body: t => `<div class="btnrow">` +
-      (t.buttons || ["info", "menu", "back", "home"]).map(k =>
-        `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
-      ).join("") + `</div>`,
-    wire: (el, t) => wireTaps(el, "cmd", k => {
-      /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
-         is turning off the device, not the activity"): toggling the
-         activity keeps the select and the devices moving TOGETHER —
-         end (with the standard confirm) when it's running, start (the
-         full generated sequence) when it isn't. Raw device power is
-         what the PHYSICAL short-press power policy is for; pages with
-         no current activity keep the old device fallback.
-         v0.61: the PRESUMED activity counts here — the page you are
-         looking at is drawn as that activity, so the power button on
-         it starts that activity. Suresh's own sentence: "I can always
-         hit the power button to turn it on!" */
+/* fire one strip key — shared by touch taps (wire) and the D-pad's
+   roving select (v0.85.7 — Suresh: "a down DPAD press [should] go to
+   the next element even if its inside the tile"). The buttons strip
+   was the ONE composite row the pad could not operate: transport and
+   mediabtns rove, this strip was touch-only — its inner back/menu/
+   home keys were unreachable from a remote. Same grammar now: ◀▶
+   move the highlight, OK presses it, ▲▼ leave to the next tile. */
+function btnStripFire(t, k) {
       if (k === "power") {
         const aid = renderActivityId();
         const a = aid && (CONFIG.activities || {})[aid];
@@ -35,5 +22,36 @@ WIDGETS.buttons = {
         return;
       }
       rc(resolveEntity(t.entity), cmdFor(t, k));
-    })
+}
+WIDGETS.buttons = {
+    /* device button bar (2-4 slots): each slot is a logical dpad key
+       sent to `entity` through cmdFor — so the same bar emits UP vs
+       KEY_UP etc. per the active activity's dpad_commands. */
+    sub: () => "", isOn: () => false,
+    /* D-pad rove (v0.85.7): the coverbtns/transport model, attr "cmd" */
+    keys: {
+      left:  (e, t) => roveMove(t, "cmd", -1),
+      right: (e, t) => roveMove(t, "cmd", +1)
+    },
+    select: (e, t) => {
+      const k = rovePick(t, "cmd");
+      if (k) btnStripFire(t, k);
+    },
+    body: t => `<div class="btnrow">` +
+      (t.buttons || ["info", "menu", "back", "home"]).map(k =>
+        `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
+      ).join("") + `</div>`,
+    /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
+       is turning off the device, not the activity"): toggling the
+       activity keeps the select and the devices moving TOGETHER —
+       end (with the standard confirm) when it's running, start (the
+       full generated sequence) when it isn't. Raw device power is
+       what the PHYSICAL short-press power policy is for; pages with
+       no current activity keep the old device fallback.
+       v0.61: the PRESUMED activity counts here — the page you are
+       looking at is drawn as that activity, so the power button on
+       it starts that activity. Suresh's own sentence: "I can always
+       hit the power button to turn it on!"
+       (Logic lives in btnStripFire, shared with the D-pad select.) */
+    wire: (el, t) => wireTaps(el, "cmd", k => btnStripFire(t, k))
   };

@@ -48,23 +48,25 @@ are on v0.84.1; NOTHING from the 2026-08-24 session has shipped.):**
   GENERATED from stocklib, and `probe-stock-sync` fails the battery on
   any starter/stocklib drift (the same split also hid the appletv
   dialect and un-gated the transport bar). Ships with the next release.
-- **`set_activity` "did nothing" (user #2).** Working as designed but
-  the design surprises: it flips the ROUTING select only — it does not
-  run the activity's Start sequence, so no device powers on. The
-  HA-side full start is `harmonium.run` with the activity's Start
-  sequence (whose generated steps include the set_activity,
-  workspace-stamped by `_bind_ws`). ACTION: document both entry points
-  (services.yaml + cookbook); then DECIDE whether set_activity grows a
-  `start: true` option — probably yes, it is what every caller expects.
-- **Room-page power button intermittently missing while an activity
-  runs (user #2, no repro).** `updateBarChrome` hides `#endBtn` when
-  `currentActivityId()` is null; prime suspects: (a) the standing
-  room's select briefly `unknown/unavailable` after an HA restart /
-  integration reload — button vanishes until the next state diff;
-  (b) multi-room: standing on a room whose OWN select is off while
-  another room runs (per-room by design, reads as a bug). ACTION:
-  reproduce select-unavailable in a probe; consider holding the button
-  while the select is merely unavailable.
+- **`set_activity` "did nothing" (user #2).** RESOLVED (v0.85.7):
+  `harmonium.set_activity` now takes `start: true` — flips the select
+  first (engine parity: the tap IS the intent), then runs the
+  activity's Start action ref through the SAME runner harmonium.run
+  uses (sequence: refs via the stored config; script.* refs via
+  script.turn_on). `activity: "off"` + `start: true` runs the ending
+  activity's Stop first. Default false — every existing caller
+  unchanged. His wall-switch case verbatim. tests/test-set-activity-start.py.
+- **Room-page power button missing (user #2).** ROOT-CAUSED with his
+  screenshots + repro (browser close/reopen) and FIXED (v0.85.7): the
+  activity CARD lights from the activity's own device-state rules,
+  but the End button lit from `currentActivityId()`, which read the
+  SELECT alone — stale select (a start path that never flips it, an
+  HA restart) → card says On, button gone. `currentActivityId` now
+  falls back to device truth when the select names nothing and
+  EXACTLY ONE in-scope activity is provably running (ambiguity
+  abstains — never guess between rooms). Fixes the button, hold-Power
+  and $context in one place. tests/probe-power-btn.mjs pins the repro
+  and its fences.
 - **User #1's items** (KeyMapper Expert-Mode docs; the Apple TV dialect
   + D-pad commands editor + his app-source table now the stock appletv
   app map; per-card height + the NP style family) are all in-repo,

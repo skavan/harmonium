@@ -7,7 +7,9 @@
        on $context.media_player) · HA action · run a named Action.
      A surface picks its dialect via the ACTIVITY's context (dialect) —
      one shared Apps drawer, many dialects. */
-  import { app, schedulePreview } from "../state.svelte.js";
+  import { app, schedulePreview, setStatus } from "../state.svelte.js";
+  import { STOCK_DIALECTS } from "../stocklib.js";
+  import { unitFp } from "../ownership.js";
   import Field from "../components/Field.svelte";
   import IconPicker from "../components/IconPicker.svelte";
   import Input from "../components/Input.svelte";
@@ -36,6 +38,19 @@
   let lastAdded = $state(null);
   let masterOpen = $state(false);
   let clsOpen = $state({});
+  /* v0.85.7 dialect ownership: a stock dialect matching the shipped
+     shape tracks updates; one edit and it is the user's — shown here,
+     with View stock (copy-paste) and Reset to stock as the doors. */
+  let stockView = $state({});
+  const isStockId = (cid) => !!STOCK_DIALECTS[cid];
+  const dialectEdited = (cid, c) =>
+    isStockId(cid) && unitFp(c) !== unitFp(STOCK_DIALECTS[cid]);
+  function resetDialect(cid) {
+    app.draft.dialects[cid] = JSON.parse(JSON.stringify(STOCK_DIALECTS[cid]));
+    stockView[cid] = false;
+    setStatus("dialect reset to stock — updates keep it current again", "ok");
+    edit();
+  }
 
   /* which classes carry this app — shown on the master row */
   const carriedBy = (aid) =>
@@ -148,6 +163,32 @@
         badge={Object.keys(c.apps || {}).length + " apps" +
           (spokenBy(cid).length ? " · spoken by " + spokenBy(cid).join(", ") : " · unused")}
         bind:open={() => clsOpen[cid] ?? false, (v) => (clsOpen[cid] = v)}>
+        {#if isStockId(cid)}
+          <div class="mb-3 flex flex-wrap items-center gap-3 rounded-[10px] border border-line bg-tile px-3 py-2">
+            {#if dialectEdited(cid, c)}
+              <span class="text-xs text-ink">✎ <b>Yours</b> — this dialect differs from the
+                shipped one, so updates won't touch it. Peek at stock to copy what you
+                need, or reset to track updates again.</span>
+              <Button size="sm" onclick={() => (stockView[cid] = !stockView[cid])}>
+                {stockView[cid] ? "Hide stock" : "View stock"}</Button>
+              <Button size="sm" onclick={() => resetDialect(cid)}
+                title="Replace this dialect with the shipped one — updates keep it current again">↺ Reset to stock</Button>
+            {:else}
+              <span class="text-xs text-dim">● <b>Stock</b> — untouched, so updates keep it
+                current (new apps and command fixes arrive on their own). Edit anything and
+                it becomes yours.</span>
+            {/if}
+          </div>
+          {#if stockView[cid]}
+            <div class="mb-3">
+              <Field label={"Shipped " + (STOCK_DIALECTS[cid].name || cid) + " dialect (read-only — copy what you need)"}>
+                <textarea readonly rows="14" spellcheck="false"
+                  class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[11.5px] text-ink outline-none"
+                  >{JSON.stringify(STOCK_DIALECTS[cid], null, 2)}</textarea>
+              </Field>
+            </div>
+          {/if}
+        {/if}
         <div class="grid grid-cols-3 gap-3">
           <Field label="Class name"><Input bind:value={c.name} onchange={edit} /></Field>
           <Field label="Dialect id" hint="what activities and devices reference (context dialect)">

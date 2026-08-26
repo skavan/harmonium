@@ -36,15 +36,54 @@ function renderBanner(sc) {
    only protects the clip itself). Manual scrollTop math touches one
    scroller, full stop. mode "nearest" mirrors scrollIntoView's:
    already visible = no move. */
+/* the grid's USABLE bottom edge (v0.85.7 — Suresh, Fire TV: "when I
+   scroll using channel buttons, we are not measuring the viewport
+   with the back home strip. So a selected tile that sits underneath
+   that strip gets clipped"): the TV back/home strip and the
+   pad-borrow strip are position:fixed OVER the grid's bottom, so
+   the grid's own rect lies about where content is visible.
+   Subtract whichever overlay is showing — the scroll math reads
+   this, never gr.bottom, and a small breath keeps the tile's edge
+   off the strip's shadow. */
+function gridVisBottom(gr) {
+  let b = gr.bottom;
+  const ts = document.getElementById("tvstrip");
+  if (ts && !ts.classList.contains("hidden")) {
+    const t = ts.getBoundingClientRect().top;
+    if (t < b) b = t - 4;
+  }
+  const ps = document.getElementById("padstrip");
+  if (ps && !ps.classList.contains("hidden")) {
+    const t = ps.getBoundingClientRect().top;
+    if (t < b) b = t - 4;
+  }
+  return b;
+}
 function gridScrollTo(el, mode) {
   const gr = grid.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   if (mode === "nearest") {
+    const vb = gridVisBottom(gr);
     if (r.top < gr.top) grid.scrollTop += r.top - gr.top;
-    else if (r.bottom > gr.bottom) grid.scrollTop += r.bottom - gr.bottom;
+    else if (r.bottom > vb) grid.scrollTop += r.bottom - vb;
     return;
   }
-  grid.scrollTop += r.top - gr.top;      // "start"
+  /* "context" (v0.85.7 — Suresh, the queue: "why is [it] scrolled so
+     that Now Playing is at the bottom and clipped? best practice
+     would be… the third element, so we see two before and like 4
+     after"): the anchor lands as roughly the THIRD visible row —
+     two rows of what already played above, the upcoming list below.
+     The browser clamps a negative result to 0, so a row near the
+     top just shows the top. */
+  if (mode === "context") {
+    grid.scrollTop += r.top - gr.top - 2 * (r.height + 10) - 10;
+    return;
+  }
+  /* "start" keeps a breath of air above the anchor (v0.85.7 — Suresh:
+     "the first tile is pressed against the hero tile instead of
+     showing its normal little padding") — the browser clamps a
+     negative result to 0, so the top of the page is unhurt */
+  grid.scrollTop += r.top - gr.top - 10;
 }
 /* keep an active chip visible in a horizontal strip (2026-08-20 —
    Suresh: "When I change tabs in the library, an off screen tab
@@ -69,6 +108,7 @@ function buildHeroNav(jumps, strip) {
   const stripEl = document.createElement("div");
   stripEl.className = "hstrip";
   jumps.forEach((j, i) => {
+    if (j.chip === false) return;   // CH stop only — no banner tab
     const el = document.createElement("div");
     el.className = "hjump";
     el.dataset.fid = "hero_" + i;
@@ -77,7 +117,7 @@ function buildHeroNav(jumps, strip) {
     stripEl.appendChild(el);
     j.btn = el;
   });
-  bn.appendChild(stripEl);
+  if (stripEl.children.length) bn.appendChild(stripEl);
   grid.onscroll = updateSpy;
   updateSpy();
 }
@@ -363,8 +403,12 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = surfOrderTiles(secTiles)              /* no flatMap: floor is Chromium 61 */
-      .reduce((a, t) => a.concat(expandTile(t)), [])
+    /* sectionDressTile FIRST (v0.85.7): the section's style defaults
+       (h / css_vars / label_pos / style) reach every tile that stays
+       silent — this render walk AND rawTilesOf both dress, so the
+       DOM build and the renderStates re-derivation agree. */
+    const vis = surfOrderTiles(secTiles.map(t => sectionDressTile(t, sec)))
+      .reduce((a, t) => a.concat(expandTile(t)), [])   /* no flatMap: floor 61 */
       .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
@@ -423,8 +467,14 @@ function navigate(screenId, isBack) {
       host.appendChild(el);
       anchorEl = anchorEl || el;
     });
-    if (sec.hero_label)
-      heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
+    /* v0.85.7 (Suresh: "ChUp and ChDn should jump sections. Since we
+       have them."): a TITLED section is a jump stop too — CH▲▼ can
+       step it. Only hero_label sections become visible chips in the
+       banner strip (chip: false rides along so buildHeroNav skips
+       the tab without breaking the shared index space). */
+    if (sec.hero_label || secTitle)
+      heroJumps.push({ label: sec.hero_label || secTitle,
+        firstId: vis[0].id, anchorEl, chip: !!sec.hero_label });
   });
   /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
      a page with nothing to render says WHY instead of showing void —
@@ -465,6 +515,14 @@ function navigate(screenId, isBack) {
   const tvNoFocus = typeof padOwner === "function" && padOwner() === "device"
     && !(typeof padLatched === "function" && padLatched());
   setFocus(tvNoFocus ? null : (sc.initial_focus || (all[0] && all[0].id)));
+  /* focus_context (v0.85.7 — the queue's ask): a screen whose
+     initial_focus is deep in a list positions it as ~the third
+     visible row instead of "nearest" (which parked the playing
+     track at the bottom edge, clipped by the strips). */
+  if (sc.focus_context && S.focusId) {
+    const cel = focusEl(S.focusId);
+    if (cel && cel.closest("#grid")) gridScrollTo(cel, "context");
+  }
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
   renderStates();
   scheduleFit();
@@ -493,7 +551,10 @@ function navigate(screenId, isBack) {
    off the activity? Or Go Back a page? Or go home?"): Home + End live
    in the title bar on TOUCH clients; physical-key remotes have real
    keys, so the bar stays clean there. End shows while an activity is
-   current (select or pending) and rides the standard confirm flow. */
+   current (select or pending) and rides the standard confirm flow.
+   (2026-08-26: a "show on any touch-capable remote" variant was
+   tried and REVERTED at Suresh's call — hardware remotes keep the
+   clean bar; ending there is hold-Power or hold on the tile.) */
 function updateBarChrome() {
   const touchOnly = !CAPS.has("physical_dpad");
   const home = document.getElementById("homeBtn");

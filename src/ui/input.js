@@ -240,6 +240,11 @@ function padStrip() {
   if (!el) return;
   const on = padLatched();
   el.classList.toggle("hidden", !on);
+  /* the grid's bottom padding must clear BOTH strips while the
+     borrow is on (v0.85.7 — Suresh: a Ch-scrolled tile "sits
+     underneath that strip [and] gets clipped"): #app carries the
+     state class (CH-61: no :has()), grid.css sizes the padding. */
+  document.getElementById("app").classList.toggle("padstrip-on", on);
   /* the final second is a VISIBLE DRAIN (spec §6.4): the strip warns
      that the next press hands the pad back to the device */
   el.classList.toggle("draining", on && (S.padLatch - Date.now()) <= 1000);
@@ -384,7 +389,8 @@ function keymapCardRows() {
     d: pt ? "Device home · hold = Harmonium" : "Harmonium home" });
   const bm = bb.menu;
   rows.push({ k: "Menu",
-    d: bm ? keymapActionDesc(bm) : (deviceKeyTarget() ? "Device menu" : "—") });
+    d: bm ? keymapActionDesc(bm)
+      : (deviceKeyTarget() ? "Device menu" : "Open the focused tile's page") });
   const vt = resolveEntity("$context.volume");
   rows.push({ k: "Vol + − · Mute",
     d: vt ? "→ " + keymapFriendly(vt) : "nothing wired" });
@@ -444,15 +450,23 @@ function act(button, phys) {
 
   switch (button) {
     case "up": case "down": {
+      /* the library BAR layer (v0.85.7 — brBarKey in browse.js):
+         while it holds the ring, it owns the pad */
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       /* an OPTIONS tile paints a roving highlight; repaint when the
          walk leaves it so the outline doesn't linger (chips clear
          their rove state in render when unfocused) */
       const was = S.focusId;
-      spatialMove(button);
+      const moved = spatialMove(button);
+      /* ▲ off the top of the library grid climbs INTO the bar (his
+         #8: chips first, roots above, ▼ walks back to the first tile) */
+      if (!moved && button === "up" &&
+          typeof brBarEnter === "function" && brBarEnter()) break;
       blurRove(was);
       break;
     }
     case "left": case "right": {
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       /* widget-owned ◀▶ while merely FOCUSED (no capture) — e.g.
          coverbtns' roving highlight, or a volume tile's level
          (round 4 field call: "DPad left and Right SHOULD" change
@@ -470,6 +484,7 @@ function act(button, phys) {
       break;
     }
     case "select": {
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       if (typeof S.focusId === "string" && S.focusId.startsWith("hero_")) {
         heroActivate(S.focusId); break;
       }
@@ -488,15 +503,37 @@ function act(button, phys) {
       break;
     }
     case "back":
+      if (typeof brBarKey === "function" && brBarKey("back")) break;
       padClear();          // Back hands the pad home AND does its job
       if (S.confirmTile) { clearConfirm(); renderStates(); break; }
-      if (S.stack.length) navigate(S.stack.pop(), true);
+      if (S.stack.length) { navigate(S.stack.pop(), true); break; }
+      /* NO HISTORY → UP ONE LEVEL (v0.85.7 — Suresh: "what do we
+         want back button behaviour to be? Prior page or up one
+         level?" Answer: both. Prior page when history exists — Back
+         retraces where you actually were, sideways jumps included.
+         With NO history — a boot or deep link straight onto a child
+         page — Back climbs one level instead of doing nothing.
+         Stops at the boot view; it never jumps past it to the
+         overview (that's Home's job). */
+      {
+        const bsc = screenOf(S.screen) || {};
+        const bdest = (bsc.parent && screenOf(bsc.parent)) ? bsc.parent
+          : (S.screen !== CONFIG.home_screen ? CONFIG.home_screen : null);
+        if (bdest && screenOf(bdest) && bdest !== S.screen)
+          navigate(bdest, true);
+      }
       break;
     case "back_hold": case "home_hold": {
       /* SHELL-OWNED hold gesture: KeyMapper maps a physical long-press
          to a distinct key (see keymap), because injected keys don't
          deliver reliable keyup/hold timing to the webview. Sends the
          DEVICE's back/home; degrades to tap without a device target. */
+      /* v0.85.7: the OPEN VOCABULARY reaches the hold keys too — a
+         screen/global `buttons` binding on back_hold/home_hold wins
+         (e.g. home_hold → {navigate: overview} = "hold Home jumps
+         straight to the top"), then the device-key default. */
+      const bhb = boundButtons()[button];
+      if (bhb) { runAction(bhb); break; }
       const base = button === "back_hold" ? "back" : "home";
       const tgt = deviceKeyTarget();
       if (tgt) rc(tgt, cmdFor({}, base));
@@ -530,7 +567,27 @@ function act(button, phys) {
       if (bm) { runAction(bm); break; }
       const mt = deviceKeyTarget();
       if (mt) { rc(mt, cmdFor({}, "menu")); break; }
-      heroCycle(1, true);
+      /* v0.85.7 (Suresh: "The menu button should do nothing, unless
+         the active tile has a subpage, in which case it should fire
+         that page (like lights or climate etc)"). The category tour
+         is gone — MENU opens the FOCUSED tile's own page: a nav
+         card's target, an activity tile's controller, a device
+         tile's hold destination (explicit/inferred page, else its
+         detail: page). Nothing focused, or nothing behind the tile
+         → deliberate no-op. */
+      const mft = tileDef(S.focusId);
+      if (!mft) break;
+      let mdest = null;
+      if (mft.type === "nav") mdest = mft.target || null;
+      else if (mft.type === "activity") {
+        const ma = (CONFIG.activities || {})[mft.activity] || {};
+        mdest = ma.screen || ma.view || null;
+      } else if (mft.entity) {
+        const me = resolveEntity(mft.entity);
+        mdest = (typeof deviceTarget === "function" && deviceTarget(mft)) ||
+          (me ? "detail:" + me : null);
+      }
+      if (mdest) navigate(mdest);
       break;
     }
     case "home": {
@@ -681,7 +738,14 @@ function act(button, phys) {
            without a jump falls back to the walk */
         if (browseScreen() &&
             typeof brStepCat === "function" && brStepCat(d)) break;
-        if (musicSurface() && heroCycle(d)) break;
+        /* v0.85.7 (Suresh: "On a Page like Porch, ChUp and ChDn
+           should jump sections. Since we have them."): the music
+           doctrine's short-CH section jump is now EVERY panel-native
+           page's — any page with jump stops (hero_label or titled
+           sections) steps them; pages without jumps keep the walk.
+           TV/passthrough pages keep the walk too — there CH is the
+           panel's only walk (the pad belongs to the device). */
+        if (padOwner() !== "device" && heroCycle(d)) break;
         { const wasCh = S.focusId;
           spatialMove(button === "ch_up" ? "up" : "down");
           blurRove(wasCh); }
@@ -772,9 +836,21 @@ function act(button, phys) {
    — to diagnose what the shell/KeyMapper actually delivers. */
 const DBG = { on: false, lines: [], last: 0 };
 function dbgInit() {
-  DBG.on = !!(CONFIG && CONFIG.global && CONFIG.global.debug) ||
-    localStorage.getItem("hakr_debug") === "1";
+  /* THE HAUNTED PREVIEW (v0.85.7 — Suresh: "Ugh. Preview page is
+     defaulting to debug"). hakr_debug is deliberately sticky per
+     BROWSER — but the Studio preview shares the desktop browser's
+     origin, so one #debug=1 experiment in a tab haunted the preview
+     forever. In PREVIEW the card now follows the config's own Key
+     debug switch ONLY (live, togglable from the page settings);
+     localStorage stays the sticky device-side door. And init resets
+     the lines — it re-runs on every preview config push, and each
+     run stacked another "debug on" banner line. */
+  const cfgOn = !!(CONFIG && CONFIG.global && CONFIG.global.debug);
+  DBG.on = (typeof PREVIEW !== "undefined" && PREVIEW)
+    ? cfgOn
+    : cfgOn || localStorage.getItem("hakr_debug") === "1";
   document.getElementById("dbg").classList.toggle("hidden", !DBG.on);
+  DBG.lines = []; DBG.last = 0;
   if (DBG.on) dbgLog("debug on · press keys…");
 }
 function dbgLog(msg) {

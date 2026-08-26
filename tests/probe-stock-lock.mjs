@@ -6,11 +6,23 @@
    healStockGen must refresh the behind stock in place while leaving the
    variant_of fork untouched, byte for byte. */
 import { STOCK_MUSIC, healStockGen } from "../studio-src/src/lib/stocklib.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const errs = [];
+const here = dirname(fileURLToPath(import.meta.url));
+/* v0.85.7: the referee heals by FINGERPRINT, not by gen alone — the
+   behind-stock fixture must be a shape we actually shipped, so it
+   comes from the real v0.84.1 starter (tools/starter-history/). A
+   fabricated "old" shape is exercised at the bottom: it now gets
+   PRESERVED (legitimized as the user's fork), never overwritten. */
+const v0841music = JSON.parse(readFileSync(
+  join(here, "../tools/starter-history/starter-v0.84.1.json"), "utf8"))
+  .controllers.music;
 
-/* a workspace with the stock music behind a gen, plus the user's fork
-   of it (what Duplicate-to-edit mints) sitting at gen 0. */
+/* a workspace with the stock music behind (real v0.84.1 shape), plus
+   the user's fork of it (what Duplicate-to-edit mints). */
 const fork = {
   variant_of: "music",
   name: "Music variant",
@@ -19,8 +31,7 @@ const fork = {
   sections: [{ tiles: [{ id: "mine", type: "media", label: "MY EDIT" }] }],
 };
 const cfg = { controllers: {
-  music: { variant_of: undefined, gen: 1, name: "old", parent: "porch",
-    class: "activity", view_kind: "controller", type: "controller", sections: [] },
+  music: Object.assign(JSON.parse(JSON.stringify(v0841music)), { parent: "porch" }),
   music_variant: JSON.parse(JSON.stringify(fork)),
 } };
 
@@ -33,6 +44,17 @@ const healed = (stock.gen || 0) === STOCK_MUSIC.gen &&
 const parentKept = stock.parent === "porch";
 const forkUntouched = JSON.stringify(cfg.controllers.music_variant) === forkBefore;
 const forkKeepsEdit = JSON.stringify(cfg.controllers.music_variant).includes("MY EDIT");
+
+/* the improved promise: an UNRECOGNIZED shape under a stock id is a
+   pre-lock user edit — it is preserved and legitimized, never nuked */
+const cfg2 = { controllers: { music: { gen: 1, name: "their rework",
+  class: "activity", view_kind: "controller", type: "controller",
+  sections: [{ tiles: [{ id: "x", type: "media", label: "THEIR TILE" }] }] } } };
+healStockGen(cfg2);
+const kept = cfg2.controllers.music;
+if (kept.variant_of !== "music") errs.push("edited-in-place stock was not legitimized");
+if (!JSON.stringify(kept).includes("THEIR TILE")) errs.push("edited-in-place content was lost");
+if (!kept.forked_by_update) errs.push("legitimized fork missing its note");
 
 if (!healed) errs.push("stock music did not heal to current shape/gen");
 if (!parentKept) errs.push("heal dropped the stock's content-graph parent");

@@ -329,7 +329,7 @@
   "showCamPreview": false,
   "showForwardButton": true,
   "showHomeButton": true,
-  "showMenuHint": true,
+  "showMenuHint": false,
   "showNavigationBar": false,
   "showNewTabButton": false,
   "showPrintButton": false,

@@ -42,9 +42,11 @@
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
-  /* passthrough-mode cue: 2px accent rule + gamepad glyph — the D-pad
-     is driving the DEVICE here (and hold-Back/Home send device keys) */
-  #bar.pt { border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+  /* passthrough-mode cue: the gamepad glyph alone (v0.85.7 — Suresh:
+     "don't like that orange line at the top. We have the back and
+     home bar on the LCD — that's enough!"). The 2px accent
+     border-bottom this class drew is gone; the TV strip at the
+     bottom already announces the mode. */
   #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
 
   /* two-press confirm cue: the bar title pulses for the whole confirm
@@ -64,10 +66,11 @@
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  /* ⓘ hit zone: ~44×44 finger target (padding grows the tap area,
-     negative margin keeps the glyph visually where it was) */
+  /* ⓘ hit zone: ~56×52 finger target (v0.85.7 — Suresh: "really hit
+     or miss"; padding grows the tap area, negative margin keeps the
+     glyph visually where it was) */
   #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer;
-    padding: 12px 10px; margin: -8px -4px; }
+    padding: 16px 18px; margin: -12px -12px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */
@@ -183,6 +186,12 @@
      (Chromium-61 floor: no :has(), so #app carries the state class) */
   #app.tvstrip-on #padstrip { bottom: 50px; }
   #app.tvstrip-on #grid { padding-bottom: 54px; }
+  /* while the pad-borrow strip is ALSO up, the last tile must be able
+     to scroll clear of BOTH strips (v0.85.7 — Suresh: a Ch-scrolled
+     tile "sits underneath that strip [and] gets clipped"; the padding
+     only ever budgeted for one). padStrip() toggles .padstrip-on. */
+  #app.padstrip-on #grid { padding-bottom: 40px; }
+  #app.tvstrip-on.padstrip-on #grid { padding-bottom: 92px; }
 
   /* THE CLAIM COUNTDOWN BAR (2026-08-24 — Suresh: "a disappearing line
      on the selected tile … like the now-playing progress, but reverse:

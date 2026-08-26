@@ -328,6 +328,49 @@ document.getElementById("connectBtn").addEventListener("click", () => {
        { type: "harmonium_applied", screen }           config rendered */
 let PREVIEW = false;
 let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
+let PAGE_JUMP = null; // #page=<id> — deep link, this load only
+let BOOT_V = null;    // the ?v= engine hash this load booted with
+
+/* ENGINE SELF-UPDATE (v0.85.7 — Suresh: "Are you sure about your
+   never reload again? I find I have to clear cache and reload from
+   fully in HA, to get it to stick."). The versioned stub address
+   guarantees a fresh engine on every pass through the Start URL —
+   but it never made a RUNNING webview take that pass, and Fully's
+   plain Reload reloads the current page, not the Start URL. So the
+   engine closes the loop itself: whenever the socket (re)connects or
+   the page wakes from hidden, ask the integration for the deployed
+   engine's fingerprint (no-store, same endpoint the stub uses) and,
+   if it differs from the hash this page booted with, re-enter
+   through the stub. The canonical-address rewrite below already
+   makes location.reload() re-enter the stub, so the reload IS the
+   upgrade. Guards: never in the PREVIEW (the Studio version-busts
+   its own iframe); only when this load carried a ?v= (a bare boot
+   has nothing to compare — and note every STUB boot is a pin=0
+   "peek", so WS_PEEK must NOT gate this); one attempt per target
+   hash (sessionStorage) so a racing deploy can never loop the
+   page; checked at most once a minute. */
+function engineUpdateCheck() {
+  if (PREVIEW || !BOOT_V) return;
+  const now = Date.now();
+  if (engineUpdateCheck._t && now - engineUpdateCheck._t < 60000) return;
+  engineUpdateCheck._t = now;
+  const x = new XMLHttpRequest();
+  x.open("GET", "/api/harmonium/engine_version?t=" + now, true);
+  x.timeout = 5000;
+  x.onreadystatechange = () => {
+    if (x.readyState !== 4 || x.status !== 200) return;
+    let v = null;
+    try { v = JSON.parse(x.responseText).v; } catch (e) { return; }
+    if (!v || v === BOOT_V) return;
+    let tried = null;
+    try { tried = sessionStorage.getItem("hakr_upg"); } catch (e) {}
+    if (tried === v) return;   /* already went once for this target */
+    try { sessionStorage.setItem("hakr_upg", v); } catch (e) {}
+    location.reload();         /* the address bar is the stub — this
+                                  re-resolves ?v= and boots the new engine */
+  };
+  try { x.send(); } catch (e) {}
+}
 function applyConfig(cfg, devName) {
   CONFIG = cfg;
   if (!devName) devName = localStorage.getItem("hakr_device");
@@ -421,7 +464,16 @@ function previewListen() {
        looking at Bedroom doesn't silently make this THE Bedroom
        remote. The hash stays put so a refresh stays on the peek. */
     const pPeek = clean(prov.get("pin")) === "0";
+    /* DEEP LINK (v0.85.7 — forum: "is there a way to open subpages by
+       URL? I have a main page that links to the different rooms"):
+       #page=<page id> jumps to that page after load, THIS load only —
+       nothing is pinned, so a bookmark per room just works in a
+       browser and a kiosk stays on its normal flow. Composable with
+       the other params (#ws=…&page=…). The id is the page id shown in
+       the Studio; unknown ids flash a notice and land on home. */
+    PAGE_JUMP = clean(prov.get("page")) || null;
     PREVIEW = clean(prov.get("preview")) === "1";
+    BOOT_V = clean(prov.get("v")) || null;   /* the stub's ?v= — self-update baseline */
     if (pHost) localStorage.setItem("hakr_host", pHost);
     if (pTok) localStorage.setItem("hakr_token", pTok);
     if (pDev && !PREVIEW) localStorage.setItem("hakr_device", pDev);
@@ -462,9 +514,29 @@ function previewListen() {
   if (/\/index\.html$/.test(location.pathname) &&
       !location.pathname.endsWith("/" + loaded.ws + "/index.html") &&
       (!WS_PEEK || loaded.ws === WS_PEEK))
-    history.replaceState(null, "", loaded.ws + "/index.html");
+    history.replaceState(null, "", loaded.ws + "/index.html" +
+      (PAGE_JUMP ? "#page=" + encodeURIComponent(PAGE_JUMP) : ""));
   applyConfig(loaded.cfg, localStorage.getItem("hakr_device"));
+  if (PAGE_JUMP) {
+    if ((CONFIG.screens || {})[PAGE_JUMP]) navigate(PAGE_JUMP);
+    else flashBar("No page '" + PAGE_JUMP + "'", "off");
+  }
   if (loaded.missed)
     flashBar("Workspace '" + loaded.missed + "' not deployed — using main", "off");
+  /* THE BACK-KEY MOAT (v0.85.7 — Suresh: "On the Astrion, long press
+     back seems to reload the page"). When a long-press falls through
+     the shell's key mapping, the OS delivers a NATIVE Back — the
+     webview pops browser history and the page unloads (a "reload"
+     from the couch). Arm one sentinel entry so history-back always
+     lands somewhere that is still us: the popstate re-arms itself
+     and runs the panel's own Back instead. Desktop browser-back
+     inside the remote does the same, which is what a remote wants. */
+  try {
+    history.pushState({ hakr: 1 }, "", location.href);
+    window.addEventListener("popstate", function () {
+      try { history.pushState({ hakr: 1 }, "", location.href); } catch (e2) {}
+      if (typeof act === "function") act("back", true);
+    });
+  } catch (e3) {}
   connect();
 })();

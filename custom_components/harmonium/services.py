@@ -31,6 +31,13 @@ SERVICE_RUN_SCHEMA = vol.Schema({
 })
 SERVICE_SET_ACTIVITY_SCHEMA = vol.Schema({
     vol.Required("activity"): cv.string,
+    # start: True also RUNS the activity's Start action (v0.85.7 — the
+    # wall-switch request: "the button press should activate the
+    # listen-to-music activity instead of a script doing the wiring
+    # manually"). For activity: "off" it runs the ending activity's
+    # Stop action first. Default False keeps the old routing-only
+    # behaviour for every existing caller.
+    vol.Optional("start", default=False): cv.boolean,
     vol.Optional("room"): cv.string,
     # NO default (v0.47.9): an unnamed workspace means "find the
     # owner" — generated sequences and user automations shouldn't
@@ -67,13 +74,10 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
     entry's live dict (its selects registry); `mint` mints any missing
     activity selects for a workspace."""
 
-    async def handle_run(call: ServiceCall) -> None:
-        """harmonium.run — execute a building-block SEQUENCE from the
-        stored config, HA-side, with HA's own script engine (full
-        delay/wait/choose semantics; remotes never run orchestration).
-        `workspace` routes to the calling remote's world (default main)."""
-        seq_id = call.data["sequence"]
-        ws = call.data["workspace"]
+    async def _run_sequence(ws: str, seq_id: str, context) -> None:
+        """Execute one stored sequence with HA's script engine — the
+        single runner behind harmonium.run AND set_activity's
+        start/stop (v0.85.7: one orchestrator, never two)."""
         config = await hstore.get_ws(ws) or {}
         seq = (config.get("sequences") or {}).get(seq_id)
         if seq is None:
@@ -102,7 +106,29 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         )
         _LOGGER.info("Running Harmonium sequence '%s' (ws=%s, %d actions)",
                      seq_id, ws, len(actions))
-        await script.async_run(context=call.context)
+        await script.async_run(context=context)
+
+    async def _run_action_ref(ws: str, ref: str, context) -> None:
+        """An activity's start/stop ACTION REF, exactly as the engine
+        resolves it (src/core/activities.js runActionRef):
+        sequence:<id> → the stored sequence; anything else → a plain
+        HA script entity."""
+        if not ref:
+            return
+        if ref.startswith("sequence:"):
+            await _run_sequence(ws, ref[len("sequence:"):], context)
+        else:
+            await hass.services.async_call(
+                "script", "turn_on", {"entity_id": ref},
+                blocking=False, context=context)
+
+    async def handle_run(call: ServiceCall) -> None:
+        """harmonium.run — execute a building-block SEQUENCE from the
+        stored config, HA-side, with HA's own script engine (full
+        delay/wait/choose semantics; remotes never run orchestration).
+        `workspace` routes to the calling remote's world (default main)."""
+        await _run_sequence(call.data["workspace"], call.data["sequence"],
+                            call.context)
 
     hass.services.async_register(DOMAIN, "run", handle_run, schema=SERVICE_RUN_SCHEMA)
 
@@ -201,16 +227,28 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         if aid == "off":
             ws = ws or MAIN
             room = call.data.get("room")
-            ents = ([entry_data["selects"].get((ws, room))] if room
-                    else [e for (w, _r), e in entry_data["selects"].items()
-                          if w == ws])
-            ents = [e for e in ents if e is not None]
-            if not ents:
+            pairs = ([((ws, room), entry_data["selects"].get((ws, room)))] if room
+                     else [(k, e) for k, e in entry_data["selects"].items()
+                           if k[0] == ws])
+            pairs = [(k, e) for k, e in pairs if e is not None]
+            if not pairs:
                 raise HomeAssistantError(
                     f"no Harmonium selects for workspace '{ws}'"
                     + (f" room '{room}'" if room else "")
                     + " — reload the integration")
-            for ent in ents:
+            # start: True on "off" = a REAL end (v0.85.7): run each
+            # ending activity's Stop action, then flip its select —
+            # the wall-switch toggle's other half. Without the flag,
+            # routing-only as before.
+            if call.data.get("start"):
+                config = await hstore.get_ws(ws) or {}
+                acts = config.get("activities") or {}
+                for _k, ent in pairs:
+                    cur = getattr(ent, "current_option", None)
+                    a = acts.get(cur)
+                    if a and a.get("stop"):
+                        await _run_action_ref(ws, a["stop"], call.context)
+            for _k, ent in pairs:
                 await ent.async_select_option("off")
             return
         if ws is None:
@@ -242,7 +280,17 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
                 f"no Harmonium select for room '{room}' (workspace '{ws}') — "
                 "reload the integration"
             )
+        # THE SELECT FLIPS FIRST, start or not — engine parity ("the
+        # tap IS the intent"): the room shows the activity immediately
+        # and the warm start follows. The activity's own Start sequence
+        # usually contains a set_activity step; by then it is a no-op.
         await ent.async_select_option(aid)
+        if call.data.get("start"):
+            # start: True runs the SAME wiring the remote's tap runs —
+            # the activity's Start action ref, through the one shared
+            # runner. A wall switch, the HA app and the panel are now
+            # the same button (v0.85.7, the beta wall-switch request).
+            await _run_action_ref(ws, act.get("start"), call.context)
 
     hass.services.async_register(
         DOMAIN, "set_activity", handle_set_activity, schema=SERVICE_SET_ACTIVITY_SCHEMA

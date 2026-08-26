@@ -236,7 +236,7 @@
        protection; there is no state to save.) */
     const frozen = {};
     const pinned = [];
-    let fwin = null, heldSpy, gridEl = null;
+    let fwin = null, heldSpy, gridEl = null, degraded = false, killAnim = null;
     try {
       const pv = document.getElementById("pv");
       const doc = pv.contentDocument;
@@ -256,6 +256,52 @@
          and grid child gets its LIVE height inlined (border-box) for
          the duration — the clone can render text however it likes
          inside boxes that cannot move. Restored after. */
+      /* SLOW WORK FIRST, DOM SURGERY LAST (2026-08-26 — his queue
+         capture saved the UNSCROLLED list with no focus ring while
+         the live view sat scrolled on the playing row, "jumps 3
+         times"; unreproducible headless). The tell: snapFontCSS
+         fetches the Google stylesheet + every font file — instant
+         failure in the headless harness, hundreds of ms on his
+         machine — and it used to run AFTER the scroll-zero +
+         transform surgery, leaving the live DOM mutated across a
+         long async window where any stray repaint/scroll corrupts
+         what the walk later clones. Now every await happens BEFORE
+         the surgery; the pin + scroll compensation run last, and
+         toCanvas starts on the very next line. One short mutation
+         window ≈ one visible repaint. */
+      const vw = pv.contentWindow.innerWidth, vh = pv.contentWindow.innerHeight;
+      const bg = getComputedStyle(doc.body).backgroundColor;
+      /* THE "[object Event]" AUTOPSY (2026-08-26, his Porch capture).
+         When html-to-image can't fetch an image (external artwork —
+         Spotify/Deezer covers are CORS-walled), its catch stores
+         `options.imagePlaceholder || ''` in a MODULE-LEVEL cache, so
+         without a placeholder the clone gets `<img src="">` — which
+         resolves to the page URL inside the assembled SVG and fails
+         the WHOLE SVG image load: createImage rejects with the raw
+         error Event. And because the '' is cached, any later retry
+         inherits the poison. So the placeholder rides on the FIRST
+         pass: unfetchable art becomes one transparent pixel, the SVG
+         stays loadable, one pass, one repaint. */
+      const snapOpts = {
+        width: vw, height: vh, canvasWidth: vw * 2, canvasHeight: vh * 2,
+        fontEmbedCSS: await snapFontCSS(doc),
+        imagePlaceholder: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        backgroundColor: bg && bg !== "rgba(0, 0, 0, 0)" ? bg : "#0d0f12" };
+      /* NO TRANSITIONS DURING THE SNAP (2026-08-26 — THE collage bug,
+         caught by a per-frame trace: `.tile` has `transition:
+         … transform .06s` (the press dip), so the scroll-compensation
+         translate ANIMATED toward -scrollTop over ~100ms while the
+         clone walk read each tile's computed transform mid-flight —
+         early-cloned tiles nearly unshifted, later ones fuller: his
+         top-of-list collage, and the visible "jumps 3 times" was the
+         slide down and back. The old code's slow font fetch happened
+         to let the transition settle, which is why it ever worked.
+         One injected rule makes every mutation instant — the capture
+         is deterministic and the live preview never visibly moves. */
+      killAnim = doc.createElement("style");
+      killAnim.textContent =
+        "*,*::before,*::after{transition:none!important;animation:none!important;}";
+      doc.head.appendChild(killAnim);
       for (const el of doc.querySelectorAll(
         "#banner, #grid, #grid > *, #grid .secgrid > *")) {
         const r = el.getBoundingClientRect();
@@ -265,7 +311,6 @@
         el.style.maxHeight = r.height + "px";
         el.style.boxSizing = "border-box";
       }
-      const vw = pv.contentWindow.innerWidth, vh = pv.contentWindow.innerHeight;
       for (const el of doc.querySelectorAll("*")) {
         const st = el.scrollTop, sl = el.scrollLeft;
         if (!st && !sl) continue;
@@ -279,11 +324,19 @@
           el.scrollTop = st; el.scrollLeft = sl;
         });
       }
-      const bg = getComputedStyle(doc.body).backgroundColor;
-      const screenCv = await toCanvas(doc.documentElement, {
-        width: vw, height: vh, canvasWidth: vw * 2, canvasHeight: vh * 2,
-        fontEmbedCSS: await snapFontCSS(doc),
-        backgroundColor: bg && bg !== "rgba(0, 0, 0, 0)" ? bg : "#0d0f12" });
+      let screenCv;
+      try {
+        screenCv = await toCanvas(doc.documentElement, snapOpts);
+      } catch (e1) {
+        /* backstop for the FONT flavor of the same failure: retry
+           once with fonts skipped — a degraded capture that says so
+           beats a dead button. */
+        screenCv = await toCanvas(doc.documentElement, Object.assign({}, snapOpts, {
+          fontEmbedCSS: undefined, skipFonts: true }));
+        degraded = true;
+      }
+      if (!screenCv || !screenCv.width || !screenCv.height)
+        throw new Error("the capture came back empty (0×0) — is the preview visible?");
       let out = screenCv;
       if (skin?.image) {
         const img = new Image();
@@ -307,12 +360,24 @@
         (app.pvScreen || "preview").replace(/[^a-z0-9_-]+/gi, "_") + ".png";
       a.href = out.toDataURL("image/png");
       a.click();
-      setStatus("screenshot saved" + (skin?.image ? " (transparent outside the device)" : ""), "ok");
+      setStatus("screenshot saved" +
+        (degraded ? " — some fonts/artwork couldn't be captured and were skipped"
+          : (skin?.image ? " (transparent outside the device)" : "")), "ok");
     } catch (e) {
-      setStatus("screenshot failed: " + (e?.message || e), "err");
+      /* never "[object Event]" again: an Event carries WHAT failed —
+         name the resource so the report diagnoses itself */
+      const t = e?.target;
+      const why = e?.message ? e.message
+        : (t && (t.src || t.href)) ? "could not load " + String(t.src || t.href).slice(0, 100)
+        : (e && e.type) ? "a resource failed to load during capture (" + e.type + " event)"
+        : String(e);
+      setStatus("screenshot failed: " + why, "err");
     }
     undoScroll.forEach((f) => f());          /* spy still detached: no false release */
     pinned.forEach(([el, css]) => (el.style.cssText = css));
+    /* transitions come back only AFTER the restores above, so the
+       un-shift is as instant and invisible as the shift was */
+    if (killAnim) killAnim.remove();
     if (gridEl) gridEl.onscroll = heldSpy;
     if (fwin) {
       for (const k of Object.keys(frozen)) fwin[k] = frozen[k];

@@ -57,3 +57,21 @@ the fleet — this file is the truth, individual devices are copies.
 
 Captured from Fully **1.60.1**; Fully renames keys occasionally, so
 after a major Fully upgrade re-export the reference device and diff.
+
+## Edge swipes and the Fully menu (2026-08-25, corrected)
+
+`showMenuHint` is **false** — but know what it does: per Fully's own
+docs it only hides the startup demo/hints (and the outdated-webview
+nag). It does NOT disable the left-edge swipe that opens Fully's
+menu; no documented setting does. Consequences, stated honestly:
+
+- On Fully devices the NATIVE layer owns the left edge — the
+  engine's spec-§8 swipe-right-to-parent is contested there. Swipe
+  depth is the browser/tablet affordance (iPads, desktop browsers);
+  hardware remotes have physical Back and the bar chrome instead.
+- Fully's settings stay reachable the normal way: left-edge swipe →
+  menu → Settings (kiosk PIN), or better for a mounted remote,
+  **Remote Admin at http://<device-ip>:2323** — the ⓘ page now shows
+  this device's IP with that hint (v0.85.7).
+- Android 10+ system gesture navigation claims BOTH edges ahead of
+  every app — use 3-button navigation on the RS90.

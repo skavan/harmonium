@@ -84,13 +84,18 @@
           onclick={() => switchWorkspace(id)}>{app.workspaces[id].name}</button>
       {/each}
     </div>
-    <!-- the CURRENT workspace's ADDRESS: a mono chip -->
-    <a href={"/local/harmonium/" +
-        (app.workspace !== "main" ? encodeURIComponent(app.workspace) + "/" : "") + "index.html"}
+    <!-- the CURRENT workspace's ADDRESS: a mono chip. ALWAYS the
+         <ws>/ stub path, MAIN INCLUDED (v0.85.7 — Suresh: "what is
+         the correct url for the astrion?"): the stub self-busts HA's
+         long cache (?v=engine-hash), so it is the address a kiosk
+         should boot from; bare /local/harmonium/index.html works too
+         but can serve a webview's stale cached engine after an
+         update. One canonical answer, said the same everywhere. -->
+    <a href={"/local/harmonium/" + encodeURIComponent(app.workspace || "main") + "/index.html"}
       target="_blank" rel="noopener"
       class="shrink-0 rounded-[6px] bg-field px-2.5 py-[5px] font-mono text-[11px] text-accent-text no-underline hover:underline"
-      title="Open the running app in a new browser tab"
-    >/local/harmonium/{app.workspace !== "main" ? app.workspace + "/" : ""}index.html ↗</a>
+      title="Open the running app in a new tab — this exact address is what a kiosk or hardware remote should be pointed at"
+    >/local/harmonium/{app.workspace || "main"}/index.html ↗</a>
     <div class="flex min-w-0 flex-1 items-center gap-1.5">
       <span class={"h-1.5 w-1.5 shrink-0 rounded-full " +
         (app.status.cls === "err" ? "bg-danger" : "bg-ok")}></span>

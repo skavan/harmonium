@@ -37,11 +37,14 @@
   <p class="m-0 text-xs text-dim">
     A workspace is a complete world — screens, activities, building
     blocks, theme — published on the server, and <b>every workspace is
-    an address</b>: <b>Main</b> lives at <code>/local/harmonium/index.html</code>
-    (built from the repo), every other workspace at
-    <code>/local/harmonium/&lt;id&gt;/index.html</code>. All of them are live at
-    once; a remote shows whichever address it loads, so two remotes can
-    share one workspace or each have their own.
+    an address</b>: <code>/local/harmonium/&lt;id&gt;/index.html</code> —
+    <b>Main included</b> (<code>/local/harmonium/main/index.html</code>;
+    the bare <code>/local/harmonium/index.html</code> still lands there).
+    Point kiosks and hardware remotes at the <code>&lt;id&gt;/</code> form —
+    it version-checks on every boot, so a wall tablet never wakes up on a
+    stale cached engine. All workspaces are live at once; a remote shows
+    whichever address it loads, so two remotes can share one workspace or
+    each have their own.
   </p>
   <p class="m-0 text-xs text-dim">
     To put a device on a workspace, just point it at the workspace's

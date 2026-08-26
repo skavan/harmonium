@@ -24,6 +24,7 @@
     background: var(--tile); border-radius: var(--radius);
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
     border: 2px solid transparent;
+    box-shadow: var(--tile-shadow, none);   /* per-tile css_vars hook */
     display: block;
     min-width: 0;               /* let grid columns shrink below content */
     transition: background .12s, border-color .12s, transform .06s;
@@ -75,7 +76,8 @@
   }
   .tile .ic { font-size: 22px; width: 28px; text-align: center; }
   .tile .ic.material-symbols-outlined { font-size: 24px; }
-  .tile .lbl { font-weight: var(--fw-1); }
+  .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
+    font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
   /* inline sub: value on the title line, right-aligned, a notch bigger */
   .tile .sub.subin {
@@ -309,17 +311,109 @@
      .wgt-preset's centered-card styling leaked into .row mode —
      big, centered, wrapping titles. Rows align left, drop the +2px
      row bump, and ellipsize on one line. */
-  .tile.brw.row { text-align: left; }
-  .tile.brw.row .lbl {
-    font-size: var(--fs-1);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* ---- THE LIBRARY LAYOUT REWORK (v0.85.7 — Suresh, four mocks:
+     "lets try a better layout. Right now we waste most of the box.
+     Note we allow 2 lines if needed for larger text.") ---- */
+  /* LIST rows (mock 3): colored source bar · 48px thumb · bold title
+     up to two lines · "Spotify · Playlist" sub line · › on drills */
+  /* COMPACT (v0.85.7 round 2 — Suresh: "Our row view tiles in queue
+     and library are too tall. We're only fitting 4 on a screen."):
+     rows shed the 78px grid-tile floor and the 12px pads — height is
+     the CONTENT's (48px thumb + tight pads ≈ 66px a row). */
+  .tile.brw.row {
+    text-align: left; position: relative;
+    min-height: 0;
+    padding: 8px 12px 8px 17px;
   }
-  .tile.brw:not(.row) { text-align: center; }
-  .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
-  .tile.brw:not(.row) .top > img { width: var(--br-art); height: var(--br-art); border-radius: 10px; }
-  .tile.brw:not(.row) .top .lbl { width: 100%; }
-  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: calc(var(--br-art) * .59); width: auto; height: var(--br-art); display: inline-flex; align-items: center; }
-  .tile.brw .sub { display: none; }
+  .tile.brw.row::before {
+    content: ""; position: absolute; left: 6px; top: 10px; bottom: 10px;
+    width: 4px; border-radius: 2px;
+    background: var(--svc-c, #4a4f57);
+  }
+  .tile.brw.row .icwrap { width: 48px; height: 48px; border-radius: 10px; }
+  .tile.brw.row .lbl {
+    font-size: calc(var(--fs-1) + 1px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
+  .tile.brw.row .sub { display: block; margin-top: 1px; }
+  .tile.brw.row .txt { padding-right: 26px; }   /* room for the › door */
+  .tile.brw.row.drill::after {
+    content: "›"; position: absolute; right: 13px; top: 50%;
+    -webkit-transform: translateY(-50%); transform: translateY(-50%);
+    font-size: 21px; color: var(--dim); pointer-events: none;
+  }
+  .tile.brw.row.has-trail.drill::after { right: 40px; }  /* ▶ owns the corner */
+  .tile.brw.row .srcb, .tile.brw.row .svcb { display: none; }  /* the sub says it in words */
+  /* ART-FORWARD grid tiles (mocks 1+2): the art IS the tile — full
+     width, label under it (two lines allowed), a service-colored dot
+     on the art, minimal chrome. The focused ring (border → accent)
+     still wraps art + label, exactly the mock's amber outline. */
+  .tile.brw:not(.row) {
+    text-align: left; padding: 5px; background: none;
+  }
+  .tile.brw:not(.row) .top { flex-direction: column; gap: 7px; align-items: stretch; }
+  /* THE ART BOX (v0.85.7 — "tiles default to squished" before the
+     art loads): a square reserved with the padding trick, so the
+     tile is the right size from first paint. The img fills it; the
+     broken-image fallback icon centers in the same box. */
+  .tile.brw:not(.row) .artbox {
+    position: relative; display: block; width: 100%; padding-top: 100%;
+    background: var(--tile); border-radius: 10px; overflow: hidden;
+  }
+  .tile.brw:not(.row) .artbox > img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .tile.brw:not(.row) .artbox .ic.material-symbols-outlined {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 44px; background: none;
+  }
+  .tile.brw:not(.row) .top .lbl {
+    width: auto; padding: 0 3px 4px;
+    /* round 3 (Suresh: "Font-Size on the Artwork Tiles in the
+       library is too big… default size here, should be around
+       18px" — his theme's fs-1:20px pushed round 2's calc(+2) to
+       22px): art labels get their OWN knob, default 18px, no
+       longer riding fs-1. Tune it as `br-lbl` in the theme (every
+       theme key becomes --<key>), a profile's style map, or a
+       per-tile css_vars. */
+    font-size: var(--br-lbl, 18px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
+  .tile.brw:not(.row) .ic.material-symbols-outlined {
+    font-size: 44px; width: 100%; height: 84px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--tile); border-radius: 10px;
+  }
+  .tile.brw .sub { display: none; }   /* .brw.row .sub above outguns this */
+  /* provenance on art tiles: ONE dot, service-colored (mock 1's green
+     Spotify / purple Deezer); the SO/MA text badges retire here — the
+     list view's sub line still says it in words */
+  .tile.brw:not(.row) .srcb { display: none; }
+  .tile.brw:not(.row) .svcb {
+    top: 11px; right: 11px; bottom: auto; left: auto;
+    width: 11px; height: 11px; padding: 0; border-radius: 50%;
+    font-size: 0; line-height: 0; letter-spacing: 0;
+    background: var(--svc-c, #8a9099);
+    border: 2px solid rgba(13,15,18,.5);
+  }
+  .tile.brw.has-trail:not(.row) .svcb { top: 11px; right: 42px; }
+  /* the service palette (set as a class by the chassis) */
+  .tile.svc-spotify { --svc-c: #1db954; }
+  .tile.svc-deezer { --svc-c: #a238ff; }
+  .tile.svc-tidal { --svc-c: #35d4c7; }
+  .tile.svc-youtube { --svc-c: #ff4e45; }
+  .tile.svc-apple { --svc-c: #fa4d63; }
+  /* the library BAR's D-pad ring (v0.85.7 — bar focus layer).
+     Round 2: INSET — the rows scroll horizontally (overflow
+     containers), so an outer shadow was clipped at the row edges. */
+  #brbar .brfocus {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: 9px;
+  }
   /* KIND BADGE (v0.62): only the mixed "All" grid sets one, where the
      chip above no longer tells you what a thing is. Top LEFT, so it
      never fights the play ▶ badge on the right. */
@@ -385,18 +479,37 @@
      the title RIDES Primary — weight is theme+100 (bolder than the
      house, never a hardcoded 700) — and both lines ellipsize instead
      of wrapping. */
-  .tile.wgt-qrow { position: relative; }
-  .tile.wgt-qrow .icwrap { width: 56px; height: 56px; border-radius: 10px; }
-  /* weight/size come from the MUSIC theme fields (the queue is always
-     font_scope: music — v0.53: no derived +100 opinion, the knob is
-     the theme's) */
-  .tile.wgt-qrow .lbl {
-    font-size: calc(var(--fs-1) + 2px);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* v0.85.7 round 2 (Suresh: "on queue we are using round icons.
+     Whereas on playlist full row, we are using a more attractive
+     square" + "too tall"): the square radius needs .row in the
+     selector — controls.css's `.tile.row .icwrap { border-radius:
+     var(--icon-radius) }` (a circle) loads LAST and tied this rule's
+     specificity, so the circle won. And queue rows shed the grid-tile
+     height floor like the library rows did. */
+  /* v0.85.7 round 3 (Suresh: "The queue tiles are way too big. They
+     should mirror the library tiles exactly"): round 2's compacting
+     NEVER LANDED HERE — these rules were 2-class (.tile.wgt-qrow)
+     and controls.css loads after grid.css, so its 2-class .tile.row
+     min-height/padding/label rules won every tie: with his theme's
+     tile-h:100px each queue row kept a 94px floor at 22px type.
+     Every rule below is 3-class (.tile.row.wgt-qrow) — it outguns
+     controls.css on SPECIFICITY, not load order — and copies the
+     library-row recipe (48px thumb, 8px pads, +1px label clamped to
+     2 lines, tight sub). Kept different on purpose: no service bar
+     (a queue has no provenance to announce → 12px left pad, not the
+     rows' 17px) and the wider right pad for the ▶ now-playing mark. */
+  .tile.row.wgt-qrow { position: relative; min-height: 0;
+    padding: 8px 12px; }
+  .tile.wgt-qrow .icwrap, .tile.row.wgt-qrow .icwrap {
+    width: 48px; height: 48px; border-radius: 10px; }
+  .tile.row.wgt-qrow .lbl {
+    font-size: calc(var(--fs-1) + 1px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   }
-  .tile.wgt-qrow .txt { padding-right: 44px; }
-  .tile.wgt-qrow .sub {
-    margin-top: 2px;
+  .tile.row.wgt-qrow .txt { padding-right: 44px; }
+  .tile.row.wgt-qrow .sub {
+    margin-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .qnowic {

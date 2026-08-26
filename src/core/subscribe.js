@@ -19,8 +19,44 @@ function rawTilesOf(sc) {
      syntax floor is 61 (stock Astrion webview) — see boot.js */
   return sc.sections
     ? sc.sections.filter(x => x.enabled !== false)
-        .reduce((a, x) => a.concat(x.tiles || []), [])
+        .reduce((a, x) => a.concat((x.tiles || []).map(function (t) {
+          return sectionDressTile(t, x);
+        })), [])
     : (sc.tiles || []);
+}
+/* SECTION STYLE DEFAULTS (v0.85.7 — Suresh: "at the DEVICES section
+   level, so it applies to all devices unless overridden"). A section
+   may carry the same styling keys a tile does — h, css_vars,
+   label_pos, style — and every tile in it inherits what it does not
+   state itself. Per-tile always wins; css_vars merge key-by-key with
+   the tile's entries on top. Section `style` only reaches NAV cards —
+   on a media tile `style` is the Now Playing mode and belongs to the
+   tile/activity, never a section-wide default. */
+function sectionDressTile(t, sec) {
+  if (!t || typeof t !== "object") return t;
+  var patch = null;
+  if (sec.h != null && sec.h !== "" && (t.h == null || t.h === ""))
+    (patch = patch || {}).h = sec.h;
+  if (sec.label_pos && !t.label_pos)
+    (patch = patch || {}).label_pos = sec.label_pos;
+  /* v0.85.7 round 2 (Suresh: "Photo card opacity should also exist
+     in devices (parent section)") — same inherit rule as the rest */
+  if (sec.image_opacity != null && sec.image_opacity !== "" &&
+      (t.image_opacity == null || t.image_opacity === ""))
+    (patch = patch || {}).image_opacity = sec.image_opacity;
+  if (sec.style && t.type === "nav" && !t.style)
+    (patch = patch || {}).style = sec.style;
+  if (sec.css_vars && typeof sec.css_vars === "object") {
+    var merged = {}, k;
+    for (k in sec.css_vars) merged[k] = sec.css_vars[k];
+    for (k in (t.css_vars || {})) merged[k] = t.css_vars[k];
+    (patch = patch || {}).css_vars = merged;
+  }
+  if (!patch) return t;
+  var out = {};
+  for (var kk in t) out[kk] = t[kk];
+  for (var pk in patch) out[pk] = patch[pk];
+  return out;
 }
 function tilesOf(sc) {
   /* surfDressTile (v0.83.7): the Controller tab's label overrides +

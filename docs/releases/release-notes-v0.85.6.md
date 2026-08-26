@@ -15,16 +15,20 @@ installed, just update normally. One check for RS90 owners who made
 their own photo skin: if 0.85.3 replaced your photo with the stock
 one, re-upload it — it will never be touched again.)*
 
-## ⚠ Upgrading from v0.84.1 — three steps
+## ⚠ Upgrading from v0.84.1 — four steps
 
-1. **Restart Home Assistant** after the HACS update. The integration's
+1. **Export your config first** (Studio → Export) and keep the file.
+   It's your safety net: if an update ever goes wrong, Studio → Import
+   puts everything back exactly as it was — and if you report a
+   problem, that file is what lets us reproduce it.
+2. **Restart Home Assistant** after the HACS update. The integration's
    Python changed this time.
-2. **Make sure the remote actually got the new engine.** Fully Kiosk
+3. **Make sure the remote actually got the new engine.** Fully Kiosk
    caches aggressively — if the remote looks unchanged, press **Clear
    browser cache** on the Fully device page in HA and reload. The ⓘ
    page now shows the engine version at the top; it should say
    **0.85.6**. If it doesn't, you're still on the old engine.
-3. **Open the Studio and press Save & Deploy once.** Updates to the
+4. **Open the Studio and press Save & Deploy once.** Updates to the
    built-in pages (controllers, skins, the Apple TV support) are
    applied when *you* save — never behind your back. One save brings
    your config up to date.
@@ -164,7 +168,7 @@ defaults honest.
   when a remote seems stale.
 - The **menu button opens the Apps/Library page** on both the TV and
   music controllers, and the **source button opens the source list**.
-- **KeyMapper's Expert Mode is now documented** (hardware-keys guide):
+- **KeyMapper's Expert Mode is now documented** (hardware-keys guide — **Astrion only**; the RS90 does not need it and has its own key-stack runbook):
   buttons that control the launcher but never reach Harmonium need it,
   it requires a one-line ADB grant — and a KeyMapper backup does *not*
   carry the setting, so it must be enabled on each device.

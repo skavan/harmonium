@@ -12,6 +12,7 @@
   import UploadBtn from "../components/UploadBtn.svelte";
   import { onMount } from "svelte";
   import { app } from "../state.svelte.js";
+  import { version } from "../pairing.svelte.js";
   import { STOCK_SKINS, isStockSkinImage } from "../stocklib.js";
 
   /* `pv` is PreviewPane's context (skin, wash + key brains, hold
@@ -314,7 +315,7 @@
         onscroll={(e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; }}
         style="background:#000; left:calc({skin.screen.x}% - 1px); top:calc({skin.screen.y}% - 1px); width:calc({skin.screen.w}% + 2px); height:calc({skin.screen.h}% + 2px)">
         <iframe id="pv" bind:this={pvEl} title="Live preview"
-          src="/local/harmonium/index.html#preview=1"
+          src={"/local/harmonium/index.html" + (version.engine ? "?v=" + encodeURIComponent(version.engine) : "") + "#preview=1"}
           class="border-0 bg-bg"
           style="width:{skin.viewport?.w || 320}px; height:{skin.viewport?.h || 533.33}px; transform:scale({(clipW || (skin.screen.w / 100 * (imgW || 340) + 2)) / (skin.viewport?.w || 320)}, {(clipH || (skin.screen.h / 100 * (imgW || 340) * (imgNat.h / imgNat.w) + 2)) / (skin.viewport?.h || 533.33)}); transform-origin:0 0"></iframe>
       </div>

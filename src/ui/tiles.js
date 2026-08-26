@@ -21,6 +21,15 @@ function iconHtml(t, row) {
     inner = `<img src="${t.icon_image}" alt=""` +
       (t.icontain ? ' class="contain"' : "") +
       (fb ? ` data-fbk="${fb}"` : "") + ">";
+    /* ART BOX (v0.85.7 — Suresh: "When artwork hasn't arrived the
+       library tiles default to squished"): the art-forward browse
+       tile sizes its art `height: auto`, which is 0 until the bytes
+       land — so a slow CDN collapsed the whole tile to its label.
+       Wrap the art in a square reserved via the padding trick (no
+       aspect-ratio on the Chromium-61 floor): correct size from the
+       first paint, placeholder ground while loading, and the broken-
+       image fallback icon centers in the same box. */
+    if (t.brw && !row) inner = `<span class="artbox">${inner}</span>`;
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
@@ -107,6 +116,8 @@ function makeTile(t, row, spanCols) {
       ? parseInt(th, 10) + "px" : String(th);
     if (/^[\d.]+(px|vh|vw|rem|em|%)$/.test(hv)) {
       el.style.height = hv;
+      el.style.minHeight = hv;   /* an explicit h beats a widget's min-height
+                                    (the photo card's 132px floor, v0.85.7) */
       el.style.setProperty("--tile-h", hv);   /* row-mode + inner sizing */
     }
   }
@@ -114,6 +125,30 @@ function makeTile(t, row, spanCols) {
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */
   if (t.color) el.style.setProperty("--tacc", t.color);
+  /* PER-TILE CSS VARIABLES (v0.85.7 — Suresh: "In advanced (JSON) how
+     would I change font size and weight? And is it possible to use
+     drop shadows?"). t.css_vars is a plain map of custom properties
+     set on THIS tile's element — the same mechanism the remote
+     profile's `style` uses, scoped to one card. Because the tile CSS
+     already reads its numbers through variables, overriding the
+     variable here restyles just this tile:
+       "--fs-1": "18px"      label font size
+       "--fw-1": "700"       label font weight
+       "--tile-shadow": "0 4px 14px rgba(0,0,0,.45)"   card drop shadow
+       "--lbl-shadow": "0 1px 3px rgba(0,0,0,.8)"      label text shadow
+     Only --names are accepted; values with ; or } are refused. */
+  /* LABEL POSITION (v0.85.7 — Suresh: "I could swear we used to have
+     a label location parameter"): we never did — now we do. Rides as
+     a class; today the photo nav card's overlay CSS consumes it
+     (bottom-left stays the default), other overlay widgets can join. */
+  if (t.label_pos && /^(top|center|bottom)(-(left|center|right))?$/.test(String(t.label_pos)))
+    el.classList.add("lp-" + t.label_pos);
+  if (t.css_vars && typeof t.css_vars === "object")
+    for (var vk in t.css_vars) {
+      var vv = String(t.css_vars[vk]);
+      if (vk.indexOf("--") === 0 && vv.indexOf(";") < 0 && vv.indexOf("}") < 0)
+        el.style.setProperty(vk, vv);
+    }
   const w = WIDGETS[t.type] || {};
   const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
   const body = `<div class="lbl">${t.label}</div>
@@ -164,6 +199,10 @@ function makeTile(t, row, spanCols) {
     sv.className = "svcb";
     sv.textContent = t.svc;
     el.appendChild(sv);
+    /* the service also rides as a CLASS (v0.85.7): the library's art
+       tiles draw it as a colored dot, the list rows as a colored
+       left bar — see grid.css .svc-spotify etc. */
+    el.classList.add("svc-" + t.svc);
   }
   el.addEventListener("click", () => {
     if (el._heldFired) { el._heldFired = false; return; }

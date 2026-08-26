@@ -33,6 +33,31 @@ function currentActivityId() {
      activity wins above, and the next tap overwrites. */
   if (S.pendingActivity && (CONFIG.activities || {})[S.pendingActivity])
     return S.pendingActivity;
+  /* DEVICE-TRUTH FALLBACK (v0.85.7 — a beta reporter's screenshots:
+     start an activity, close the browser, reopen — the card still
+     says "On · hold to end" (device state rules) but the power/End
+     button is gone. The card and this function answered from two
+     different truths: the card from the activity's own `state.on`
+     rules, this from the SELECT alone — and a select can be stale
+     (a start action that never flips it; an HA restart). When the
+     select names nothing but EXACTLY ONE in-scope activity is
+     provably running by its own rules, that activity is current —
+     the End button, hold-Power and $context then agree with what
+     the card already says. Ambiguity (two running) keeps the old
+     answer: guessing between rooms is worse than a missing button.
+     Purely a read — the select itself is repaired only by the
+     widget's tap-time self-heal, never from a render path. */
+  {
+    let found = null;
+    for (const [id, a] of Object.entries(CONFIG.activities || {})) {
+      if (id === "off" || !activityInScope(id)) continue;
+      if (activityStateOn(a) === true) {
+        if (found) return null;                 // two running — abstain
+        found = id;
+      }
+    }
+    if (found) return found;
+  }
   return null;
 }
 /* WHICH ROOM AM I IN? The screen itself if it owns activities, else

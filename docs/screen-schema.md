@@ -1806,3 +1806,55 @@ The engine targets **ES2019 / Chromium 75**. No `??`, no `??=`, no `?.`,
 no flex `gap` without the `html.nogap` fallback in `styles/compat.css`,
 no `inset` shorthand. Cheap Android remotes ship vendor-frozen webviews;
 that is the normal case, not the exception. See PROJECT.md v0.56.1.
+
+## Per-tile styling (Advanced / Code tab)
+
+Any tile accepts, alongside `h` (card height):
+
+    "css_vars": {
+      "--fs-1": "18px",
+      "--fw-1": "700",
+      "--tile-shadow": "0 4px 14px rgba(0,0,0,.45)",
+      "--lbl-shadow": "0 1px 3px rgba(0,0,0,.8)"
+    }
+
+A plain map of CSS custom properties set on that tile's element only —
+the same mechanism a remote profile's `style` uses, scoped to one
+card. `--fs-1`/`--fw-1` are the label's size and weight (the theme's
+own tokens, overridden locally); `--tile-shadow` is a card drop
+shadow; `--lbl-shadow` a label text shadow. Only `--` names are
+accepted; values containing `;` or `}` are refused. Guarded by
+tests/probe-css-vars.mjs (v0.85.7).
+
+### `label_pos` (nav card, image style)
+
+    "label_pos": "top-left"
+
+Where the overlay label sits on a full-bleed photo nav card:
+top/center/bottom × left/center/right (e.g. "center", "top-right");
+`bottom-left` is the default and needs no key. Studio: the nav card's
+Styling tab. Guarded by tests/probe-label-pos.mjs (v0.85.7).
+
+### `image_opacity` (nav card, image style)
+
+    "image_opacity": 0.5
+
+How much of the photo shows over the dark card — the hero banner's
+knob, on photo nav cards. 0–1; absent = 0.85. Also a SECTION default
+(`image_opacity` on the section — every photo card in it inherits;
+a card's own value wins), and reachable as the CSS variable
+`--img-op` via `css_vars`. Studio: the nav card's Styling tab and
+Section settings. Guarded by tests/probe-label-pos.mjs and
+tests/probe-section-style.mjs (v0.85.7).
+
+### Section style defaults
+
+A SECTION may carry the same styling keys a tile does — `h`,
+`css_vars`, `label_pos`, `style` — and every card in it inherits what
+it does not state itself (per-card always wins; `css_vars` merge
+key-by-key with the card's entries on top; section `style` reaches
+nav cards only — on a media tile `style` is the Now Playing mode and
+never a section default). Studio: Section settings. Guarded by
+tests/probe-section-style.mjs (v0.85.7). An explicit `h` (tile or
+section) now also beats a widget's min-height (the photo card's
+132px floor).

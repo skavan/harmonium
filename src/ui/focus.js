@@ -66,6 +66,25 @@ function spatialMove(dir) {
        in, the D-pad can't reach them at all, which is the intent. */
     if ((dir === "up" || dir === "down") &&
         String(f.id).indexOf("hero_") === 0) return;
+    /* TRAILS IN THE WALK (v0.85.7, refined twice — Suresh on the TV
+       hero: "no DPAD key gets me to the Library button… Right takes
+       me down to the Fire TV DEVICE with the settings area
+       selected"). Three truths, one rule:
+         1. ANOTHER tile's trail is never a walk stop — that was the
+            "Right jumps to a ⚙ far below" bug (the only dx>8
+            candidate on a single-column page was a distant corner
+            badge).
+         2. A tile's OWN trail is always reachable HORIZONTALLY.
+         3. Vertically, the own trail counts only when it is a real
+            ROW (the hero's full-width "Library" door), never a
+            corner badge (the browse ▶, 28px — stepping on those
+            broke the library's ▲-into-the-bar entry). Width is the
+            honest discriminator between the two shapes. */
+    if (isTrailId(f.id)) {
+      if (f.id !== S.focusId + TRAIL) return;            /* not mine */
+      if ((dir === "up" || dir === "down") && f.el.offsetWidth < 100)
+        return;                                          /* corner badge */
+    }
     const r = f.el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     const dx = x - cx, dy = y - cy;

@@ -42,6 +42,7 @@ OUTKEY = {  # KEY_EVENT output keycode -> (constant, printed character)
     75: ("KEYCODE_APOSTROPHE", "'"), 76: ("KEYCODE_SLASH", "/"),
     55: ("KEYCODE_COMMA", ","), 56: ("KEYCODE_PERIOD", "."),
     73: ("KEYCODE_BACKSLASH", "\\"), 77: ("KEYCODE_AT", "@"),
+    142: ("KEYCODE_F12", "F12"),
 }
 APP = {
     "com.skavan.imefix": "Run Harmonium IME-Fix",
@@ -56,6 +57,23 @@ APP = {
 }
 SYS = {"go_back": "Android Go back", "go_home": "Android Go home"}
 CLICK = {0: "press", 1: "long-press", 2: "double-press"}
+
+# every OTHER physical button — raw, no KeyMapper rule; they reach the
+# webview directly. Listed so nobody has to deduce them (v0.85.7,
+# matching the astrion generator).
+RAW = [
+    ("D-pad ▲ ▼ ◀ ▶", "Arrow keys", "move panel focus · drive the device on TV pages"),
+    ("OK (center)", "Enter", "activate the focused card · hold = grab the D-pad"),
+    ("Power (F1) tap", "`F1`", "power — end/start the page's activity (confirm)"),
+    ("Home (F2) tap", "`F2`", "Harmonium home — up one level"),
+    ("Channel ▲/▼ tap", "PageUp / PageDown", "jump sections · on TV pages: borrow the D-pad for the panel"),
+    ("Mic (F5)", "`F5`", "rs90 profile: `mic` — bindable in the Studio"),
+    ("ScreenCast (F6)", "`F6`", "rs90 profile: `screencast` — bindable"),
+    ("Source (F7)", "`F7`", "rs90 profile: `source` — bindable"),
+    ("Settings (F8)", "`F8`", "rs90 profile: `settings` — bindable"),
+    ("REW / Play-Pause / FWD tap", "MediaRewind / MediaPlayPause / MediaFastForward",
+     "prev / play-pause / next on the running music"),
+]
 
 groups = {g["uid"]: g for g in d.get("groups", [])}
 
@@ -106,39 +124,43 @@ md = ["# RS90 Remote Key Map", "",
       "GENERATED from `data.json` — do not hand-edit; rerun",
       "`python gen-map-docs.py` after mappings change (refresh",
       "`data.json` from the newest `key_mapper.zip` first).", "",
+      "**THE MIRROR: Power=F1, Home=F2 — the opposite of the Astrion.**",
+      "Same emitted hold vocabulary, opposite trigger keys.", "",
+      "## KeyMapper rules (what the buttons are remapped to)", "",
       "| Physical key/action | Input keycode | Input Android constant | Scancode | Output/action | Output keycode / package | Output Android constant | Scope |",
       "|---|---:|---|---:|---|---|---|---|"]
 for r in rows:
     md.append(f"| {r['phys']} | {r['ikc']} | `{r['icon']}` | {r['scan']} | "
               f"{r['out']} | `{r['okc']}` | `{r['ocon']}` | {r['scope']} |"
               .replace("`—`", "—"))
+md += ["", "## Raw keys (no KeyMapper rule — they reach Harmonium directly)", ""]
+md += ["| Physical key | Emits | What Harmonium does |", "|---|---|---|"]
+for name, emits, does in RAW:
+    md.append(f"| {name} | {emits} | {does} |")
 md += ["", "## Notes", "",
        "- `press` is `clickType: 0`; `long-press` is `clickType: 1` — the "
-       f"configured long-press delay is {d.get('default_long_press_delay', 600)} ms.",
-       "- Scope “global” = the mapping fires everywhere (the app-launcher "
-       "keys — they are the road back to Fully from any other app). "
-       "Grouped mappings inherit their group's constraints.",
-       "- Raw F-keys reach the webview untouched (NOT KeyMapper): "
-       "Power `F1`, Home `F2`, Mic `F5`, ScreenCast `F6`, Source "
-       "`F7`, Settings `F8`. D-pad, OK (Enter) and CH up/down "
-       "(PageUp/Down) are raw too; the transport row is raw on "
-       "TAP (MediaRewind/PlayPause/FastForward -> prev / play-pause "
-       "/ next in the engine).",
-      "- KeyMapper (Fully-scoped) adds: volume +/- and mute; Back "
-       "tap `[` = UI back, long `]` = device back; Menu tap `#`, "
-       "long `@` = Apps drawer; CH up/down long = `'`/`/` (section "
-       "jumps); Power long `=` = All Off; and the transport HOLDS "
-       "-- Rewind long `,` = seek back, Fast Forward long `.` = "
-       "seek forward, Play/Pause long = MediaStop.",
-      "- The dot row is global (fires anywhere -- the road back to "
-       "Fully): • F9 -> Fully, •• F10 -> KISS launcher, ••• F11 -> "
-       "KeyMapper; ••• LONG -> Harmonium IME-Fix (manual re-bounce "
-       "of the input method if a boot ever leaves keys dead).",
+       f"configured long-press delay is {d.get('default_long_press_delay') or 600} ms.",
+       "- Scope “global” = the mapping fires everywhere (the dot keys — "
+       "they are the road back to Fully from any other app). Grouped "
+       "mappings inherit their group's constraints.",
+       "- The hold gestures land on: `]` = hold-Back (app back, always), "
+       "`=` = hold-Home (app home, always), `F12` = hold-Power (All "
+       "Off) — identical outputs to the Astrion's; only the trigger "
+       "side mirrors (hold-Home is an F2 rule here, an F1 rule there). "
+       "Taps route by page — device on TV pages, app elsewhere "
+       "(docs/HARMONIUM-INPUT-ROUTING.md).",
+       "- Transport HOLDS: Rewind long `,` = seek back, Fast Forward "
+       "long `.` = seek forward, Play/Pause long = MediaStop.",
+       "- The dot row is global (fires anywhere — the road back to "
+       "Fully): • F9 → Fully, •• F10 → KISS launcher, ••• F11 → "
+       "KeyMapper; ••• LONG → Harmonium IME-Fix (manual re-bounce "
+       "of the input method if a boot ever leaves keys dead — "
+       "rs90-facts.md has the four-layer runbook).",
        "- Physical labels derive from the Android `KeyEvent` constants; the "
        "labels printed on the remote may differ. Scancodes are lower-level "
        "input-device codes.", ""]
 (HERE / "rs90-remote-map.md").write_text("\n".join(md), encoding="utf-8")
-print("rs90-remote-map.md:", len(rows), "rows")
+print("rs90-remote-map.md:", len(rows), "rows +", len(RAW), "raw")
 
 # --------------------------------- xlsx ---------------------------------
 try:
@@ -154,6 +176,10 @@ try:
         ws.append([r["phys"], r["ikc"], r["icon"], r["scan"],
                    strip(r["out"]) if r["out"] != "`` ` ``" else "`",
                    r["okc"], r["ocon"], r["scope"]])
+    ws2 = wb.create_sheet("Raw keys")
+    ws2.append(["Physical key", "Emits", "What Harmonium does"])
+    for name, emits, does in RAW:
+        ws2.append([name, strip(emits), does])
     wb.save(HERE / "KeyCodes RS90.xlsx")
     print("KeyCodes RS90.xlsx: written")
 except ImportError:

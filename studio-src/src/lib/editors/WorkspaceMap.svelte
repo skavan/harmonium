@@ -8,6 +8,10 @@
      it lands, a preset row says what it runs, a device row shows its
      entity — counts are the summary, the rows are the detail. */
   import { app, selectSlice, roomIds, isControllerScreen } from "../state.svelte.js";
+  /* v0.85.7 — Suresh: "We don't need yet another slice - Startup &
+     Home. That belongs at the top of what is currently workspace map.
+     Too much jumping around otherwise." */
+  import StartupEditor from "./StartupEditor.svelte";
 
   const d = $derived(app.draft);
   const rooms = $derived(roomIds());
@@ -177,6 +181,9 @@
 
 {#if d}
   <div class="space-y-5" data-map>
+    <!-- STARTUP & HOME leads (v0.85.7 — "that belongs at the top of
+         what is currently workspace map") -->
+    <StartupEditor />
     <!-- title block (mock 3a): name, the numbers, the address -->
     <div>
       <h2 class="m-0 text-[20px] font-semibold tracking-[-0.01em] text-ink">

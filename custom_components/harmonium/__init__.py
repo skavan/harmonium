@@ -32,6 +32,7 @@ from .api import (
     HarmoniumConfigView,
     HarmoniumEngineVersionView,
     HarmoniumUploadView,
+    HarmoniumWhoamiView,
     HarmoniumWorkspacesView,
     validate_config,
 )
@@ -259,6 +260,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.http.register_view(HarmoniumConfigView(hass, hstore, mint))
     hass.http.register_view(HarmoniumWorkspacesView(hass, hstore, mint))
     hass.http.register_view(HarmoniumUploadView(hass))   # v0.83.8
+    hass.http.register_view(HarmoniumWhoamiView())       # v0.85.7 — ⓘ shows the device IP
     # the integration's own version, read once from its manifest —
     # the Studio surfaces it and checks GitHub for a newer release
     def _manifest_version() -> str:

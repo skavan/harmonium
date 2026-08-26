@@ -81,6 +81,781 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## Engine self-update — the honest "never again" (2026-08-26, night)
+
+Suresh: "Are you sure about your never reload again? I find I have
+to clear cache and reload from fully in HA, to get it to stick."
+He was right to push. The versioned stub fixes every pass through
+the Start URL — but nothing made a RUNNING webview take that pass,
+and Fully's plain Reload reloads the CURRENT page: after the
+canonical-address rewrite that is the stub path, so reload SHOULD
+re-resolve… but his lived experience says the belt needs braces.
+Built (his "Both"): engineUpdateCheck() in boot.js — on every
+auth_ok and on wake-from-hidden (socket.js hooks), fetch
+/api/harmonium/engine_version (?t= + no-store, the stub's own
+endpoint) and location.reload() through the stub when the deployed
+hash ≠ BOOT_V (the ?v= this load booted with). Guards: not in
+PREVIEW; only with a BOOT_V (bare boots have nothing to compare);
+one attempt per target hash via sessionStorage (a racing deploy
+can't loop the page); 60s throttle. TRAP averted in review: every
+stub boot carries pin=0, so WS_PEEK is truthy on every kiosk —
+gating on it would have disabled the feature everywhere.
+probe-engine-selfupdate.mjs pins five fences (one reload on
+mismatch, guard holds, match/bare/preview never reload); boot-path
+probes green. Docs: step 4 in notes + GitHub body now says the
+engine maintains itself, with the FAILSAFE his way ("Clear browser
+cache", then "Load Start URL" — his HA screenshot saved as
+docs/images/fully-ha-buttons.png, linked not embedded); checklist
+gains the self-update test.
+
+## Page links round 5: full width, no hint (2026-08-26, evening)
+
+Three from his screenshot of the live Studio: (1) the copy-link
+lines moved OUT of the Name field's half-column into a col-span-2
+row under Name/Page-id — a kiosk URL now sits on one full-width
+line instead of wrapping at half-panel; (2) the Page-id hint
+("the page's key — the minted select…") removed at his call;
+(3) the release-notes screenshot regenerated — the harness serves
+from localhost:8482, so the two link spans are display-relabelled
+to 192.168.1.87:8123 before the shot (the doc image must look
+like a real install, not the test rig). Svelte note: {@const}
+can't sit in a plain div — the full-width block wraps in {#if scr}
+to keep it legal. smoke-studio + dup-rename green.
+
+## Release-notes rework with his edits (2026-08-26, evening)
+
+Working from HIS edited copy (pulled from his machine — it was
+based on a pre-17:30 version, so the NP-styles gallery bullet was
+re-added). His three issues: (1) KeyMapper instructions unclear —
+now a trigger/output TABLE (Astrion vs RS90 mirrored triggers, both
+KEYCODE names + numbers; his draft had `]` as LEFT_BRACKET — it's
+RIGHT_BRACKET 72, corrected), the restore-from-backup path spelled
+out (adb push or download → Key Mapper ⋮ → Restore), and a
+check-your-work step (Key debug card should print ] = F12).
+(2) Non-breaking items pruned from Breaking changes: Menu and CH
+moved out (they live in the keys section), healed-appearance folded
+into the ownership section — Breaking is now exactly three: keys
+(action required), tap/hold flip, transport row removal.
+(3) set_activity was buried in the keys list — now its own section
+"Start activities from outside Harmonium" with the YAML
+(activity/start/room per the actual SERVICE_SET_ACTIVITY_SCHEMA).
+His step-4 concern ("copying the URL from ⓘ perpetuates a wrong
+address") fixed: the Start URL now comes FROM THE STUDIO's page
+links, with a new screenshot (docs/images/studio-page-links.png);
+ⓘ is demoted to the verify step. Tone sweep per his "jargon and
+cutesy talk": ghosts/haunts/referee/muscle-memory phrasing
+plainened; his own retitles kept. GitHub body synced to all of it.
+
+## The screenshot collage — ACTUALLY solved + queue context (2026-08-26)
+
+His queue pair (capture = top-of-list no ring, live = scrolled with
+ring, "jumps 3 times") finally reproduced after wiring a stubbed MA
+queue into the harness — then a per-frame trace caught it: `.tile`
+carries `transition: … transform .06s` (the press dip), so the
+scroll-compensation translate ANIMATED toward -scrollTop while
+html-to-image's clone walk read each tile's computed transform
+MID-FLIGHT — early-cloned tiles nearly unshifted, later ones
+fuller: the collage. The visible "jumps" were the slide down and
+back. It ever worked only because the old code's slow font fetch
+let the transition settle first — hence machine-dependence. Fix:
+snapPreview injects `*{transition:none!important;
+animation:none!important}` into the preview for the snap (removed
+after the restores, so un-shift is instant too — the live preview
+no longer visibly moves at all). Also reordered: every await (font
+embedding) runs BEFORE the DOM surgery; toCanvas starts on the
+next line. And his UX ask: the queue now opens with the playing
+row as the THIRD visible row ("two before and like 4 after") — new
+gridScrollTo mode "context" + `focus_context: true` on the queue
+screen (any screen can opt in). Verified end-to-end in the
+harness: capture pixel-matches the live scrolled view, ring
+included; 5 engine probes + smoke-studio green. Lesson: when a
+capture-the-DOM bug is machine-dependent, look for TIME — a
+transition, a fetch, a debounce — not for the machine.
+
+## The "[object Event]" autopsy — SOLVED (2026-08-26, follow-up)
+
+His annotated pair (live view vs saved file, "jumps 3 times")
+cracked it. html-to-image's resourceToDataURL catch stores
+`options.imagePlaceholder || ''` in a MODULE-LEVEL cache — so
+without a placeholder, CORS-walled artwork (Spotify/Deezer covers)
+becomes `<img src="">` in the clone, which resolves to the PAGE
+URL inside the assembled SVG and fails the whole SVG image load:
+createImage rejects with the raw error Event. The cached ''
+poisoned my earlier retry too (why retry+placeholder still failed
+— cache hit returns before the placeholder applies), and the
+two-pass attempt was the extra reflow "jumps". Fix: the
+transparent-pixel imagePlaceholder rides on the FIRST toCanvas
+pass — unfetchable art becomes one clear pixel, the SVG stays
+loadable, one pass, one repaint; the skipFonts retry stays as the
+backstop for font-flavored failures. Reproduced in the harness by
+route.abort()ing an artwork host: fails exactly his way before the
+fix, saves a scroll-correct capture after. smoke-studio green.
+
+## NP style gallery, strip clipping, screenshot forensics (2026-08-26)
+
+Three from testing. (1) "Point out the great selection of default
+styles with examples (a linked .md)" — NEW
+docs/cookbook/now-playing-styles.md: all five NP styles (Basic /
+Slim row / Art Hero Compact·regular·Large) shot at real remote
+size with a synthetic cover (tests/shoot-np-styles.mjs regenerates
+docs/images/np-styles/*.png; Material Symbols came from the npm
+`material-symbols` package since fonts.googleapis is blocked in
+the sandbox — the css2 stub must include BOTH the @font-face AND
+the .material-symbols-outlined class block, or icons render as
+ligature text). Doc also answers "where did the transport bar go"
+(physical_transport remotes drop it); linked from release notes,
+GitHub body, GETTING-STARTED §5. (2) "A selected tile that sits
+underneath that strip gets clipped" — gridScrollTo measured
+gr.bottom, but #tvstrip/#padstrip are fixed OVER the grid: new
+gridVisBottom() subtracts whichever strip is showing, AND the grid
+padding only ever budgeted for ONE strip — padStrip() now toggles
+#app.padstrip-on; tvstrip+padstrip stacked = 92px padding so the
+last tile can scroll clear. probe-tvstrip-clip.mjs walks ▼ to the
+bottom asserting every focused tile clears the topmost strip
+(caught the padding gap the first fix missed). (3) "screenshot
+failed: [object Event]" — html-to-image rejects with a RAW EVENT
+when its assembled SVG image fails; can't reproduce here (his live
+config + real skin + scrolled capture all pass in the harness, and
+the scrolled PNG is pixel-correct), so snapPreview now (a) retries
+once with skipFonts + a transparent imagePlaceholder — the two
+external-resource failure classes — reporting "saved — some
+fonts/artwork couldn't be captured", (b) names the failing
+resource URL instead of [object Event], (c) errors plainly on a
+0×0 canvas. His next failure will diagnose itself.
+
+## Breaking-changes section + the unwrapping (2026-08-26)
+
+Suresh: "The changes we made to the remotes are BREAKING CHANGES
+right? We need to guide users what to do." Right — the hold-key
+re-vocabulary (`]`/`=`/`F12`) changes what buttons DO, and the
+device-side KeyMapper rules are the one thing no heal can reach.
+Both release docs gained a "⚠ Breaking changes" section: the
+action-required item (update KeyMapper rules; the F1/F2 mirror
+warning; ready-made backups in remotes/keymapper/) plus the
+arrives-on-its-own behavior changes (tap/hold flip on TV pages,
+quieter Menu, CH section jumps, transport bar leaving
+physical_transport remotes, healed built-ins changing appearance).
+Stale `o`-as-hold-Power language in the notes corrected to F12;
+the links line updated (under Name, full-width, http-copyable).
+CONVENTION (his ask, permanent): **no hard line-wrapping in .md
+files** — GitHub release bodies and Discourse preserve single
+newlines, so ~70-char wraps render as ragged breaks. All four
+user-facing docs (release notes, GitHub body, stale-engine reply,
+test checklist) unwrapped to one line per paragraph/bullet.
+(PROJECT.md itself stays wrapped — it's read in editors, not
+pasted into renderers.)
+
+## Library round 3: art-label knob + the queue that never compacted (2026-08-26)
+
+(1) "Font-Size on the Artwork Tiles is too big… default ~18px" — his
+theme's fs-1:20px pushed round 2's calc(fs-1+2) to 22px. Art-grid
+labels now read `var(--br-lbl, 18px)`: decoupled from fs-1, themable
+as `br-lbl` (theme keys map 1:1 to --vars), also reachable via a
+profile style map or per-tile css_vars. (2) "The queue tiles are way
+too big. They should mirror the library tiles exactly" — round 2's
+queue compacting NEVER LANDED: the rules were 2-class
+(.tile.wgt-qrow) and controls.css loads AFTER grid.css, so its
+2-class .tile.row min-height/padding/label rules won every tie —
+with tile-h:100px each queue row kept a 94px floor at 22px type.
+All qrow rules are now 3-class (.tile.row.wgt-qrow — specificity,
+not load order) and copy the library-row recipe: 48px thumb, 8px
+pads, label at fs-m1 clamped to 2 lines; tokens.css moves qrow into
+the browse-rows "no +2 bump" group. Kept different on purpose: no
+service bar (12px left pad) and the wide right pad for the ▶ mark.
+Verified under HIS theme at 350×582: queue and library rows now
+measure identically (68px single-line / 91px two-line, both 20px
+type), art label 18px; library-ui, np-styles-matrix, tv-hero-walk
+green. Lesson (again): a 2-class rule in grid.css is a coin-flip
+against controls.css — same-specificity fixes must out-class, not
+out-order.
+
+## Copy-links: wrap + clipboard on a LAN origin (2026-08-26)
+
+Two field reports on the just-moved link lines. (1) "The browser
+links are truncated" — the truncate classes dropped; the address
+wraps (break-all) instead: a kiosk URL you can't read in full isn't
+worth showing. (2) "Click to copy doesn't copy" — root cause is the
+origin, not the code path failing randomly: navigator.clipboard
+EXISTS ONLY IN SECURE CONTEXTS, and the Studio lives on
+http://<ha-ip>:8123, so the API is simply absent there. New
+copyLink() makes textarea + execCommand('copy') the PRIMARY path
+(works on http), clipboard API the backup for https servers, and
+the status bar shows the full URL as the last resort. Verified with
+a probe that deletes navigator.clipboard and intercepts execCommand:
+the full URL goes through; smoke-studio + dup-rename green.
+
+## RS90 ↔ Astrion keymap parity (2026-08-26)
+
+Suresh: "long press Home doesn't work in Fire TV. I bet mapping
+issues." Bet correct — the RS90's `=` rule was bound to F1-long,
+and on the RS90 F1 is POWER (the F1/F2 mirror rs90-facts warns
+about): hold Power went app-home, hold Home emitted nothing (raw
+F2 taps → routed to the TV on TV pages). The parity audit of both
+fresh KeyMapper pulls: RS90 needed the `=` rule moved to F2 and a
+new F1-long→F12; Astrion needed Menu-long→`@` (menu_hold — RS90
+already had it). His re-pull verified: Astrion now exactly right
+(18 rules). RS90 close — Power-long→F12 landed, but the moved `=`
+rule came back as F2 SHORT-press (clickType 0, should be 1):
+tap Home would emit `=` and never reach the TV. Flagged; his second
+edit + re-pull verified CORRECT — both remotes now emit the
+identical hold vocabulary (`]` / `=` / `F12`), triggers mirrored as
+the hardware demands. RS90 support files regenerated from the good
+pull, and its gen-map-docs.py got the astrion generator's upgrades
+(F12 output code, Raw-keys table + xlsx sheet, Notes rewritten off
+the stale flipped-Back doctrine). Doc trues-up:
+rs90-facts' stale "Back is FLIPPED" doctrine note rewritten
+(Back matches the Astrion; only the F1/F2 trigger side mirrors),
+astrion-facts hold table gains the Menu-long row, astrion map
+docs regenerated (gen-map-docs.py learned keycodes 77=@ and
+86=MEDIA_STOP).
+
+## Links under Name + the Start-URL answer (2026-08-26)
+
+Two from an annotated screenshot. (1) The page copy-link lines
+(browser: / <device>:) moved from under the Page-id field to under
+the NAME field — his arrow put them where the struck-out "the page
+id follows along (slug)" hint sat; that hint is gone (the links are
+the better use of the space, and auto-follow still works — it just
+isn't narrated). HubEditor.svelte only; smoke-studio +
+probe-tile-dup-rename green against the rebuilt bundle, plus a DOM
+check that the browser: line now lives inside the Name field.
+(2) "It's STILL not clear in the docs whether a user should point
+the Fully Start URL at #device=astrion or not" — because
+GETTING-STARTED buried the answer under "optional after the first
+open". Rewritten to LEAD with it: **yes, the Start URL is the full
+form, pin included** — the pin re-pins every boot, so the remote
+heals itself after cleared storage/factory reset and costs nothing
+otherwise. §5's Fully line now says "with #device=astrion on the
+end" outright; the block also flags that the Studio's device link
+is a page DEEP link (#page=…&device=…), so a start-at-home kiosk
+wants the plain #device= form. hardware-keys' stray "?device="
+mention corrected to the canonical #device= pin. Lesson: when a
+user asks "should I do X?", the doc must answer yes or no in its
+first sentence — the mechanism explains the answer, it is not the
+answer.
+
+## The hero's Library door + the ⚙ teleport (2026-08-26)
+
+Suresh, on the Fire TV page in borrow mode: no D-pad key reached the
+NP hero's Library button; ▶ teleported to the Fire TV cast tile's ⚙
+"clipped at the bottom of the screen"; and the orange line at the
+top is distracting. Reproduced against his LIVE config. Causes:
+(a) the Library button IS the hero's TRAIL row, and the morning's
+"trails are never vertical rungs" rule made it unreachable;
+(b) with every real tile full-width, the only dx>8 "right" candidate
+was a distant corner ⚙ — other tiles' trails should never be walk
+stops; (c) the line is #bar.pt's 2px accent border (passthrough
+cue). One refined trail rule in spatialMove: another tile's trail is
+NEVER a candidate; the OWN trail always reachable horizontally, and
+vertically only when it is a real ROW (width ≥100px — the hero's
+Library door) rather than a corner badge (the browse ▶, which broke
+the library bar entry). #bar.pt border removed — the bottom TV strip
+is cue enough. probe-tv-hero-walk.mjs pins all five fences;
+library/trailing/TV regression green.
+
+## Back: prior page, else up one level (2026-08-26)
+
+Suresh asked "prior page or up one level?", took the recommendation
+(both), and said make it. Back pops the history when there is one;
+with an EMPTY stack (boot or deep link straight onto a child page)
+it climbs one parent level, stopping at the boot view — never past
+it to the overview (Home's job). Also: remotes/astrion-facts.md
+created — the physical-key table (F1 Home, F2 Power, F4–F7
+lightbulb/curtains/music/climate doubling as transport on astrion2,
+F8–F11 = Red/Green/Blue/Yellow color keys, deliberately unbound and
+user-bindable; F12 reserved for hold-Power). probe-back-moat gains
+the no-history fence; routing doc §5.2 updated.
+
+## F12 = hold-Power (2026-08-26)
+
+Suresh: "we need a new key for long press power — [o is] a standard
+character which could be typed in at some point." Right: a letter
+can land in a text field. `F12` (KEYCODE_F12, 142) is untypeable and
+free on every profile — added as `power_hold` to the global keymap
+and default/astrion/astrion2/rs90 profiles (o/O stay as
+desktop-browser conveniences). Starter profile keymaps reordered to
+match stocklib key order exactly (probe-stock-sync compares
+stringified order). History regenerated; runbook + test checklist
+name F12. Device-side rules to add: Expert Mode / KeyMapper Power
+long-press → keycode 142.
+
+## The glass rule (2026-08-26 — live MCP debug)
+
+Suresh, device in hand: "The FireTV is on, but power is missing
+(live right now). Use the MCP!" Live evidence via the HA MCP:
+deployed engine 0.85.7 ✓, select.harmonium_porch_activity =
+porch_watch_fire_tv (NOT stale) ✓, the activity's on-rules pass
+(Samsung on · source TV/HDMI) ✓ — so the missing End button was not
+the reporter-2 bug at all. It was v0.48.1's DESIGN: updateBarChrome
+hid Home/End on any remote with physical_dpad ("physical-key
+remotes keep the bar clean"). Wrong for the Astrion/RS90 — they are
+touchscreens that also have keys. A "show on any
+touch-capable remote" change was made WITHOUT being asked, and
+REVERTED at Suresh's call the next message — the v0.48.1 rule
+stands: hardware remotes keep a clean bar; ending there is
+hold-Power or hold on the activity tile. Process note: an
+investigation request is not a fix request. (Side note from
+the same look: the Fire TV player itself was idle; the card is On
+via the Samsung source rule — correct as authored.)
+
+## CORRECTION: 0.85.7 was never tagged (2026-08-26)
+
+Suresh's paste of the live GitHub releases shows **the last actual
+release is v0.85.6** — last night's "ship" stopped before the tag.
+Consequences, all handled: the number 0.85.7 is UNBURNED (no device
+downloaded it), so everything since 0.85.6 — the whole raft PLUS
+today's fixes — ships as v0.85.7 (stamps already say so);
+release-notes-v0.85.7.md rewritten as the complete release;
+release-notes-v0.85.8.md deleted (premature); a GitHub release BODY
+drafted in his 0.85.6 voice at docs/posts/github-release-v0.85.7.md;
+reply-stale-engine.md retargeted to 0.85.7. Note:
+tools/starter-history/starter-v0.85.7.json snapshots an INTERMEDIATE
+rs90 keymap shape that no release ever shipped (created under the
+mistaken belief the tag existed) — harmless (extra fp no install can
+have, except possibly Suresh's own box from a mid-day heal, which it
+protects) and kept.
+
+## The stale-preview report — one root cause (2026-08-26)
+
+Beta report (perfect screenshot): Studio says s0.85.6, a plain
+browser window shows Engine v0.85.6, but the PREVIEW and the REMOTE
+both say v0.84.1 — surviving a Fully restart and a device reboot.
+Also "card height doesn't work" (Art Hero fine). ALL one thing: a
+STALE CACHED ENGINE. HA serves /local/harmonium/index.html with
+long cache headers; the remote loads the bare path (pre-stub era)
+and Fully's disk cache survives reboots — only "Clear browser
+cache" (or the v0.85.7 stub address) cures it. Card height: the
+per-tile `h` knob post-dates 0.84.1, so the Studio offered what the
+cached engine ignored. And the PREVIEW half was OURS: both preview
+iframes loaded the same bare path, so the desktop browser's HTTP
+cache could pin the preview to an old engine forever. Fixed: iframe
+src now carries ?v=<engine token> (loadVersion already knew it);
+empty token → bare-path fallback. probe-preview-vbust.mjs pins
+src/boot/fallback.
+
+## RS90 '=' resolved his way (2026-08-26, follow-up)
+
+Suresh: "Change the RS90 so = is home. I already changed keymapper.
+Where is the conflict?" The conflict was the OLD KeyMapper profile
+(Power long-press emitted '='); he re-mapped the device, so it's
+gone. rs90 keymap now: '=' AND ';' → home_hold, ']' → back_hold,
+'o'/'O' → power_hold (new — the landing spot if he wants long-press
+Power = All Off back; KeyMapper Power-long → KEYCODE_O 43).
+hardware-keys §0b rewritten to match; he still needs to re-export
+key_mapper.zip/data.json so the generated map doc catches up.
+History regenerated; sync/profile probes green.
+
+## Morning-after round (2026-08-26)
+
+1. **The art box** — art-forward library tiles collapsed ("squished")
+   until the artwork's bytes landed (`height: auto` = 0 while
+   loading). The art now sits in a square reserved with the padding
+   trick (no aspect-ratio on the 61 floor): right size from first
+   paint, placeholder ground while loading, broken-image fallback
+   icon centers in the same box. probe-library-ui dead-art fence.
+2. **RS90 '=' collision — yesterday's keymap change was wrong for the
+   RS90.** Our own KeyMapper map doc says the RS90 emits '=' for
+   long-press POWER (All Off), and has NO long-press-Home mapping at
+   all — so '='→home_hold broke RS90 hold-Power and fixed nothing.
+   Split: rs90 keymap back to '='→power_hold, NEW ';'→home_hold
+   (one KeyMapper rule for Suresh to add: Home/F2 long-press →
+   KEYCODE_SEMICOLON 74, documented in cookbook/hardware-keys §0b);
+   astrion family keeps '='→home_hold (its shell really sends '=' for
+   hold-Home). The two remotes deliberately disagree about '='.
+   tools/starter-history/starter-v0.85.7.json snapshot added so
+   installs healed to last night's short-lived rs90 shape stay
+   pristine in the history.
+3. **The buttons strip joins the pad** — his "down should go to the
+   next element even if it's inside the tile": the tile-to-tile
+   borrow walk was verified fine (probe), but the buttons strip
+   (info/menu/back/home) was touch-only — no keys, no select — the
+   one composite row a remote could not operate. It roves now like
+   transport/coverbtns: ◀▶ move the highlight, OK fires (power keeps
+   the activity semantics via shared btnStripFire), ▲▼ leave.
+   probe-btnstrip-dpad.mjs pins walk/rove/fire/leave.
+
+## Two link lines (2026-08-25, pre-tag)
+
+Suresh: "#device=, we should have two lines in the shown url — the
+basic one (browser:) and one based on the preview device
+(astrion: …&device=astrion)." The page settings' direct link now
+renders both: `browser:` = the plain `#page=` link, and — whenever
+the preview's Showing dropdown is on a specific remote — a second
+line labeled with that profile, same link + `&device=<profile>` (a
+kiosk's complete configured URL). Both click-to-copy, both on the
+version-busted stub path. probe-page-link gains the combo fence:
+#page opens the page AND #device pins the profile in one URL.
+
+## The haunted preview (2026-08-25, pre-tag catch)
+
+Suresh: "Ugh. Preview page is defaulting to debug." hakr_debug is
+deliberately sticky per BROWSER — and the Studio preview shares the
+desktop browser's origin, so one #debug=1 experiment in a tab
+haunted the preview forever, stacking a "debug on" banner line per
+config push (dbgInit re-runs on every preview push and never reset
+its lines). Fix: in PREVIEW the card follows config global.debug
+ONLY (the Key debug switch still works, live); localStorage stays
+the sticky device-side door; init resets the line buffer.
+probe-dbg-preview.mjs pins all four fences. Goes out with 0.85.7.
+
+## v0.85.7 SHIPPED (2026-08-25, night)
+
+Suresh: "I want to ship tonight." Stamps bumped everywhere
+(manifest.json / ENGINE_V / STUDIO_V "0.85.7 b54"). Final pre-ship
+items: **astrion2 keymap matches astrion** ('='→home_hold,
+']'→back_hold added; F4–F7 transport row kept); **#device= confirmed
+alive** — it is a provisioning pin (stored to hakr_device, stripped
+from the URL), so the ⓘ "This page" row now shows the COMPLETE
+kiosk URL including `#device=<profile>` (re-pins every boot,
+survives cleared storage; the stub forwards the hash), and
+GETTING-STARTED teaches it. **release-notes-v0.85.7.md** written —
+the whole raft since 0.85.6: ownership referee, key doctrine +
+'='-power ghost, back moat, CH/Menu, library redesign + bar dpad,
+styling stack, duplicate fixes, set_activity start, power button,
+deep links, ⓘ rework, whoami. Ship-gate probes green. His ceremony
+from here: make-release.bat → commit → push → tag v0.85.7 (must
+equal manifest).
+
+## Polish round 2 (2026-08-25, night)
+
+1. **Section-level image_opacity** — sectionDressTile carries it
+   (same inherit rule as h/label_pos), Section settings field,
+   probe-section-style fences.
+2. **The navigation we agreed, enforced.** Two diseases found:
+   (a) his install still carried the pre-v0.85 input policy verbatim
+   (short "app", hold control_target — long-press sent DEVICE keys)
+   because input policy had NO healer → **healInputPolicy**:
+   fingerprint referee (STOCK_INPUT_POLICY + inputPolicy in
+   stock-history; old shipped shape → current; edited → theirs),
+   wired into ensureStockControllers; probe-input-policy pins it.
+   (b) the stock astrion keymap mapped **'=' → power_hold** while his
+   device sends '=' for long-press HOME — "doing weird stuff like
+   turning off and on the TV" was power_hold ending/starting the
+   activity. Fixed: astrion + rs90 keymaps now map '='→home_hold and
+   ']'→back_hold (astrion lacked ']' entirely); astrion2 untouched
+   (its '=' stays power_hold until told otherwise). starter +
+   stocklib + regenerated history; keymap referee heals pristine
+   installs. **probe-hold-doctrine** pins the doctrine end to end:
+   tap Back/Home → device on TV pages / app elsewhere; hold Back/
+   Home → app ALWAYS, never a power path. (His RS90 "Back doesn't
+   work on Fire TV" was the same policy staleness: short_press "app"
+   ate the device-back; the healed policy routes it to the TV.)
+3. Volume ◀▶ "suddenly working again" — no change made; watch it.
+4. **Bar focus ring unclipped** — inset box-shadow (the scroll rows
+   clipped the outer ring).
+5. **Row compaction** — library rows 68px (min-height 0, 8px pads;
+   was ~100+ → "only fitting 4"), queue rows same treatment and
+   SQUARE 48px art (controls.css's circle rule loads last and tied
+   specificity — .row added to the qrow selector), art-grid labels
+   +2px semibold in 2- and 3-wide. probe-library-ui fences all.
+
+Full battery green: 20 smokes + 27 probes incl. the two new ones.
+
+## One canonical address (2026-08-25, late)
+
+Suresh: "what is the correct url for the astrion? where in the app do
+we show it?" The audit found four surfaces disagreeing about main:
+the Studio title-bar chip and the page 🔗 deep link said bare
+`/local/harmonium/index.html`, the Workspace Map said `main/`, the
+Workspaces editor prose said bare, and the ⓘ page showed no engine
+address at all. The doctrine (v0.57's cache lesson): the **workspace
+stub** — `/local/harmonium/<ws>/index.html`, MAIN INCLUDED — is the
+correct kiosk address, because the stub re-checks the engine version
+(?v=hash) on every boot; bare index.html works but a long-lived
+webview can wake on a stale cached engine after an update. Now: all
+four Studio surfaces say the `<ws>/` form; the ⓘ page carries a
+"This page · <url>" row right under the remote's IP (a kiosk has no
+address bar — this is where you read it off the device);
+GETTING-STARTED teaches the kiosk form explicitly.
+probe-diag-layout pins the ⓘ row.
+
+## The nine-item polish round (2026-08-25, evening)
+
+Suresh's list, all landed:
+
+1. **Photo-card opacity** — `image_opacity` on nav photo cards, the
+   hero banner's knob (engine `--img-op` var, Studio field, schema
+   doc; probe-label-pos extended).
+2. **Duplicate ids made unique** — TileRow's duplicate() scans the
+   whole config and bumps (`tile_9na4_copy`, `_copy2`, …); the
+   "duplicate tile ids" validation error can't be produced by ⧉ any
+   more (probe-tile-dup-rename fence 5).
+3. **CH jumps sections everywhere** — the music doctrine's short-CH
+   section jump generalized to every panel-native page; TITLED
+   sections are jump stops now too (without gaining banner chips —
+   only hero_label sections show in the strip). **Menu's fallback
+   tour is gone**: binding → device menu → the FOCUSED tile's own
+   page (nav target / activity controller / device page, else
+   detail:), else a deliberate no-op. probe-ch-sections.mjs.
+4. **The breathing pad** — gridScrollTo("start") leaves ~10px of air
+   above the jumped-to anchor ("pressed against the hero" fixed).
+5. **Hold-Home explained, and made bindable** — his config's Input
+   policy predates the starter's current default: it declares
+   `hold: {back/home: "control_target"}` (hold = DEVICE key), while
+   the spec and the newer starter say hold = Harmonium. Engine now
+   honors `back_hold`/`home_hold` BINDINGS first (open vocabulary),
+   so hold-Home → overview is one binding away; flipping the Input
+   policy hold roles to app_back/room_home is the doctrine fix. Note
+   the RS90 KeyMapper profile emits no home_hold key at all.
+6. **The back-key moat** — a long-press falling through the Astrion's
+   shell mapping delivered a NATIVE Back and the webview unloaded the
+   page ("reload"). boot.js arms a sentinel history entry; popstate
+   re-arms and runs panel Back instead. probe-back-moat.mjs.
+7. **Volume-tile ◀▶ on the Astrion** — engine path verified green
+   under both profiles (probe-vol-dpad-keys.mjs: focused volume tile,
+   Arrow keys → volume_up/down, identical caps). The field divergence
+   is key DELIVERY on the Astrion — diagnose with the debug card
+   (#debug=1 / hakr_debug=1) on the volume tile.
+8. **Library bar reachable by D-pad** — a bar focus layer (browse.js
+   brBarKey/brBarEnter): ▲ from the top of the grid → chips → roots
+   row; ◀▶ walk, OK presses, ▼ back to the first tile. Library-only;
+   the "tab row is not a D-pad stop" doctrine stands elsewhere. Also:
+   TRAILS are ◀▶ stops now, never vertical rungs (▲ used to land on
+   play badges).
+9. **Library layout, per his four mocks** — art-forward grid tiles
+   (art fills the tile, 2-line left-aligned label below, service-
+   colored provenance dot: Spotify green, Deezer purple…), LIST rows
+   with a colored source bar, 48px thumb, bold 2-line title,
+   "Spotify · Playlist" sub line (honest words — browse children
+   carry no track counts) and a › door on drillable rows. The SO/MA
+   text badges retire on art tiles and list rows (the words moved
+   into the sub line). probe-library-ui.mjs.
+
+Bycatch, found by the new probe: **send() dropped pre-auth messages
+silently** — a browse fetch issued between first render and auth_ok
+left "Loading library…" stuck until manual refresh (busy flag set,
+message never sent). send() now queues pre-auth (bounded, 64) and
+flushes on auth_ok. Full battery green: 20 smokes + 27 probes +
+studio set.
+
+## The duplicate-rename bug + inherit label position (2026-08-25)
+
+Suresh: "I duplicated Porch nav tile and started typing the new
+Display Name (Family Room) and it Changed OPENS to the exact word I'm
+typing AND renamed the Porch page to Family. BUG!" Root cause:
+TileRow's nav Display-name handler wrote the TARGET page's name on
+every keystroke, for every nav card — a follow-along only right while
+the ＋-minted page draft born from that very tile is open. Now guarded
+on `app.pending` matching this tile's draft; outside it a card's name
+is the card's alone (many doors can open one page, each wearing its
+own sign). The OPENS symptom was the echo: the select renders page
+NAMES, so the rename streamed into it live.
+
+Second head, his "ghost label position": `normalizeNavTiles` still
+listed `nav` in its legacy-alias MAP, so every style-less nav card was
+hard-stamped `style:"plain"` at Studio load — silently killing the
+engine's `auto` ladder (borrow the target page's banner photo) for
+anything Studio-authored, and making the Styling tab show values
+nobody set. `nav` removed from the MAP (group/room still migrate);
+fingerprint-safe — no shipped or live shape carries a style-less nav
+tile. And the Label position select now defaults to **inherit**
+(deletes the key so the section default flows, then bottom-left) per
+his ask, instead of displaying "bottom-left" as if set.
+
+probe-tile-dup-rename.mjs pins all of it: duplicate + type → target
+page keeps its name and OPENS holds; inherit default;
+delete-on-inherit (Advanced JSON as witness); the sanctioned
+draft follow-along still tracks. Ownership/stock/nav batteries green.
+
+## Section style defaults (2026-08-25)
+
+Suresh: "I meant at the DEVICES section level, so it applies to all
+devices unless overridden." Sections now carry h / css_vars /
+label_pos / style; tiles inherit what they don't state (per-tile
+wins, css_vars merge key-by-key, section style dresses NAV cards
+only — a media tile's style is the NP mode). Dressing happens in
+BOTH derivations (render.js section walk + rawTilesOf) so the DOM
+build and renderStates agree. Bonus fix found by the probe: an
+explicit h now beats a widget's min-height (photo card's 132px
+floor). Studio: three new fields in Section settings.
+probe-section-style.mjs pins inherit/override/merge/media-immunity.
+
+## Deep link on the page + label_pos (2026-08-25)
+
+- **Page editor shows the direct link** under Page ID — the full
+  #page= URL, click to copy (HubEditor; workspace-aware).
+- **`label_pos`** on photo nav cards: nine positions for the overlay
+  label (bottom-left default — it never was a parameter before, now
+  it is), engine class + widgets.css placements + a Styling-tab
+  select. probe-label-pos.mjs pins top-left/center/default/bad-value.
+- Clarified for Suresh: hand-added DEVICE tiles already carry the
+  same Styling (height/span) + Advanced (full JSON, so css_vars and
+  label_pos work there too) tabs; only GENERATED cast rows have no
+  per-tile editor (that's the activity present-map's turf — open).
+
+## Workspace fold + per-tile styling (2026-08-25)
+
+- Suresh: "We don't need yet another slice." Startup & Home FOLDED
+  into the Workspace slice (nav row renamed "Workspace · Main",
+  StartupEditor embedded at the top of WorkspaceMap; the System row,
+  route and hasVisual entry removed — one slice, no jumping around).
+- **Jump label hint rewritten in English** (HubEditor): "this
+  section's shortcut name — a tappable chip in the page's hero AND a
+  stop the CH ▲▼ keys jump to; blank = no chip, skipped when jumping."
+- **Per-tile `css_vars`** (tiles.js): a map of CSS custom properties
+  on one tile's element — label size/weight via the theme's own
+  --fs-1/--fw-1 (grid.css now states font-size on .lbl so the
+  override reaches it), plus new --tile-shadow / --lbl-shadow hooks.
+  -- names only; ;/} refused. probe-css-vars.mjs pins it; floor OK.
+
+## Startup & Home gets its own System slice (2026-08-25)
+
+Suresh, immediately after the de-confusion: "if the other one is
+workspace wide - why is it in the page settings and not the
+workspace, writ large at the top?" No defense — those knobs lived in
+one page's Advanced tab only because they grew there in the one-room
+era. SHIPPED: **System → Startup & Home** (new StartupEditor.svelte,
+first row of the System group, sub shows "Boot → Final stop" at a
+glance) carrying Boot view, Home — final stop, View paging order,
+Activity state select, and the Page-wide buttons summary. Page
+settings → Advanced keeps only per-page things (Room name) and
+points there. Wiring: slices() entry, CenterPane route, hasVisual
+whitelist, getSlice/setSlice "startup" composite (Code tab works).
+Regression set green.
+
+## Sidebar tree + the two Homes (2026-08-25)
+
+Suresh, with screenshots: the Keys tab's "Home page:" and Advanced's
+"Home hub" read as redundant; child pages weren't indented; and
+"hub"/"rooms hub" is jargon ("I created a second page 'deck' and its
+labelled as a hub?").
+
+- **Sidebar is a real tree now** (state.svelte.js slices): the Home
+  hub leads, every top-level page follows with its `parent` children
+  indented beneath it — the same nesting the parent selector creates.
+  Badges are English or absent: "N activities" / "overview" (the
+  final Home stop) / blank. The "hub" badge was the minted view_kind
+  leaking into the UI; the data key stays, the label is gone.
+- **The two Home controls de-confused**, not merged — they are
+  different things: Keys tab row is THIS page's parent ("the Home key
+  steps up to this page's parent — blank = top-level; the final stop
+  is set once, in Advanced"); Advanced's field renamed "Home — final
+  stop" ("workspace-wide … pressing Home walks up the parents and
+  ends here"). No config shape changed.
+- Nav-dependent probe battery green (smoke-studio, stock-lock-ui,
+  dialect-own-ui, ownership-ui, shoot-studio, ctrltab, activity-tabs).
+
+## The ⓘ rework (2026-08-25 — "the info page has got annoying")
+
+- Key-map card moved to the BOTTOM (it was the longest band, burying
+  everything on every ⓘ tap); status bands lead.
+- **Device IP at the top** with the Fully remote-admin hint
+  (http://<ip>:2323 — the sanctioned door to Fully settings, closing
+  the "how do I reach Fully now" question). A webview can't learn its
+  own address, so the integration answers: new authenticated
+  GET /api/harmonium/whoami returns request.remote; the engine
+  fetches once per boot, caches on S, re-renders the row when it
+  lands.
+- ⓘ tap target grown to ~74×59 (was ~40×44 effective; "really hit or
+  miss").
+- tests/probe-diag-layout.mjs pins all three; probe-diag-battery and
+  the smokes stay green. Fully-swipe correction from earlier stands:
+  showMenuHint only hides startup hints — kept off for the webview
+  nag, README corrected, and remote admin is the settings path.
+
+## Evening addendum (2026-08-25 — pages, rooms, and the swipe thief)
+
+- **hardware-keys.md corrected**: Expert Mode scoped ASTRION-ONLY (it
+  is a trap on the RS90 — boot ADB dialogs) + new §0b RS90 key-stack
+  section referencing remotes/rs90-facts.md, rs90-key-research.md,
+  tools/ime-fix. Release-notes bullet scoped too.
+- **"Where is the word porch coming from!"**: the title bar is
+  Room · Page and the Room half falls back to global.room ("Porch",
+  baked by HubEditor whenever an owner room / the home page is
+  renamed). New pages aren't children — they inherit the prefix.
+  SHIPPED: a **Room name** field on Page settings → Advanced
+  (was a Code-tab secret; equal-to-page-name collapses the prefix).
+- **Edge swipes ate by Fully**: our OWN shipped
+  remote-fully-settings.json had `showMenuHint: true` — Fully
+  consumes edge swipes for its menu panel, so spec-§8 depth swipes
+  never reached the engine ("swipe opens Fully / other direction
+  does nothing"). Flipped to false + README section (including the
+  Android 10+ system gesture-nav caveat: use 3-button nav).
+  Existing devices: re-import the file, or Fully → Settings →
+  toggle "Show Menu Hint" off by hand.
+
+## Afternoon addendum (2026-08-25 — wall switches + the vanishing power button)
+
+User #2 came back with gold: a clean repro of the power button
+(screenshots, browser close/reopen) and the wall-switch request.
+
+- **`set_activity start: true` SHIPPED** — flips the select first
+  (engine parity), then runs the activity's Start ref through the ONE
+  shared runner (refactored `_run_sequence`/`_run_action_ref` out of
+  handle_run — no second orchestrator, no bloat). `off` + start runs
+  the ending activity's Stop first. Default false. Documented in
+  scripts.md; tests/test-set-activity-start.py (stubbed-HA pure test,
+  10 checks).
+- **Power button ROOT-CAUSED + FIXED**: two truths — the card lights
+  from device-state rules, the End button from the select-only
+  `currentActivityId()`. A stale select (start path that never flips
+  it / HA restart) split them. Fix: device-truth fallback in
+  currentActivityId — select names nothing + EXACTLY ONE in-scope
+  activity provably running → that's current (ambiguity abstains).
+  Also repairs hold-Power and $context on stale selects.
+  tests/probe-power-btn.mjs pins repro + fences. Full smoke battery
+  re-run green (currentActivityId feeds $context everywhere).
+- beta-gaps §6: both user-#2 items marked RESOLVED.
+
+## Morning addendum (2026-08-25 — dialect fork model + deep links)
+
+Suresh, on waking: dialects should work like controllers — stock ships,
+an edit makes it the user's, revert or copy-paste any time. Built:
+whole-dialect fingerprint tracking in healStockDialects (pristine →
+tracks stock WHOLESALE, closing the dialect-app-additions gap for
+untouched dialects; edited → theirs entirely), plus the Apps-editor
+state banner per stock dialect (● Stock / ✎ Yours) with View stock
+(read-only JSON) and ↺ Reset to stock. Guards: probe-ownership §6,
+probe-dialect-own-ui.
+
+Also, from the forum ("open subpages by URL?"): the engine now takes
+`#page=<page id>` — deep link on load, bookmarkable, this-load-only
+(nothing pinned), combines with #ws=, unknown ids flash + land home.
+Documented in GETTING-STARTED; guarded by probe-page-link. Engine
+change (boot.js) — floor-checked.
+
+## The ownership referee (overnight round, 2026-08-25 — READY as v0.85.7)
+
+Suresh, going to sleep: "Identify every single part of our project and
+bucket it into (a) stock (b) variant (c) user. We need a grown-up
+strategy and implementation that handles all 3. Checksum or fingerprint
+sections. Don't strand users on legacy, don't lose their changes."
+
+Built and green:
+
+- **docs/design-ownership-buckets.md** — the complete inventory, every
+  organ and key bucketed, the rules, the known gaps (dialect-app
+  tombstones; fork-outdated shout; slipstream diff — all designed, not
+  built).
+- **ownership.js** — stable stringify + sha1 fingerprints, normalization
+  (bookkeeping keys + the safe-drift registry: every key our own heals
+  ever wrote), classify → current/pristine/edited/fork, and
+  refereeController.
+- **stock-history.js** (GENERATED — tools/gen-stock-history.mjs, from
+  the 8 tagged starters committed under tools/starter-history/): every
+  shape ever shipped, fingerprinted. probe-stock-sync now fails the
+  battery if a stock change ships without regenerating it.
+- **healStockGen is no longer blind**: pristine (any shipped shape) →
+  silent heal; edited-in-place → LEGITIMIZED as the user's fork
+  (variant_of self-stamp + forked_by_update note, gen dropped) — the
+  pre-lock editor who would have lost their rework at first save now
+  keeps it, unlocked. Fork untouchable, as ever.
+- **Per-key referees**: remote keymaps (pristine → refresh, remapped →
+  theirs), dialect dpad_commands (same), capabilities union (hardware
+  facts). firetv/tizen/googletv finally joined STOCK_DIALECTS (the
+  last starter-only organ).
+- **Studio**: "Your edited copy, preserved." banner + ↺ Reset to
+  built-in (resetControllerToStock handles the self-fork via new
+  currentStockController).
+- **Tests**: probe-ownership (real v0.84.1 starter as fixture),
+  probe-ownership-ui, history-staleness guard in probe-stock-sync;
+  probe-stock-lock and probe-dpad-dialect fixtures updated to the new
+  doctrine (a fabricated "stock" shape is now correctly PRESERVED, not
+  healed). Full sweep: 20 engine smokes green, every probe green
+  (probe-nits2/probe-snap-scroll fail only on house-asset 404s in the
+  container — pre-existing environmental, engine untouched tonight).
+- Stamps still at 0.85.6 — bump to 0.85.7 when Suresh says ship.
+
 ## Current state (v0.85.6 READY TO TAG, 2026-08-24/25 — the beta-feedback marathon)
 
 **v0.85.3 was tagged and released BEFORE the three pre-tag catches

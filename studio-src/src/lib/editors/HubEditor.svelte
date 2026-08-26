@@ -8,6 +8,7 @@
      generated registry grid. */
   import { app, ownedActivities, roomIds, schedulePreview, renameScreen, deleteScreen, setStatus, subordinateScreens, isControllerScreen, confirmPageDraft, discardPageDraft, stampHost, snippetsOf, presetSnippetTile } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
+  import JsonArea from "../components/JsonArea.svelte";
   import NoteStrip from "../components/NoteStrip.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
@@ -78,6 +79,33 @@
     renameScreen(screenId, nid);
   }
   let ctOpen = $state(false);
+  /* clipboard on a LAN Studio (v0.85.7 — Suresh: "Click to copy
+     doesn't copy"): navigator.clipboard exists ONLY in secure
+     contexts, and the Studio lives on http://<ha-ip>:8123 — so the
+     textarea + execCommand path is the PRIMARY one here, not a
+     legacy fallback. The clipboard API is the backup for anyone
+     serving the Studio over https. Last resort: the status bar
+     shows the full URL so it can at least be read off. */
+  function copyLink(label, url) {
+    let ok = false;
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch (e) { ok = false; }
+    if (ok) { setStatus(label + " link copied", "ok"); return; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(
+        () => setStatus(label + " link copied", "ok"),
+        () => setStatus(url, "ok"));
+      return;
+    }
+    setStatus(url, "ok");
+  }
   /* PAGE SETTINGS PANEL (redesign §6.4): Layout · Keys · Advanced */
   let pgOpen = $state(false);
   const keysCount = () =>
@@ -275,7 +303,7 @@
       </div>
     {/if}
     <div class="grid grid-cols-2 gap-4">
-      <Field label="Name" hint={pageIsAuto() ? "the page id follows along (slug)" : ""}>
+      <Field label="Name">
         <Input value={scr.name}
           onfocus={() => (pageAutoBefore = pageIsAuto())}
           oninput={(e) => { scr.name = e.target.value;
@@ -283,12 +311,40 @@
             edit(); }}
           onchange={autoRenamePage} />
       </Field>
-      <Field label="Page id"
-        hint="the page's key — the minted select.harmonium_<id>_activity follows it; renames refs everywhere">
+      <Field label="Page id">
         <input value={screenId} spellcheck="false"
           onchange={(e) => { if (!renameScreen(screenId, e.target.value)) e.target.value = screenId; }}
           class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
       </Field>
+      <!-- DIRECT LINKS (v0.85.7, round 5 — Suresh: "why don't [we]
+           let the path take the full width of the panel?"): the two
+           copy lines span BOTH columns under the Name/Page-id row,
+           so a kiosk URL almost never wraps. The plain browser link,
+           and — when the preview is Showing a specific remote — the
+           same link with &device=<profile>, which pins that profile
+           on whatever opens it (a kiosk's complete configured URL).
+           Both use the <ws>/ STUB path, main included:
+           version-busted, and the stub forwards the hash. -->
+      {#if scr}
+        {@const linkBase = location.origin + "/local/harmonium/" +
+          (app.workspace || "main") + "/index.html#page=" + screenId}
+        {@const devLink = app.device && app.device !== "default"
+          ? linkBase + "&device=" + encodeURIComponent(app.device) : null}
+        <div class="col-span-2 -mt-2">
+          {#snippet copyLine(label, url, what)}
+            <button type="button"
+              class="mt-1 flex w-full cursor-pointer items-baseline gap-1.5 rounded-[6px] border-0 bg-transparent p-0 text-left font-mono text-[11px] text-dim hover:text-accent"
+              title={what + " — click to copy"}
+              onclick={() => copyLink(label, url)}
+            ><span class="shrink-0 text-faint">{label}:</span><span class="min-w-0 break-all">🔗 {url}</span></button>
+          {/snippet}
+          {@render copyLine("browser", linkBase, "Direct link to this page")}
+          {#if devLink}
+            {@render copyLine(app.device, devLink,
+              "Same link, pinned to the " + app.device + " profile (the preview's Showing device) — a kiosk's complete configured URL")}
+          {/if}
+        </div>
+      {/if}
       {#if isOwnerRoom}
         <div class="flex items-end gap-6 pb-1.5">
           <Switch bind:checked={d.global.confirm_switch} label="Confirm activity switch" onCheckedChange={edit} />
@@ -378,13 +434,47 @@
           <Field label="Heading" hint="shown on the page above this section; blank = none">
             <Input value={sec.title ?? ""} onchange={(e) => { if (e.target.value.trim()) sec.title = e.target.value.trim(); else delete sec.title; }} />
           </Field>
-          <Field label="Jump label" hint="hero chip + CH ▲▼ stop; blank = skipped">
+          <Field label="Jump label" hint="this section's shortcut name — it becomes a tappable chip in the page's hero AND a stop the CH ▲▼ keys jump to; blank = no chip, and CH jumping skips this section">
             <Input value={sec.hero_label ?? ""} onchange={(e) => { if (e.target.value.trim()) sec.hero_label = e.target.value.trim(); else delete sec.hero_label; }} />
           </Field>
           <Field label="Grid columns" hint="inherit uses the page's grid">
             <Segmented value={sec.columns ?? 0}
               options={[{ value: 0, label: "inherit" }, 1, 2, 3, 4]}
               onchange={(v) => { if (v) sec.columns = v; else delete sec.columns; }} />
+          </Field>
+          <!-- SECTION STYLE DEFAULTS (v0.85.7 — "so it applies to all
+               devices unless overridden"): every card in this section
+               inherits these unless it states its own on its Styling
+               tab / Advanced JSON. -->
+          <Field label="Card height (all cards here)"
+            hint="px (210) or a css length — a card's own Styling height overrides">
+            <Input value={sec.h ?? ""} placeholder="page default"
+              class="font-mono text-[12px]"
+              onchange={(e) => { const v = String(e.target.value).trim();
+                if (v) sec.h = /^\d+$/.test(v) ? +v : v; else delete sec.h; edit(); }} />
+          </Field>
+          <Field label="Label position (all cards here)"
+            hint="photo cards only — a card's own setting overrides">
+            <Select value={sec.label_pos ?? ""}
+              onchange={(e) => { if (e.target.value) sec.label_pos = e.target.value; else delete sec.label_pos; edit(); }}
+              options={[{ value: "", label: "default (bottom-left)" },
+                "top-left", "top-center", "top-right",
+                "center-left", "center", "center-right",
+                "bottom-center", "bottom-right"]} />
+          </Field>
+          <Field label="Image opacity (all cards here)"
+            hint="photo cards — how much photo shows over the dark card; a card's own setting overrides (blank = 0.85)">
+            <Input type="number" min="0" max="1" step="0.05" placeholder="0.85"
+              value={sec.image_opacity ?? ""}
+              onchange={(e) => { const v = e.target.value;
+                if (v === "" || v == null) delete sec.image_opacity;
+                else sec.image_opacity = Math.max(0, Math.min(1, +v));
+                edit(); }} />
+          </Field>
+          <Field label="CSS variables (all cards here)"
+            hint={'e.g. {"--fs-1":"17px","--tile-shadow":"0 4px 12px rgba(0,0,0,.4)"} — a card\'s own css_vars win key-by-key'}>
+            <JsonArea value={sec.css_vars ?? {}} rows={3}
+              onchange={(v) => { if (v && Object.keys(v).length) sec.css_vars = v; else delete sec.css_vars; edit(); }} />
           </Field>
         </div>
       {/if}

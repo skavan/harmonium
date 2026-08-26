@@ -25,19 +25,27 @@ deep sleep and bleeding the battery. If it's already installed:
 `adb uninstall io.homeassistant.companion.android.minimal` — clean
 and reversible. Details in the wake-lock section below.
 
-⚠️ **One step to ADD to that guide: KeyMapper's Expert Mode.** The
-symptom, reported by a beta user on the HA forum (2026-08-24) and
-easy to lose an evening to: *"buttons controlling only the remote
-rather than being mapped through the browser."* The keys work — the
-launcher reacts — but they never reach Fully's webview, so Harmonium
-never sees them.
+⚠️ **One step to ADD to that guide — ON THE ASTRION ONLY:
+KeyMapper's Expert Mode.** The symptom, reported by a beta user on
+the HA forum (2026-08-24) and easy to lose an evening to: *"buttons
+controlling only the remote rather than being mapped through the
+browser."* The keys work — the launcher reacts — but they never
+reach Fully's webview, so Harmonium never sees them.
 
-KeyMapper's ordinary accessibility service can't reliably intercept
-keys inside a **browser/webview**. **Expert Mode** (KeyMapper 4.0+,
-briefly called "PRO mode"; it drives a *System Bridge* component)
-is what makes it work there. Enable it in KeyMapper under Settings,
-which needs the `WRITE_SECURE_SETTINGS` permission granted one of
-three ways:
+> **Scope warning (2026-08-22, learned the hard way): this whole
+> Expert Mode section is the ASTRION/HA100 path.** On the
+> **Haptique RS90 it is absolutely NOT required and is an active
+> TRAP** — its wireless-debugging re-arm causes ADB permission
+> dialogs at every boot, and the RS90's keys work fine without it.
+> The RS90 has its own four-layer story: see the RS90 section
+> below, and `remotes/rs90-facts.md` for the runbook.
+
+On the Astrion family, KeyMapper's ordinary accessibility service
+can't reliably intercept keys inside a **browser/webview**.
+**Expert Mode** (KeyMapper 4.0+, briefly called "PRO mode"; it
+drives a *System Bridge* component) is what makes it work there.
+Enable it in KeyMapper under Settings, which needs the
+`WRITE_SECURE_SETTINGS` permission granted one of three ways:
 
 ```sh
 # non-rooted, over ADB (what most people do):
@@ -83,6 +91,73 @@ job**. Map *hold* and *double-press* to their own distinct keycodes
 there — the engine deliberately runs no gesture timers (one
 exception: select's hold-capture). A "hold volume" that emits its own
 keycode arrives as its own binding, cleanly.
+
+**Which physical key emits which F-key** — Home `F1`, Power `F2`,
+the F4–F7 row (lightbulb/curtains/music/climate, doubling as
+REW/play-pause/stop/FWD on astrion2), and the color keys Red `F8`
+Green `F9` Blue `F10` Yellow `F11` (KeyMapper app launchers on the
+shipped profile — Red is the road back to Fully) — is tabled in
+`remotes/astrion-facts.md`, holds included; the generated per-rule
+map is `remotes/keymapper/astrion/astrion-remote-map.md`.
+
+## 0b. The hardware side (Haptique RS90) — NO Expert Mode
+
+The RS90's key stack is a different animal, resolved 2026-08-22
+after a full day of forensics. **Four independent layers, all
+required** — the canonical runbook is `remotes/rs90-facts.md`
+("THE RS90 KEY STACK"), the full investigation (including the
+device-id theory that failed) is `remotes/rs90-key-research.md`,
+and the restorable mapping set is `remotes/keymapper/rs90/`:
+
+1. **The launcher must NOT be cantata.** The stock
+   `com.cantata.remote` is both remote UI and home app, and as home
+   it grabs the physical keys at boot — every mapped key dead.
+   Install a dumb launcher (**KISS Launcher**, FOSS via Aurora),
+   set it Home → Always; cantata stays installed, launched on
+   demand from a dot key.
+2. **KeyMapper via the INPUT-METHOD path — never Expert Mode.**
+   Accessibility service on; **enable AND select the Key Mapper
+   keyboard** (that's the injection path); tick *auto-switch to
+   normal keyboard when typing*; grant DND access once
+   (`adb shell cmd notification allow_dnd io.github.sds100.keymapper`)
+   — without it the volume/mute triad specifically stays dead.
+3. **The boot IME-injection race is the reboot-killer.** After a
+   reboot, KeyMapper's log shows capture/consume/inject all
+   succeeding while nothing reaches the webview: the KeyMapper IME
+   was selected before the input pipeline was ready. The fix is
+   re-selecting the IME once (bounce to LatinIME and back). NOT the
+   device-id known-issue — that theory was tested and failed.
+4. **`com.skavan.imefix` automates the bounce** (`tools/ime-fix/`,
+   our own APK; source + build + grant steps in its README). Fully's
+   *Application to Run on Start in Foreground (PLUS)* launches it;
+   it waits ~5 s, flips `default_input_method` to LatinIME and back,
+   then kills itself. One-shot, no service, no root; needs
+   `WRITE_SECURE_SETTINGS` granted once via adb. (Termux cannot do
+   this without root — tested.)
+
+Two masks that cost hours, so you don't re-pay them: with injection
+dead, keys flow raw into Fully, whose Astrion-imported
+`disableVolumeButtons: true` swallows volume — "volume does nothing"
+can be two configs interlocking, not a second thief. And the RS90's
+**Power=F1 / Home=F2 are SWAPPED vs the Astrion** — never copy the
+Astrion's keymap or its KeyMapper zip; use
+`remotes/keymapper/rs90/key_mapper.zip` (push-keymapper.bat takes
+the folder name).
+
+**Long-press Home and Power (v0.85.7+).** The RS90 engine keymap
+speaks the same hold language as the Astrion family: `=` (and `;`)
+→ `home_hold`, `]` → `back_hold`, **`F12` → `power_hold`** (`o`/`O`
+remain as desktop-browser conveniences only — a letter can land in
+a text field, so remotes emit the untypeable F12 instead). In
+KeyMapper (FullyKiosk group) wire the long-presses accordingly:
+**Home** (`KEYCODE_F2`, 132) long-press → `=` (`KEYCODE_EQUALS`,
+70), and — for long-press Power = All Off, which used to ride `=` —
+**Power** (`KEYCODE_F1`, 131) long-press → **`KEYCODE_F12` (142)**.
+Same on the Astrion family in Expert Mode: Power long-press → F12
+(the Astrion's Power short is F2, Home short is F1 — mirrored vs
+the RS90). After changing mappings, re-export the backup and
+refresh `key_mapper.zip` + `data.json` so `gen-map-docs.py`
+regenerates `rs90-remote-map.md`.
 
 ## Wake locks eat the battery (measure first — and a brick warning)
 
@@ -238,9 +313,10 @@ while preserving their offsets, with OK (or its link-off icon) as
 **ungroup-all**. The hardware VOL/Mute keys deliberately stay on
 the activity's audio path everywhere — the ARC lesson holds.
 
-Which profile a device uses: the engine's `?device=` /
-provisioned profile name — check it on the ⓘ page ("Profile
-'astrion'").
+Which profile a device uses: the `#device=<profile>` pin in its
+Start URL (keep the pin in the configured URL — GETTING-STARTED §4
+has the why) or the stored provisioned name — check it on the ⓘ
+page ("Profile 'astrion'").
 
 ## 3. Verify without leaving the desk
 

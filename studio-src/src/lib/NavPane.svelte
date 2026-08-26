@@ -93,9 +93,10 @@
     onclick={() => selectSlice("map")}>
     <span class={"flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-bold " +
       (app.selKey === "map" ? "bg-accent text-accent-ink" : "bg-sunk text-dim")}>◈</span>
-    <span class="truncate font-medium">Workspace map</span>
+    <span class="truncate font-medium">Workspace</span>
     {#if app.selKey !== "map"}
-      <small class="ml-auto shrink-0 text-[11.5px] font-normal text-faint">overview</small>
+      <small class="ml-auto shrink-0 text-[11.5px] font-normal text-faint"
+        >{app.workspaces?.[app.workspace]?.name || app.workspace || "Main"}</small>
     {/if}
   </button>
   {#each groups as g (g.name)}

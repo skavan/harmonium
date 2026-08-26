@@ -124,6 +124,24 @@ const brBadge = (catTitle, c) =>
   BADGE_BY_CAT[String(catTitle || "").toLowerCase()] ||
   BROWSE_ICON[c.media_class] || "material:library_music";
 
+/* WORDS FOR THE LIST ROWS (v0.85.7 — Suresh's mock: art thumb, bold
+   title, "Spotify · 60 tracks" under it). Browse children carry no
+   track counts, so the sub line says what we truthfully know: the
+   SERVICE the content lives on (else the SYSTEM that owns the id)
+   and what KIND of thing it is. */
+const BR_SVC_NAME = { spotify: "Spotify", deezer: "Deezer", tidal: "Tidal",
+  youtube: "YouTube", apple: "Apple Music" };
+const BR_SYS_NAME = { so: "Sonos", ma: "Music Assistant", ha: "Home Assistant" };
+const BR_KIND_ONE = { playlist: "Playlist", album: "Album", artist: "Artist",
+  track: "Track", genre: "Genre", podcast: "Podcast", channel: "Radio",
+  directory: "Folder", movie: "Film", tv_show: "Show" };
+function brSubOf(c, svc, src) {
+  const who = (svc && (BR_SVC_NAME[svc] || cap(svc))) ||
+    (src && BR_SYS_NAME[src]) || "";
+  const kind = BR_KIND_ONE[c.media_class] || "";
+  return who && kind ? who + " · " + kind : who || kind;
+}
+
 /* CHIP ORDER (v0.62 — Suresh: "Can we change the order of the media
    sections"). Until now the SOURCE decided: Sonos hands back Albums /
    Playlists / Radio / Tracks and we never sorted, so that is what you
@@ -485,6 +503,8 @@ function browseBar() {
     b.addEventListener("click", ev => { ev.stopPropagation(); brKbToggle(); }));
   bar.querySelectorAll("[data-brqx]").forEach(b =>
     b.addEventListener("click", ev => { ev.stopPropagation(); brSearchToggle(); }));
+  /* the D-pad's ring survives a bar re-render (v0.85.7) */
+  brBarPaint();
   /* horizontal SWIPE on the grid steps categories (touch) */
   if (!browseBar._swipe) {
     browseBar._swipe = true;
@@ -500,5 +520,105 @@ function browseBar() {
         brStepCat(dx < 0 ? 1 : -1);
     }, { passive: true });
   }
+}
+
+/* ================================================================
+   BAR FOCUS (v0.85.7 — Suresh: "In Music Library I have no way of
+   getting to the top row: Favorites, Music Library, Search other
+   than touch. The dpad should go there if I'm on the first Library
+   item tile and hit up. Maybe it goes through the section row too.
+   And once there left and right navigate me. If I hit down, I go
+   back to the first tile.")
+
+   A focus LAYER for #brbar, library-only — the hero-chips "tab row
+   is not a D-pad stop" doctrine (2026-08-19) stands everywhere
+   else. Rows, top to bottom: the roots row (Favorites · Music
+   Library · Search · ⟳) and the category chips. ▲ from the top of
+   the grid enters at the chips; ▲ again climbs to the roots; ▼
+   walks back down and lands on the first item tile. ◀▶ move within
+   a row, OK presses the button, Back drops the layer.
+   State: S.browse.bf = { r, i } (row / index), null when inactive.
+   ================================================================ */
+function brBarRows() {
+  const bar = document.getElementById("brbar");
+  if (!bar) return [];
+  const rows = [];
+  const roots = [];
+  bar.querySelectorAll(".brrow .brroot").forEach(x => roots.push(x));
+  if (roots.length) rows.push(roots);
+  const chips = [];
+  bar.querySelectorAll(".brchips .brchip").forEach(x => chips.push(x));
+  if (chips.length) rows.push(chips);
+  return rows;
+}
+function brBarPaint() {
+  const bar = document.getElementById("brbar");
+  if (!bar) return;
+  bar.querySelectorAll(".brfocus").forEach(x => x.classList.remove("brfocus"));
+  const bf = S.browse.bf;
+  if (!bf) return;
+  const rows = brBarRows();
+  const row = rows[bf.r];
+  if (!row) { S.browse.bf = null; return; }
+  const el = row[Math.min(bf.i, row.length - 1)];
+  if (!el) return;
+  el.classList.add("brfocus");
+  if (typeof stripScrollTo === "function" && el.parentNode)
+    stripScrollTo(el.parentNode, el);
+}
+/* enter the layer — called when ▲ finds no tile above (input.js) */
+function brBarEnter() {
+  const B = S.browse;
+  if (!B._active || B.qon) return false;
+  const rows = brBarRows();
+  if (!rows.length) return false;
+  B.bf = { r: rows.length - 1, i: 0 };   /* the row nearest the grid */
+  if (typeof setFocus === "function") setFocus(null);
+  brBarPaint();
+  return true;
+}
+/* the layer's own key handling — consumes only while active */
+function brBarKey(button) {
+  const B = S.browse;
+  const bf = B.bf;
+  if (!bf) return false;
+  if (!B._active || B.qon) { B.bf = null; return false; }
+  const rows = brBarRows();
+  if (!rows.length) { B.bf = null; return false; }
+  if (bf.r >= rows.length) bf.r = rows.length - 1;
+  const row = rows[bf.r];
+  if (bf.i >= row.length) bf.i = row.length - 1;
+  if (button === "left" || button === "right") {
+    bf.i = Math.max(0, Math.min(row.length - 1,
+      bf.i + (button === "right" ? 1 : -1)));
+    brBarPaint();
+    return true;
+  }
+  if (button === "up") {
+    if (bf.r > 0) { bf.r--; brBarPaint(); }
+    return true;                       /* top row: ▲ stays — no way out up */
+  }
+  if (button === "down" || button === "back") {
+    if (button === "down" && bf.r < rows.length - 1) {
+      bf.r++; brBarPaint(); return true;
+    }
+    /* off the bottom (or Back): hand the ring back to the first tile */
+    B.bf = null;
+    brBarPaint();
+    const first = document.querySelector("#grid .tile");
+    if (first && first.id && first.id.indexOf("tile_") === 0 &&
+        typeof setFocus === "function")
+      setFocus(first.id.slice(5));
+    return true;
+  }
+  if (button === "select") {
+    row[bf.i].click();
+    /* the press may re-render the bar (chip/root selection) — the
+       paint above re-finds the ring; keep the layer alive so ▼ still
+       means "down to the grid" */
+    brBarPaint();
+    return true;
+  }
+  return false;
 }
 

@@ -46,3 +46,29 @@ None of the scripts are redundant: the two pull scripts differ by
 explicit-house vs default-house, and the push family differs by what
 gets built vs merely copied. The retired yaml-era `build.mjs` lives
 at `archive/yaml/`.
+
+
+## `harmonium.set_activity` — `start: true` (v0.85.7)
+
+By default `set_activity` only changes which activity a room SHOWS
+(the routing select) — it runs nothing. With `start: true` it also
+runs the activity's Start action, exactly as a tap on the remote
+would — the same sequence, the same runner:
+
+    action: harmonium.set_activity
+    data:
+      activity: music
+      start: true
+
+Wire that to a wall switch or an HA automation and the button does
+the whole job: receiver on, input set, volume set, player started —
+whatever the activity's Start sequence says in Harmonium. One wiring,
+every trigger. Ending works the same way:
+
+    action: harmonium.set_activity
+    data:
+      activity: "off"
+      start: true      # runs the ending activity's Stop action first
+
+Presets that are sequences are already directly callable:
+`harmonium.run` with `sequence: <id>`.

@@ -1,0 +1,1411 @@
+{
+  "version": 2,
+  "entity_options": {},
+  "theme": {
+    "accent": "#ffb300",
+    "bg": "#0d0f12",
+    "tile": "#1a1e24",
+    "radius": "12px",
+    "wash": "rgba(255,179,0,.10)"
+  },
+  "remotes": {
+    "default": {
+      "capabilities": [
+        "touch",
+        "pointer"
+      ],
+      "keymap": {
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "Tab": "down",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "Enter": "select",
+        " ": "select",
+        "+": "vol_up",
+        "=": "vol_up",
+        "-": "vol_down",
+        "PageUp": "ch_up",
+        "PageDown": "ch_down",
+        "m": "mute",
+        "M": "mute",
+        "`": "mute",
+        "AudioVolumeMute": "mute",
+        "[": "back",
+        "Escape": "back",
+        "Backspace": "back",
+        "]": "home",
+        ";": "home",
+        "F1": "home",
+        "BrowserHome": "home",
+        "{": "back_hold",
+        "}": "home_hold",
+        "#": "menu",
+        "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
+        "F2": "power",
+        "p": "power",
+        "P": "power",
+        "o": "power_hold",
+        "O": "power_hold",
+        ",": "left_hold",
+        ".": "right_hold"
+      }
+    },
+    "astrion": {
+      "fully": true,
+      "capabilities": [
+        "physical_dpad",
+        "physical_volume",
+        "touch"
+      ],
+      "keymap": {
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "Tab": "down",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "Enter": "select",
+        " ": "select",
+        "+": "vol_up",
+        "=": "power_hold",
+        "-": "vol_down",
+        "PageUp": "ch_up",
+        "PageDown": "ch_down",
+        "m": "mute",
+        "M": "mute",
+        "`": "mute",
+        "AudioVolumeMute": "mute",
+        "[": "back",
+        "Escape": "back",
+        "Backspace": "back",
+        "F1": "home",
+        "BrowserHome": "home",
+        "F4": "light",
+        "F5": "cover",
+        "F6": "music",
+        "F7": "climate",
+        "#": "menu",
+        "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
+        "F2": "power",
+        "p": "power",
+        "P": "power",
+        "o": "power_hold",
+        "O": "power_hold",
+        ",": "left_hold",
+        ".": "right_hold"
+      },
+      "skin": {
+        "image": "/local/harmonium/skins/astrion.png",
+        "viewport": {
+          "w": 349,
+          "h": 581
+        },
+        "screen": {
+          "x": 10.07,
+          "y": 3.764,
+          "w": 80.59,
+          "h": 41.77
+        },
+        "buttons": [
+          {
+            "btn": "back",
+            "x": 9.84,
+            "y": 52.2,
+            "w": 20.3,
+            "h": 5.3
+          },
+          {
+            "btn": "home",
+            "x": 30.14,
+            "y": 52.2,
+            "w": 39.1,
+            "h": 5.3
+          },
+          {
+            "btn": "power",
+            "x": 69.24,
+            "y": 52.2,
+            "w": 20.6,
+            "h": 5.3
+          },
+          {
+            "btn": "vol_up",
+            "x": 9.84,
+            "y": 59.7,
+            "w": 17,
+            "h": 9.5
+          },
+          {
+            "btn": "ch_up",
+            "x": 73.24,
+            "y": 59.7,
+            "w": 17,
+            "h": 9.5
+          },
+          {
+            "btn": "vol_down",
+            "x": 9.84,
+            "y": 69.5,
+            "w": 17,
+            "h": 9.2
+          },
+          {
+            "btn": "ch_down",
+            "x": 73.24,
+            "y": 69.5,
+            "w": 17,
+            "h": 9.2
+          },
+          {
+            "btn": "up",
+            "x": 39.74,
+            "y": 60.0,
+            "w": 20,
+            "h": 5.5
+          },
+          {
+            "btn": "left",
+            "x": 27.24,
+            "y": 65.5,
+            "w": 12.5,
+            "h": 7.5
+          },
+          {
+            "btn": "select",
+            "x": 39.74,
+            "y": 65.5,
+            "w": 20,
+            "h": 7.3
+          },
+          {
+            "btn": "right",
+            "x": 59.74,
+            "y": 65.5,
+            "w": 13.5,
+            "h": 7.5
+          },
+          {
+            "btn": "down",
+            "x": 39.74,
+            "y": 72.8,
+            "w": 20,
+            "h": 5.6
+          },
+          {
+            "btn": "mute",
+            "x": 9.84,
+            "y": 81.2,
+            "w": 20.3,
+            "h": 5.3
+          },
+          {
+            "btn": "voice",
+            "x": 30.14,
+            "y": 81.2,
+            "w": 39.1,
+            "h": 5.3
+          },
+          {
+            "btn": "menu",
+            "x": 69.24,
+            "y": 81.2,
+            "w": 20.6,
+            "h": 5.3
+          },
+          {
+            "btn": "light",
+            "x": 9.84,
+            "y": 86.7,
+            "w": 20.2,
+            "h": 5.2
+          },
+          {
+            "btn": "cover",
+            "x": 30.04,
+            "y": 86.7,
+            "w": 20.2,
+            "h": 5.2
+          },
+          {
+            "btn": "music",
+            "x": 50.24,
+            "y": 86.7,
+            "w": 20.2,
+            "h": 5.2
+          },
+          {
+            "btn": "climate",
+            "x": 70.44,
+            "y": 86.7,
+            "w": 20.2,
+            "h": 5.2
+          },
+          {
+            "btn": "red",
+            "x": 9.84,
+            "y": 93.9,
+            "w": 20.2,
+            "h": 4.4
+          },
+          {
+            "btn": "green",
+            "x": 30.04,
+            "y": 93.9,
+            "w": 20.2,
+            "h": 4.4
+          },
+          {
+            "btn": "blue",
+            "x": 50.24,
+            "y": 93.9,
+            "w": 20.2,
+            "h": 4.4
+          },
+          {
+            "btn": "yellow",
+            "x": 70.44,
+            "y": 93.9,
+            "w": 20.2,
+            "h": 4.4
+          }
+        ]
+      }
+    },
+    "astrion2": {
+      "fully": true,
+      "capabilities": [
+        "physical_dpad",
+        "physical_volume",
+        "touch"
+      ],
+      "keymap": {
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "Tab": "down",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "Enter": "select",
+        " ": "select",
+        "+": "vol_up",
+        "=": "power_hold",
+        "-": "vol_down",
+        "PageUp": "ch_up",
+        "PageDown": "ch_down",
+        "m": "mute",
+        "M": "mute",
+        "`": "mute",
+        "AudioVolumeMute": "mute",
+        "[": "back",
+        "Escape": "back",
+        "Backspace": "back",
+        "F1": "home",
+        "BrowserHome": "home",
+        "F4": "prev",
+        "F5": "play_pause",
+        "F6": "stop",
+        "F7": "next",
+        "#": "menu",
+        "@": "menu_hold",
+        "'": "ch_up_hold",
+        "/": "ch_down_hold",
+        "F2": "power",
+        "p": "power",
+        "P": "power",
+        "o": "power_hold",
+        "O": "power_hold",
+        ",": "left_hold",
+        ".": "right_hold"
+      },
+      "skin": {
+        "image": "/local/harmonium/skins/astrion2.png",
+        "viewport": {
+          "w": 349,
+          "h": 581
+        },
+        "screen": {
+          "x": 9.84,
+          "y": 3.795,
+          "w": 79.92,
+          "h": 41.77
+        },
+        "buttons": [
+          {
+            "btn": "back",
+            "x": 10.0,
+            "y": 52.3,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "home",
+            "x": 33.0,
+            "y": 52.3,
+            "w": 34,
+            "h": 4.6
+          },
+          {
+            "btn": "power",
+            "x": 71.0,
+            "y": 52.3,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "vol_up",
+            "x": 9.5,
+            "y": 59.5,
+            "w": 14,
+            "h": 6.0
+          },
+          {
+            "btn": "ch_up",
+            "x": 70.0,
+            "y": 59.5,
+            "w": 18,
+            "h": 6.0
+          },
+          {
+            "btn": "up",
+            "x": 40,
+            "y": 60.0,
+            "w": 20,
+            "h": 4.5
+          },
+          {
+            "btn": "left",
+            "x": 26,
+            "y": 66.5,
+            "w": 12,
+            "h": 6.0
+          },
+          {
+            "btn": "select",
+            "x": 40,
+            "y": 65.7,
+            "w": 20,
+            "h": 7.0
+          },
+          {
+            "btn": "right",
+            "x": 62,
+            "y": 66.5,
+            "w": 12,
+            "h": 6.0
+          },
+          {
+            "btn": "down",
+            "x": 40,
+            "y": 73.8,
+            "w": 20,
+            "h": 4.5
+          },
+          {
+            "btn": "vol_down",
+            "x": 9.5,
+            "y": 73.5,
+            "w": 14,
+            "h": 6.0
+          },
+          {
+            "btn": "ch_down",
+            "x": 70.0,
+            "y": 73.5,
+            "w": 18,
+            "h": 6.0
+          },
+          {
+            "btn": "mute",
+            "x": 10,
+            "y": 81.0,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "voice",
+            "x": 33,
+            "y": 81.0,
+            "w": 34,
+            "h": 4.6
+          },
+          {
+            "btn": "menu",
+            "x": 71,
+            "y": 81.0,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "prev",
+            "x": 10.3,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "play_pause",
+            "x": 30.1,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "stop",
+            "x": 49.8,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "next",
+            "x": 69.9,
+            "y": 86.6,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "red",
+            "x": 10.3,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "green",
+            "x": 30.1,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "blue",
+            "x": 50.4,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          },
+          {
+            "btn": "yellow",
+            "x": 69.4,
+            "y": 93.4,
+            "w": 19,
+            "h": 4.6
+          }
+        ]
+      }
+    }
+  },
+  "devices": {},
+  "keymap": {
+    "ArrowUp": "up",
+    "ArrowDown": "down",
+    "Tab": "down",
+    "ArrowLeft": "left",
+    "ArrowRight": "right",
+    "Enter": "select",
+    " ": "select",
+    "+": "vol_up",
+    "=": "vol_up",
+    "-": "vol_down",
+    "PageUp": "ch_up",
+    "PageDown": "ch_down",
+    "m": "mute",
+    "M": "mute",
+    "`": "mute",
+    "AudioVolumeMute": "mute",
+    "[": "back",
+    "Escape": "back",
+    "Backspace": "back",
+    "]": "home",
+    ";": "home",
+    "F1": "home",
+    "BrowserHome": "home",
+    "{": "back_hold",
+    "}": "home_hold",
+    "#": "menu",
+    "@": "menu_hold",
+    "F2": "power",
+    "p": "power",
+    "P": "power",
+    "o": "power_hold",
+    "O": "power_hold",
+    ",": "left_hold",
+    ".": "right_hold"
+  },
+  "home_screen": "home",
+  "screen_order": [
+    "home"
+  ],
+  "global": {
+    "room": "New Room",
+    "confirm_switch": true,
+    "debug": false,
+    "activity_select": "select.harmonium_home_activity",
+    "buttons": {
+      "vol_up": {
+        "service": "media_player.volume_up",
+        "entity": "$context.volume"
+      },
+      "vol_down": {
+        "service": "media_player.volume_down",
+        "entity": "$context.volume"
+      }
+    }
+  },
+  "input": {
+    "physical_buttons": {
+      "short_press": "app",
+      "hold": {
+        "back": "control_target",
+        "home": "control_target",
+        "power": "all_off"
+      },
+      "hold_ms": {
+        "navigation": 500,
+        "power": 1200
+      }
+    },
+    "confirm_activity_switch": true,
+    "debug": false,
+    "global_buttons": {
+      "vol_up": {
+        "service": "media_player.volume_up",
+        "entity": "$context.volume"
+      },
+      "vol_down": {
+        "service": "media_player.volume_down",
+        "entity": "$context.volume"
+      },
+      "menu_hold": {
+        "navigate": "apps"
+      }
+    }
+  },
+  "activities": {},
+  "sequences": {},
+  "apps": {
+    "netflix": {
+      "name": "Netflix",
+      "icon": "material:movie"
+    },
+    "prime": {
+      "name": "Prime Video",
+      "icon": "material:play_circle"
+    },
+    "youtube": {
+      "name": "YouTube",
+      "icon": "material:smart_display"
+    },
+    "youtubetv": {
+      "name": "YouTube TV",
+      "icon": "material:live_tv"
+    },
+    "peacock": {
+      "name": "Peacock",
+      "icon": "material:theaters"
+    },
+    "paramount": {
+      "name": "Paramount+",
+      "icon": "material:star"
+    },
+    "max": {
+      "name": "Max",
+      "icon": "material:local_movies"
+    },
+    "appletv": {
+      "name": "Apple TV",
+      "icon": "material:tv_gen"
+    },
+    "hulu": {
+      "name": "Hulu",
+      "icon": "material:video_library"
+    },
+    "disney": {
+      "name": "Disney+",
+      "icon": "material:castle"
+    },
+    "fubo": {
+      "name": "Fubo TV",
+      "icon": "material:sports_football"
+    },
+    "espn": {
+      "name": "ESPN",
+      "icon": "material:sports_basketball"
+    },
+    "britbox": {
+      "name": "BritBox",
+      "icon": "material:tv_gen"
+    }
+  },
+  "dialects": {
+    "firetv": {
+      "name": "Fire TV",
+      "channels": {
+        "commands": {
+          "integration": "androidtv",
+          "domain": "media_player",
+          "label": "ADB channel"
+        }
+      },
+      "apps": {
+        "netflix": {
+          "source": "com.netflix.ninja"
+        },
+        "prime": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.media_player",
+          "data": {
+            "command": "am start com.amazon.firebat/com.amazon.firebatcore.deeplink.DeepLinkRoutingActivity"
+          }
+        },
+        "youtube": {
+          "source": "com.amazon.firetv.youtube"
+        },
+        "youtubetv": {
+          "source": "com.amazon.firetv.youtube.tv"
+        },
+        "peacock": {
+          "source": "com.peacock.peacockfiretv"
+        },
+        "paramount": {
+          "source": "com.cbs.ott"
+        },
+        "max": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.media_player",
+          "data": {
+            "command": "am start -n com.hbo.hbonow/com.wbd.beam.BeamActivity"
+          }
+        },
+        "appletv": {
+          "source": "com.apple.atve.amazon.appletv"
+        }
+      },
+      "wake": {
+        "service": "media_player.turn_on",
+        "entity": "$context.media_player"
+      }
+    },
+    "tizen": {
+      "name": "Samsung Tizen",
+      "apps": {
+        "netflix": {
+          "source": "Netflix"
+        },
+        "prime": {
+          "source": "Prime Video"
+        },
+        "youtube": {
+          "source": "YouTube"
+        },
+        "youtubetv": {
+          "source": "YouTube TV"
+        },
+        "hulu": {
+          "source": "Hulu"
+        },
+        "disney": {
+          "source": "Disney+"
+        },
+        "appletv": {
+          "source": "Apple TV"
+        },
+        "max": {
+          "source": "Max"
+        },
+        "peacock": {
+          "source": "Peacock TV"
+        },
+        "paramount": {
+          "source": "Paramount+"
+        }
+      }
+    },
+    "googletv": {
+      "name": "Google TV",
+      "channels": {
+        "commands": {
+          "integration": "androidtv",
+          "domain": "media_player",
+          "label": "ADB channel"
+        }
+      },
+      "keys": {
+        "settings": {
+          "name": "Settings",
+          "icon": "material:settings",
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell input keyevent 176"
+          }
+        },
+        "search": {
+          "name": "Search",
+          "icon": "material:search",
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell input keyevent 117"
+          }
+        },
+        "allapps": {
+          "name": "All apps",
+          "icon": "material:apps",
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell input keyevent 284"
+          }
+        },
+        "quicksettings": {
+          "name": "Quick settings",
+          "icon": "material:tune",
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell input keyevent 83"
+          }
+        },
+        "livetv": {
+          "name": "Live TV",
+          "icon": "material:live_tv",
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell input keyevent 170"
+          }
+        }
+      },
+      "forbidden": [
+        {
+          "name": "SEARCH",
+          "code": 84,
+          "why": "voice search — activates the microphone"
+        },
+        {
+          "name": "MUTE",
+          "code": 91,
+          "why": "mutes the MICROPHONE (use VOLUME_MUTE 164)"
+        },
+        {
+          "name": "POWER",
+          "code": 26,
+          "why": "powers the device off"
+        },
+        {
+          "name": "TV_POWER",
+          "code": 177,
+          "why": "powers the device off"
+        },
+        {
+          "name": "SLEEP",
+          "code": 223,
+          "why": "powers the device off"
+        },
+        {
+          "name": "SOFT_SLEEP",
+          "code": 276,
+          "why": "powers the device off"
+        },
+        {
+          "name": "TV_INPUT",
+          "code": 178,
+          "why": "kills the picture"
+        },
+        {
+          "name": "TV_INPUT_HDMI_1",
+          "code": 243,
+          "why": "kills the picture"
+        },
+        {
+          "name": "TV_INPUT_HDMI_2",
+          "code": 244,
+          "why": "kills the picture"
+        },
+        {
+          "name": "TV_INPUT_HDMI_3",
+          "code": 245,
+          "why": "kills the picture"
+        },
+        {
+          "name": "TV_INPUT_HDMI_4",
+          "code": 246,
+          "why": "kills the picture"
+        },
+        {
+          "name": "PAIRING",
+          "code": 225,
+          "why": "drops into Bluetooth pairing"
+        },
+        {
+          "name": "PROFILE_SWITCH",
+          "code": 288,
+          "why": "changes the Google TV profile"
+        },
+        {
+          "name": "STB_POWER",
+          "code": 179,
+          "why": "power-cycles OTHER devices over CEC"
+        },
+        {
+          "name": "AVR_POWER",
+          "code": 181,
+          "why": "power-cycles OTHER devices over CEC"
+        }
+      ],
+      "apps": {
+        "netflix": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.netflix.ninja/.MainActivity"
+          }
+        },
+        "prime": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity"
+          }
+        },
+        "youtube": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity"
+          }
+        },
+        "youtubetv": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.google.android.youtube.tvunplugged/com.google.android.apps.youtube.tvunplugged.activity.ChrobaltMainActivity"
+          }
+        },
+        "peacock": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.peacocktv.peacockandroid/com.peacock.peacocktv.GoogleMainActivity"
+          }
+        },
+        "paramount": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.cbs.ott/com.paramount.android.pplus.features.splash.tv.SplashMediatorActivity"
+          }
+        },
+        "max": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.wbd.stream/com.wbd.beam.BeamActivity"
+          }
+        },
+        "appletv": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.apple.atve.androidtv.appletv/.MainActivity"
+          }
+        },
+        "hulu": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.hulu.livingroomplus/.WKFactivity"
+          }
+        },
+        "disney": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.disney.disneyplus/com.bamtechmedia.dominguez.main.MainActivity"
+          }
+        },
+        "fubo": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.fubo.firetv.screen/tv.fubo.mobile.presentation.onboarding.dispatch.controller.DispatchActivity"
+          }
+        },
+        "espn": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.espn.score_center/com.espn.startup.presentation.StartupActivity"
+          }
+        },
+        "britbox": {
+          "action": "androidtv.adb_command",
+          "entity": "$context.commands",
+          "data": {
+            "command": "adb shell am start -n com.britbox.tv/axis.androidtv.sdk.app.MainActivity"
+          }
+        }
+      },
+      "wake": {
+        "service": "media_player.turn_on",
+        "entity": "$context.media_player"
+      }
+    }
+  },
+  "screens": {
+    "home": {
+      "name": "New Room",
+      "class": "room",
+      "type": "hub",
+      "room": true,
+      "banner": {
+        "image": "",
+        "image_opacity": 0.5,
+        "height": "230px",
+        "min_height": "150px",
+        "show_time": true
+      },
+      "view_kind": "room hub",
+      "grid": {
+        "columns": 1
+      },
+      "sections": [
+        {
+          "role": "activities",
+          "hero_label": "Activities",
+          "tiles": [
+            {
+              "id": "acts",
+              "type": "activities",
+              "room": "home"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "controllers": {
+    "apps": {
+      "name": "Apps",
+      "class": "group",
+      "view_kind": "library",
+      "type": "library",
+      "parent": "controller:tv",
+      "control_target": {
+        "label": "$activity.name",
+        "navigation": "$context.dpad",
+        "power": "$context.power",
+        "volume": "$context.volume",
+        "pass_through": [
+          "power"
+        ]
+      },
+      "drawer": true,
+      "grid": {
+        "columns": 2
+      },
+      "sections": [
+        {
+          "tiles": [
+            {
+              "id": "apps_grid",
+              "type": "apps"
+            }
+          ],
+          "hero_label": "Apps"
+        }
+      ],
+      "gen": 2
+    },
+    "music": {
+      "name": "Music Media Player",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller",
+      "buttons": {
+        "menu": {
+          "navigate": "music_library"
+        }
+      },
+      "control_target": {
+        "label": "$activity.name",
+        "power": "$context.power",
+        "volume": "$context.volume"
+      },
+      "font_scope": "music",
+      "tiles": [
+        {
+          "id": "m_np",
+          "type": "media",
+          "art": true,
+          "entity": "$context.media_player",
+          "icon": "material:music_note",
+          "label": "Now Playing",
+          "span": 2,
+          "trailing": {
+            "icon": "material:library_music",
+            "action": {
+              "navigate": "music_library"
+            }
+          }
+        },
+        {
+          "id": "m_tr",
+          "type": "transport",
+          "entity": "$context.media_player",
+          "label": "Transport",
+          "span": 2
+        },
+        {
+          "id": "m_cmd",
+          "type": "mediabtns",
+          "entity": "$context.media_player",
+          "label": "Modes",
+          "span": 2
+        },
+        {
+          "id": "m_vol",
+          "type": "volume",
+          "entity": "$context.volume",
+          "icon": "material:volume_up",
+          "label": "Volume",
+          "span": 2
+        },
+        {
+          "id": "m_src",
+          "type": "sources",
+          "entity": "$context.source_select",
+          "icon": "material:input",
+          "label": "Source",
+          "span": 2
+        }
+      ],
+      "gen": 5
+    },
+    "music_library": {
+      "name": "Music Library",
+      "class": "group",
+      "view_kind": "library",
+      "type": "library",
+      "parent": "controller:music",
+      "font_scope": "music",
+      "drawer": true,
+      "grid": {
+        "columns": 3
+      },
+      "sections": [
+        {
+          "tiles": [
+            {
+              "id": "lib",
+              "type": "browse"
+            }
+          ],
+          "hero_label": "Library"
+        }
+      ]
+    },
+    "tv": {
+      "name": "TV Media Player",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller",
+      "buttons": {
+        "left_hold": {
+          "service": "remote.send_command",
+          "entity": "$context.dpad",
+          "data": {
+            "command": "REWIND"
+          }
+        },
+        "right_hold": {
+          "service": "remote.send_command",
+          "entity": "$context.dpad",
+          "data": {
+            "command": "FAST_FORWARD"
+          }
+        }
+      },
+      "control_target": {
+        "label": "$activity.name",
+        "navigation": "$context.dpad",
+        "power": "$context.power",
+        "volume": "$context.volume",
+        "pass_through": [
+          "up",
+          "down",
+          "left",
+          "right",
+          "select",
+          "back",
+          "home",
+          "power"
+        ]
+      },
+      "dpad_passthrough": "$context.dpad",
+      "sections": [
+        {
+          "tiles": [
+            {
+              "id": "t_np",
+              "type": "media",
+              "entity": "$context.media_player",
+              "icon": "material:smart_display",
+              "label": "Now Playing",
+              "span": 2,
+              "trailing": {
+                "icon": "material:apps",
+                "action": {
+                  "navigate": "apps"
+                }
+              }
+            },
+            {
+              "id": "t_tr",
+              "type": "transport",
+              "entity": "$context.media_player",
+              "label": "Transport",
+              "span": 2
+            },
+            {
+              "id": "t_btns",
+              "type": "buttons",
+              "entity": "$context.dpad",
+              "label": "On-screen device buttons",
+              "span": 2,
+              "only": "physical_dpad",
+              "buttons": [
+                "back",
+                "home"
+              ]
+            },
+            {
+              "id": "t_pad",
+              "type": "dpad",
+              "entity": "$context.dpad",
+              "icon": "material:gamepad",
+              "label": "Remote",
+              "span": 2,
+              "unless": "physical_dpad"
+            },
+            {
+              "id": "t_btns2",
+              "type": "buttons",
+              "entity": "$context.dpad",
+              "label": "",
+              "span": 2,
+              "unless": "physical_dpad",
+              "buttons": [
+                "back",
+                "home",
+                "power"
+              ]
+            },
+            {
+              "id": "t_vol",
+              "type": "volume",
+              "entity": "$context.volume",
+              "level_entity": "$context.volume_level",
+              "icon": "material:volume_up",
+              "label": "Volume",
+              "span": 2
+            },
+            {
+              "id": "t_src",
+              "type": "sources",
+              "entity": "$context.source_select",
+              "icon": "material:input",
+              "label": "Source",
+              "span": 2
+            }
+          ]
+        },
+        {
+          "columns": 2,
+          "tiles": [
+            {
+              "id": "keys",
+              "type": "keys"
+            }
+          ],
+          "title": "Device keys"
+        },
+        {
+          "columns": 1,
+          "tiles": [
+            {
+              "id": "cast",
+              "type": "devices"
+            }
+          ],
+          "title": "Devices"
+        }
+      ]
+    },
+    "climate": {
+      "name": "Climate",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "temperature",
+          "entity": "$device",
+          "icon": "material:thermostat",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "dm",
+          "type": "chips",
+          "kind": "hvac_mode",
+          "entity": "$device",
+          "icon": "material:hvac",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "df",
+          "type": "chips",
+          "kind": "fan_mode",
+          "entity": "$device",
+          "icon": "material:mode_fan",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "dpr",
+          "type": "chips",
+          "kind": "preset",
+          "entity": "$device",
+          "icon": "material:tune",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "climate",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "light": {
+      "name": "Light",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "brightness",
+          "entity": "$device",
+          "icon": "material:light_mode",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "de",
+          "type": "chips",
+          "kind": "effect",
+          "entity": "$device",
+          "icon": "material:auto_awesome",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "light",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "cover": {
+      "name": "Cover",
+      "tiles": [
+        {
+          "id": "dc",
+          "type": "coverbtns",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "position",
+          "entity": "$device",
+          "icon": "material:height",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "cover",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "fan": {
+      "name": "Fan",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "ds",
+          "type": "stepper",
+          "kind": "percentage",
+          "entity": "$device",
+          "icon": "material:mode_fan",
+          "label": "",
+          "span": 2
+        },
+        {
+          "id": "dpr",
+          "type": "chips",
+          "kind": "preset",
+          "entity": "$device",
+          "icon": "material:tune",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "fan",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    },
+    "switch": {
+      "name": "Switch",
+      "tiles": [
+        {
+          "id": "dp",
+          "type": "power",
+          "entity": "$device",
+          "label": "",
+          "span": 2
+        }
+      ],
+      "domain": "switch",
+      "class": "activity",
+      "view_kind": "controller",
+      "type": "controller"
+    }
+  }
+}

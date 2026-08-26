@@ -33,6 +33,10 @@
      NOT heal-volatile, so they stay live BELOW the lock boundary. */
   const locked = $derived(isLib && !isCustomCopy);
   const copyEntity = $derived(isCustomCopy ? app.draft?.controllers?.[screenId]?.entity : null);
+  /* v0.85.7: an update found this stock surface edited in place (the
+     pre-lock era allowed it) and PRESERVED the edit as the user's own
+     copy instead of overwriting it. */
+  const forkedByUpdate = $derived(isCustomCopy ? app.draft?.controllers?.[screenId]?.forked_by_update : null);
   let customFor = $state("");
   let optionsOpen = $state(false);
   const stockName = $derived(isCustomCopy
@@ -155,7 +159,16 @@
     {#if isLib}
       <div class={"flex flex-wrap items-center gap-3 rounded-[10px] border px-3 py-2 " +
         (isCustomCopy || locked ? "border-line bg-tile" : "border-accent/50 bg-accent/10")}>
-        {#if isCustomCopy}
+        {#if forkedByUpdate}
+          <span class="text-xs text-ink"><b>Your edited copy, preserved.</b>
+            You changed this built-in before it was locked, so an update kept
+            your version instead of overwriting it. It's yours now — editable,
+            and updates won't touch it. The built-in has moved on
+            {#if forkedByUpdate.stock_gen}(now at gen {forkedByUpdate.stock_gen}){/if};
+            reset any time to adopt it.</span>
+          <Button size="sm" onclick={() => resetControllerToStock(screenId)}
+            title="Discard this copy and return to the locked, always-current built-in">↺ Reset to built-in</Button>
+        {:else if isCustomCopy}
           <span class="text-xs text-ink"><b>Custom copy</b> of {stockName}{copyEntity ? " — for " : " — yours alone."}{#if copyEntity}<b class="font-mono text-[11.5px]">{copyEntity}</b>{/if}</span>
           <Button size="sm" onclick={() => resetControllerToStock(screenId)}
             title="Replace this copy's content with the current stock surface">↺ Reset to stock</Button>

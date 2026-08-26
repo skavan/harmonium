@@ -81,6 +81,15 @@ WIDGETS.nav = {
     : `<div class="meter hidden"><i></i></div>`,
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
-  wire: (el, t) => el.classList.add("nav-" + navStyle(t)),
+  wire: (el, t) => {
+    el.classList.add("nav-" + navStyle(t));
+    /* image_opacity (v0.85.7 — "Need an opacity on those device
+       images like we do on the HERO card"): same semantic as the
+       banner knob — how much of the photo shows over the dark card.
+       Absent = the stylesheet's .85 default. */
+    const op = t.image_opacity;
+    if (op != null && isFinite(+op))
+      el.style.setProperty("--img-op", String(Math.max(0, Math.min(1, +op))));
+  },
   select: (e, t) => { if (t.target) navigate(t.target); else flashBar("No page linked yet"); },
 };

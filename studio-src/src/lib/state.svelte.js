@@ -7,8 +7,7 @@ import {
   normalizeHosts, normalizeOffActivity, normalizeApps, ROLE_KEYS,
   isCastGroup, SHOWS_KINDS, compileContext, recompileContext,
   normalizeDevices, normalizeSelect as normalizeSelectLib,
-  normalizeConfig as normalizeConfigLib,
-} from "./stocklib.js";
+  normalizeConfig as normalizeConfigLib, currentStockController } from "./stocklib.js";
 export {
   GENERIC_MEDIA_CONTROLLER, DOMAIN_STOCKS, STOCK_APPS_DRAWER,
   STOCK_MUSIC_LIBRARY, STOCK_MUSIC, normalizeNavTiles, stampHost,
@@ -157,7 +156,7 @@ export function clearCurrent() {
    build counter that never resets (b30 continues the old 0.83.NN
    line, so history stays ordered). The footer reads s0.83.8 b30:
    release first, fingerprint after. */
-export const STUDIO_V = "0.85.6 b53";
+export const STUDIO_V = "0.85.7 b54";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 
@@ -309,33 +308,45 @@ export function slices() {
   if (!d) return [];
   const s = [];
   const claimed = new Set();
-  /* VIEWS — the rooms hub ("Home") leads, then each room view with
-     its non-controller pages nested ⌞ */
+  /* VIEWS — a real TREE (v0.85.7 — Suresh: "child pages should be
+     slightly indented"; "I don't think we should use the word rooms
+     hub... I don't even know what hub means"). The Home hub leads,
+     then every top-level page, each with its `parent` children
+     indented beneath it — the same nesting the Keys tab's parent
+     selector creates. Badges say something true in ENGLISH or say
+     nothing: an activities count when a page owns any, "overview"
+     on the Home hub, blank otherwise — the old "hub"/"rooms hub"
+     was the minted view_kind leaking into the UI. */
   const hub = d.global?.main_home;
-  if (hub && d.screens[hub]) {
-    claimed.add(hub);
-    s.push({ key: "screens." + hub, label: d.screens[hub].name || hub,
-      sub: "rooms hub", group: "Views" });
-  }
-  for (const r of roomIds()) {
-    claimed.add(r);
-    s.push({ key: "view." + r, label: d.screens[r].name || r,
-      sub: "view · " + ownedActivities(r).length + " activities", group: "Views" });
-    for (const v of viewsOfRoom(r)) {
-      /* drawers/libraries nest under their CONTROLLER, not the room */
-      if (v === r || claimed.has(v) || isControllerScreen(d.screens[v]) ||
-        d.screens[v].drawer) continue;
-      claimed.add(v);
-      s.push({ key: "screens." + v, label: d.screens[v].name || v,
-        sub: d.screens[v].view_kind || "page", group: "Views", deep: true });
-    }
-  }
+  const roomSet = new Set(roomIds());
+  const isNavPage = (id) => !!d.screens?.[id] &&
+    !isControllerScreen(d.screens[id]) && !d.screens[id].drawer;
+  const childrenOf = (id) => Object.keys(d.screens || {})
+    .filter((c) => c !== id && isNavPage(c) && d.screens[c].parent === id);
+  const pageSub = (id) => {
+    const n = roomSet.has(id) ? ownedActivities(id).length : 0;
+    if (n) return n + (n > 1 ? " activities" : " activity");
+    if (id === hub) return "overview";
+    return "";
+  };
+  const pushPage = (id, deep) => {
+    if (claimed.has(id)) return;                    // cycle/dupe guard
+    claimed.add(id);
+    s.push({ key: (roomSet.has(id) && id !== hub ? "view." : "screens.") + id,
+      label: d.screens[id].name || id, sub: pageSub(id), group: "Views",
+      deep: !!deep });
+    for (const c of childrenOf(id)) pushPage(c, true);
+  };
+  if (hub && d.screens[hub]) pushPage(hub, false);
+  for (const r of roomIds())
+    if (!claimed.has(r) && (!d.screens[r].parent || !isNavPage(d.screens[r].parent)))
+      pushPage(r, false);
   for (const id of Object.keys(d.screens || {}))
-    if (!claimed.has(id) && !isControllerScreen(d.screens[id]) && !d.screens[id].drawer) {
-      claimed.add(id);
-      s.push({ key: "screens." + id, label: d.screens[id].name || id,
-        sub: d.screens[id].view_kind || d.screens[id].class || "page", group: "Views" });
-    }
+    if (isNavPage(id) && !claimed.has(id) &&
+        (!d.screens[id].parent || !isNavPage(d.screens[id].parent)))
+      pushPage(id, false);
+  for (const id of Object.keys(d.screens || {}))   // orphans (broken parents)
+    if (isNavPage(id) && !claimed.has(id)) pushPage(id, false);
   /* CONTROLLERS — DEFAULTS (the stock library) then CUSTOM (activity
      copies + custom controller pages); drawers/libraries nest ⌞ */
   const ctrls = Object.entries(d.controllers || {});
@@ -428,6 +439,10 @@ export function getSlice(key) {
      un-copyable exactly where a user goes looking for them. Composite,
      like the "view." slice. */
   if (key === "apps") return { apps: d.apps || {}, dialects: d.dialects || {} };
+  if (key === "startup") return {
+    home_screen: d.home_screen, main_home: d.global?.main_home,
+    screen_order: d.screen_order,
+    activity_select: d.global?.activity_select, buttons: d.global?.buttons };
   return d[key];
 }
 export function setSlice(key, value) {
@@ -436,6 +451,16 @@ export function setSlice(key, value) {
       ("apps" in value || "dialects" in value)) {
     if (value.apps) d.apps = value.apps;
     if (value.dialects) d.dialects = value.dialects;
+    schedulePreview();
+    return;
+  }
+  if (key === "startup" && value && typeof value === "object") {
+    if ("home_screen" in value) d.home_screen = value.home_screen;
+    if ("screen_order" in value) d.screen_order = value.screen_order;
+    if (!d.global) d.global = {};
+    if ("main_home" in value) d.global.main_home = value.main_home;
+    if ("activity_select" in value) d.global.activity_select = value.activity_select;
+    if ("buttons" in value) d.global.buttons = value.buttons;
     schedulePreview();
     return;
   }
@@ -687,6 +712,19 @@ export function revertToStock(activityId) {
 export function resetControllerToStock(iid) {
   const d = app.draft;
   const inst = d?.controllers?.[iid];
+  /* a LEGITIMIZED fork (v0.85.7: an update found a pre-lock in-place
+     edit and preserved it as the user's copy) points variant_of at
+     ITSELF — reset means "become the built-in again": current stock
+     shape, lock restored, note cleared. */
+  if (inst?.variant_of === iid) {
+    const fresh = currentStockController(iid);
+    if (!fresh) return false;
+    if (inst.parent) fresh.parent = inst.parent;
+    d.controllers[iid] = fresh;
+    schedulePreview();
+    setStatus("reset to the built-in — updates keep it current again", "ok");
+    return true;
+  }
   const tpl = inst?.variant_of && d.controllers[inst.variant_of];
   if (!tpl) return false;
   const fresh = JSON.parse(JSON.stringify($state.snapshot(tpl)));

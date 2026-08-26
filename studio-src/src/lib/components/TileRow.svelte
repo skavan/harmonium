@@ -209,7 +209,20 @@
   }
   function duplicate() {
     const copy = JSON.parse(JSON.stringify($state.snapshot(tile)));
-    copy.id = (copy.id || "tile") + "_copy";
+    /* UNIQUE, not just "_copy" (v0.85.7 — Suresh: "When we duplicate
+       twice, we duplicate the ids too — which creates an error").
+       Validation demands unique tile ids per screen; scan the WHOLE
+       config (a tile can be moved cross-page later) and bump until
+       free: tile_9na4_copy, tile_9na4_copy2, tile_9na4_copy3… */
+    const d = app.draft;
+    const taken = new Set();
+    for (const scr of [...Object.values(d?.screens || {}), ...Object.values(d?.controllers || {})])
+      for (const g of [scr.tiles || [], ...(scr.sections || []).map((s) => s.tiles || [])])
+        for (const t of g) if (t && t.id) taken.add(t.id);
+    const base = (copy.id || "tile") + "_copy";
+    let cid = base, n = 2;
+    while (taken.has(cid)) cid = base + n++;
+    copy.id = cid;
     tiles.splice(index + 1, 0, copy);
   }
 
@@ -315,9 +328,24 @@
     <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1">
       <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
         {#if tile.type === "nav"}
-          <Input value={tile.label} title={tile.target ? "Its page's name follows along" : ""}
+          <!-- THE RENAME-COUPLING BUG (v0.85.7 — Suresh: "I duplicated
+               Porch nav tile and started typing the new Display Name —
+               it renamed the Porch PAGE to what I typed and re-pointed
+               OPENS"). The old handler wrote the TARGET page's name on
+               every keystroke, for every nav card. That follow-along
+               is only right in ONE moment: while the page-draft this
+               very tile just ＋-minted is still open (the page was
+               born FROM this label seconds ago). Outside the draft, a
+               card's display name is the card's alone — many doors
+               can open one page, each wearing its own sign. -->
+          <Input value={tile.label}
+            title={app.pending?.kind === "page" && app.pending.tileId === tile.id &&
+                app.pending.sid === tile.target
+              ? "Its new page's name follows along while drafting" : ""}
             oninput={(e) => { tile.label = e.target.value;
-              if (tile.target && app.draft.screens[tile.target])
+              const p = app.pending;
+              if (p?.kind === "page" && p.tileId === tile.id && p.sid === tile.target &&
+                  app.draft.screens[tile.target])
                 app.draft.screens[tile.target].name = e.target.value; }} />
         {:else}
           <Input bind:value={tile.label} />
@@ -583,6 +611,29 @@
           {#if (tile.style ?? "auto") === "image" || (tile.style ?? "auto") === "auto"}
             <Field label="Image" hint="path under /local/ (HA www/) — auto style shows it when set">
               <Input bind:value={tile.image} placeholder="/local/images/Porch_Render.jpg" class="font-mono text-[12.5px]" />
+            </Field>
+            <Field label="Image opacity"
+              hint="how much photo shows over the dark card — the hero banner's knob (blank = 0.85)">
+              <Input type="number" min="0" max="1" step="0.05" placeholder="0.85"
+                value={tile.image_opacity ?? ""}
+                onchange={(e) => { const v = e.target.value;
+                  if (v === "" || v == null) delete tile.image_opacity;
+                  else tile.image_opacity = Math.max(0, Math.min(1, +v)); }} />
+            </Field>
+            <!-- INHERIT IS THE DEFAULT (v0.85.7 — Suresh: "one option
+                 (and the default) should be inherit"; also his ghost
+                 position: a duplicate with no label_pos key showed
+                 "bottom-left" here as if set — the select displayed
+                 the engine fallback as a value. Inherit says what is
+                 true: nothing set → section default → bottom-left.
+                 Applies only when the card actually shows a photo. -->
+            <Field label="Label position"
+              hint="where the name sits on the photo — inherit = the section default, else bottom-left">
+              <Select value={tile.label_pos ?? "inherit"}
+                onchange={(e) => { if (e.target.value === "inherit") delete tile.label_pos; else tile.label_pos = e.target.value; }}
+                options={["inherit", "top-left", "top-center", "top-right",
+                  "center-left", "center", "center-right",
+                  "bottom-left", "bottom-center", "bottom-right"]} />
             </Field>
           {/if}
         {/if}

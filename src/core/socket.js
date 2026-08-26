@@ -8,7 +8,8 @@ const S = {
   focusId: null, captured: false,
   confirmTile: null, confirmTimer: null,
   lastAct: undefined, tileSig: null,
-  msgCount: 0, painted: false
+  msgCount: 0, painted: false,
+  sendQ: []          /* messages asked for before auth_ok (v0.85.7) */
 };
 
 function haUrl() {
@@ -33,7 +34,16 @@ function connect() {
       localStorage.removeItem("hakr_token");
       showAuth(`Token rejected by HA (received ${len} chars — a valid token is ~180+). Recreate the token and retry.`);
     }
-    else if (m.type === "auth_ok") { S.connected = true; dot(true); subscribeFor(S.screen); }
+    else if (m.type === "auth_ok") {
+      S.connected = true; dot(true); subscribeFor(S.screen);
+      /* flush the pre-auth queue (v0.85.7) — see send() below */
+      const q = S.sendQ; S.sendQ = [];
+      q.forEach(it => send(it[0], it[1]));
+      /* a (re)connect is exactly when a deploy could have landed
+         while this page ran — engine self-update check (boot.js;
+         throttled + guarded there) */
+      if (typeof engineUpdateCheck === "function") engineUpdateCheck();
+    }
     else if (m.type === "result" && S.pending.has(m.id)) { S.pending.get(m.id)(m); S.pending.delete(m.id); }
     else if (m.type === "event" && m.id === S.subId) applyDiff(m.event);
   };
@@ -53,10 +63,23 @@ setInterval(() => {
 }, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && S.connected) subscribeFor(S.screen);
+  /* waking from hidden = the other deploy-could-have-landed moment */
+  if (!document.hidden && typeof engineUpdateCheck === "function")
+    engineUpdateCheck();
 });
 
 function send(msg, cb) {
-  if (!S.connected && msg.type !== "auth") return;
+  /* EARLY SENDS QUEUE, NOT DROP (v0.85.7 — found by probe-library-ui:
+     a browse fetch issued between the first render and auth_ok was
+     silently dropped, but its busy flag stayed set — "Loading
+     library…" forever, until a manual refresh cleared it. The same
+     drop ate any registry lookup or service call fired that early.)
+     Held bounded, flushed on auth_ok; still dropped once the socket
+     is closed for good (the reconnect path re-renders anyway). */
+  if (!S.connected && msg.type !== "auth") {
+    if (S.sendQ.length < 64) S.sendQ.push([msg, cb]);
+    return;
+  }
   msg.id = ++S.msgId;
   if (cb) S.pending.set(msg.id, cb);
   S.ws.send(JSON.stringify(msg));

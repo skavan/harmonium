@@ -63,11 +63,13 @@
   }
   #app.scr-music .tile .lbl { font-weight: var(--fw-m1); }
   #app.scr-music .tile.row .lbl,
-  #app.scr-music .tile.wgt-qrow .lbl,
   #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
   /* browse list rows skip the +2 bump (v0.83.1) — density is the
-     point of the list */
-  #app.scr-music .tile.brw.row .lbl { font-size: var(--fs-m1); }
+     point of the list. Queue rows joined them (v0.85.7 round 3 —
+     Suresh: "The queue tiles… should mirror the library tiles
+     exactly"), so both lists run at the same size. */
+  #app.scr-music .tile.brw.row .lbl,
+  #app.scr-music .tile.wgt-qrow .lbl { font-size: var(--fs-m1); }
   #app.scr-music .npt { font-weight: var(--fw-m1); }
   #app.scr-music .tile .sub {
     font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);

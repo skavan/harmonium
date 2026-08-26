@@ -301,3 +301,19 @@ restart; Studio change → machine build + push + refresh the panel.
 Never `reseed`. Never paste long-lived
 tokens through chat or commit them — provisioning uses the URL-hash
 trick and localStorage.
+
+## OWNERSHIP HAS A REFEREE (v0.85.7)
+
+Every part of an install belongs to one of three buckets — stock (repo
+always wins), user (user always wins), or variant (the fight zone) —
+and the fights are decided by CONTENT FINGERPRINT, not by trust:
+`studio-src/src/lib/ownership.js` classifies a stock-id unit against
+`stock-history.js` (fingerprints of every shape ever shipped, generated
+from the tagged starters by `tools/gen-stock-history.mjs`). Pristine →
+heals silently to current. Edited-in-place (pre-lock era) → PRESERVED:
+legitimized as the user's fork (`variant_of` + `forked_by_update`),
+unlocked, with "↺ Reset to built-in" in the Studio. The complete
+inventory and rules: `docs/design-ownership-buckets.md`. The rule of
+thumb when adding anything stock: put the shape in stocklib, regenerate
+the starter AND the history, and let probe-stock-sync catch you if you
+forget half.

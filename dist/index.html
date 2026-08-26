@@ -71,11 +71,13 @@
   }
   #app.scr-music .tile .lbl { font-weight: var(--fw-m1); }
   #app.scr-music .tile.row .lbl,
-  #app.scr-music .tile.wgt-qrow .lbl,
   #app.scr-music .npt { font-size: calc(var(--fs-m1) + 2px); }
   /* browse list rows skip the +2 bump (v0.83.1) — density is the
-     point of the list */
-  #app.scr-music .tile.brw.row .lbl { font-size: var(--fs-m1); }
+     point of the list. Queue rows joined them (v0.85.7 round 3 —
+     Suresh: "The queue tiles… should mirror the library tiles
+     exactly"), so both lists run at the same size. */
+  #app.scr-music .tile.brw.row .lbl,
+  #app.scr-music .tile.wgt-qrow .lbl { font-size: var(--fs-m1); }
   #app.scr-music .npt { font-weight: var(--fw-m1); }
   #app.scr-music .tile .sub {
     font-family: var(--font-m2); font-size: var(--fs-m2); font-weight: var(--fw-m2);
@@ -127,9 +129,11 @@
     font-size: var(--bar-fs, 17px); font-weight: 650; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
-  /* passthrough-mode cue: 2px accent rule + gamepad glyph — the D-pad
-     is driving the DEVICE here (and hold-Back/Home send device keys) */
-  #bar.pt { border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+  /* passthrough-mode cue: the gamepad glyph alone (v0.85.7 — Suresh:
+     "don't like that orange line at the top. We have the back and
+     home bar on the LCD — that's enough!"). The 2px accent
+     border-bottom this class drew is gone; the TV strip at the
+     bottom already announces the mode. */
   #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
 
   /* two-press confirm cue: the bar title pulses for the whole confirm
@@ -149,10 +153,11 @@
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
   #dot.ok { background: #4caf7d; }
-  /* ⓘ hit zone: ~44×44 finger target (padding grows the tap area,
-     negative margin keeps the glyph visually where it was) */
+  /* ⓘ hit zone: ~56×52 finger target (v0.85.7 — Suresh: "really hit
+     or miss"; padding grows the tap area, negative margin keeps the
+     glyph visually where it was) */
   #info { color: var(--dim); font-size: var(--bar-icon, 20px); cursor: pointer;
-    padding: 12px 10px; margin: -8px -4px; }
+    padding: 16px 18px; margin: -12px -12px; }
   #perf { font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
 
   /* banner (screen-level hero, from config) */
@@ -268,6 +273,12 @@
      (Chromium-61 floor: no :has(), so #app carries the state class) */
   #app.tvstrip-on #padstrip { bottom: 50px; }
   #app.tvstrip-on #grid { padding-bottom: 54px; }
+  /* while the pad-borrow strip is ALSO up, the last tile must be able
+     to scroll clear of BOTH strips (v0.85.7 — Suresh: a Ch-scrolled
+     tile "sits underneath that strip [and] gets clipped"; the padding
+     only ever budgeted for one). padStrip() toggles .padstrip-on. */
+  #app.padstrip-on #grid { padding-bottom: 40px; }
+  #app.tvstrip-on.padstrip-on #grid { padding-bottom: 92px; }
 
   /* THE CLAIM COUNTDOWN BAR (2026-08-24 — Suresh: "a disappearing line
      on the selected tile … like the now-playing progress, but reverse:
@@ -309,13 +320,26 @@
   }
   .tile.wgt-nav.nav-image .roomimg {
     position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: .85;
+    object-fit: cover; opacity: var(--img-op, .85);
+    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
+       photo cards. tile.image_opacity sets it in nav wire; css_vars
+       can set it too, per tile or section-wide. Dark card = the dim. */
   }
   .tile.wgt-nav.nav-image .top {
     position: absolute; left: 12px; bottom: 10px; z-index: 1;
     text-shadow: 0 1px 8px rgba(0,0,0,.8);
   }
   .tile.wgt-nav.nav-image .lbl { font-size: calc(var(--fs-1) + 2px); }
+  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
+     bottom-left is the unstated default above. "center" = dead center. */
+  .tile.wgt-nav.nav-image.lp-top-left .top { top: 10px; bottom: auto; }
+  .tile.wgt-nav.nav-image.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.wgt-nav.nav-image.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
+  .tile.wgt-nav.nav-image.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.wgt-nav.nav-image.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
+  .tile.wgt-nav.nav-image.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.wgt-nav.nav-image.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.wgt-nav.nav-image.lp-bottom-right .top { left: auto; right: 12px; }
   .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
   .tile.wgt-nav.nav-image .hint { display: none; }
   .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
@@ -785,6 +809,7 @@
     background: var(--tile); border-radius: var(--radius);
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
     border: 2px solid transparent;
+    box-shadow: var(--tile-shadow, none);   /* per-tile css_vars hook */
     display: block;
     min-width: 0;               /* let grid columns shrink below content */
     transition: background .12s, border-color .12s, transform .06s;
@@ -836,7 +861,8 @@
   }
   .tile .ic { font-size: 22px; width: 28px; text-align: center; }
   .tile .ic.material-symbols-outlined { font-size: 24px; }
-  .tile .lbl { font-weight: var(--fw-1); }
+  .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
+    font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
   /* inline sub: value on the title line, right-aligned, a notch bigger */
   .tile .sub.subin {
@@ -1070,17 +1096,109 @@
      .wgt-preset's centered-card styling leaked into .row mode —
      big, centered, wrapping titles. Rows align left, drop the +2px
      row bump, and ellipsize on one line. */
-  .tile.brw.row { text-align: left; }
-  .tile.brw.row .lbl {
-    font-size: var(--fs-1);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* ---- THE LIBRARY LAYOUT REWORK (v0.85.7 — Suresh, four mocks:
+     "lets try a better layout. Right now we waste most of the box.
+     Note we allow 2 lines if needed for larger text.") ---- */
+  /* LIST rows (mock 3): colored source bar · 48px thumb · bold title
+     up to two lines · "Spotify · Playlist" sub line · › on drills */
+  /* COMPACT (v0.85.7 round 2 — Suresh: "Our row view tiles in queue
+     and library are too tall. We're only fitting 4 on a screen."):
+     rows shed the 78px grid-tile floor and the 12px pads — height is
+     the CONTENT's (48px thumb + tight pads ≈ 66px a row). */
+  .tile.brw.row {
+    text-align: left; position: relative;
+    min-height: 0;
+    padding: 8px 12px 8px 17px;
   }
-  .tile.brw:not(.row) { text-align: center; }
-  .tile.brw:not(.row) .top { flex-direction: column; gap: 6px; }
-  .tile.brw:not(.row) .top > img { width: var(--br-art); height: var(--br-art); border-radius: 10px; }
-  .tile.brw:not(.row) .top .lbl { width: 100%; }
-  .tile.brw:not(.row) .ic.material-symbols-outlined { font-size: calc(var(--br-art) * .59); width: auto; height: var(--br-art); display: inline-flex; align-items: center; }
-  .tile.brw .sub { display: none; }
+  .tile.brw.row::before {
+    content: ""; position: absolute; left: 6px; top: 10px; bottom: 10px;
+    width: 4px; border-radius: 2px;
+    background: var(--svc-c, #4a4f57);
+  }
+  .tile.brw.row .icwrap { width: 48px; height: 48px; border-radius: 10px; }
+  .tile.brw.row .lbl {
+    font-size: calc(var(--fs-1) + 1px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
+  .tile.brw.row .sub { display: block; margin-top: 1px; }
+  .tile.brw.row .txt { padding-right: 26px; }   /* room for the › door */
+  .tile.brw.row.drill::after {
+    content: "›"; position: absolute; right: 13px; top: 50%;
+    -webkit-transform: translateY(-50%); transform: translateY(-50%);
+    font-size: 21px; color: var(--dim); pointer-events: none;
+  }
+  .tile.brw.row.has-trail.drill::after { right: 40px; }  /* ▶ owns the corner */
+  .tile.brw.row .srcb, .tile.brw.row .svcb { display: none; }  /* the sub says it in words */
+  /* ART-FORWARD grid tiles (mocks 1+2): the art IS the tile — full
+     width, label under it (two lines allowed), a service-colored dot
+     on the art, minimal chrome. The focused ring (border → accent)
+     still wraps art + label, exactly the mock's amber outline. */
+  .tile.brw:not(.row) {
+    text-align: left; padding: 5px; background: none;
+  }
+  .tile.brw:not(.row) .top { flex-direction: column; gap: 7px; align-items: stretch; }
+  /* THE ART BOX (v0.85.7 — "tiles default to squished" before the
+     art loads): a square reserved with the padding trick, so the
+     tile is the right size from first paint. The img fills it; the
+     broken-image fallback icon centers in the same box. */
+  .tile.brw:not(.row) .artbox {
+    position: relative; display: block; width: 100%; padding-top: 100%;
+    background: var(--tile); border-radius: 10px; overflow: hidden;
+  }
+  .tile.brw:not(.row) .artbox > img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .tile.brw:not(.row) .artbox .ic.material-symbols-outlined {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 44px; background: none;
+  }
+  .tile.brw:not(.row) .top .lbl {
+    width: auto; padding: 0 3px 4px;
+    /* round 3 (Suresh: "Font-Size on the Artwork Tiles in the
+       library is too big… default size here, should be around
+       18px" — his theme's fs-1:20px pushed round 2's calc(+2) to
+       22px): art labels get their OWN knob, default 18px, no
+       longer riding fs-1. Tune it as `br-lbl` in the theme (every
+       theme key becomes --<key>), a profile's style map, or a
+       per-tile css_vars. */
+    font-size: var(--br-lbl, 18px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
+  .tile.brw:not(.row) .ic.material-symbols-outlined {
+    font-size: 44px; width: 100%; height: 84px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--tile); border-radius: 10px;
+  }
+  .tile.brw .sub { display: none; }   /* .brw.row .sub above outguns this */
+  /* provenance on art tiles: ONE dot, service-colored (mock 1's green
+     Spotify / purple Deezer); the SO/MA text badges retire here — the
+     list view's sub line still says it in words */
+  .tile.brw:not(.row) .srcb { display: none; }
+  .tile.brw:not(.row) .svcb {
+    top: 11px; right: 11px; bottom: auto; left: auto;
+    width: 11px; height: 11px; padding: 0; border-radius: 50%;
+    font-size: 0; line-height: 0; letter-spacing: 0;
+    background: var(--svc-c, #8a9099);
+    border: 2px solid rgba(13,15,18,.5);
+  }
+  .tile.brw.has-trail:not(.row) .svcb { top: 11px; right: 42px; }
+  /* the service palette (set as a class by the chassis) */
+  .tile.svc-spotify { --svc-c: #1db954; }
+  .tile.svc-deezer { --svc-c: #a238ff; }
+  .tile.svc-tidal { --svc-c: #35d4c7; }
+  .tile.svc-youtube { --svc-c: #ff4e45; }
+  .tile.svc-apple { --svc-c: #fa4d63; }
+  /* the library BAR's D-pad ring (v0.85.7 — bar focus layer).
+     Round 2: INSET — the rows scroll horizontally (overflow
+     containers), so an outer shadow was clipped at the row edges. */
+  #brbar .brfocus {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: 9px;
+  }
   /* KIND BADGE (v0.62): only the mixed "All" grid sets one, where the
      chip above no longer tells you what a thing is. Top LEFT, so it
      never fights the play ▶ badge on the right. */
@@ -1146,18 +1264,37 @@
      the title RIDES Primary — weight is theme+100 (bolder than the
      house, never a hardcoded 700) — and both lines ellipsize instead
      of wrapping. */
-  .tile.wgt-qrow { position: relative; }
-  .tile.wgt-qrow .icwrap { width: 56px; height: 56px; border-radius: 10px; }
-  /* weight/size come from the MUSIC theme fields (the queue is always
-     font_scope: music — v0.53: no derived +100 opinion, the knob is
-     the theme's) */
-  .tile.wgt-qrow .lbl {
-    font-size: calc(var(--fs-1) + 2px);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* v0.85.7 round 2 (Suresh: "on queue we are using round icons.
+     Whereas on playlist full row, we are using a more attractive
+     square" + "too tall"): the square radius needs .row in the
+     selector — controls.css's `.tile.row .icwrap { border-radius:
+     var(--icon-radius) }` (a circle) loads LAST and tied this rule's
+     specificity, so the circle won. And queue rows shed the grid-tile
+     height floor like the library rows did. */
+  /* v0.85.7 round 3 (Suresh: "The queue tiles are way too big. They
+     should mirror the library tiles exactly"): round 2's compacting
+     NEVER LANDED HERE — these rules were 2-class (.tile.wgt-qrow)
+     and controls.css loads after grid.css, so its 2-class .tile.row
+     min-height/padding/label rules won every tie: with his theme's
+     tile-h:100px each queue row kept a 94px floor at 22px type.
+     Every rule below is 3-class (.tile.row.wgt-qrow) — it outguns
+     controls.css on SPECIFICITY, not load order — and copies the
+     library-row recipe (48px thumb, 8px pads, +1px label clamped to
+     2 lines, tight sub). Kept different on purpose: no service bar
+     (a queue has no provenance to announce → 12px left pad, not the
+     rows' 17px) and the wider right pad for the ▶ now-playing mark. */
+  .tile.row.wgt-qrow { position: relative; min-height: 0;
+    padding: 8px 12px; }
+  .tile.wgt-qrow .icwrap, .tile.row.wgt-qrow .icwrap {
+    width: 48px; height: 48px; border-radius: 10px; }
+  .tile.row.wgt-qrow .lbl {
+    font-size: calc(var(--fs-1) + 1px); font-weight: 600; line-height: 1.25;
+    white-space: normal; overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   }
-  .tile.wgt-qrow .txt { padding-right: 44px; }
-  .tile.wgt-qrow .sub {
-    margin-top: 2px;
+  .tile.row.wgt-qrow .txt { padding-right: 44px; }
+  .tile.row.wgt-qrow .sub {
+    margin-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .qnowic {
@@ -1636,7 +1773,8 @@ const S = {
   focusId: null, captured: false,
   confirmTile: null, confirmTimer: null,
   lastAct: undefined, tileSig: null,
-  msgCount: 0, painted: false
+  msgCount: 0, painted: false,
+  sendQ: []          /* messages asked for before auth_ok (v0.85.7) */
 };
 
 function haUrl() {
@@ -1661,7 +1799,16 @@ function connect() {
       localStorage.removeItem("hakr_token");
       showAuth(`Token rejected by HA (received ${len} chars — a valid token is ~180+). Recreate the token and retry.`);
     }
-    else if (m.type === "auth_ok") { S.connected = true; dot(true); subscribeFor(S.screen); }
+    else if (m.type === "auth_ok") {
+      S.connected = true; dot(true); subscribeFor(S.screen);
+      /* flush the pre-auth queue (v0.85.7) — see send() below */
+      const q = S.sendQ; S.sendQ = [];
+      q.forEach(it => send(it[0], it[1]));
+      /* a (re)connect is exactly when a deploy could have landed
+         while this page ran — engine self-update check (boot.js;
+         throttled + guarded there) */
+      if (typeof engineUpdateCheck === "function") engineUpdateCheck();
+    }
     else if (m.type === "result" && S.pending.has(m.id)) { S.pending.get(m.id)(m); S.pending.delete(m.id); }
     else if (m.type === "event" && m.id === S.subId) applyDiff(m.event);
   };
@@ -1681,10 +1828,23 @@ setInterval(() => {
 }, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && S.connected) subscribeFor(S.screen);
+  /* waking from hidden = the other deploy-could-have-landed moment */
+  if (!document.hidden && typeof engineUpdateCheck === "function")
+    engineUpdateCheck();
 });
 
 function send(msg, cb) {
-  if (!S.connected && msg.type !== "auth") return;
+  /* EARLY SENDS QUEUE, NOT DROP (v0.85.7 — found by probe-library-ui:
+     a browse fetch issued between the first render and auth_ok was
+     silently dropped, but its busy flag stayed set — "Loading
+     library…" forever, until a manual refresh cleared it. The same
+     drop ate any registry lookup or service call fired that early.)
+     Held bounded, flushed on auth_ok; still dropped once the socket
+     is closed for good (the reconnect path re-renders anyway). */
+  if (!S.connected && msg.type !== "auth") {
+    if (S.sendQ.length < 64) S.sendQ.push([msg, cb]);
+    return;
+  }
   msg.id = ++S.msgId;
   if (cb) S.pending.set(msg.id, cb);
   S.ws.send(JSON.stringify(msg));
@@ -1781,6 +1941,31 @@ function currentActivityId() {
      activity wins above, and the next tap overwrites. */
   if (S.pendingActivity && (CONFIG.activities || {})[S.pendingActivity])
     return S.pendingActivity;
+  /* DEVICE-TRUTH FALLBACK (v0.85.7 — a beta reporter's screenshots:
+     start an activity, close the browser, reopen — the card still
+     says "On · hold to end" (device state rules) but the power/End
+     button is gone. The card and this function answered from two
+     different truths: the card from the activity's own `state.on`
+     rules, this from the SELECT alone — and a select can be stale
+     (a start action that never flips it; an HA restart). When the
+     select names nothing but EXACTLY ONE in-scope activity is
+     provably running by its own rules, that activity is current —
+     the End button, hold-Power and $context then agree with what
+     the card already says. Ambiguity (two running) keeps the old
+     answer: guessing between rooms is worse than a missing button.
+     Purely a read — the select itself is repaired only by the
+     widget's tap-time self-heal, never from a render path. */
+  {
+    let found = null;
+    for (const [id, a] of Object.entries(CONFIG.activities || {})) {
+      if (id === "off" || !activityInScope(id)) continue;
+      if (activityStateOn(a) === true) {
+        if (found) return null;                 // two running — abstain
+        found = id;
+      }
+    }
+    if (found) return found;
+  }
   return null;
 }
 /* WHICH ROOM AM I IN? The screen itself if it owns activities, else
@@ -3196,9 +3381,17 @@ function genBrowse(t) {
            the speaker is suppressed, not offered-and-disabled */
         if (route === "none") return;
         const play = playOf(c, via, route);
+        const svc0 = brSvcOf(c.media_content_id, c._thumb || c.thumbnail);
+        const src0 = brSysOf(c.media_content_id);
         out.push({
           type: "preset", id: t.id + "_" + i, label: c.title, brw: true,
-          ...(listv ? { brRow: true } : g2 ? { brCols: 2 } : {}),
+          ...(listv ? { brRow: true,
+            /* the LIST ROW's words + drill chevron (v0.85.7 — his
+               mock): sub line says service · kind; expandables wear
+               the › door. cls rides the chassis passthrough. */
+            ...(brSubOf(c, svc0, src0) ? { sub_label: brSubOf(c, svc0, src0) } : {}),
+            ...(c.can_expand ? { cls: "drill" } : {}) }
+            : g2 ? { brCols: 2 } : {}),
           icon: BROWSE_ICON[c.media_class] || "material:library_music",
           /* the badge is set only where the kind ISN'T implied by the
              chip you're standing on — i.e. the All grid */
@@ -3733,8 +3926,44 @@ function rawTilesOf(sc) {
      syntax floor is 61 (stock Astrion webview) — see boot.js */
   return sc.sections
     ? sc.sections.filter(x => x.enabled !== false)
-        .reduce((a, x) => a.concat(x.tiles || []), [])
+        .reduce((a, x) => a.concat((x.tiles || []).map(function (t) {
+          return sectionDressTile(t, x);
+        })), [])
     : (sc.tiles || []);
+}
+/* SECTION STYLE DEFAULTS (v0.85.7 — Suresh: "at the DEVICES section
+   level, so it applies to all devices unless overridden"). A section
+   may carry the same styling keys a tile does — h, css_vars,
+   label_pos, style — and every tile in it inherits what it does not
+   state itself. Per-tile always wins; css_vars merge key-by-key with
+   the tile's entries on top. Section `style` only reaches NAV cards —
+   on a media tile `style` is the Now Playing mode and belongs to the
+   tile/activity, never a section-wide default. */
+function sectionDressTile(t, sec) {
+  if (!t || typeof t !== "object") return t;
+  var patch = null;
+  if (sec.h != null && sec.h !== "" && (t.h == null || t.h === ""))
+    (patch = patch || {}).h = sec.h;
+  if (sec.label_pos && !t.label_pos)
+    (patch = patch || {}).label_pos = sec.label_pos;
+  /* v0.85.7 round 2 (Suresh: "Photo card opacity should also exist
+     in devices (parent section)") — same inherit rule as the rest */
+  if (sec.image_opacity != null && sec.image_opacity !== "" &&
+      (t.image_opacity == null || t.image_opacity === ""))
+    (patch = patch || {}).image_opacity = sec.image_opacity;
+  if (sec.style && t.type === "nav" && !t.style)
+    (patch = patch || {}).style = sec.style;
+  if (sec.css_vars && typeof sec.css_vars === "object") {
+    var merged = {}, k;
+    for (k in sec.css_vars) merged[k] = sec.css_vars[k];
+    for (k in (t.css_vars || {})) merged[k] = t.css_vars[k];
+    (patch = patch || {}).css_vars = merged;
+  }
+  if (!patch) return t;
+  var out = {};
+  for (var kk in t) out[kk] = t[kk];
+  for (var pk in patch) out[pk] = patch[pk];
+  return out;
 }
 function tilesOf(sc) {
   /* surfDressTile (v0.83.7): the Controller tab's label overrides +
@@ -4428,6 +4657,24 @@ const brBadge = (catTitle, c) =>
   BADGE_BY_CAT[String(catTitle || "").toLowerCase()] ||
   BROWSE_ICON[c.media_class] || "material:library_music";
 
+/* WORDS FOR THE LIST ROWS (v0.85.7 — Suresh's mock: art thumb, bold
+   title, "Spotify · 60 tracks" under it). Browse children carry no
+   track counts, so the sub line says what we truthfully know: the
+   SERVICE the content lives on (else the SYSTEM that owns the id)
+   and what KIND of thing it is. */
+const BR_SVC_NAME = { spotify: "Spotify", deezer: "Deezer", tidal: "Tidal",
+  youtube: "YouTube", apple: "Apple Music" };
+const BR_SYS_NAME = { so: "Sonos", ma: "Music Assistant", ha: "Home Assistant" };
+const BR_KIND_ONE = { playlist: "Playlist", album: "Album", artist: "Artist",
+  track: "Track", genre: "Genre", podcast: "Podcast", channel: "Radio",
+  directory: "Folder", movie: "Film", tv_show: "Show" };
+function brSubOf(c, svc, src) {
+  const who = (svc && (BR_SVC_NAME[svc] || cap(svc))) ||
+    (src && BR_SYS_NAME[src]) || "";
+  const kind = BR_KIND_ONE[c.media_class] || "";
+  return who && kind ? who + " · " + kind : who || kind;
+}
+
 /* CHIP ORDER (v0.62 — Suresh: "Can we change the order of the media
    sections"). Until now the SOURCE decided: Sonos hands back Albums /
    Playlists / Radio / Tracks and we never sorted, so that is what you
@@ -4789,6 +5036,8 @@ function browseBar() {
     b.addEventListener("click", ev => { ev.stopPropagation(); brKbToggle(); }));
   bar.querySelectorAll("[data-brqx]").forEach(b =>
     b.addEventListener("click", ev => { ev.stopPropagation(); brSearchToggle(); }));
+  /* the D-pad's ring survives a bar re-render (v0.85.7) */
+  brBarPaint();
   /* horizontal SWIPE on the grid steps categories (touch) */
   if (!browseBar._swipe) {
     browseBar._swipe = true;
@@ -4804,6 +5053,106 @@ function browseBar() {
         brStepCat(dx < 0 ? 1 : -1);
     }, { passive: true });
   }
+}
+
+/* ================================================================
+   BAR FOCUS (v0.85.7 — Suresh: "In Music Library I have no way of
+   getting to the top row: Favorites, Music Library, Search other
+   than touch. The dpad should go there if I'm on the first Library
+   item tile and hit up. Maybe it goes through the section row too.
+   And once there left and right navigate me. If I hit down, I go
+   back to the first tile.")
+
+   A focus LAYER for #brbar, library-only — the hero-chips "tab row
+   is not a D-pad stop" doctrine (2026-08-19) stands everywhere
+   else. Rows, top to bottom: the roots row (Favorites · Music
+   Library · Search · ⟳) and the category chips. ▲ from the top of
+   the grid enters at the chips; ▲ again climbs to the roots; ▼
+   walks back down and lands on the first item tile. ◀▶ move within
+   a row, OK presses the button, Back drops the layer.
+   State: S.browse.bf = { r, i } (row / index), null when inactive.
+   ================================================================ */
+function brBarRows() {
+  const bar = document.getElementById("brbar");
+  if (!bar) return [];
+  const rows = [];
+  const roots = [];
+  bar.querySelectorAll(".brrow .brroot").forEach(x => roots.push(x));
+  if (roots.length) rows.push(roots);
+  const chips = [];
+  bar.querySelectorAll(".brchips .brchip").forEach(x => chips.push(x));
+  if (chips.length) rows.push(chips);
+  return rows;
+}
+function brBarPaint() {
+  const bar = document.getElementById("brbar");
+  if (!bar) return;
+  bar.querySelectorAll(".brfocus").forEach(x => x.classList.remove("brfocus"));
+  const bf = S.browse.bf;
+  if (!bf) return;
+  const rows = brBarRows();
+  const row = rows[bf.r];
+  if (!row) { S.browse.bf = null; return; }
+  const el = row[Math.min(bf.i, row.length - 1)];
+  if (!el) return;
+  el.classList.add("brfocus");
+  if (typeof stripScrollTo === "function" && el.parentNode)
+    stripScrollTo(el.parentNode, el);
+}
+/* enter the layer — called when ▲ finds no tile above (input.js) */
+function brBarEnter() {
+  const B = S.browse;
+  if (!B._active || B.qon) return false;
+  const rows = brBarRows();
+  if (!rows.length) return false;
+  B.bf = { r: rows.length - 1, i: 0 };   /* the row nearest the grid */
+  if (typeof setFocus === "function") setFocus(null);
+  brBarPaint();
+  return true;
+}
+/* the layer's own key handling — consumes only while active */
+function brBarKey(button) {
+  const B = S.browse;
+  const bf = B.bf;
+  if (!bf) return false;
+  if (!B._active || B.qon) { B.bf = null; return false; }
+  const rows = brBarRows();
+  if (!rows.length) { B.bf = null; return false; }
+  if (bf.r >= rows.length) bf.r = rows.length - 1;
+  const row = rows[bf.r];
+  if (bf.i >= row.length) bf.i = row.length - 1;
+  if (button === "left" || button === "right") {
+    bf.i = Math.max(0, Math.min(row.length - 1,
+      bf.i + (button === "right" ? 1 : -1)));
+    brBarPaint();
+    return true;
+  }
+  if (button === "up") {
+    if (bf.r > 0) { bf.r--; brBarPaint(); }
+    return true;                       /* top row: ▲ stays — no way out up */
+  }
+  if (button === "down" || button === "back") {
+    if (button === "down" && bf.r < rows.length - 1) {
+      bf.r++; brBarPaint(); return true;
+    }
+    /* off the bottom (or Back): hand the ring back to the first tile */
+    B.bf = null;
+    brBarPaint();
+    const first = document.querySelector("#grid .tile");
+    if (first && first.id && first.id.indexOf("tile_") === 0 &&
+        typeof setFocus === "function")
+      setFocus(first.id.slice(5));
+    return true;
+  }
+  if (button === "select") {
+    row[bf.i].click();
+    /* the press may re-render the bar (chip/root selection) — the
+       paint above re-finds the ring; keep the layer alive so ▼ still
+       means "down to the grid" */
+    brBarPaint();
+    return true;
+  }
+  return false;
 }
 
 
@@ -5455,6 +5804,10 @@ function queueScreen(eid) {
     grid: { columns: 1 },
     tiles,
     initial_focus: (nowRow || tiles[0]).id,
+    /* land the playing row as ~the third visible row — two played
+       above, the upcoming below (Suresh: it parked at the bottom,
+       clipped) */
+    focus_context: true,
   };
 }
 
@@ -5689,7 +6042,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.85.6";
+const ENGINE_V = "0.85.7";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -5737,7 +6090,53 @@ function diagScreen() {
   const tok = !!localStorage.getItem("hakr_token");
 
   /* --- band 1: THE PANEL — the skin's ground truth --- */
+  /* THIS REMOTE'S IP first (v0.85.7 — Suresh: "Put the ip address in
+     the page (near the top)"). A webview can't learn its own LAN
+     address, but HA sees the caller on every request — the
+     integration's /api/harmonium/whoami just says it back. Fetched
+     once per boot, cached on S; the row re-renders when it lands.
+     The sub-line is the practical reason the number is here: Fully's
+     remote admin (the sanctioned door to its settings) lives at
+     http://<this ip>:2323. */
+  if (S.myIp === undefined) {
+    S.myIp = null;                                  // fetch in flight
+    const base = localStorage.getItem("hakr_host")
+      ? location.protocol + "//" + localStorage.getItem("hakr_host") : "";
+    fetch(base + "/api/harmonium/whoami", {
+      headers: { Authorization: "Bearer " + (localStorage.getItem("hakr_token") || "") },
+      cache: "no-store",
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        S.myIp = (j && j.ip) || "";
+        if (S.screen === "diag:") navigate("diag:", true);
+      })
+      .catch(function () { S.myIp = ""; });
+  }
+  /* THE ADDRESS THIS REMOTE SHOULD BOOT (v0.85.7 — Suresh: "what is
+     the correct url for the astrion? where in the app do we show
+     it?"). A kiosk has no address bar, so ⓘ says it: the workspace
+     STUB path, main included — it version-checks on every boot, so
+     a webview never wakes up on a stale cached engine. */
+  const engUrl = (localStorage.getItem("hakr_host")
+    ? location.protocol + "//" + localStorage.getItem("hakr_host")
+    : (location.origin && location.origin !== "null" ? location.origin : "")) +
+    "/local/harmonium/" +
+    ((typeof WS !== "undefined" && WS) || "main") + "/index.html" +
+    /* round 2 (Suresh: "previously you told me the url should append
+       the device — is this no longer the case?"): both are true —
+       #device= is a provisioning pin (stored, then stripped), so the
+       bare stub works once pinned. Showing the FULL form here makes
+       the ⓘ row copy-paste complete: configured in a kiosk it
+       re-pins every boot and survives cleared storage. */
+    (S.deviceName && S.deviceName !== "default"
+      ? "#device=" + encodeURIComponent(S.deviceName) : "");
   const panel = [
+    diagRow("dg_ip", "lan",
+      "This remote · " + (S.myIp ? S.myIp : S.myIp === null ? "…" : "unknown"),
+      S.myIp ? "Fully remote admin: http://" + S.myIp + ":2323"
+             : "asking Home Assistant for this device's address"),
+    diagRow("dg_url", "link", "This page · " + engUrl,
+      "point a kiosk/webview at exactly this address — it re-checks the engine version on every boot"),
     diagRow("dg_vp", "aspect_ratio", "Viewport " + window.innerWidth + " × " + window.innerHeight,
       "CSS px · the number a Studio skin's viewport wants"),
     diagRow("dg_dpr", "grid_4x4", "Pixel ratio " + dpr,
@@ -5841,14 +6240,17 @@ function diagScreen() {
     ? kc.rows.map((r, i) => diagRow("dg_k" + i, "keyboard_command_key", r.k, r.d))
     : null;
 
-  const sections = [];
-  if (keys) sections.push({ title: "Keys on " + kc.page,
-    hero_label: "Keys here", tiles: keys });
-  sections.push(
+  /* section order (v0.85.7 — Suresh: "The info page has got
+     annoying. Move all the keys to the bottom"): status first, the
+     key map LAST — it is the longest band and it was burying
+     everything else on every ⓘ tap. */
+  const sections = [
     { title: "The panel", hero_label: "The panel", tiles: panel },
     { title: "The build", hero_label: "The build", tiles: build },
     { title: "Home Assistant", hero_label: "Home Assistant", tiles: link },
-    { title: "Tools", hero_label: "Tools", tiles: tools });
+    { title: "Tools", hero_label: "Tools", tiles: tools }];
+  if (keys) sections.push({ title: "Keys on " + kc.page,
+    hero_label: "Keys here", tiles: keys });
 
   return {
     name: "Diagnostics", class: "group", view_kind: "diag",
@@ -6421,7 +6823,16 @@ WIDGETS.nav = {
     : `<div class="meter hidden"><i></i></div>`,
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
-  wire: (el, t) => el.classList.add("nav-" + navStyle(t)),
+  wire: (el, t) => {
+    el.classList.add("nav-" + navStyle(t));
+    /* image_opacity (v0.85.7 — "Need an opacity on those device
+       images like we do on the HERO card"): same semantic as the
+       banner knob — how much of the photo shows over the dark card.
+       Absent = the stylesheet's .85 default. */
+    const op = t.image_opacity;
+    if (op != null && isFinite(+op))
+      el.style.setProperty("--img-op", String(Math.max(0, Math.min(1, +op))));
+  },
   select: (e, t) => { if (t.target) navigate(t.target); else flashBar("No page linked yet"); },
 };
 
@@ -6567,27 +6978,14 @@ function mbPress(e, k) {
 
 /* BUTTONS strip — a row of named device keys (back/home/menu/…)
    sent via remote.send_command through cmdFor's command map. */
-WIDGETS.buttons = {
-    /* device button bar (2-4 slots): each slot is a logical dpad key
-       sent to `entity` through cmdFor — so the same bar emits UP vs
-       KEY_UP etc. per the active activity's dpad_commands. */
-    sub: () => "", isOn: () => false,
-    body: t => `<div class="btnrow">` +
-      (t.buttons || ["info", "menu", "back", "home"]).map(k =>
-        `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
-      ).join("") + `</div>`,
-    wire: (el, t) => wireTaps(el, "cmd", k => {
-      /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
-         is turning off the device, not the activity"): toggling the
-         activity keeps the select and the devices moving TOGETHER —
-         end (with the standard confirm) when it's running, start (the
-         full generated sequence) when it isn't. Raw device power is
-         what the PHYSICAL short-press power policy is for; pages with
-         no current activity keep the old device fallback.
-         v0.61: the PRESUMED activity counts here — the page you are
-         looking at is drawn as that activity, so the power button on
-         it starts that activity. Suresh's own sentence: "I can always
-         hit the power button to turn it on!" */
+/* fire one strip key — shared by touch taps (wire) and the D-pad's
+   roving select (v0.85.7 — Suresh: "a down DPAD press [should] go to
+   the next element even if its inside the tile"). The buttons strip
+   was the ONE composite row the pad could not operate: transport and
+   mediabtns rove, this strip was touch-only — its inner back/menu/
+   home keys were unreachable from a remote. Same grammar now: ◀▶
+   move the highlight, OK presses it, ▲▼ leave to the next tile. */
+function btnStripFire(t, k) {
       if (k === "power") {
         const aid = renderActivityId();
         const a = aid && (CONFIG.activities || {})[aid];
@@ -6602,7 +7000,38 @@ WIDGETS.buttons = {
         return;
       }
       rc(resolveEntity(t.entity), cmdFor(t, k));
-    })
+}
+WIDGETS.buttons = {
+    /* device button bar (2-4 slots): each slot is a logical dpad key
+       sent to `entity` through cmdFor — so the same bar emits UP vs
+       KEY_UP etc. per the active activity's dpad_commands. */
+    sub: () => "", isOn: () => false,
+    /* D-pad rove (v0.85.7): the coverbtns/transport model, attr "cmd" */
+    keys: {
+      left:  (e, t) => roveMove(t, "cmd", -1),
+      right: (e, t) => roveMove(t, "cmd", +1)
+    },
+    select: (e, t) => {
+      const k = rovePick(t, "cmd");
+      if (k) btnStripFire(t, k);
+    },
+    body: t => `<div class="btnrow">` +
+      (t.buttons || ["info", "menu", "back", "home"]).map(k =>
+        `<button class="dpbtn" data-cmd="${k}"><span class="material-symbols-outlined">${BTN_ICON[k] || k}</span></button>`
+      ).join("") + `</div>`,
+    /* ON-SCREEN power drives the ACTIVITY (v0.48.1 — Suresh: "Power
+       is turning off the device, not the activity"): toggling the
+       activity keeps the select and the devices moving TOGETHER —
+       end (with the standard confirm) when it's running, start (the
+       full generated sequence) when it isn't. Raw device power is
+       what the PHYSICAL short-press power policy is for; pages with
+       no current activity keep the old device fallback.
+       v0.61: the PRESUMED activity counts here — the page you are
+       looking at is drawn as that activity, so the power button on
+       it starts that activity. Suresh's own sentence: "I can always
+       hit the power button to turn it on!"
+       (Logic lives in btnStripFire, shared with the D-pad select.) */
+    wire: (el, t) => wireTaps(el, "cmd", k => btnStripFire(t, k))
   };
 
 /* ACTIVITY tile — one activity's face: lit from the room's activity
@@ -8425,6 +8854,15 @@ function iconHtml(t, row) {
     inner = `<img src="${t.icon_image}" alt=""` +
       (t.icontain ? ' class="contain"' : "") +
       (fb ? ` data-fbk="${fb}"` : "") + ">";
+    /* ART BOX (v0.85.7 — Suresh: "When artwork hasn't arrived the
+       library tiles default to squished"): the art-forward browse
+       tile sizes its art `height: auto`, which is 0 until the bytes
+       land — so a slow CDN collapsed the whole tile to its label.
+       Wrap the art in a square reserved via the padding trick (no
+       aspect-ratio on the Chromium-61 floor): correct size from the
+       first paint, placeholder ground while loading, and the broken-
+       image fallback icon centers in the same box. */
+    if (t.brw && !row) inner = `<span class="artbox">${inner}</span>`;
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
@@ -8511,6 +8949,8 @@ function makeTile(t, row, spanCols) {
       ? parseInt(th, 10) + "px" : String(th);
     if (/^[\d.]+(px|vh|vw|rem|em|%)$/.test(hv)) {
       el.style.height = hv;
+      el.style.minHeight = hv;   /* an explicit h beats a widget's min-height
+                                    (the photo card's 132px floor, v0.85.7) */
       el.style.setProperty("--tile-h", hv);   /* row-mode + inner sizing */
     }
   }
@@ -8518,6 +8958,30 @@ function makeTile(t, row, spanCols) {
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
      circle — see grid.css .tacc */
   if (t.color) el.style.setProperty("--tacc", t.color);
+  /* PER-TILE CSS VARIABLES (v0.85.7 — Suresh: "In advanced (JSON) how
+     would I change font size and weight? And is it possible to use
+     drop shadows?"). t.css_vars is a plain map of custom properties
+     set on THIS tile's element — the same mechanism the remote
+     profile's `style` uses, scoped to one card. Because the tile CSS
+     already reads its numbers through variables, overriding the
+     variable here restyles just this tile:
+       "--fs-1": "18px"      label font size
+       "--fw-1": "700"       label font weight
+       "--tile-shadow": "0 4px 14px rgba(0,0,0,.45)"   card drop shadow
+       "--lbl-shadow": "0 1px 3px rgba(0,0,0,.8)"      label text shadow
+     Only --names are accepted; values with ; or } are refused. */
+  /* LABEL POSITION (v0.85.7 — Suresh: "I could swear we used to have
+     a label location parameter"): we never did — now we do. Rides as
+     a class; today the photo nav card's overlay CSS consumes it
+     (bottom-left stays the default), other overlay widgets can join. */
+  if (t.label_pos && /^(top|center|bottom)(-(left|center|right))?$/.test(String(t.label_pos)))
+    el.classList.add("lp-" + t.label_pos);
+  if (t.css_vars && typeof t.css_vars === "object")
+    for (var vk in t.css_vars) {
+      var vv = String(t.css_vars[vk]);
+      if (vk.indexOf("--") === 0 && vv.indexOf(";") < 0 && vv.indexOf("}") < 0)
+        el.style.setProperty(vk, vv);
+    }
   const w = WIDGETS[t.type] || {};
   const extra = w.body ? w.body(t) : `<div class="meter hidden"><i></i></div>`;
   const body = `<div class="lbl">${t.label}</div>
@@ -8568,6 +9032,10 @@ function makeTile(t, row, spanCols) {
     sv.className = "svcb";
     sv.textContent = t.svc;
     el.appendChild(sv);
+    /* the service also rides as a CLASS (v0.85.7): the library's art
+       tiles draw it as a colored dot, the list rows as a colored
+       left bar — see grid.css .svc-spotify etc. */
+    el.classList.add("svc-" + t.svc);
   }
   el.addEventListener("click", () => {
     if (el._heldFired) { el._heldFired = false; return; }
@@ -8660,15 +9128,54 @@ function renderBanner(sc) {
    only protects the clip itself). Manual scrollTop math touches one
    scroller, full stop. mode "nearest" mirrors scrollIntoView's:
    already visible = no move. */
+/* the grid's USABLE bottom edge (v0.85.7 — Suresh, Fire TV: "when I
+   scroll using channel buttons, we are not measuring the viewport
+   with the back home strip. So a selected tile that sits underneath
+   that strip gets clipped"): the TV back/home strip and the
+   pad-borrow strip are position:fixed OVER the grid's bottom, so
+   the grid's own rect lies about where content is visible.
+   Subtract whichever overlay is showing — the scroll math reads
+   this, never gr.bottom, and a small breath keeps the tile's edge
+   off the strip's shadow. */
+function gridVisBottom(gr) {
+  let b = gr.bottom;
+  const ts = document.getElementById("tvstrip");
+  if (ts && !ts.classList.contains("hidden")) {
+    const t = ts.getBoundingClientRect().top;
+    if (t < b) b = t - 4;
+  }
+  const ps = document.getElementById("padstrip");
+  if (ps && !ps.classList.contains("hidden")) {
+    const t = ps.getBoundingClientRect().top;
+    if (t < b) b = t - 4;
+  }
+  return b;
+}
 function gridScrollTo(el, mode) {
   const gr = grid.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   if (mode === "nearest") {
+    const vb = gridVisBottom(gr);
     if (r.top < gr.top) grid.scrollTop += r.top - gr.top;
-    else if (r.bottom > gr.bottom) grid.scrollTop += r.bottom - gr.bottom;
+    else if (r.bottom > vb) grid.scrollTop += r.bottom - vb;
     return;
   }
-  grid.scrollTop += r.top - gr.top;      // "start"
+  /* "context" (v0.85.7 — Suresh, the queue: "why is [it] scrolled so
+     that Now Playing is at the bottom and clipped? best practice
+     would be… the third element, so we see two before and like 4
+     after"): the anchor lands as roughly the THIRD visible row —
+     two rows of what already played above, the upcoming list below.
+     The browser clamps a negative result to 0, so a row near the
+     top just shows the top. */
+  if (mode === "context") {
+    grid.scrollTop += r.top - gr.top - 2 * (r.height + 10) - 10;
+    return;
+  }
+  /* "start" keeps a breath of air above the anchor (v0.85.7 — Suresh:
+     "the first tile is pressed against the hero tile instead of
+     showing its normal little padding") — the browser clamps a
+     negative result to 0, so the top of the page is unhurt */
+  grid.scrollTop += r.top - gr.top - 10;
 }
 /* keep an active chip visible in a horizontal strip (2026-08-20 —
    Suresh: "When I change tabs in the library, an off screen tab
@@ -8693,6 +9200,7 @@ function buildHeroNav(jumps, strip) {
   const stripEl = document.createElement("div");
   stripEl.className = "hstrip";
   jumps.forEach((j, i) => {
+    if (j.chip === false) return;   // CH stop only — no banner tab
     const el = document.createElement("div");
     el.className = "hjump";
     el.dataset.fid = "hero_" + i;
@@ -8701,7 +9209,7 @@ function buildHeroNav(jumps, strip) {
     stripEl.appendChild(el);
     j.btn = el;
   });
-  bn.appendChild(stripEl);
+  if (stripEl.children.length) bn.appendChild(stripEl);
   grid.onscroll = updateSpy;
   updateSpy();
 }
@@ -8987,8 +9495,12 @@ function navigate(screenId, isBack) {
       S.browse.barTiles = secTiles.filter(x => x.type !== "browse");
       secTiles = secTiles.filter(x => x.type === "browse");
     }
-    const vis = surfOrderTiles(secTiles)              /* no flatMap: floor is Chromium 61 */
-      .reduce((a, t) => a.concat(expandTile(t)), [])
+    /* sectionDressTile FIRST (v0.85.7): the section's style defaults
+       (h / css_vars / label_pos / style) reach every tile that stays
+       silent — this render walk AND rawTilesOf both dress, so the
+       DOM build and the renderStates re-derivation agree. */
+    const vis = surfOrderTiles(secTiles.map(t => sectionDressTile(t, sec)))
+      .reduce((a, t) => a.concat(expandTile(t)), [])   /* no flatMap: floor 61 */
       .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
@@ -9047,8 +9559,14 @@ function navigate(screenId, isBack) {
       host.appendChild(el);
       anchorEl = anchorEl || el;
     });
-    if (sec.hero_label)
-      heroJumps.push({ label: sec.hero_label, firstId: vis[0].id, anchorEl });
+    /* v0.85.7 (Suresh: "ChUp and ChDn should jump sections. Since we
+       have them."): a TITLED section is a jump stop too — CH▲▼ can
+       step it. Only hero_label sections become visible chips in the
+       banner strip (chip: false rides along so buildHeroNav skips
+       the tab without breaking the shared index space). */
+    if (sec.hero_label || secTitle)
+      heroJumps.push({ label: sec.hero_label || secTitle,
+        firstId: vis[0].id, anchorEl, chip: !!sec.hero_label });
   });
   /* EMPTY-PAGE HINT (v0.47.1 — Suresh: "blank controller in browser"):
      a page with nothing to render says WHY instead of showing void —
@@ -9089,6 +9607,14 @@ function navigate(screenId, isBack) {
   const tvNoFocus = typeof padOwner === "function" && padOwner() === "device"
     && !(typeof padLatched === "function" && padLatched());
   setFocus(tvNoFocus ? null : (sc.initial_focus || (all[0] && all[0].id)));
+  /* focus_context (v0.85.7 — the queue's ask): a screen whose
+     initial_focus is deep in a list positions it as ~the third
+     visible row instead of "nearest" (which parked the playing
+     track at the bottom edge, clipped by the strips). */
+  if (sc.focus_context && S.focusId) {
+    const cel = focusEl(S.focusId);
+    if (cel && cel.closest("#grid")) gridScrollTo(cel, "context");
+  }
   S.tileSig = tileSig(sc);          // set BEFORE renderStates (see below)
   renderStates();
   scheduleFit();
@@ -9117,7 +9643,10 @@ function navigate(screenId, isBack) {
    off the activity? Or Go Back a page? Or go home?"): Home + End live
    in the title bar on TOUCH clients; physical-key remotes have real
    keys, so the bar stays clean there. End shows while an activity is
-   current (select or pending) and rides the standard confirm flow. */
+   current (select or pending) and rides the standard confirm flow.
+   (2026-08-26: a "show on any touch-capable remote" variant was
+   tried and REVERTED at Suresh's call — hardware remotes keep the
+   clean bar; ending there is hold-Power or hold on the tile.) */
 function updateBarChrome() {
   const touchOnly = !CAPS.has("physical_dpad");
   const home = document.getElementById("homeBtn");
@@ -9313,6 +9842,25 @@ function spatialMove(dir) {
        in, the D-pad can't reach them at all, which is the intent. */
     if ((dir === "up" || dir === "down") &&
         String(f.id).indexOf("hero_") === 0) return;
+    /* TRAILS IN THE WALK (v0.85.7, refined twice — Suresh on the TV
+       hero: "no DPAD key gets me to the Library button… Right takes
+       me down to the Fire TV DEVICE with the settings area
+       selected"). Three truths, one rule:
+         1. ANOTHER tile's trail is never a walk stop — that was the
+            "Right jumps to a ⚙ far below" bug (the only dx>8
+            candidate on a single-column page was a distant corner
+            badge).
+         2. A tile's OWN trail is always reachable HORIZONTALLY.
+         3. Vertically, the own trail counts only when it is a real
+            ROW (the hero's full-width "Library" door), never a
+            corner badge (the browse ▶, 28px — stepping on those
+            broke the library's ▲-into-the-bar entry). Width is the
+            honest discriminator between the two shapes. */
+    if (isTrailId(f.id)) {
+      if (f.id !== S.focusId + TRAIL) return;            /* not mine */
+      if ((dir === "up" || dir === "down") && f.el.offsetWidth < 100)
+        return;                                          /* corner badge */
+    }
     const r = f.el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     const dx = x - cx, dy = y - cy;
@@ -9594,6 +10142,11 @@ function padStrip() {
   if (!el) return;
   const on = padLatched();
   el.classList.toggle("hidden", !on);
+  /* the grid's bottom padding must clear BOTH strips while the
+     borrow is on (v0.85.7 — Suresh: a Ch-scrolled tile "sits
+     underneath that strip [and] gets clipped"): #app carries the
+     state class (CH-61: no :has()), grid.css sizes the padding. */
+  document.getElementById("app").classList.toggle("padstrip-on", on);
   /* the final second is a VISIBLE DRAIN (spec §6.4): the strip warns
      that the next press hands the pad back to the device */
   el.classList.toggle("draining", on && (S.padLatch - Date.now()) <= 1000);
@@ -9738,7 +10291,8 @@ function keymapCardRows() {
     d: pt ? "Device home · hold = Harmonium" : "Harmonium home" });
   const bm = bb.menu;
   rows.push({ k: "Menu",
-    d: bm ? keymapActionDesc(bm) : (deviceKeyTarget() ? "Device menu" : "—") });
+    d: bm ? keymapActionDesc(bm)
+      : (deviceKeyTarget() ? "Device menu" : "Open the focused tile's page") });
   const vt = resolveEntity("$context.volume");
   rows.push({ k: "Vol + − · Mute",
     d: vt ? "→ " + keymapFriendly(vt) : "nothing wired" });
@@ -9798,15 +10352,23 @@ function act(button, phys) {
 
   switch (button) {
     case "up": case "down": {
+      /* the library BAR layer (v0.85.7 — brBarKey in browse.js):
+         while it holds the ring, it owns the pad */
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       /* an OPTIONS tile paints a roving highlight; repaint when the
          walk leaves it so the outline doesn't linger (chips clear
          their rove state in render when unfocused) */
       const was = S.focusId;
-      spatialMove(button);
+      const moved = spatialMove(button);
+      /* ▲ off the top of the library grid climbs INTO the bar (his
+         #8: chips first, roots above, ▼ walks back to the first tile) */
+      if (!moved && button === "up" &&
+          typeof brBarEnter === "function" && brBarEnter()) break;
       blurRove(was);
       break;
     }
     case "left": case "right": {
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       /* widget-owned ◀▶ while merely FOCUSED (no capture) — e.g.
          coverbtns' roving highlight, or a volume tile's level
          (round 4 field call: "DPad left and Right SHOULD" change
@@ -9824,6 +10386,7 @@ function act(button, phys) {
       break;
     }
     case "select": {
+      if (typeof brBarKey === "function" && brBarKey(button)) break;
       if (typeof S.focusId === "string" && S.focusId.startsWith("hero_")) {
         heroActivate(S.focusId); break;
       }
@@ -9842,15 +10405,37 @@ function act(button, phys) {
       break;
     }
     case "back":
+      if (typeof brBarKey === "function" && brBarKey("back")) break;
       padClear();          // Back hands the pad home AND does its job
       if (S.confirmTile) { clearConfirm(); renderStates(); break; }
-      if (S.stack.length) navigate(S.stack.pop(), true);
+      if (S.stack.length) { navigate(S.stack.pop(), true); break; }
+      /* NO HISTORY → UP ONE LEVEL (v0.85.7 — Suresh: "what do we
+         want back button behaviour to be? Prior page or up one
+         level?" Answer: both. Prior page when history exists — Back
+         retraces where you actually were, sideways jumps included.
+         With NO history — a boot or deep link straight onto a child
+         page — Back climbs one level instead of doing nothing.
+         Stops at the boot view; it never jumps past it to the
+         overview (that's Home's job). */
+      {
+        const bsc = screenOf(S.screen) || {};
+        const bdest = (bsc.parent && screenOf(bsc.parent)) ? bsc.parent
+          : (S.screen !== CONFIG.home_screen ? CONFIG.home_screen : null);
+        if (bdest && screenOf(bdest) && bdest !== S.screen)
+          navigate(bdest, true);
+      }
       break;
     case "back_hold": case "home_hold": {
       /* SHELL-OWNED hold gesture: KeyMapper maps a physical long-press
          to a distinct key (see keymap), because injected keys don't
          deliver reliable keyup/hold timing to the webview. Sends the
          DEVICE's back/home; degrades to tap without a device target. */
+      /* v0.85.7: the OPEN VOCABULARY reaches the hold keys too — a
+         screen/global `buttons` binding on back_hold/home_hold wins
+         (e.g. home_hold → {navigate: overview} = "hold Home jumps
+         straight to the top"), then the device-key default. */
+      const bhb = boundButtons()[button];
+      if (bhb) { runAction(bhb); break; }
       const base = button === "back_hold" ? "back" : "home";
       const tgt = deviceKeyTarget();
       if (tgt) rc(tgt, cmdFor({}, base));
@@ -9884,7 +10469,27 @@ function act(button, phys) {
       if (bm) { runAction(bm); break; }
       const mt = deviceKeyTarget();
       if (mt) { rc(mt, cmdFor({}, "menu")); break; }
-      heroCycle(1, true);
+      /* v0.85.7 (Suresh: "The menu button should do nothing, unless
+         the active tile has a subpage, in which case it should fire
+         that page (like lights or climate etc)"). The category tour
+         is gone — MENU opens the FOCUSED tile's own page: a nav
+         card's target, an activity tile's controller, a device
+         tile's hold destination (explicit/inferred page, else its
+         detail: page). Nothing focused, or nothing behind the tile
+         → deliberate no-op. */
+      const mft = tileDef(S.focusId);
+      if (!mft) break;
+      let mdest = null;
+      if (mft.type === "nav") mdest = mft.target || null;
+      else if (mft.type === "activity") {
+        const ma = (CONFIG.activities || {})[mft.activity] || {};
+        mdest = ma.screen || ma.view || null;
+      } else if (mft.entity) {
+        const me = resolveEntity(mft.entity);
+        mdest = (typeof deviceTarget === "function" && deviceTarget(mft)) ||
+          (me ? "detail:" + me : null);
+      }
+      if (mdest) navigate(mdest);
       break;
     }
     case "home": {
@@ -10035,7 +10640,14 @@ function act(button, phys) {
            without a jump falls back to the walk */
         if (browseScreen() &&
             typeof brStepCat === "function" && brStepCat(d)) break;
-        if (musicSurface() && heroCycle(d)) break;
+        /* v0.85.7 (Suresh: "On a Page like Porch, ChUp and ChDn
+           should jump sections. Since we have them."): the music
+           doctrine's short-CH section jump is now EVERY panel-native
+           page's — any page with jump stops (hero_label or titled
+           sections) steps them; pages without jumps keep the walk.
+           TV/passthrough pages keep the walk too — there CH is the
+           panel's only walk (the pad belongs to the device). */
+        if (padOwner() !== "device" && heroCycle(d)) break;
         { const wasCh = S.focusId;
           spatialMove(button === "ch_up" ? "up" : "down");
           blurRove(wasCh); }
@@ -10126,9 +10738,21 @@ function act(button, phys) {
    — to diagnose what the shell/KeyMapper actually delivers. */
 const DBG = { on: false, lines: [], last: 0 };
 function dbgInit() {
-  DBG.on = !!(CONFIG && CONFIG.global && CONFIG.global.debug) ||
-    localStorage.getItem("hakr_debug") === "1";
+  /* THE HAUNTED PREVIEW (v0.85.7 — Suresh: "Ugh. Preview page is
+     defaulting to debug"). hakr_debug is deliberately sticky per
+     BROWSER — but the Studio preview shares the desktop browser's
+     origin, so one #debug=1 experiment in a tab haunted the preview
+     forever. In PREVIEW the card now follows the config's own Key
+     debug switch ONLY (live, togglable from the page settings);
+     localStorage stays the sticky device-side door. And init resets
+     the lines — it re-runs on every preview config push, and each
+     run stacked another "debug on" banner line. */
+  const cfgOn = !!(CONFIG && CONFIG.global && CONFIG.global.debug);
+  DBG.on = (typeof PREVIEW !== "undefined" && PREVIEW)
+    ? cfgOn
+    : cfgOn || localStorage.getItem("hakr_debug") === "1";
   document.getElementById("dbg").classList.toggle("hidden", !DBG.on);
+  DBG.lines = []; DBG.last = 0;
   if (DBG.on) dbgLog("debug on · press keys…");
 }
 function dbgLog(msg) {
@@ -10551,6 +11175,49 @@ document.getElementById("connectBtn").addEventListener("click", () => {
        { type: "harmonium_applied", screen }           config rendered */
 let PREVIEW = false;
 let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
+let PAGE_JUMP = null; // #page=<id> — deep link, this load only
+let BOOT_V = null;    // the ?v= engine hash this load booted with
+
+/* ENGINE SELF-UPDATE (v0.85.7 — Suresh: "Are you sure about your
+   never reload again? I find I have to clear cache and reload from
+   fully in HA, to get it to stick."). The versioned stub address
+   guarantees a fresh engine on every pass through the Start URL —
+   but it never made a RUNNING webview take that pass, and Fully's
+   plain Reload reloads the current page, not the Start URL. So the
+   engine closes the loop itself: whenever the socket (re)connects or
+   the page wakes from hidden, ask the integration for the deployed
+   engine's fingerprint (no-store, same endpoint the stub uses) and,
+   if it differs from the hash this page booted with, re-enter
+   through the stub. The canonical-address rewrite below already
+   makes location.reload() re-enter the stub, so the reload IS the
+   upgrade. Guards: never in the PREVIEW (the Studio version-busts
+   its own iframe); only when this load carried a ?v= (a bare boot
+   has nothing to compare — and note every STUB boot is a pin=0
+   "peek", so WS_PEEK must NOT gate this); one attempt per target
+   hash (sessionStorage) so a racing deploy can never loop the
+   page; checked at most once a minute. */
+function engineUpdateCheck() {
+  if (PREVIEW || !BOOT_V) return;
+  const now = Date.now();
+  if (engineUpdateCheck._t && now - engineUpdateCheck._t < 60000) return;
+  engineUpdateCheck._t = now;
+  const x = new XMLHttpRequest();
+  x.open("GET", "/api/harmonium/engine_version?t=" + now, true);
+  x.timeout = 5000;
+  x.onreadystatechange = () => {
+    if (x.readyState !== 4 || x.status !== 200) return;
+    let v = null;
+    try { v = JSON.parse(x.responseText).v; } catch (e) { return; }
+    if (!v || v === BOOT_V) return;
+    let tried = null;
+    try { tried = sessionStorage.getItem("hakr_upg"); } catch (e) {}
+    if (tried === v) return;   /* already went once for this target */
+    try { sessionStorage.setItem("hakr_upg", v); } catch (e) {}
+    location.reload();         /* the address bar is the stub — this
+                                  re-resolves ?v= and boots the new engine */
+  };
+  try { x.send(); } catch (e) {}
+}
 function applyConfig(cfg, devName) {
   CONFIG = cfg;
   if (!devName) devName = localStorage.getItem("hakr_device");
@@ -10644,7 +11311,16 @@ function previewListen() {
        looking at Bedroom doesn't silently make this THE Bedroom
        remote. The hash stays put so a refresh stays on the peek. */
     const pPeek = clean(prov.get("pin")) === "0";
+    /* DEEP LINK (v0.85.7 — forum: "is there a way to open subpages by
+       URL? I have a main page that links to the different rooms"):
+       #page=<page id> jumps to that page after load, THIS load only —
+       nothing is pinned, so a bookmark per room just works in a
+       browser and a kiosk stays on its normal flow. Composable with
+       the other params (#ws=…&page=…). The id is the page id shown in
+       the Studio; unknown ids flash a notice and land on home. */
+    PAGE_JUMP = clean(prov.get("page")) || null;
     PREVIEW = clean(prov.get("preview")) === "1";
+    BOOT_V = clean(prov.get("v")) || null;   /* the stub's ?v= — self-update baseline */
     if (pHost) localStorage.setItem("hakr_host", pHost);
     if (pTok) localStorage.setItem("hakr_token", pTok);
     if (pDev && !PREVIEW) localStorage.setItem("hakr_device", pDev);
@@ -10685,10 +11361,30 @@ function previewListen() {
   if (/\/index\.html$/.test(location.pathname) &&
       !location.pathname.endsWith("/" + loaded.ws + "/index.html") &&
       (!WS_PEEK || loaded.ws === WS_PEEK))
-    history.replaceState(null, "", loaded.ws + "/index.html");
+    history.replaceState(null, "", loaded.ws + "/index.html" +
+      (PAGE_JUMP ? "#page=" + encodeURIComponent(PAGE_JUMP) : ""));
   applyConfig(loaded.cfg, localStorage.getItem("hakr_device"));
+  if (PAGE_JUMP) {
+    if ((CONFIG.screens || {})[PAGE_JUMP]) navigate(PAGE_JUMP);
+    else flashBar("No page '" + PAGE_JUMP + "'", "off");
+  }
   if (loaded.missed)
     flashBar("Workspace '" + loaded.missed + "' not deployed — using main", "off");
+  /* THE BACK-KEY MOAT (v0.85.7 — Suresh: "On the Astrion, long press
+     back seems to reload the page"). When a long-press falls through
+     the shell's key mapping, the OS delivers a NATIVE Back — the
+     webview pops browser history and the page unloads (a "reload"
+     from the couch). Arm one sentinel entry so history-back always
+     lands somewhere that is still us: the popstate re-arms itself
+     and runs the panel's own Back instead. Desktop browser-back
+     inside the remote does the same, which is what a remote wants. */
+  try {
+    history.pushState({ hakr: 1 }, "", location.href);
+    window.addEventListener("popstate", function () {
+      try { history.pushState({ hakr: 1 }, "", location.href); } catch (e2) {}
+      if (typeof act === "function") act("back", true);
+    });
+  } catch (e3) {}
   connect();
 })();
 
