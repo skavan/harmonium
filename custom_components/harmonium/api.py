@@ -6,6 +6,7 @@ validator they share with the reseed path. async_setup_entry wires
 them (split out of __init__.py, v0.83.11)."""
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from pathlib import Path
@@ -19,6 +20,7 @@ from .const import DEPLOY_DIR
 from .packaging import STOCK_SUBDIR, USER_SUBDIR
 from .store import HarmoniumStore, engine_fingerprint
 from .catalogs import merge_config, subtract_config
+from .workspaces import unwire_activity_selects
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -234,7 +236,12 @@ class HarmoniumConfigView(HomeAssistantView):
         # (the never-write-merged contract). An entry equal to stock
         # lifts out; a missing stock key becomes a tombstone; the
         # deploy below still carries the full effective config.
-        data["workspaces"][ws] = subtract_config(self.hstore.stock(), config)
+        # the Studio was SERVED derived activity_select wiring (get_ws);
+        # strip what still equals the derivation so the store stays
+        # derivation-clean and page renames keep self-healing.
+        data["workspaces"][ws] = subtract_config(
+            self.hstore.stock(),
+            unwire_activity_selects(copy.deepcopy(config), ws))
         data["meta"].setdefault(ws, {"name": "Main" if ws == MAIN else ws})
         if ws not in data["order"]:
             data["order"].append(ws)

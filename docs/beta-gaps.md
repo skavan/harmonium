@@ -272,6 +272,8 @@ four videos · key map regenerated with all hold gestures.
 
 ### 6.3 New cards (the widget gap list — 2026-08-21, Suresh)
 
+**Promoted design (2026-08-30):** Number, Select, Launcher fallback, deterministic per-control variants, and visual `card_group` composition are specified in `docs/design-entity-controls.md`. That design requires one adapter/variant catalog and one canonical descriptor vocabulary across both Activities → Cast → Devices and regular Devices sections. Weather remains in this broader domain backlog and requires a separate fetch/cache/staleness design.
+
 Inventory of missing/thin tile types, roughly by expected demand:
 
 - **Lock** — state + lock/unlock (confirm on unlock), jammed state.

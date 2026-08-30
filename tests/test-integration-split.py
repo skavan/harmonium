@@ -137,6 +137,28 @@ _w3 = wire_activity_selects(json.loads(json.dumps(_wcfg)), "main")
 check("wire: an explicit select is never overridden",
       _w3["screens"]["deck"]["activity_select"] == "input_select.legacy")
 
+# ---- unwire: the write-boundary inverse (the Studio is SERVED wired
+# configs; what it posts back must not bake the derivation) ----
+from harmonium.workspaces import unwire_activity_selects  # noqa: E402
+
+_ucfg = {                       # fresh fixture — _wcfg was mutated above
+    "screens": {"porch": {"room": True}, "deck": {"room": True}},
+    "activities": {"pw": {"room_view": "porch"}, "dw": {"room_view": "deck"}},
+    "global": {},
+}
+_uw = wire_activity_selects(json.loads(json.dumps(_ucfg)), "main")
+_uw["screens"]["porch"]["activity_select"] = "input_select.legacy_porch"
+_uw2 = unwire_activity_selects(json.loads(json.dumps(_uw)), "main")
+check("unwire: derived value stripped",
+      "activity_select" not in _uw2["screens"]["deck"])
+check("unwire: an explicit different value survives",
+      _uw2["screens"]["porch"]["activity_select"]
+      == "input_select.legacy_porch")
+check("unwire(wire(cfg)) round-trips to the original",
+      unwire_activity_selects(
+          wire_activity_selects(json.loads(json.dumps(_ucfg)), "main"),
+          "main") == _ucfg)
+
 # ---- service wiring: register 4, remove 4 ----
 class FakeServices:
     def __init__(self): self.reg = {}

@@ -1080,6 +1080,9 @@ export const STOCK_DIALECTS = {
       "hulu": {
         "source": "com.hulu.plus"
       },
+      "disney": {
+        "source": "com.disney.disneyplus"
+      },
       "fubo": {
         "source": "com.fubo.firetv.screen"
       },

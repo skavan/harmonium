@@ -4,7 +4,7 @@
 
 ## Ship-blocking (required for 0.86.0)
 
-- [ ] Finish + verify **layered catalogs** — the headline feature is WIP in the tree. Finalize the one-time migration and the Studio provenance chips; lift `docs/releases/release-notes-v0.86.0.md` out of DRAFT.
+- [ ] **Layered catalogs: verified + extended (2026-08-30).** Test surface green (`test-layered-catalogs.py` ALL PASS incl. 15 new derivation fences, `probe-catalog-provenance` ok) and the migration already ran live (the `prelayers.backup` files in www are its receipts). NEW this round, per the derivation ruling: **derived classes** (`derived_from` — deltas over the shipped parent; merge + subtract in `catalogs.py`; ⑂ Derive / View parent / Reset to parent / adopt-activities in the editor), **action-valued D-pad fields** (⚡ chip + JSON editor; kills the `[object Object]` data-loss trap; ⚡ convert button on every key), **stock/yours visual separation** + section renamed **Platforms**; design doc + release notes updated. Notes now carry today's work (Fixed section, Disney+, derived classes, remotes toolkit) — Remaining: Suresh reviews and de-DRAFTs. Tester reply drafted: `docs/posts/reply-beta-feedback-v0.86.md` (post after tagging).
 - [ ] Bump `custom_components/harmonium/manifest.json` `0.86.0-dev` → `0.86.0` (the tag must match).
 - [ ] Run `make-release.bat` (build Studio + engine, bundle into the integration).
 - [ ] Run the test probes (`tests/*.mjs`) green after the build — engine `src/` changed this cycle, so confirm no regressions.

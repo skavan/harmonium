@@ -9,6 +9,16 @@ definition. Full spec: docs/design-layered-catalogs.md.
 
 Scope (0.86.0): the ``apps`` master list and ``dialects``. The merge
 grain, per the spec's rulings:
+  - DERIVED dialects (2026-08-30, Suresh: "clone the FireTV, edit the
+    dpad stuff, call it FireTV-SE"): a user dialect whose id is NOT
+    stock may carry ``derived_from: <stock id>`` — it then stores only
+    its DELTAS and resolves with the same two-level merge an edited
+    stock dialect uses, against the SHIPPED parent (never the user's
+    edited copy of it). New stock apps flow into every derivative;
+    the derivative's edits win; its tombstones hold. One level deep:
+    the parent must be a stock id — an unknown/non-stock parent makes
+    the entry the user's own, passed through untouched. A user-layer
+    tombstone of the parent hides the PARENT, never the derivative.
   - apps: per entry;
   - dialects: two-level — the dialect map merges per dialect id, and
     inside a stock dialect the ``apps``/``keys`` sub-catalogs merge
@@ -158,8 +168,16 @@ def merge_catalogs(stock: dict, user_apps, user_dialects) -> tuple:
                 continue                       # whole-dialect tombstone
             dialects[did] = _merge_dialect(s_dial[did], u_dial[did])
         elif did in u_dial:
-            if u_dial[did] is not None:
-                dialects[did] = u_dial[did]    # user's own dialect
+            if u_dial[did] is None:
+                continue
+            entry = u_dial[did]
+            parent = entry.get("derived_from") if isinstance(entry, dict) \
+                else None
+            if parent in s_dial:
+                # DERIVED: deltas over the SHIPPED parent (see module doc)
+                dialects[did] = _merge_dialect(s_dial[parent], entry)
+            else:
+                dialects[did] = entry          # user's own dialect
         else:
             dialects[did] = s_dial[did]
     return apps, dialects
@@ -259,6 +277,14 @@ def subtract_config(stock: dict, cfg: dict) -> dict:
                 sub = _subtract_dialect(s_dial[did], d)
                 if sub:
                     dialects[did] = sub
+            elif isinstance(d, dict) and d.get("derived_from") in s_dial:
+                # DERIVED: subtract against the shipped parent so the
+                # layer keeps only deltas + the marker (which is never
+                # in stock, so it always survives and keeps the entry
+                # alive) — the never-write-merged contract holds for
+                # derivatives too.
+                dialects[did] = _subtract_dialect(
+                    s_dial[d["derived_from"]], d)
             else:
                 dialects[did] = d
         for did in s_dial:

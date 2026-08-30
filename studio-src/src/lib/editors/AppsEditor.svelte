@@ -43,8 +43,79 @@
      with View stock (copy-paste) and Reset to stock as the doors. */
   let stockView = $state({});
   const isStockId = (cid) => !!STOCK_DIALECTS[cid];
+  /* DERIVED CLASSES (v0.86 — Suresh: "clone the FireTV, edit the dpad
+     stuff, call it FireTV-SE"): a non-stock class carrying
+     derived_from=<stock id> stores only DELTAS server-side and keeps
+     tracking the shipped parent underneath (additions flow, your
+     edits win, your removals hold — the same spread, one level out).
+     stockIdOf() is the one question every provenance helper asks:
+     which stock entry does this class answer to? */
+  const stockIdOf = (cid, c) =>
+    isStockId(cid) ? cid
+    : c && STOCK_DIALECTS[c.derived_from] ? c.derived_from : null;
   const dialectEdited = (cid, c) =>
     isStockId(cid) && unitFp(c) !== unitFp(STOCK_DIALECTS[cid]);
+  function deriveClass(cid) {
+    let nid = cid + "_custom", n = 2;
+    while (classes[nid]) nid = cid + "_custom" + n++;
+    const cp = JSON.parse(JSON.stringify(classes[cid]));
+    cp.derived_from = cid;
+    cp.name = (classes[cid].name || cid) + " — derived";
+    app.draft.dialects[nid] = cp;
+    clsOpen[nid] = true;
+    setStatus("derived class '" + nid + "' created — stock " + cid +
+      " keeps flowing underneath; only your changes stick", "ok");
+    edit();
+  }
+  function adoptActivities(cid, parent) {
+    let n = 0;
+    for (const a of Object.values(app.draft.activities || {}))
+      if (a.context?.dialect === parent) { a.context.dialect = cid; n++; }
+    setStatus(n ? n + " activit" + (n === 1 ? "y" : "ies") +
+      " repointed to " + cid
+      : "no activities were speaking " + parent, n ? "ok" : "err");
+    edit();
+  }
+  function resetDerived(cid, parent) {
+    const cp = JSON.parse(JSON.stringify(STOCK_DIALECTS[parent]));
+    cp.derived_from = parent;
+    cp.name = classes[cid].name || cp.name;
+    app.draft.dialects[cid] = cp;
+    setStatus("derived class reset — it matches stock " + parent +
+      " exactly again (your name kept)", "ok");
+    edit();
+  }
+  /* stock vs yours, separated visually (v0.86 — Suresh) */
+  const classGroups = $derived.by(() => {
+    const stock = [], yours = [];
+    for (const pair of Object.entries(classes || {}))
+      (isStockId(pair[0]) ? stock : yours).push(pair);
+    return [
+      { key: "stock", label: "Built-in platforms",
+        hint: "ship with Harmonium — untouched entries keep updating",
+        items: stock },
+      { key: "yours", label: "Your platforms",
+        hint: "derived + your own — updates never touch your changes",
+        items: yours },
+    ];
+  });
+  let appsOpen = $state({});
+  /* ACTION-VALUED D-PAD COMMANDS (v0.86 — the fast-dpad payload; a
+     beta unit showed "[object Object]" here and one keystroke would
+     have DESTROYED the action). An object value renders as a chip +
+     JSON editor, never as a coercible string. */
+  const isActionCmd = (v) => v !== null && typeof v === "object";
+  const dpadSummary = (v) =>
+    (v?.service || v?.action || "action") +
+    (v?.data?.command ? " · " + String(v.data.command).slice(0, 44) : "");
+  let dpadJson = $state({});
+  function makeDpadAction(c, cid, k) {
+    if (!c.dpad_commands) c.dpad_commands = {};
+    c.dpad_commands[k] = { service: "androidtv.adb_command",
+      entity: "$context.media_player", data: { command: "" } };
+    dpadJson[cid + "|" + k] = true;
+    edit();
+  }
   function resetDialect(cid) {
     app.draft.dialects[cid] = JSON.parse(JSON.stringify(STOCK_DIALECTS[cid]));
     stockView[cid] = false;
@@ -58,25 +129,28 @@
      (yours now, reset offered), no stock id = yours. A stock entry
      absent from the config is HIDDEN (a tombstone server-side) and
      restorable from the list below the entries. */
-  const stockEntry = (cid, aid) =>
-    ((STOCK_DIALECTS[cid] || {}).apps || {})[aid];
+  /* sref = the stock id this class answers to (itself, or its
+     derived_from parent) — so per-entry chips, resets and hidden
+     built-ins work identically on stock, edited AND derived classes */
+  const stockEntry = (sref, aid) =>
+    ((STOCK_DIALECTS[sref] || {}).apps || {})[aid];
   const asEntry = (e) => (typeof e === "string" ? { source: e } : e);
-  const entryProv = (cid, aid, e) => {
-    const s = stockEntry(cid, aid);
+  const entryProv = (sref, aid, e) => {
+    const s = stockEntry(sref, aid);
     if (!s) return "yours";
     return unitFp(asEntry(e)) === unitFp(s) ? "stock" : "edited";
   };
-  function resetEntry(cid, aid) {
-    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(cid, aid)));
+  function resetEntry(cid, sref, aid) {
+    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(sref, aid)));
     setStatus("entry reset to built-in — stock updates keep it current", "ok");
     edit();
   }
-  const hiddenEntries = (cid, c) =>
-    Object.keys((STOCK_DIALECTS[cid] || {}).apps || {})
+  const hiddenEntries = (sref, c) =>
+    Object.keys((STOCK_DIALECTS[sref] || {}).apps || {})
       .filter((aid) => (c.apps || {})[aid] === undefined);
-  function restoreEntry(cid, aid) {
+  function restoreEntry(cid, sref, aid) {
     if (!classes[cid].apps) classes[cid].apps = {};
-    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(cid, aid)));
+    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(sref, aid)));
     setStatus("built-in entry restored", "ok");
     edit();
   }
@@ -201,12 +275,28 @@
       drawer speaks Fire TV for one activity and Tizen for another.
     </p>
 
-    <!-- DIALECTS — the working layer, so they lead -->
-    {#each Object.entries(classes || {}) as [cid, c] (cid)}
+    <!-- DIALECTS — the working layer, so they lead; stock and yours
+         are separated visually (v0.86; headers made REAL after Suresh:
+         "too tiny and squished... I don't understand why the derived
+         one isn't in the YOUR PLATFORMS fold" — same complaint, one
+         cause: the header didn't read as a container) -->
+    {#each classGroups as grp (grp.key)}
+    <div class={"space-y-3 " + (grp.key === "yours" ? "mt-8" : "mt-4")}>
+    <div class="flex items-baseline gap-2.5 border-b-2 border-line-strong pb-1.5">
+      <span class="text-[13.5px] font-bold text-ink">{grp.label}</span>
+      <span class="text-[11px] text-faint">{grp.hint}</span>
+    </div>
+    {#if grp.key === "yours" && !grp.items.length}
+      <p class="m-0 text-xs text-dim">None yet — <b>⑂ Derive a class</b> on a
+        built-in keeps stock flowing underneath while your changes win;
+        <b>＋ Add device class</b> starts one from scratch.</p>
+    {/if}
+    {#each grp.items as [cid, c] (cid)}
       <SectionFold label={(c.name || cid) + " — device class"}
         badge={Object.keys(c.apps || {}).length + " apps" +
           (spokenBy(cid).length ? " · spoken by " + spokenBy(cid).join(", ") : " · unused")}
         bind:open={() => clsOpen[cid] ?? false, (v) => (clsOpen[cid] = v)}>
+        {@const sref = stockIdOf(cid, c)}
         {#if isStockId(cid)}
           <div class="mb-3 flex flex-wrap items-center gap-3 rounded-[10px] border border-line bg-tile px-3 py-2">
             {#if dialectEdited(cid, c)}
@@ -222,16 +312,32 @@
                 current (new apps and command fixes arrive on their own). Edit anything and
                 it becomes yours.</span>
             {/if}
+            <Button size="sm" onclick={() => deriveClass(cid)}
+              title={"Create a class of your own SEEDED from this one (e.g. " + cid + "-SE with sendevent d-pad). It keeps tracking stock underneath: new built-in apps still arrive; only your changes stick; your removals hold."}>⑂ Derive a class</Button>
           </div>
-          {#if stockView[cid]}
-            <div class="mb-3">
-              <Field label={"Shipped " + (STOCK_DIALECTS[cid].name || cid) + " dialect (read-only — copy what you need)"}>
-                <textarea readonly rows="14" spellcheck="false"
-                  class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[11.5px] text-ink outline-none"
-                  >{JSON.stringify(STOCK_DIALECTS[cid], null, 2)}</textarea>
-              </Field>
-            </div>
-          {/if}
+        {:else if sref}
+          <div class="mb-3 flex flex-wrap items-center gap-3 rounded-[10px] border border-line bg-tile px-3 py-2">
+            <span class="text-xs text-ink">⑂ <b>Derived from {STOCK_DIALECTS[sref].name || sref}</b> —
+              stock flows underneath (new built-in apps arrive on their own);
+              your changes win; apps you remove stay removed.</span>
+            <Button size="sm" onclick={() => (stockView[cid] = !stockView[cid])}>
+              {stockView[cid] ? "Hide parent" : "View parent"}</Button>
+            <Button size="sm" onclick={() => resetDerived(cid, sref)}
+              title="Drop every local change — back to an exact copy of the shipped parent (your name kept)">↺ Reset to parent</Button>
+            {#if spokenBy(sref).length}
+              <Button size="sm" onclick={() => adoptActivities(cid, sref)}
+                title={"Point the activities still speaking '" + sref + "' (" + spokenBy(sref).join(", ") + ") at this class instead"}>→ adopt {sref}'s activities</Button>
+            {/if}
+          </div>
+        {/if}
+        {#if stockView[cid] && sref}
+          <div class="mb-3">
+            <Field label={"Shipped " + (STOCK_DIALECTS[sref].name || sref) + " dialect (read-only — copy what you need)"}>
+              <textarea readonly rows="14" spellcheck="false"
+                class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[11.5px] text-ink outline-none"
+                >{JSON.stringify(STOCK_DIALECTS[sref], null, 2)}</textarea>
+            </Field>
+          </div>
         {/if}
         <div class="grid grid-cols-3 gap-3">
           <Field label="Class name"><Input bind:value={c.name} onchange={edit} /></Field>
@@ -271,48 +377,17 @@
                 edit(); }} />
           </Field>
         </div>
-        <!-- D-PAD COMMANDS (v0.84.7 — forum report: an Apple TV
-             answered "command not recognized" to every press, and the
-             reporter went looking for command mapping exactly here and
-             found only app launching). The engine sends Android/Fire TV
-             names by default (UP/ENTER/BACK); a platform that speaks
-             its own vocabulary declares it ONCE here and every device
-             on this dialect is fixed. Blank = the default name. -->
-        <SectionFold label="D-pad commands"
-          badge={Object.keys(c.dpad_commands || {}).length
-            ? Object.keys(c.dpad_commands).length + " remapped"
-            : "defaults (Android / Fire TV names)"}
-          bind:open={() => cmdOpen[cid] ?? false, (v) => (cmdOpen[cid] = v)}>
-          <p class="m-0 mb-2 text-[11px] text-dim">
-            What this platform's <b>remote.send_command</b> actually accepts.
-            Leave blank to send the default name. Apple TV, for instance,
-            only understands lowercase pyatv names and calls
-            <code class="font-mono">UP</code> unrecognised.
-          </p>
-          <div class="grid grid-cols-3 gap-2">
-            {#each DPAD_KEYS as k (k)}
-              <Field label={k}>
-                <Input value={(c.dpad_commands || {})[k] ?? ""}
-                  placeholder={DPAD_FALLBACK[k]} class="font-mono text-[12px]"
-                  onchange={(ev) => {
-                    const v = ev.target.value.trim();
-                    if (!c.dpad_commands) c.dpad_commands = {};
-                    if (v) c.dpad_commands[k] = v; else delete c.dpad_commands[k];
-                    if (!Object.keys(c.dpad_commands).length) delete c.dpad_commands;
-                    edit();
-                  }} />
-              </Field>
-            {/each}
-          </div>
-        </SectionFold>
+        <SectionFold label="Apps — launch entries"
+          badge={Object.keys(c.apps || {}).length + " of the master list offered here"}
+          bind:open={() => appsOpen[cid] ?? false, (v) => (appsOpen[cid] = v)}>
         <div class="space-y-2">
           {#each Object.entries(c.apps || {}) as [aid, e] (aid)}
             <div class="rounded-[8px] bg-inset p-2">
               <div class="flex items-center gap-2">
                 <span class="w-32 shrink-0 truncate text-xs font-bold text-ink" title={aid}>
                   {apps?.[aid]?.name || aid}</span>
-                {#if isStockId(cid)}
-                  {@const prov = entryProv(cid, aid, e)}
+                {#if sref}
+                  {@const prov = entryProv(sref, aid, e)}
                   {#if prov === "stock"}
                     <span class="shrink-0 rounded-[4px] bg-sunk px-1.5 py-0.5 text-[10px] text-dim"
                       title="Matches the built-in entry — stock updates keep it current">stock</span>
@@ -320,7 +395,7 @@
                     <span class="shrink-0 rounded-[4px] border border-accent/40 bg-sunk px-1.5 py-0.5 text-[10px] text-accent-text"
                       title="Differs from the built-in — yours now; stock updates won't touch it">edited</span>
                     <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0.5 text-[12px] text-dim hover:text-ink"
-                      title="Reset to the built-in entry" onclick={() => resetEntry(cid, aid)}>↺</button>
+                      title="Reset to the built-in entry" onclick={() => resetEntry(cid, sref, aid)}>↺</button>
                   {/if}
                 {/if}
                 <Select value={entryKind(e)} class="w-32"
@@ -365,19 +440,84 @@
                 ev.target.value = ""; edit(); }} />
             <span class="text-xs text-dim">← add an app from the master list</span>
           </div>
-          {#if isStockId(cid) && hiddenEntries(cid, c).length}
+          {#if sref && hiddenEntries(sref, c).length}
             <p class="m-0 text-[11px] text-dim">Hidden built-ins —
-              {#each hiddenEntries(cid, c) as aid (aid)}
+              {#each hiddenEntries(sref, c) as aid (aid)}
                 <button class="ml-1 cursor-pointer rounded-[4px] border border-line bg-transparent px-1.5 py-0.5 text-[11px] text-dim hover:text-ink"
                   title="Restore the built-in launch entry"
-                  onclick={() => restoreEntry(cid, aid)}>⊕ {apps?.[aid]?.name || aid}</button>
+                  onclick={() => restoreEntry(cid, sref, aid)}>⊕ {apps?.[aid]?.name || aid}</button>
               {/each}
             </p>
           {/if}
         </div>
+        </SectionFold>
+        <!-- D-PAD COMMANDS (v0.84.7 — forum report: an Apple TV
+             answered "command not recognized" to every press, and the
+             reporter went looking for command mapping exactly here and
+             found only app launching). The engine sends Android/Fire TV
+             names by default (UP/ENTER/BACK); a platform that speaks
+             its own vocabulary declares it ONCE here and every device
+             on this dialect is fixed. Blank = the default name. -->
+        <SectionFold label="D-pad commands"
+          badge={Object.keys(c.dpad_commands || {}).length
+            ? Object.keys(c.dpad_commands).length + " remapped"
+            : "defaults (Android / Fire TV names)"}
+          bind:open={() => cmdOpen[cid] ?? false, (v) => (cmdOpen[cid] = v)}>
+          <p class="m-0 mb-2 text-[11px] text-dim">
+            What this platform's <b>remote.send_command</b> actually accepts.
+            Leave blank to send the default name. Apple TV, for instance,
+            only understands lowercase pyatv names and calls
+            <code class="font-mono">UP</code> unrecognised.
+          </p>
+          <div class="grid grid-cols-3 gap-2">
+            {#each DPAD_KEYS as k (k)}
+              <Field label={k}>
+                {#if isActionCmd((c.dpad_commands || {})[k])}
+                  <!-- action-valued (fast d-pad): a chip + JSON editor,
+                       never a string field a keystroke could destroy -->
+                  <div class="flex items-center gap-1">
+                    <button class="min-w-0 flex-1 cursor-pointer truncate rounded-[8px] border border-accent/40 bg-sunk px-2 py-1.5 text-left font-mono text-[11px] text-accent-text"
+                      title={"Action-valued command — runs a full HA action instead of remote.send_command (the fast d-pad; docs/design-fast-dpad.md). Click to edit the JSON.\n" + JSON.stringify(c.dpad_commands[k], null, 1)}
+                      onclick={() => (dpadJson[cid + "|" + k] = !dpadJson[cid + "|" + k])}>⚡ {dpadSummary(c.dpad_commands[k])}</button>
+                    <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0.5 text-xs text-dim hover:text-danger"
+                      title="Remove the action — the key falls back to the default name"
+                      onclick={() => { delete c.dpad_commands[k];
+                        if (!Object.keys(c.dpad_commands).length) delete c.dpad_commands;
+                        edit(); }}>✕</button>
+                  </div>
+                  {#if dpadJson[cid + "|" + k]}
+                    <div class="mt-1">
+                      <JsonArea value={c.dpad_commands[k]} rows={5}
+                        onchange={(v) => { c.dpad_commands[k] = v; edit(); }} />
+                    </div>
+                  {/if}
+                {:else}
+                  <div class="flex items-center gap-1">
+                    <Input value={(c.dpad_commands || {})[k] ?? ""}
+                      placeholder={DPAD_FALLBACK[k]} class="min-w-0 flex-1 font-mono text-[12px]"
+                      onchange={(ev) => {
+                        const v = ev.target.value.trim();
+                        if (!c.dpad_commands) c.dpad_commands = {};
+                        if (v) c.dpad_commands[k] = v; else delete c.dpad_commands[k];
+                        if (!Object.keys(c.dpad_commands).length) delete c.dpad_commands;
+                        edit();
+                      }} />
+                    <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0.5 text-xs text-dim hover:text-accent-text"
+                      title="Turn this key into a full HA action — e.g. androidtv.adb_command → sendevent, the fast d-pad (docs/design-fast-dpad.md)"
+                      onclick={() => makeDpadAction(c, cid, k)}>⚡</button>
+                  </div>
+                {/if}
+              </Field>
+            {/each}
+          </div>
+        </SectionFold>
       </SectionFold>
     {/each}
-    <Button size="sm" onclick={addClass}>＋ Add device class</Button>
+    {#if grp.key === "yours"}
+      <Button size="sm" onclick={addClass}>＋ Add device class</Button>
+    {/if}
+    </div>
+    {/each}
 
     <!-- MASTER LIST — collapsed by default; it's a phone book -->
     <SectionFold label="Master list" badge={Object.keys(apps || {}).length + " apps — identity only"}

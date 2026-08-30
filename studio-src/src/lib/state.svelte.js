@@ -387,7 +387,7 @@ export function slices() {
         sub: d.screens[id].view_kind || "library", group: "Controllers", deep: true });
   s.push({ key: "sequences", label: "Actions",
     sub: Object.keys(d.sequences || {}).length + " sequences", group: "Model" });
-  s.push({ key: "apps", label: "Apps",
+  s.push({ key: "apps", label: "Platforms",
     sub: Object.keys(d.apps || {}).length + " apps · " +
       Object.keys(d.dialects || {}).length + " dialects", group: "Model" });
   s.push({ key: "snippets", label: "Snippets",

@@ -19,7 +19,32 @@ On the first restart after updating, each workspace's config is examined once. E
 
 Before anything is touched, each workspace is backed up beside its deployed file as `config.<workspace>.prelayers.backup.json` in `www/harmonium/`. The migration log (Settings → System → Logs, filter "harmonium") lists exactly what was lifted, what stayed yours, and what was tombstoned.
 
+## Derived classes — clone a platform, keep it updating
+
+Any built-in platform now has **⑂ Derive a class**: it seeds a new class of your own from the built-in (say, `firetv_custom` → rename it FireTV-SE), and the built-in keeps flowing underneath — new stock apps still arrive in your derivative, your changes win forever, apps you remove stay removed. It is the spread model applied one level out: the config stores only your deltas plus a `derived_from` marker. The class card shows what it derives from, offers View parent / Reset to parent, and can adopt the parent's activities in one tap. One level deep — you derive from built-ins, not from derivatives.
+
+## Fast d-pad is first-class
+
+A dialect's D-pad command may now be a **full HA action** instead of a name — the fast-dpad path (`androidtv.adb_command` → `sendevent`, single-digit-ms presses; see `docs/design-fast-dpad.md`). The Studio's D-pad fields now render an action as a **⚡ chip with a JSON editor** (previously they showed `[object Object]` and a stray keystroke would destroy the action), and every string field has a ⚡ button that converts it to an action template. Combined with derived classes, the intended recipe is: derive your platform, ⚡ the arrow keys, adopt your activities.
+
+## The Platforms editor
+
+The Apps section is now **Platforms** — that's what it edits. Built-in platforms and yours are visually separated, and per-entry provenance (stock / edited chips, hidden built-ins, resets) now works on derived classes too, computed against the parent.
+
+## Fixed
+
+- **Multi-room navigation opens the right room's controller.** With two room pages sharing a controller (Deck and Porch both using the TV controller), tapping an activity on the second room could open the FIRST room's version — the deployed config never named each room's activity select, so the controller fell back to the global one. Every room page's minted select is now wired automatically at deploy (and served to the Studio preview the same way); nothing to configure, and the fix cannot regress into hand-wiring because the wiring is derived, never stored.
+- **A browser now gets Home/Back navigation on room pages.** The touch Home button used to hide on the boot view (where it's needed most) because it checked the wrong "home": it now follows the same walk as the physical Home key — parent → boot view → your overview page — and hides only where the walk has nowhere to go. Back remains history-based, appearing once you've navigated.
+- **The volume band's style can't get silently stuck.** The Controller tab's Volume style dropdown sets the activity default, but a per-row ⚙ style or member volume option overrides it — and used to do so invisibly, leaving the dropdown apparently dead. The overrides are now listed right beside the dropdown (`⚙ pinned: <member> = <style>`), each with a one-tap ↺ to clear it.
+- **Save + Reload Remote (né "Save + Reload Astrion") works for any remote — and says so when it can't.** It was hardcoded to buttons named `astrion1_…` and failed silently on anything else. Wire your remote's Fully *Clear browser cache* and *Load Start URL* buttons in map → Startup & Home → Remote reload; if a wired (or default) button doesn't exist, the save still lands but the reload fails loudly, naming the missing entity.
+- **The Advanced tab behaves like the checkbox it resembles.** Its square fills when active, and clicking it again returns to the first tab instead of stranding you.
+
 ## Also in this release
+
+- **Disney+ joined the stock Fire TV catalog** (launch verified on hardware) — and thanks to the spread model, it simply appears on existing installs' Fire TV pages, including in derived classes that don't override it.
+- Exported configs now record the catalog generation they were authored against.
+- The Studio's Platforms editor gained per-entry provenance everywhere: stock / edited chips, per-entry reset, and restorable hidden built-ins for both launch entries and the master list.
+- Repo-side (not part of the HACS install): a rebuilt `remotes/` toolkit — Key Mapper and Fully Kiosk pull/push scripts with a shared USB/wireless resolver, a serial-keyed `units.json` registry, a version-aware key-map doc generator, and a rewritten Astrion HA100 setup guide (`remotes/astrion/README.md`).
 
 - Exported configs now record the catalog generation they were authored against.
 - The Studio's Apps editor gained per-entry provenance everywhere: stock / edited chips, per-entry reset, and restorable hidden built-ins for both launch entries and the master list.

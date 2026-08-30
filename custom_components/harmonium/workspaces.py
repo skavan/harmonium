@@ -172,6 +172,27 @@ def wire_activity_selects(config, ws: str):
     return config
 
 
+def unwire_activity_selects(config, ws: str):
+    """The inverse of wire_activity_selects, for the WRITE boundary:
+    drop screens[room].activity_select wherever it equals the derived
+    minted id. The Studio is SERVED wired configs (get_ws), so what it
+    posts back carries the wiring — stripping the derived values here
+    keeps the store derivation-clean, which is what lets a renamed
+    room page heal (the derivation follows the page id; a baked value
+    would keep pointing at the old select). An explicit DIFFERENT
+    value (a legacy input_select, say) is the user's and stays."""
+    if not config:
+        return config
+    screens = config.get("screens") or {}
+    prefix = ws_prefix(ws)
+    for room in room_hosts(config):
+        scr = screens.get(room)
+        if isinstance(scr, dict) and scr.get("activity_select") \
+                == f"select.harmonium_{prefix}{room}_activity":
+            del scr["activity_select"]
+    return config
+
+
 def room_hosts(config) -> dict[str, list[str]]:
     """STICKY HOSTS (v0.26), workspace-scoped: every room-marked screen
     keeps a select for the life of the page; activity owners join in.

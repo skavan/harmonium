@@ -126,7 +126,13 @@ class HarmoniumStore:
         wants this; the raw layer is get_ws_layer."""
         data = await self.load()
         cfg = data["workspaces"].get(ws)
-        return merge_config(self.stock(), cfg) if cfg is not None else None
+        if cfg is None:
+            return None
+        # a derived key is derived at EVERY serving boundary, not just
+        # the deploy write (2026-08-30 — the Studio PREVIEW renders the
+        # config served here; unwired, it re-created the wrong-room bug
+        # the deploy-side wiring had just fixed on the deployed page)
+        return wire_activity_selects(merge_config(self.stock(), cfg), ws)
 
     async def get_ws_layer(self, ws: str):
         """The stored user layer, verbatim — deltas + tombstones."""
