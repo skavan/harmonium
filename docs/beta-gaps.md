@@ -38,16 +38,17 @@ resolved and tracked in §6.)*
 Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
 
 - **Volume band type won't change — stuck on the fat (slider) default
-  (BUG, 0.86.0).** `gen-bands.js` resolves the style on a ladder:
+  (FIXED in-repo 2026-08-30, unreleased).** `gen-bands.js` resolves the style on a ladder:
   per-tile `present.style` -> `device_options[entity].volume_style` ->
   the Controller-tab default (`surface.volume_style`) -> global. The
   Studio's Controller-tab "Volume style" dropdown writes the LOWEST
   rung, so any per-tile ⚙ style or a `device_options.volume_style`
   silently pins it and the dropdown reads as dead ("could change it
   earlier today"). The real defect is the SILENT override, not the
-  precedence. ACTION: in ControllerTab, disable/annotate the dropdown
-  when a higher rung overrides (or surface the effective style);
-  tester filing a GitHub issue with the controller JSON.
+  precedence. FIXED: the dropdown now lists every pin beside it
+  ("pinned: <member> = <style>") with a one-tap clear per pin
+  (ControllerTab.svelte) — the override is visible and undoable where
+  it bites. Tester's GitHub issue can close on the release.
 - **"Advanced" reads as a checkbox but is a one-way tab (BUG, fixed
   in 0.86.0-dev source).** In `ActivityCard` / `TileRow` /
   `PageSettings` the Advanced control is a TAB (`tab = "advanced"`)
@@ -58,12 +59,13 @@ Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
   active and make a second click return to the default tab
   (main / setup / layout). Rebuild the Studio to verify.
 - **Save + Reload Astrion fails silently unless the Fully entities are
-  named `astrion1` and kept out of an area (BUG + friction, 0.86.0).**
-  The reload/battery wiring keys off a magic device name + area
-  coupling instead of an explicit entity mapping. Two defects: the
-  silent failure, and the hardcoded convention. ACTION: give it an
-  entity mapping like the battery option; fail loudly with a hint when
-  unmapped.
+  named `astrion1` (FIXED in-repo 2026-08-30, unreleased).** Root
+  causes: hardcoded `button.astrion1_*` ids, and HA pressing a
+  nonexistent button without complaint. FIXED: explicit mapping in
+  map > Startup & Home (global.fully_cache_button / _reload_button),
+  ladder config -> localStorage -> legacy astrion1 defaults, and both
+  entities verified to exist before pressing (a miss fails loudly and
+  names the fix). Button relabeled "Save + Reload Remote".
 - **Entity rename orphans Activity references (LIMITATION / doc).**
   `context`, device `roles`, `device_options` and presets each hold
   entity ids; no rename-refactor rewrites them together and some refs
@@ -92,22 +94,24 @@ Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
   roadmap).** Tester offers testing + documentation help. ACTION: park
   under dialect expansion; take him up as a second-device test partner
   for IP-based dialects.
-- **Nav opens the wrong room's controller (CONFIRMED, 2026-08-30 —
-  live-config verified).** Deck's activities/context are correct and the
+- **Nav opens the wrong room's controller (FIXED in-repo, 2026-08-30 —
+  live-config verified, unreleased).** Deck's activities/context are correct and the
   tap flips `select.harmonium_deck_activity` — but NO room page in the
   config carries `activity_select`, so on the shared `controller:tv`
   `roomActivitySelect()` finds nothing on the whole trail and falls to
   `global.activity_select` (porch's select, holding
   `porch_watch_fire_tv`), which trumps the tapped pending activity.
-  WORKAROUND (today): wire the minted select onto EVERY room page that
-  owns activities (Code tab) - deck AND porch; wiring only one room
-  breaks the other via the owning-activities walk in
-  `roomActivitySelect()` (one non-null select, no split, wrong answer).
-  ENGINE FIX: auto-derive `select.harmonium_<page>_activity` for a room
-  page when the entity exists (the integration mints them, nothing
-  wires them into config), and/or let the tapped pending outrank a
-  select reached only via the GLOBAL fallback. Part of §6.7 multi-room.
-- **No Back/Home chrome in a browser (CONFIRMED: config, 2026-08-30).**
+  FIXED: `wire_activity_selects()` (workspaces.py), applied on a deep
+  copy in `HStore.deploy()` - every deployed config carries each
+  activity-owning room page's minted select (explicit values never
+  overridden; the STORE copy is untouched so nothing enters the 3-way
+  merge). Fences: 6 checks in test-integration-split.py +
+  tests/probe-room-select.mjs (deck answers deck, porch answers porch,
+  the unwired global fall-through pinned). Reaches a house via
+  integration update + HA restart + one Save & Deploy. The deeper
+  pending-vs-global ordering question stays with §6.7 multi-room.
+- **No Back/Home chrome in a browser (FIXED in-repo, 2026-08-30,
+  unreleased).**
   Not the device profile (browser was on `default`). The live config
   still has `home_screen: porch`: the Home button is hidden ON porch by
   design (you are home), Back needs nav history, and the user's new

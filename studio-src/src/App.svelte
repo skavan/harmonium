@@ -165,7 +165,7 @@
           <button id="pushBtn" disabled={app.sandbox}
             class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[9px] text-left font-[inherit] text-xs font-medium text-ink hover:bg-sunk disabled:cursor-default disabled:text-faint"
             onclick={() => { moreOpen = false; saveAndReload(); }}
-            title="Save, then clear cache + reload the Astrion">Save + Reload Astrion</button>
+            title="Save, then clear cache + reload the paired Fully remote (wire its buttons in map → Startup & Home)">Save + Reload Remote</button>
           <div class="mx-1.5 my-1 h-px bg-line"></div>
           <button
             class="block w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-2.5 py-[9px] text-left font-[inherit] text-xs font-medium text-ink hover:bg-sunk"

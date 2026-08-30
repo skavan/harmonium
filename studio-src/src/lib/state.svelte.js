@@ -990,18 +990,40 @@ export async function save() {
 
 export async function saveAndReload() {
   if (!(await save())) return;
+  /* WHICH BUTTONS (v0.86 — beta report: the hardcoded astrion1 names
+     made this silently do nothing on any remote named differently,
+     and nothing said so). Resolution ladder: the workspace's own
+     wiring (map → Startup & Home → Remote reload buttons) → the old
+     localStorage escape hatch → the legacy astrion1 defaults. */
+  const g = app.draft?.global || {};
+  const cacheBtn = g.fully_cache_button ||
+    localStorage.getItem("hakr_cachebtn") || "button.astrion1_clear_browser_cache";
+  const reloadBtn = g.fully_reload_button ||
+    localStorage.getItem("hakr_reloadbtn") || "button.astrion1_load_start_url";
+  const hdrs = { Authorization: "Bearer " + token(), "Content-Type": "application/json" };
+  /* FAIL LOUDLY: HA "presses" a nonexistent button without complaint
+     (the service call succeeds against no target), which is exactly
+     how this failed silently. Verify both entities exist first — a
+     miss names the missing id and where to wire the right one. */
+  for (const eid of [cacheBtn, reloadBtn]) {
+    let ok = false;
+    try { ok = (await fetch("/api/states/" + eid, { headers: hdrs })).ok; } catch { }
+    if (!ok) {
+      setStatus("saved & deployed — but '" + eid + "' doesn't exist, so the remote was NOT reloaded. Wire your remote's Fully buttons in map → Startup & Home → Remote reload buttons.", "err");
+      return;
+    }
+  }
   const press = (eid) =>
     fetch("/api/services/button/press", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+      method: "POST", headers: hdrs,
       body: JSON.stringify({ entity_id: eid }),
     });
   try {
-    await press(localStorage.getItem("hakr_cachebtn") || "button.astrion1_clear_browser_cache");
-    await press(localStorage.getItem("hakr_reloadbtn") || "button.astrion1_load_start_url");
-    setStatus("saved, deployed, Astrion reloading", "ok");
+    await press(cacheBtn);
+    await press(reloadBtn);
+    setStatus("saved, deployed, remote reloading", "ok");
   } catch (e) {
-    setStatus("saved — but Astrion reload failed: " + e.message, "err");
+    setStatus("saved — but the remote reload failed: " + e.message, "err");
   }
 }
 

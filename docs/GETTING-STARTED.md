@@ -21,7 +21,7 @@ engine.
 |---|---|
 | Home Assistant | 2024.6 or newer, admin access |
 | HACS | [Installed](https://hacs.xyz/docs/use/download/download/) — this is how Harmonium arrives and updates |
-| A device for the remote | Anything with a browser: phone, tablet, or an Android hardware remote running Fully Kiosk |
+| A device for the remote | Anything with a browser: phone, tablet, or an Android hardware remote running Fully Kiosk. **Hardware remotes: budget ~$10/device for a Fully Kiosk PLUS license** — Remote Administration, Start on Boot, and the battery/reload wiring the HA integration uses are all PLUS features |
 
 No file access, no tokens, no command line. HACS delivers the
 integration; the integration deploys the engine by itself.
@@ -191,7 +191,11 @@ be backed up the same way with `remotes/pull-keymapper.bat`; details in
 
 Two Fully Kiosk settings worth setting immediately: enable
 *Autostart* and disable battery optimization for Fully (the
-community guide covers both).
+community guide covers both). Both of these — plus Remote
+Administration and the battery/reload features the Home Assistant
+Fully integration rides on — need the one-time **Fully PLUS license**
+(~$10 per device). Plan for it per remote; there is no free path to
+autostart or remote admin.
 
 One more that's worth real battery: check whether some app is
 holding a **wake lock** that blocks the remote's deep sleep (on our
@@ -243,6 +247,10 @@ token names precisely so this is rare.)
 references entities this HA doesn't have — you're likely looking at
 someone else's config, or the starter placeholders. Open the Studio
 and wire your own entities in.
+
+**I renamed a device (or its entities) and my Activity broke.** There is no automatic entity-rename: an activity holds entity ids in several places (context wiring, device roles, device options, presets), and a rename leaves dangling references — some with no visible field in the Studio. Chasing them one by one is rarely worth it: **delete the activity and recreate it** against the new names (the wizard makes this fast), and prefer renaming entities *before* building activities on them.
+
+**The TV controller has Back/Home buttons at the bottom that the Music controller doesn't.** By design: on TV pages the physical Back/Home keys drive the *device* (passthrough), so Harmonium pins its own touch Back/Home strip to keep UI navigation reachable. Music pages don't need it — there the physical keys already navigate Harmonium.
 
 **Fully Kiosk shows a stale version after an update.** Fully caches
 `/local/` hard: Fully settings → *Web Content* → clear cache, then

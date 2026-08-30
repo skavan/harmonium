@@ -46,6 +46,16 @@
       hint="The routing cache. The integration MINTS select.harmonium_<page>_activity per activity-owning page — point here at the minted one (input_select still accepted for legacy configs).">
       <EntityPicker bind:value={d.global.activity_select} domains={["select", "input_select"]} onchange={edit} />
     </Field>
+    <div class="grid grid-cols-2 gap-3">
+      <Field label="Remote reload — clear cache"
+        hint="the Fully integration's Clear browser cache button for THIS workspace's remote — Save + Reload presses it first (empty = the legacy button.astrion1_… default)">
+        <EntityPicker bind:value={d.global.fully_cache_button} domains={["button"]} onchange={edit} />
+      </Field>
+      <Field label="Remote reload — load Start URL"
+        hint="the Fully integration's Load Start URL button — Save + Reload presses it second; wiring these is what frees you from naming the device astrion1">
+        <EntityPicker bind:value={d.global.fully_reload_button} domains={["button"]} onchange={edit} />
+      </Field>
+    </div>
     <Field label="Page-wide buttons" hint="vol/menu logical-key bindings — edit in the Code tab">
       <div class="rounded-[8px] border border-line bg-field p-2 font-mono text-[11px] text-dim">
         {Object.keys(d?.global?.buttons || {}).join(" · ") || "none"}

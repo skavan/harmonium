@@ -99,6 +99,44 @@ check("bind_ws stamps unnamed", actions[0]["data"]["workspace"] == "porch")
 check("bind_ws honors named", actions[1]["then"][0]["data"]["workspace"] == "deck")
 check("bind_ws skips others", "data" not in actions[2])
 
+# ---- wire_activity_selects (v0.86 — the Deck/Porch wrong-room bug):
+# every activity-owning room page gets its minted select on the DEPLOY
+# copy, so the engine's roomActivitySelect() never falls through to the
+# global select for another room's controller ----
+from harmonium.workspaces import wire_activity_selects  # noqa: E402
+
+_wcfg = {
+    "home_screen": "porch",
+    "global": {"activity_select": "select.harmonium_porch_activity",
+               "main_home": "home"},
+    "screens": {"porch": {"type": "hub", "room": True},
+                "deck": {"type": "hub", "room": True},
+                "home": {"type": "hub"},
+                "lonely": {"type": "hub", "room": True}},
+    "activities": {"pw": {"room_view": "porch"},
+                   "dw": {"room_view": "deck"},
+                   "dm": {"room_view": "deck"}},
+}
+_w = wire_activity_selects(json.loads(json.dumps(_wcfg)), "main")
+check("wire: porch gets its legacy-id select",
+      _w["screens"]["porch"]["activity_select"]
+      == "select.harmonium_porch_activity")
+check("wire: deck gets its minted select",
+      _w["screens"]["deck"]["activity_select"]
+      == "select.harmonium_deck_activity")
+check("wire: main_home is never wired",
+      "activity_select" not in _w["screens"]["home"])
+check("wire: activity-less sticky host is never wired",
+      "activity_select" not in _w["screens"]["lonely"])
+_w2 = wire_activity_selects(json.loads(json.dumps(_wcfg)), "scratch")
+check("wire: non-main workspace ids carry the prefix",
+      _w2["screens"]["deck"]["activity_select"]
+      == "select.harmonium_scratch_deck_activity")
+_wcfg["screens"]["deck"]["activity_select"] = "input_select.legacy"
+_w3 = wire_activity_selects(json.loads(json.dumps(_wcfg)), "main")
+check("wire: an explicit select is never overridden",
+      _w3["screens"]["deck"]["activity_select"] == "input_select.legacy")
+
 # ---- service wiring: register 4, remove 4 ----
 class FakeServices:
     def __init__(self): self.reg = {}

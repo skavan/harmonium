@@ -8,6 +8,7 @@ those live in api.py and services.py (split out of __init__.py,
 v0.83.11)."""
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -18,7 +19,8 @@ from homeassistant.helpers.storage import Store
 
 from .catalogs import merge_config, stock_catalogs
 from .const import DEPLOY_DIR, STORAGE_KEY, STORAGE_VERSION
-from .workspaces import deploy_file, empty_store, migrate, stub_html
+from .workspaces import (deploy_file, empty_store, migrate, stub_html,
+                         wire_activity_selects)
 
 # one-deep undo for reseed (lives beside config.json)
 BACKUP_FILE = "config.main.backup.json"
@@ -93,6 +95,10 @@ class HarmoniumStore:
 
     async def deploy(self, ws: str, config) -> Path:
         path = self.deploy_path(ws)
+        # deploy-time derivation: the engine-facing copy carries every
+        # room's minted activity_select (see workspaces.py). The STORE
+        # copy is untouched — derived keys never enter the 3-way merge.
+        config = wire_activity_selects(copy.deepcopy(config), ws)
         await self.hass.async_add_executor_job(write_json, path, config)
         # the workspace's ADDRESS: /local/harmonium/<ws>/ — MAIN
         # INCLUDED (v0.48.3, Suresh: "workspacename/index.html

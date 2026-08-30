@@ -147,6 +147,39 @@
     schedulePreview();
   }
   const setNpStyle = (v) => setSurfKey("np_style", v);
+  /* THE SILENT-OVERRIDE FIX (v0.86 — beta report: "can't change the
+     volume band type any more; stuck on the fat one"). This dropdown
+     writes the activity DEFAULT — the LOWEST rung of gen-bands'
+     ladder (present.style → device_options.volume_style → the
+     default) — so one forgotten ⚙ style or member option pins its
+     row and the dropdown reads as dead, with nothing saying why.
+     Surface every pin beside the dropdown, each with its own ↺, so
+     "why won't it change" answers itself and unsticking is one tap. */
+  const volPins = $derived.by(() => {
+    const out = [];
+    const pres = a?.present || {};
+    for (const k in pres)
+      if (pres[k] && pres[k].style)
+        out.push({ k, via: "present", style: pres[k].style });
+    const dops = a?.device_options || {};
+    for (const k in dops)
+      if (dops[k] && dops[k].volume_style)
+        out.push({ k, via: "device_options", style: dops[k].volume_style });
+    return out;
+  });
+  const pinName = (k) => { const i = k.indexOf("."); return i > 0 ? k.slice(i + 1) : k; };
+  function clearVolPin(p) {
+    if (p.via === "present") {
+      delete a.present[p.k].style;
+      if (!Object.keys(a.present[p.k]).length) delete a.present[p.k];
+      if (!Object.keys(a.present).length) delete a.present;
+    } else {
+      delete a.device_options[p.k].volume_style;
+      if (!Object.keys(a.device_options[p.k]).length) delete a.device_options[p.k];
+      if (!Object.keys(a.device_options).length) delete a.device_options;
+    }
+    schedulePreview();
+  }
   function setVolStyle(v) {
     if (v) a.surface = { ...(a.surface || {}), volume_style: v };
     else if (a.surface) {
@@ -247,6 +280,20 @@
                         { value: "stepper", label: "Stepper − / +" },
                       ]}
                       onchange={(e) => setVolStyle(e.target.value)} />
+                    {#if volPins.length}
+                      <span class="text-[11px] text-dim italic"
+                        title="These rows carry their own style (the tile's ⚙, or a member's volume option), which WINS over the dropdown's default — ↺ clears one so it follows the default again.">
+                        ⚙ pinned:
+                        {#each volPins as pin (pin.via + pin.k)}
+                          <span class="whitespace-nowrap">
+                            {pinName(pin.k)} = {pin.style}
+                            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-ink"
+                              title={"Clear this row's own style so the dropdown's default applies"}
+                              onclick={() => clearVolPin(pin)}>↺</button>
+                          </span>
+                        {/each}
+                      </span>
+                    {/if}
                   {/if}
                   {#if bd.key === "groups"}
                     <span class="text-[11px] text-dim italic">

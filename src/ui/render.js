@@ -600,8 +600,23 @@ function updateBarChrome() {
   const home = document.getElementById("homeBtn");
   const end = document.getElementById("endBtn");
   if (!home || !end) return;
-  home.classList.toggle("hidden",
-    !touchOnly || S.screen === CONFIG.home_screen);
+  /* THE HOME BUTTON FOLLOWS THE HOME WALK (v0.86 — Suresh: porch is
+     the BOOT VIEW, the overview "home" page is HOME — FINAL STOP; the
+     old test hid the button on the boot view, so a browser standing
+     on porch had no way UP to the overview it had just built). Hide
+     it only where the walk itself has nowhere to go: standing on
+     main_home (the final stop), or a workspace with no higher stop —
+     the same parent → boot-view → main_home ladder the physical Home
+     key and the edge swipe already walk. A config with no main_home
+     behaves exactly as before (hidden on the boot view). */
+  const scr = screenOf(S.screen) || {};
+  const mh = (CONFIG.global || {}).main_home;
+  const hdest = (mh && S.screen === mh) ? null
+    : (scr.parent && screenOf(scr.parent)) ? scr.parent
+    : S.screen !== CONFIG.home_screen ? CONFIG.home_screen
+    : mh;
+  const canHome = !!(hdest && screenOf(hdest) && hdest !== S.screen);
+  home.classList.toggle("hidden", !touchOnly || !canHome);
   end.classList.toggle("hidden", !(touchOnly && currentActivityId()));
 }
 

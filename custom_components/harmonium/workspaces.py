@@ -148,6 +148,30 @@ def retarget_selects(config, from_ws: str, to_ws: str):
     return json.loads(_SELECT_RE.sub(sub, json.dumps(config)))
 
 
+def wire_activity_selects(config, ws: str):
+    """AUTO-WIRE (v0.86 — the Deck/Porch wrong-room bug, 2026-08-30):
+    every activity-owning room page gets its minted select written into
+    the config as screens[room].activity_select (never overriding an
+    explicit value). The engine's roomActivitySelect() can only honor a
+    room's select if the config NAMES it — the integration minted them
+    but nothing wired them, so a second room's shared controller fell
+    through to the GLOBAL select and rendered the wrong room's
+    activity. Called on the deploy copy: derived, idempotent, and the
+    user can never wire it wrong because they never wire it at all."""
+    if not config:
+        return config
+    screens = config.get("screens") or {}
+    prefix = ws_prefix(ws)
+    for room, ids in room_hosts(config).items():
+        scr = screens.get(room)
+        if not isinstance(scr, dict) or scr.get("activity_select"):
+            continue
+        if not ids:
+            continue      # sticky host with no activities — nothing routes
+        scr["activity_select"] = f"select.harmonium_{prefix}{room}_activity"
+    return config
+
+
 def room_hosts(config) -> dict[str, list[str]]:
     """STICKY HOSTS (v0.26), workspace-scoped: every room-marked screen
     keeps a select for the life of the page; activity owners join in.
