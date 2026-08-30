@@ -37,6 +37,9 @@ you rarely run it directly.
 | `remotes/pull-fully.bat` | Pull a Fully Kiosk settings export off a remote (after you tap Export in Fully, so `/sdcard/fully-settings.json` exists) into `remotes/fully/<type>-fully-settings-raw.json` (gitignored); offers to distill it into the device-neutral `remote-fully-settings.json` via `fully/distill-fully.py`. Routed by the unit. |
 | `remotes/push-fully.bat` | Push a Fully Kiosk settings file (default the canonical `remotes/fully/remote-fully-settings.json`) to a remote's `/sdcard` root for Import in Fully. `-File` overrides. |
 | `remotes/device-facts.bat` | Dump a remote's identity (incl. `ro.serialno` for `units.json`), display, webview, and app versions. |
+| `remotes/scrcpy.bat` | Mirror and control a remote with scrcpy. USB or wireless is chosen by the same shared picker; `-Target <name\|ip\|serial>` skips the picker. |
+| `remotes/battery-mon-start.bat` | Start a clean 24–48 hour battery-attribution window on a picked remote; refuses external power and records baseline battery, power, CPU, package/UID, and wake-lock data. |
+| `remotes/battery-mon-report.bat` | Reconnect to that same remote and finish the run with batterystats, final diagnostics, a summary, and a Battery Historian-compatible bugreport under gitignored `remotes/battery-runs/`. |
 
 ## Build scripts (not batch)
 

@@ -43,5 +43,7 @@ remotes/fully/*-fully-settings-raw.json
 remotes/units.json
 # the picker's remembered last device
 remotes/.last-target
+# local battery-monitor captures (bugreports can contain device and network data)
+remotes/battery-runs/
 # your manual safety copy of the remotes tree
 remotes-snapshot/

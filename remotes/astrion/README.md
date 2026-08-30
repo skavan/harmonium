@@ -266,7 +266,7 @@ After setup, the remote is driven from the `remotes/` scripts rather than by han
 - `serial` — the device's `ro.serialno`, its stable hardware id. This is what routes a connected remote to its entry: reliable over USB or wireless, and it never changes, unlike an IP. Get it from `remotes\device-facts.bat`, or `adb devices`.
 - `ip` + `port` — for wireless ADB (omit for USB-only).
 
-With units.json in place, `push-keymapper`, `pull-keymapper`, `device-facts`, and `scripts/scrcpy-wifi` all accept a remote by name, IP, or serial — or show a picker — and route to the right per-type/per-version folder automatically.
+With units.json in place, `push-keymapper`, `pull-keymapper`, `device-facts`, and `remotes\scrcpy.bat` all accept a remote by name, IP, or serial — or show a picker — and route to the right device automatically.
 
 **pull-keymapper** grabs the current Key Mapper backup off a remote into `remotes/<type>/keymapper/<keymap>/`. It never overwrites: if a `key_mapper.zip` is already there it is timestamp-archived first (`key_mapper.YYYY-MM-DD_HHMM.zip`). After pulling it prints a neutral contents summary (map count + embedded sound count) so you can confirm you grabbed the config you expected, and offers to regenerate the map docs (`<keymap>/astrion-remote-map.md` and `KeyCodes Astrion.xlsx`).
 
@@ -278,10 +278,9 @@ One-time on the device first (Key Mapper has no headless export): Key Mapper →
 
 [scrcpy](https://github.com/Genymobile/scrcpy) is a free, open-source tool that mirrors and controls an Android device from a desktop over ADB — handy for driving the Astrion from the PC once the cover is on and there is no other screen. Download a release from its GitHub page and unzip it; the tested setup keeps it at `D:\Program Files\Android\scrcpy-win64-v4.1`.
 
-The helper scripts call `scrcpy` by name, so **the scrcpy folder must be on your Windows PATH** — add `D:\Program Files\Android\scrcpy-win64-v4.1` (or wherever you unzipped it) to the PATH environment variable. Then:
+The shared helper calls `scrcpy` by name, so **the scrcpy folder must be on your Windows PATH** — add `D:\Program Files\Android\scrcpy-win64-v4.1` (or wherever you unzipped it) to the PATH environment variable.
 
-- `scripts/scrcpy-usb.bat` — mirrors the one connected USB device (`scrcpy -d`). Use it while the cable is still in.
-- `scripts/scrcpy-wifi.bat` — mirrors over wireless ADB. It picks the remote through the shared resolver (a units.json name, an IP, or the remembered last), so there is no hardcoded address. Wireless ADB must be on first (press **Blue**).
+Run `remotes\scrcpy.bat` and choose the remote through the same picker as the pull/push tools. It handles either the one connected USB device or wireless ADB (a `units.json` name, an IP, or the remembered last), so there is no hardcoded address. Wireless ADB must be on first (press **Blue**). Pass `-Target <name|ip|serial>` to skip the picker.
 
 ## Recovery notes
 
@@ -296,4 +295,4 @@ The helper scripts call `scrcpy` by name, so **the scrcpy folder must be on your
 - `README.md` — this guide
 - `key-input-findings.md` — the full investigation and the reasoning behind the IME path
 - `keymapper/v1/`, `keymapper/v2/` — the two Key Mapper config versions (see `keymapper/README.md`); each has a generated [`astrion-remote-map.md`](keymapper/v2/astrion-remote-map.md) + `KeyCodes Astrion.xlsx` (the full key map)
-- `scripts/scrcpy-wifi.bat`, `scripts/scrcpy-usb.bat`, `assets/USBConnect.ogg`, `assets/USBDisconnect.ogg`
+- `remotes\scrcpy.bat`, `assets/USBConnect.ogg`, `assets/USBDisconnect.ogg`

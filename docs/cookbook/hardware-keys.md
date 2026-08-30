@@ -215,6 +215,13 @@ After any remedy, re-run the `dumpsys power` check: the
 long-lived lock should be gone and
 `mHoldingWakeLockSuspendBlocker` should read `false` when idle.
 
+For a controlled 24–48 hour discharge test, use
+`remotes\battery-mon-start.bat` when the charged remote comes off external
+power, then `remotes\battery-mon-report.bat` at the end. The pair preserves
+Android batterystats and full wake-lock history, final process/CPU snapshots,
+package-to-UID mappings, and a Battery Historian bugreport under the
+gitignored `remotes\battery-runs\` folder.
+
 ## 1. See what the buttons send
 
 On the device: **hold ⓘ** (or navigate to `keys:`) — the key-capture

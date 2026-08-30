@@ -92,6 +92,32 @@ Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
   roadmap).** Tester offers testing + documentation help. ACTION: park
   under dialect expansion; take him up as a second-device test partner
   for IP-based dialects.
+- **Nav opens the wrong room's controller (CONFIRMED, 2026-08-30 —
+  live-config verified).** Deck's activities/context are correct and the
+  tap flips `select.harmonium_deck_activity` — but NO room page in the
+  config carries `activity_select`, so on the shared `controller:tv`
+  `roomActivitySelect()` finds nothing on the whole trail and falls to
+  `global.activity_select` (porch's select, holding
+  `porch_watch_fire_tv`), which trumps the tapped pending activity.
+  WORKAROUND (today): wire the minted select onto EVERY room page that
+  owns activities (Code tab) - deck AND porch; wiring only one room
+  breaks the other via the owning-activities walk in
+  `roomActivitySelect()` (one non-null select, no split, wrong answer).
+  ENGINE FIX: auto-derive `select.harmonium_<page>_activity` for a room
+  page when the entity exists (the integration mints them, nothing
+  wires them into config), and/or let the tapped pending outrank a
+  select reached only via the GLOBAL fallback. Part of §6.7 multi-room.
+- **No Back/Home chrome in a browser (CONFIRMED: config, 2026-08-30).**
+  Not the device profile (browser was on `default`). The live config
+  still has `home_screen: porch`: the Home button is hidden ON porch by
+  design (you are home), Back needs nav history, and the user's new
+  "Home" page - not being the configured home - shows a Home button
+  that navigates to porch. FIX (today): set the workspace home screen
+  to the Home page (`home_screen: home`). FOLLOW-UP: the Studio never
+  surfaces which page is the home screen when pages are added around
+  it - consider a hint. (The separate capability question - a browser
+  on a hardware `#device=` profile inherits `physical_dpad` and loses
+  touch chrome - is real but was NOT this bug.)
 
 
 **INCOMING (2026-08-24, forum beta reports — triage. Both reporters
