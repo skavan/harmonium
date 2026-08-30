@@ -111,6 +111,18 @@
     else if (btn === "back") parts.push("back / up a screen");
     else if (btn === "home") parts.push("home page");
     else if (btn === "power") parts.push("activity power");
+    /* AMBIENT MEANINGS the engine gives unbound keys (v0.85.7 —
+       Suresh: "Tooltip says hold FWD does nothing on this page. But
+       works as expected on the physical hardware!"): the transport
+       vocabulary drives the running music from any page, and the
+       hold pair seeks on music pages — the tooltip must know what
+       the engine knows, or it calls a working key dead. */
+    else if (btn === "prev") parts.push("previous track (running music)");
+    else if (btn === "next") parts.push("next track (running music)");
+    else if (btn === "play_pause") parts.push("play / pause (running music)");
+    else if (btn === "stop") parts.push("stop (running music)");
+    else if (btn === "left_hold") parts.push("seek −15s (music pages)");
+    else if (btn === "right_hold") parts.push("seek +15s (music pages)");
     const hb = btn + "_hold";
     const holdA = sc?.buttons?.[hb] || d.input?.global_buttons?.[hb];
     if (holdA) parts.push("hold: " + actionDesc(holdA));

@@ -2,6 +2,22 @@
    ensures its activity first); drawer screens pop back after firing. */
 WIDGETS.preset = {
     sub: (e, t) => t.sub_label || "",
+    /* PHOTO PRESETS (v0.85.8 — presets as first-class citizens:
+       "support for artwork, opacity, font stuff, just like devices").
+       An `image` turns the icon square into the same full-bleed photo
+       card the nav/room tile wears — shared .photo dress in
+       widgets.css, label_pos / image_opacity / css_vars all apply.
+       `icon_image` stays what it was: a small art stamp in the icon
+       slot. If the photo URL dies (remote art, wall tablet, internet
+       drops), data-pfb tells the chassis error handler to shed the
+       photo dress so the tile falls back to its icon square — same
+       doctrine as icon_image's understudy (v0.68.7). */
+    body: t => t.image && !IMG_DEAD.has(t.image)
+      ? `<img class="roomimg" src="${t.image}" alt="" data-pfb="1">`
+      : `<div class="meter hidden"><i></i></div>`,
+    wire: (el, t) => {
+      if (t.image && !IMG_DEAD.has(t.image)) el.classList.add("photo");
+    },
     /* NO ACTIVITY GLOW (v0.79 — review: "the Discover Weekly preset
        is always highlighted! Why?"). Because v0.68.6's ownership
        stamp doubled as an ON state: every preset of a RUNNING

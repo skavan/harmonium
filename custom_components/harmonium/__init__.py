@@ -28,6 +28,12 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from .catalogs import (
+    lift_out,
+    load_catalog_history,
+    merge_config,
+    stock_catalogs,
+)
 from .api import (
     HarmoniumConfigView,
     HarmoniumEngineVersionView,
@@ -58,6 +64,7 @@ from .store import (
     engine_fingerprint,
     migrate_deploy_dir,
     read_json,
+    write_json,
     write_text,
 )
 from .workspaces import MAIN, is_legacy, legacy_redirect_html, migrate, stub_html
@@ -173,6 +180,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "Harmonium could not deploy bundled sounds: %s — the battery "
             "blueprint's default beep URL will 404 until copied by hand", err)
 
+    # APP LOGOS (v0.85.8): the bundled channel-poster pack (290x218
+    # webp per app key) deploys to www/harmonium/apps/ under the same
+    # per-file ownership stamp — a stock logo update flows, a logo the
+    # user replaced with their own art is preserved. The engine tries
+    # /local/harmonium/apps/<key>.webp for every app tile and falls
+    # back to icon + label when the file is missing, so this block
+    # failing is cosmetic, not fatal.
+    try:
+        deployed_logos = await hass.async_add_executor_job(
+            deploy_bundled_assets, Path(__file__).parent / "apps",
+            new_dir / "apps", False)
+        if deployed_logos:
+            _LOGGER.info("Harmonium deployed/updated app logo(s): %s",
+                         ", ".join(deployed_logos))
+    except OSError as err:
+        _LOGGER.warning(
+            "Harmonium could not deploy bundled app logos: %s — app tiles "
+            "will fall back to icon + label until copied by hand", err)
+
     # One-time shape migration: persist the wrapped form so every later
     # load is already v2.
     raw = await hstore.store.async_load()
@@ -236,6 +262,61 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "Harmonium could not seed the bundled starter (%s): %s "
                     "— starting empty; the Studio can still create a "
                     "config", starter_path, err)
+
+    # LAYERED CATALOGS — the one-shot LIFT-OUT (v0.86.0,
+    # docs/design-layered-catalogs.md). Pre-layers configs carry the
+    # seeded stock catalogs verbatim; from this release the store
+    # holds only the user LAYER and the stock spreads underneath at
+    # read time. Classify every catalog entry by content fingerprint
+    # against catalog-history.json: any shape we ever shipped lifts
+    # out (stock supplies it, updates flow), an edited shape stays as
+    # the user's fork, and a stock key missing from a config becomes
+    # a tombstone ONLY if every shipped generation carried it. Each
+    # workspace is backed up beside its deployed file first
+    # (config.<ws>.prelayers.backup.json), and every workspace is
+    # re-deployed effective afterwards — which is the moment existing
+    # installs' Fire TV pages grow the newer stock apps. Stamped
+    # (catalog_layers) so it runs exactly once; failure is non-fatal
+    # and simply retries next restart.
+    stock = await hass.async_add_executor_job(
+        stock_catalogs, Path(__file__).parent)
+    if data["workspaces"] and not data.get("catalog_layers"):
+        try:
+            history = await hass.async_add_executor_job(
+                load_catalog_history, Path(__file__).parent)
+            for ws, cfg in list(data["workspaces"].items()):
+                await hass.async_add_executor_job(
+                    write_json,
+                    hstore.deploy_path(ws).with_name(
+                        f"config.{ws}.prelayers.backup.json"),
+                    cfg)
+                lifted, report = lift_out(stock, history, cfg)
+                data["workspaces"][ws] = lifted
+                forks = [r for r in report if r.startswith("fork")]
+                stones = [r for r in report if r.startswith("tombstone")]
+                _LOGGER.info(
+                    "Harmonium catalogs lifted for '%s': %d entries lifted "
+                    "to stock, %d kept as yours%s, %d tombstoned%s", ws,
+                    len(report) - len(forks) - len(stones), len(forks),
+                    (" (" + ", ".join(f[5:] for f in forks) + ")")
+                    if forks else "",
+                    len(stones),
+                    (" (" + ", ".join(s[10:] for s in stones) + ")")
+                    if stones else "")
+            data["catalog_layers"] = 1
+            await hstore.save(data)
+            for ws, cfg in data["workspaces"].items():
+                await hstore.deploy(ws, merge_config(stock, cfg))
+        except Exception as err:  # noqa: BLE001 — the migration must
+            # NEVER take the integration down (field lesson, 2026-08-27:
+            # a missing import in this block was a NameError, which the
+            # old (OSError, ValueError) net let straight through — the
+            # whole setup died and the house's remotes went dark).
+            # Nothing is saved until the pass completes, so any failure
+            # here leaves configs untouched and retries next restart.
+            _LOGGER.warning(
+                "Harmonium catalog lift-out did not complete: %s — "
+                "configs are unchanged; it will retry next restart", err)
 
     # the MAIN entry stub (v0.48.3): make /local/harmonium/main/ real
     # NOW — canonical addresses shouldn't wait for the next save

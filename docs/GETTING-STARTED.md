@@ -136,7 +136,7 @@ physical button do the right thing — and to
 [the device-photo guide](cookbook/device-photo-skin.md) to get the
 Studio previewing on a picture of the remote itself.
 
-**First, with the remote on USB, run `setup-remote.bat`** from the
+**First, with the remote on USB, run `remotes/setup-remote.bat`** from the
 repo root: it locks the display to portrait (the Astrion's
 accelerometer otherwise flips the kiosk the moment the remote is
 picked up) and *reports* the display density — on an HA100 it warns
@@ -179,14 +179,14 @@ possible, none is needed, and Fully's "please update WebView" nag
 there can be ignored.
 
 **Skip the button-by-button KeyMapper setup**: the repo ships a
-ready-made Astrion mapping at `remotes/keymapper/astrion/` —
+ready-made Astrion mapping at `remotes/astrion/keymapper/v1/` —
 `key_mapper.zip` is a full KeyMapper backup, and the mapping is
 documented key-by-key in `astrion-remote-map.md` (with keycodes and
 scancodes in `KeyCodes Astrion.xlsx`). With the remote on USB and
-KeyMapper installed, run `push-keymapper.bat` from the repo root: it
+KeyMapper installed, run `remotes/push-keymapper.bat` from the repo root: it
 pushes the backup onto the device and opens KeyMapper — finish with
 ⋮ → *Restore* → pick the file from Downloads. (Your own mapping can
-be backed up the same way with `pull-keymapper.bat`; details in
+be backed up the same way with `remotes/pull-keymapper.bat`; details in
 [hardware-keys](cookbook/hardware-keys.md).)
 
 Two Fully Kiosk settings worth setting immediately: enable

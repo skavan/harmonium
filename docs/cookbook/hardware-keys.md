@@ -38,7 +38,7 @@ reach Fully's webview, so Harmonium never sees them.
 > TRAP** — its wireless-debugging re-arm causes ADB permission
 > dialogs at every boot, and the RS90's keys work fine without it.
 > The RS90 has its own four-layer story: see the RS90 section
-> below, and `remotes/rs90-facts.md` for the runbook.
+> below, and `remotes/rs90/facts.md` for the runbook.
 
 On the Astrion family, KeyMapper's ordinary accessibility service
 can't reliably intercept keys inside a **browser/webview**.
@@ -97,17 +97,17 @@ the F4–F7 row (lightbulb/curtains/music/climate, doubling as
 REW/play-pause/stop/FWD on astrion2), and the color keys Red `F8`
 Green `F9` Blue `F10` Yellow `F11` (KeyMapper app launchers on the
 shipped profile — Red is the road back to Fully) — is tabled in
-`remotes/astrion-facts.md`, holds included; the generated per-rule
-map is `remotes/keymapper/astrion/astrion-remote-map.md`.
+`remotes/astrion/facts.md`, holds included; the generated per-rule
+map is `remotes/astrion/keymapper/v1/astrion-remote-map.md`.
 
 ## 0b. The hardware side (Haptique RS90) — NO Expert Mode
 
 The RS90's key stack is a different animal, resolved 2026-08-22
 after a full day of forensics. **Four independent layers, all
-required** — the canonical runbook is `remotes/rs90-facts.md`
+required** — the canonical runbook is `remotes/rs90/facts.md`
 ("THE RS90 KEY STACK"), the full investigation (including the
-device-id theory that failed) is `remotes/rs90-key-research.md`,
-and the restorable mapping set is `remotes/keymapper/rs90/`:
+device-id theory that failed) is `remotes/rs90/key-research.md`,
+and the restorable mapping set is `remotes/rs90/keymapper/`:
 
 1. **The launcher must NOT be cantata.** The stock
    `com.cantata.remote` is both remote UI and home app, and as home
@@ -141,7 +141,7 @@ dead, keys flow raw into Fully, whose Astrion-imported
 can be two configs interlocking, not a second thief. And the RS90's
 **Power=F1 / Home=F2 are SWAPPED vs the Astrion** — never copy the
 Astrion's keymap or its KeyMapper zip; use
-`remotes/keymapper/rs90/key_mapper.zip` (push-keymapper.bat takes
+`remotes/rs90/keymapper/key_mapper.zip` (remotes/push-keymapper.bat takes
 the folder name).
 
 **Long-press Home and Power (v0.85.7+).** The RS90 engine keymap
@@ -350,7 +350,7 @@ see the README there), so a fresh clone runs them with zero setup.
 Plug the remote in over **USB** (the same connection it was
 provisioned with) and:
 
-- **`pull-keymapper.bat`** — no arguments needed. One-time setup on
+- **`remotes/pull-keymapper.bat`** — no arguments needed. One-time setup on
   the remote first (KeyMapper offers no headless export intent):
   KeyMapper → **Settings → Change automatic backup location →
   Change** → save `key_mapper.zip` into **Download**. From then on
@@ -359,13 +359,13 @@ provisioned with) and:
   (Don't bother with ⋮ → *Export all*: on the Astrion the share
   sheet offers no save-to-files target, so it jumps straight to the
   Bluetooth picker.) The script pulls the **newest** `*key*.zip`
-  from Download into `remotes/keymapper/astrion/key_mapper.zip`
+  from Download into `remotes/astrion/keymapper/v1/key_mapper.zip`
   (pass a name for a different folder). Commit the zip. Quirk: the
   save dialog suffixes `(2)`/`(3)` instead of overwriting and can't
   delete its own pileup — the script always takes the newest and
   names it cleanly; tidy Download with the remote's File Manager
   when the dupes bother you.
-- **`push-keymapper.bat`** — provisioning a NEW remote: pushes the
+- **`remotes/push-keymapper.bat`** — provisioning a NEW remote: pushes the
   newest committed zip into the device's Download folder, verifies
   it landed, and opens KeyMapper; finish with **⋮ → Restore** and
   pick the file. Two taps instead of re-authoring every key.
@@ -445,7 +445,7 @@ entries are inert either way), the engine keeps the mechanism (the
 default profile's `{`/`}` still speak it, and long-press Power
 `=` → `power_hold` → All Off is untouched), and
 `astrion-remote-map.md` documents the new rows. After changing
-mappings, run `pull-keymapper.bat` so the backup zip carries them.
+mappings, run `remotes/pull-keymapper.bat` so the backup zip carries them.
 
 ## Optional: device Back/Home on long-press
 
@@ -468,7 +468,7 @@ back* to *Key code* → `KEYCODE_LEFT_CURLY_BRACKET` (`{` →
 *Fully in foreground* constraint. Keep at least one escape route:
 move *Go back*/*Go home* to **double-press** triggers, or accept
 that a stranded session needs adb. After changing,
-`pull-keymapper.bat`.
+`remotes/pull-keymapper.bat`.
 
 ## Hold-CH and hold-◀/▶ in KeyMapper (four more mappings)
 
@@ -493,4 +493,4 @@ keep flowing through untouched (PageUp/PageDown → the section
 jump/walk, the arrows → the focus walk). On a page with its own
 `left_hold`/`right_hold` binding, the binding wins — the stock TV
 screen uses exactly that for REWIND/FAST_FORWARD. After adding the
-mappings, `pull-keymapper.bat`.
+mappings, `remotes/pull-keymapper.bat`.

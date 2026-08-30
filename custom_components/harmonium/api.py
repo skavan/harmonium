@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from .const import DEPLOY_DIR
 from .packaging import STOCK_SUBDIR, USER_SUBDIR
 from .store import HarmoniumStore, engine_fingerprint
+from .catalogs import merge_config, subtract_config
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -226,7 +227,14 @@ class HarmoniumConfigView(HomeAssistantView):
             return self.json_message(
                 f"workspace '{ws}' does not exist — create it first",
                 status_code=404)
-        data["workspaces"][ws] = config
+        # LAYERED CATALOGS (v0.86.0): the Studio posts the EFFECTIVE
+        # config (what it was served). The store holds only the user
+        # LAYER — subtract the stock catalogs here, at the write
+        # boundary, so nothing can ever bake stock into user space
+        # (the never-write-merged contract). An entry equal to stock
+        # lifts out; a missing stock key becomes a tombstone; the
+        # deploy below still carries the full effective config.
+        data["workspaces"][ws] = subtract_config(self.hstore.stock(), config)
         data["meta"].setdefault(ws, {"name": "Main" if ws == MAIN else ws})
         if ws not in data["order"]:
             data["order"].append(ws)
@@ -306,12 +314,19 @@ class HarmoniumWorkspacesView(HomeAssistantView):
                     return self.json({"ok": False, "problems": problems},
                                      status_code=422)
             config = retarget_selects(config, src or MAIN, ws)
+            # a duplicate's source is already a user layer; a config
+            # supplied in the body is effective-shaped — subtract is
+            # a no-op on the former and the contract on the latter
+            stock = self.hstore.stock()
+            if action != "duplicate" and "config" in body:
+                config = subtract_config(stock, config)
             data["workspaces"][ws] = config
             data["meta"][ws] = {"name": name}
             data["order"].append(ws)
             await self.hstore.save(data)
-            deploy = await self.hstore.deploy(ws, config)
-            await self.mint(ws, config)
+            effective = merge_config(stock, config)
+            deploy = await self.hstore.deploy(ws, effective)
+            await self.mint(ws, effective)
             _LOGGER.info("Harmonium workspace '%s' (%s) created, deployed to %s",
                          ws, name, deploy)
             return self.json({"ok": True, "workspace": ws,

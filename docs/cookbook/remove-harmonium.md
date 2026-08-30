@@ -67,7 +67,7 @@ On each hardware remote / tablet / kiosk that ran Harmonium:
   Harmonium's — they just emit characters. Keep them if the device
   has a next life with another dashboard, or *KeyMapper → ⋮ →
   Delete all* to zero it.
-- Anything from [setup-remote.bat](../../setup-remote.bat)
+- Anything from [setup-remote.bat](../../remotes/setup-remote.bat)
   (rotation lock) and the wake-lock/launcher tweaks in
   [hardware-keys](hardware-keys.md) are device-level Android
   settings, independent of Harmonium — revert them only if the

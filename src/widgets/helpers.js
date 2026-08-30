@@ -46,8 +46,68 @@ function chipOptions(e, kind) {
    untouched (deslug is display-layer only, like entOpt). */
 const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
 const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
+/* FRIENDLY APP NAMES (v0.85.8 — Suresh: "source shows as
+   com.britbox.us.firetv and com.fubo.firetv.screen, whereas Hulu and
+   ESPN show correctly. We need a friendly name key"): the master app
+   list already IS the friendly-name registry — every dialect launch
+   entry ties the raw package/source string a player reports to an app
+   id whose identity carries the display name. Build the reverse map
+   once per config: `source:` strings directly, `am start` commands by
+   the package before the "/". A string not in the map (a player that
+   already reports a real name, or an app Harmonium never launched)
+   passes through untouched. Display-layer only, like deslug. */
+let _alCfg = null, _alMap = null;
+function appLabel(v) {
+  if (!v) return v;
+  if (_alCfg !== CONFIG) {
+    _alCfg = CONFIG;
+    _alMap = {};
+    const reg = CONFIG.apps || {};
+    const dial = CONFIG.dialects || CONFIG.app_classes || {};
+    for (const d in dial) {
+      const apps = dial[d].apps || {};
+      for (const aid in apps) {
+        const e = apps[aid] || {};
+        const name = (reg[aid] && reg[aid].name) || cap(aid);
+        if (typeof e.source === "string") _alMap[e.source] = name;
+        const cmd = e.data && e.data.command;
+        if (typeof cmd === "string") {
+          const m = cmd.match(/am start (?:-n )?([\w.]+)\//);
+          if (m) _alMap[m[1]] = name;
+        }
+      }
+    }
+  }
+  return _alMap[v] || v;
+}
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
-const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
+/* FAST DPAD (2026-08-27 — his Fire TV latency investigation): a
+   dpad_commands value may be a full ACTION object instead of a key
+   name. `input keyevent` costs 150-400ms of Java process spawn per
+   press on Android/Fire TV; a raw-input action (androidtv.adb_command
+   → sendevent) lands in single-digit ms. Strings keep the
+   remote.send_command path byte-identical; objects run through
+   runAction and carry their own service/target (the entity rung is
+   theirs to name — "$context.media_player" keeps a dialect house-
+   portable). Object sends are PACED here, where every path funnels
+   (keydown, hold-repeat, widget capture, on-screen pad): his box's
+   UI consumes ~6 presses/sec — host-paced 150ms and device-paced
+   200ms tests converged on the same ceiling (the launcher's focus
+   animation, not the transport) — so a press landing inside
+   TIMING.dpadRepeat of the last is dropped, which mirrors what the
+   device itself would do with it. */
+var _rcLast = 0;
+const rc = (e, c) => {
+  if (!c) return;
+  if (typeof c === "object") {
+    const now = Date.now();
+    if (now - _rcLast < TIMING.dpadRepeat) return;
+    _rcLast = now;
+    runAction(c);
+    return;
+  }
+  if (e) callService("remote", "send_command", { command: c }, e);
+};
 /* command resolution (v0.84.7 — the DIALECT rung):
      DPAD_DEFAULT < dialect.dpad_commands < tile "commands"
                   < activity context "dpad_commands"

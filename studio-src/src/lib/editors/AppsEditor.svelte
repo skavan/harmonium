@@ -8,7 +8,7 @@
      A surface picks its dialect via the ACTIVITY's context (dialect) —
      one shared Apps drawer, many dialects. */
   import { app, schedulePreview, setStatus } from "../state.svelte.js";
-  import { STOCK_DIALECTS } from "../stocklib.js";
+  import { STOCK_DIALECTS, STOCK_APP_IDENTITIES } from "../stocklib.js";
   import { unitFp } from "../ownership.js";
   import Field from "../components/Field.svelte";
   import IconPicker from "../components/IconPicker.svelte";
@@ -49,6 +49,50 @@
     app.draft.dialects[cid] = JSON.parse(JSON.stringify(STOCK_DIALECTS[cid]));
     stockView[cid] = false;
     setStatus("dialect reset to stock — updates keep it current again", "ok");
+    edit();
+  }
+  /* v0.86.0 LAYERED CATALOGS — per-ENTRY provenance. The store now
+     holds only the user's deltas; this editor sees the EFFECTIVE
+     config, so provenance is computed against the stocklib twin:
+     equal fingerprint = stock (updates flow), different = edited
+     (yours now, reset offered), no stock id = yours. A stock entry
+     absent from the config is HIDDEN (a tombstone server-side) and
+     restorable from the list below the entries. */
+  const stockEntry = (cid, aid) =>
+    ((STOCK_DIALECTS[cid] || {}).apps || {})[aid];
+  const asEntry = (e) => (typeof e === "string" ? { source: e } : e);
+  const entryProv = (cid, aid, e) => {
+    const s = stockEntry(cid, aid);
+    if (!s) return "yours";
+    return unitFp(asEntry(e)) === unitFp(s) ? "stock" : "edited";
+  };
+  function resetEntry(cid, aid) {
+    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(cid, aid)));
+    setStatus("entry reset to built-in — stock updates keep it current", "ok");
+    edit();
+  }
+  const hiddenEntries = (cid, c) =>
+    Object.keys((STOCK_DIALECTS[cid] || {}).apps || {})
+      .filter((aid) => (c.apps || {})[aid] === undefined);
+  function restoreEntry(cid, aid) {
+    if (!classes[cid].apps) classes[cid].apps = {};
+    classes[cid].apps[aid] = JSON.parse(JSON.stringify(stockEntry(cid, aid)));
+    setStatus("built-in entry restored", "ok");
+    edit();
+  }
+  const idProv = (id, a) => {
+    const s = STOCK_APP_IDENTITIES[id];
+    if (!s) return "yours";
+    return unitFp(a) === unitFp(s) ? "stock" : "edited";
+  };
+  function resetIdentity(id) {
+    app.draft.apps[id] = JSON.parse(JSON.stringify(STOCK_APP_IDENTITIES[id]));
+    edit();
+  }
+  const hiddenIdentities = () =>
+    Object.keys(STOCK_APP_IDENTITIES).filter((id) => !(apps || {})[id]);
+  function restoreIdentity(id) {
+    app.draft.apps[id] = JSON.parse(JSON.stringify(STOCK_APP_IDENTITIES[id]));
     edit();
   }
 
@@ -267,6 +311,18 @@
               <div class="flex items-center gap-2">
                 <span class="w-32 shrink-0 truncate text-xs font-bold text-ink" title={aid}>
                   {apps?.[aid]?.name || aid}</span>
+                {#if isStockId(cid)}
+                  {@const prov = entryProv(cid, aid, e)}
+                  {#if prov === "stock"}
+                    <span class="shrink-0 rounded-[4px] bg-sunk px-1.5 py-0.5 text-[10px] text-dim"
+                      title="Matches the built-in entry — stock updates keep it current">stock</span>
+                  {:else if prov === "edited"}
+                    <span class="shrink-0 rounded-[4px] border border-accent/40 bg-sunk px-1.5 py-0.5 text-[10px] text-accent-text"
+                      title="Differs from the built-in — yours now; stock updates won't touch it">edited</span>
+                    <button class="shrink-0 cursor-pointer border-0 bg-transparent p-0.5 text-[12px] text-dim hover:text-ink"
+                      title="Reset to the built-in entry" onclick={() => resetEntry(cid, aid)}>↺</button>
+                  {/if}
+                {/if}
                 <Select value={entryKind(e)} class="w-32"
                   onchange={(ev) => setEntryKind(c, aid, ev.target.value)}
                   options={[
@@ -309,6 +365,15 @@
                 ev.target.value = ""; edit(); }} />
             <span class="text-xs text-dim">← add an app from the master list</span>
           </div>
+          {#if isStockId(cid) && hiddenEntries(cid, c).length}
+            <p class="m-0 text-[11px] text-dim">Hidden built-ins —
+              {#each hiddenEntries(cid, c) as aid (aid)}
+                <button class="ml-1 cursor-pointer rounded-[4px] border border-line bg-transparent px-1.5 py-0.5 text-[11px] text-dim hover:text-ink"
+                  title="Restore the built-in launch entry"
+                  onclick={() => restoreEntry(cid, aid)}>⊕ {apps?.[aid]?.name || aid}</button>
+              {/each}
+            </p>
+          {/if}
         </div>
       </SectionFold>
     {/each}
@@ -331,17 +396,35 @@
                   onchange={(e) => renameApp(id, e.target.value)}
                   class="w-full rounded-[8px] border border-line bg-field px-2.5 py-1.5 font-mono text-[12.5px] text-ink outline-none focus:border-accent/60" />
               </Field>
-              <Field label="Icon" hint="search icons · or an image path (/local/…)">
+              <!-- v0.85.8: apps ship a stock logo card by key
+                   (/local/harmonium/apps/<id>.webp); a path entered
+                   here becomes the user's OWN logo card and wins.
+                   The icon is the fallback when no logo exists. -->
+              <Field label="Icon" hint="fallback icon when no logo exists · an image path (/local/…) replaces the stock logo card">
                 <IconPicker value={a.image || a.icon || ""}
                   onchange={(e) => { setAppIcon(a, e.target.value); edit(); }} />
               </Field>
             </div>
+            {#if STOCK_APP_IDENTITIES[id] && idProv(id, a) === "edited"}
+              <p class="mt-2 mb-0 text-[11px] text-dim">Differs from the built-in identity — yours now.
+                <button class="ml-1 cursor-pointer border-0 bg-transparent p-0 text-[11px] text-accent-text hover:underline"
+                  onclick={() => resetIdentity(id)}>↺ Reset to built-in</button></p>
+            {/if}
             {#if carriedBy(id).length}
               <p class="mt-2 mb-0 text-[11px] text-dim">Delete is guarded — remove it from
                 {carriedBy(id).join(", ")} first.</p>
             {/if}
           </CardRow>
         {/each}
+        {#if hiddenIdentities().length}
+          <p class="m-0 text-[11px] text-dim">Hidden built-ins —
+            {#each hiddenIdentities() as id (id)}
+              <button class="ml-1 cursor-pointer rounded-[4px] border border-line bg-transparent px-1.5 py-0.5 text-[11px] text-dim hover:text-ink"
+                title="Restore the built-in app identity"
+                onclick={() => restoreIdentity(id)}>⊕ {STOCK_APP_IDENTITIES[id].name}</button>
+            {/each}
+          </p>
+        {/if}
         <Button size="sm" onclick={addApp}>＋ Add app</Button>
       </div>
     </SectionFold>

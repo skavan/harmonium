@@ -89,7 +89,16 @@ function genAppTiles(t) {
       const e = entries[aid], meta = reg[aid] || {};
       const ov = typeof e === "object" && e !== null ? e : {};
       const action = classLaunch(e);
-      const image = ov.image || meta.image;
+      /* APP LOGO CARDS (v0.85.8 — the Roku-shape logo pack, shipped
+         in the integration and deployed to /local/harmonium/apps/).
+         Every app tile TRIES its logo by key convention; a per-app
+         `image` override still wins (its meaning moved from icon
+         stamp to logo card this release). No manifest needed: an app
+         with no logo on disk 404s, the tile sheds the photo dress
+         (data-pfb, the photo-preset machinery) and falls back to
+         icon + label in the same 4:3 box. */
+      const image = ov.image || meta.image ||
+        "/local/harmonium/apps/" + aid + ".webp";
       return action && {
         type: "preset", id: t.id + "_" + aid,
         /* cls "app" (v0.83.8 — "bigger tiles, text"): app launchers
@@ -99,7 +108,7 @@ function genAppTiles(t) {
         cls: "app",
         ...(wake ? { wake, ...(wakeDelay ? { wakeDelay } : {}) } : {}),
         icon: ov.icon || meta.icon || "material:apps",
-        ...(image ? { icon_image: image } : {}),
+        image,
         label: ov.name || meta.name || aid,
         action,
       };

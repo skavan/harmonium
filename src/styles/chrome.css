@@ -223,3 +223,20 @@
   #grid.rubber-l { animation: rubberL .28s ease; }
   @keyframes rubberR { 50% { transform: translateX(18px); } }
   @keyframes rubberL { 50% { transform: translateX(-18px); } }
+
+  /* SCROLL CUE (v0.85.8): the below-the-fold hint — a small filled
+     accent triangle floating at the very bottom, centered. Pure cue:
+     no pointer events; render.js positions it above the visible
+     strips (same math as gridVisBottom) and drops .on at the end of
+     the scroll. z-index 41: over the strips (40/39), under nothing
+     that matters — it never overlaps content taller than 11px. */
+  #scrollcue {
+    position: fixed; left: 50%; bottom: 2px;
+    -webkit-transform: translateX(-50%); transform: translateX(-50%);
+    width: 0; height: 0; pointer-events: none; z-index: 41;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 11px solid var(--accent);
+    opacity: 0; transition: opacity .15s;
+  }
+  #scrollcue.on { opacity: 1; }

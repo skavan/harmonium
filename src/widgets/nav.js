@@ -82,14 +82,13 @@ WIDGETS.nav = {
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
   wire: (el, t) => {
-    el.classList.add("nav-" + navStyle(t));
-    /* image_opacity (v0.85.7 — "Need an opacity on those device
-       images like we do on the HERO card"): same semantic as the
-       banner knob — how much of the photo shows over the dark card.
-       Absent = the stylesheet's .85 default. */
-    const op = t.image_opacity;
-    if (op != null && isFinite(+op))
-      el.style.setProperty("--img-op", String(Math.max(0, Math.min(1, +op))));
+    const style = navStyle(t);
+    el.classList.add("nav-" + style);
+    /* the shared photo-tile dress (v0.85.8): widgets.css styles
+       .tile.photo, and preset tiles with an `image` wear the same
+       class — one look, two widgets. image_opacity moved to the
+       chassis (tiles.js) for the same reason. */
+    if (style === "image") el.classList.add("photo");
   },
   select: (e, t) => { if (t.target) navigate(t.target); else flashBar("No page linked yet"); },
 };

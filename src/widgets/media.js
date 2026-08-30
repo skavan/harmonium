@@ -45,7 +45,7 @@ WIDGETS.media = {
       /* the SOURCE gets its own line (v0.83.7 tidy-ups: "Music
          Assistant Queue should sit on its own line") — .sub is
          white-space: pre-line on media tiles */
-      const src = s.a.source ? "\n" + s.a.source : "";
+      const src = s.a.source ? "\n" + appLabel(s.a.source) : "";
       return cap(s.s) + src;
     },
     isOn: e => ["playing", "on", "paused"].includes(st(e).s),
@@ -119,7 +119,12 @@ WIDGETS.media = {
          same-origin, which is the common case). Cached per URL so a
          re-render never resamples. */
       img.addEventListener("load", () => {
-        const url = img.dataset.src || img.src;
+        /* keyed on the LOADED src, not dataset.src (v0.85.7 — the
+           stuck-art round): a same-URL player re-fetches with a
+           per-track bust param, and the cache must judge each
+           track's picture — keying on the bare URL froze the first
+           verdict forever. */
+        const url = img.src || img.dataset.src;
         if (!url) return;
         if (!window.NP_ART_DARK) window.NP_ART_DARK = {};
         const cache = window.NP_ART_DARK;
@@ -156,7 +161,7 @@ WIDGETS.media = {
                row was a bare "Playing" — the APP is the story there:
                "Playing • YouTube TV". Music with a title is unchanged. */
             : cap(s.s) + ((s.a.app_name || s.a.source)
-              ? " • " + (s.a.app_name || s.a.source) : ""));
+              ? " • " + appLabel(s.a.app_name || s.a.source) : ""));
         const box = el.querySelector(".npst");
         const tx = el.querySelector(".npstx");
         el.querySelector(".npsind").classList.toggle("live", s.s === "playing");
@@ -193,7 +198,7 @@ WIDGETS.media = {
           s0.s === "playing" ? (t.label || "Now Playing") : cap(s0.s);
         const sub0 = el.querySelector(".sub");
         if (sub0) {
-          const src0 = s0.a.app_name || s0.a.source || "";
+          const src0 = appLabel(s0.a.app_name || s0.a.source || "");
           /* "On a TV, there is no queue" (v0.85.5): queue language is
              music talk. A tv-class player (or anything reporting an
              app) just says where it is — "YouTube TV". */
@@ -257,8 +262,22 @@ WIDGETS.media = {
          paused player still looks like the thing it is playing. */
       const dimArt = !ACTIVE(s.s);
       el.classList.toggle("npdim", !!pic && dimArt);
+      /* THE STUCK-ART LATCHES (v0.85.7 — Suresh: "When I click next
+         track on a playlist, sometimes the artwork stops updating").
+         Two ways the old gate wedged: (a) a player that serves ONE
+         proxy URL whose CONTENT changes per track — src unchanged,
+         so the <img> never refetched and the old cover stayed;
+         (b) a transient fetch failure right after a track change set
+         dataset.bad, which only a NEW url ever cleared — same-url
+         players showed the placeholder forever after. The TRACK is
+         the honest change signal: when it changes, the bad-latch
+         clears and a same-url picture is re-fetched (tiny cache-bust
+         param — art changes per track anyway). */
+      const trk = (s.a.media_content_id || "") + "|" + (s.a.media_title || "");
+      const trkChanged = el.dataset.trk !== trk;
+      if (trkChanged) { el.dataset.trk = trk; img.dataset.bad = ""; }
       if (pic) {
-        if (wash && el.dataset.bg !== pic && !dimArt) {
+        if (wash && (el.dataset.bg !== pic || trkChanged) && !dimArt) {
           el.dataset.bg = pic;
           el.style.backgroundImage =
             `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
@@ -267,6 +286,8 @@ WIDGETS.media = {
         }
         if (img.dataset.src !== pic) {
           img.dataset.src = pic; img.src = pic; img.dataset.bad = "";
+        } else if (trkChanged) {
+          img.src = pic + (pic.indexOf("?") >= 0 ? "&" : "?") + "_hkt=" + Date.now();
         }
       } else {
         if (wash) { el.dataset.bg = ""; el.style.backgroundImage = ""; }
@@ -309,7 +330,7 @@ WIDGETS.media = {
          label, at title size and full brightness — and then it does
          NOT repeat below. */
       const hasTitle = !!s.a.media_title;
-      const appSrc = s.a.app_name || s.a.source || "";
+      const appSrc = appLabel(s.a.app_name || s.a.source || "");
       /* v0.85.7 (his: "ALL artwork styles should say No items in the
          queue when that is true"): a MUSIC player with an empty queue
          says so in the title row, source below — the same words Basic
@@ -327,7 +348,7 @@ WIDGETS.media = {
          has no album — "YouTube TV" is the whole story. */
       el.querySelector(".npb").textContent =
         s.a.media_album_name ||
-        (hasTitle ? appSrc : (tvish ? "" : s.a.source || ""));
+        (hasTitle ? appSrc : (tvish ? "" : appLabel(s.a.source || "")));
       npProgress(el, s);
     }
   };
@@ -374,8 +395,13 @@ function npProgress(el, s) {
   }
 }
 setInterval(() => {
+  /* .hero joined the list (v0.85.7 — Suresh: "the playbar stops
+     updating"): the ticker predates the hero class, so the SHIPPED
+     DEFAULT card's progress only moved when a state diff happened
+     to arrive — between diffs it sat frozen. */
   document.querySelectorAll(
-    ".tile.wgt-media.art, .tile.wgt-media.wash, .tile.wgt-media.poster"
+    ".tile.wgt-media.art, .tile.wgt-media.wash, " +
+    ".tile.wgt-media.poster, .tile.wgt-media.hero"
   ).forEach(el => {
     const s = st(el.dataset.eid);
     if (s.s === "playing") npProgress(el, s);

@@ -1,0 +1,321 @@
+{
+ "apps": {
+  "netflix": [
+   "12a7e08dd1bf"
+  ],
+  "prime": [
+   "d2116b84af71"
+  ],
+  "youtube": [
+   "e84bde11d2f9"
+  ],
+  "youtubetv": [
+   "3518a02b7fa0"
+  ],
+  "peacock": [
+   "d16331382678"
+  ],
+  "paramount": [
+   "1c56eab244fa"
+  ],
+  "max": [
+   "9ec5e1d52e62"
+  ],
+  "appletv": [
+   "52633badb735"
+  ],
+  "hulu": [
+   "144872f8087d"
+  ],
+  "disney": [
+   "1c2c0e18cdc9"
+  ],
+  "fubo": [
+   "a816560f612c"
+  ],
+  "espn": [
+   "8f8353ff78d3"
+  ],
+  "britbox": [
+   "12b0d9a3678d"
+  ],
+  "spotify": [
+   "__absent__",
+   "1178bfc71418"
+  ],
+  "plex": [
+   "__absent__",
+   "88e5c1e96d9a"
+  ],
+  "plutotv": [
+   "__absent__",
+   "71e85b497b53"
+  ],
+  "tubi": [
+   "__absent__",
+   "6048a7fc4689"
+  ],
+  "pbs": [
+   "__absent__",
+   "424b9b87e893"
+  ],
+  "philo": [
+   "__absent__",
+   "1dd43c05df02"
+  ]
+ },
+ "dialect_apps": {
+  "firetv": {
+   "netflix": [
+    "8c4a916f0d51"
+   ],
+   "prime": [
+    "6dfd654c1e56"
+   ],
+   "youtube": [
+    "6ced036ab7cb"
+   ],
+   "youtubetv": [
+    "5e0d803917c6"
+   ],
+   "peacock": [
+    "e74cc7a9c935"
+   ],
+   "paramount": [
+    "b9ff7347f713"
+   ],
+   "max": [
+    "c815355ff183"
+   ],
+   "appletv": [
+    "63f6e020f33f"
+   ],
+   "hulu": [
+    "__absent__",
+    "67d149218121"
+   ],
+   "fubo": [
+    "__absent__",
+    "f066c008b053"
+   ],
+   "espn": [
+    "__absent__",
+    "6ee4ad1e74a8"
+   ],
+   "britbox": [
+    "__absent__",
+    "4cfce50f06ff"
+   ]
+  },
+  "tizen": {
+   "netflix": [
+    "8afe75520f4b"
+   ],
+   "prime": [
+    "a3b2d292fa7d"
+   ],
+   "youtube": [
+    "e34605d5d5da"
+   ],
+   "youtubetv": [
+    "580bd5c7435d"
+   ],
+   "hulu": [
+    "deb67c30d93e"
+   ],
+   "disney": [
+    "ef9670dcc55e"
+   ],
+   "appletv": [
+    "95e3e84ed1b4"
+   ],
+   "max": [
+    "40fd76f7216b"
+   ],
+   "peacock": [
+    "8a18a531013d"
+   ],
+   "paramount": [
+    "330dd9437499"
+   ]
+  },
+  "googletv": {
+   "netflix": [
+    "c809de42d890"
+   ],
+   "prime": [
+    "22aca250c460"
+   ],
+   "youtube": [
+    "80cd32500683"
+   ],
+   "youtubetv": [
+    "fadf0eb71371"
+   ],
+   "peacock": [
+    "8bf8ea9919fe"
+   ],
+   "paramount": [
+    "a3b691f778d0"
+   ],
+   "max": [
+    "1eab37a4bad1"
+   ],
+   "appletv": [
+    "2a806d621da4"
+   ],
+   "hulu": [
+    "4f0ccdc2061a"
+   ],
+   "disney": [
+    "770baa4cd67e"
+   ],
+   "fubo": [
+    "919988c810ce"
+   ],
+   "espn": [
+    "91cf66cc35b1"
+   ],
+   "britbox": [
+    "1186c5a5d2f2"
+   ]
+  },
+  "appletv": {
+   "netflix": [
+    "8afe75520f4b"
+   ],
+   "youtube": [
+    "e34605d5d5da"
+   ],
+   "youtubetv": [
+    "580bd5c7435d"
+   ],
+   "disney": [
+    "ef9670dcc55e"
+   ],
+   "hulu": [
+    "deb67c30d93e"
+   ],
+   "max": [
+    "d4cb8d470082"
+   ],
+   "prime": [
+    "a3b2d292fa7d"
+   ],
+   "appletv": [
+    "a5b9de9b597d"
+   ],
+   "peacock": [
+    "c13df789b7ef"
+   ],
+   "paramount": [
+    "330dd9437499"
+   ],
+   "spotify": [
+    "8960a6e6cbd7"
+   ],
+   "plex": [
+    "c04318d12c78"
+   ],
+   "plutotv": [
+    "1d4d27574319"
+   ],
+   "tubi": [
+    "75a7d4d56b65"
+   ],
+   "pbs": [
+    "ee6deaaa29a5"
+   ],
+   "philo": [
+    "e3ba4f63a1e0"
+   ]
+  }
+ },
+ "dialect_keys": {
+  "firetv": {},
+  "tizen": {},
+  "googletv": {
+   "settings": [
+    "25e0f213dc82"
+   ],
+   "search": [
+    "1da9e5d6a274"
+   ],
+   "allapps": [
+    "d5e62ddbc829"
+   ],
+   "quicksettings": [
+    "536c3feea792"
+   ],
+   "livetv": [
+    "af9238b9c3da"
+   ]
+  },
+  "appletv": {}
+ },
+ "dialect_fields": {
+  "firetv": {
+   "name": [
+    "8e8cbfe2045c"
+   ],
+   "channels": [
+    "82846e902cf1"
+   ],
+   "wake": [
+    "__absent__",
+    "1e6665f31cb4"
+   ],
+   "capabilities": [
+    "__absent__",
+    "8eed6c3ee48b"
+   ]
+  },
+  "tizen": {
+   "name": [
+    "f3c009ea88e6"
+   ]
+  },
+  "googletv": {
+   "name": [
+    "12b8a72dc185"
+   ],
+   "channels": [
+    "82846e902cf1"
+   ],
+   "forbidden": [
+    "a513afa2ceef"
+   ],
+   "wake": [
+    "__absent__",
+    "1e6665f31cb4"
+   ]
+  },
+  "appletv": {
+   "name": [
+    "4c1260865368"
+   ],
+   "dpad_commands": [
+    "6aa063ff95bd"
+   ]
+  }
+ },
+ "dialects_presence": {
+  "firetv": [
+   "71a4b903862d",
+   "ba11a1e221b8",
+   "5408dda7c825",
+   "776cb3f4eb7e"
+  ],
+  "tizen": [
+   "b962c6033f86"
+  ],
+  "googletv": [
+   "e828fb6d39d8",
+   "74167b7f578c"
+  ],
+  "appletv": [
+   "__absent__",
+   "4aa335fc67a0"
+  ]
+ }
+}

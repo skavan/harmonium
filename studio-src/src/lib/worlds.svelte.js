@@ -8,6 +8,8 @@
    (v0.83.11 round 2); state re-exports everything here. */
 import { app, api, setStatus, selectSlice, pushPreview, rebaseline,
   roomIds, normalizeConfig, starterConfig, previewGoto, token } from "./state.svelte.js";
+import { unitFp } from "./ownership.js";
+import { STOCK_DIALECTS, STOCK_APP_IDENTITIES } from "./stocklib.js";
 
 const WS_API = "/api/harmonium/workspaces";
 
@@ -145,6 +147,14 @@ export function exportConfig() {
   const out = $state.snapshot(app.draft);
   out._workspace = { id: app.workspace,
     name: app.workspaces[app.workspace]?.name || app.workspace };
+  /* v0.86.0 layered catalogs — the RULING: every export carries the
+     catalog generation it was authored against, so an import against
+     a different stock can always know what it is looking at. The
+     generation is the fingerprint of the current stock dialects +
+     app identities (stocklib twins). Stripped on import like
+     _workspace; the engine never sees it. */
+  out._catalog_gen = unitFp({ dialects: STOCK_DIALECTS,
+    apps: STOCK_APP_IDENTITIES });
   const blob = new Blob([JSON.stringify(out, null, 2)],
     { type: "application/json" });
   const a = document.createElement("a");
@@ -208,6 +218,7 @@ export async function importConfig(file) {
     }
     const stamp = cfg._workspace || null;   /* older exports have none */
     delete cfg._workspace;
+    delete cfg._catalog_gen;   /* informational stamp — never stored */
     if (!cfg.screens) throw new Error("no screens — not a Harmonium config");
     app.importAsk = { kind: "single", fname: file.name, config: cfg, stamp };
   } catch (e) {

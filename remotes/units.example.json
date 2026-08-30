@@ -1,0 +1,28 @@
+[
+  {
+    "name": "New Astrion (den)",
+    "type": "astrion",
+    "keymap": "v2",
+    "serial": "0123456789ABCDEF",
+    "ip": "192.168.1.50",
+    "port": 5555,
+    "notes": "EXAMPLE. Copy this file to remotes/units.json (gitignored) and edit with YOUR remotes. 'serial' = the device's stable hardware id (get it from `remotes\\device-facts.bat`, or `adb devices` for a USB device, or `adb -s <dev> shell getprop ro.serialno`). It is what routes a connected remote to THIS entry - reliable over USB or wireless, and it never changes, unlike an IP. 'type' = the folder under remotes/. 'keymap' = the Key Mapper config VERSION (v1, v2) = folder under remotes/<type>/keymapper/. Changing keymap and re-pushing IS the upgrade - a choice, never forced. 'ip' drives wireless ADB (omit for USB-only)."
+  },
+  {
+    "name": "Old Astrion",
+    "type": "astrion",
+    "keymap": "v1",
+    "serial": "FEDCBA9876543210",
+    "ip": "192.168.1.51",
+    "port": 5555,
+    "notes": "Same hardware as the new one, Expert-Mode-era v1 config - deliberately NOT upgraded."
+  },
+  {
+    "name": "Porch RS90",
+    "type": "rs90",
+    "keymap": "v1",
+    "serial": "RS90SERIAL0001",
+    "ip": "192.168.1.52",
+    "port": 5555
+  }
+]

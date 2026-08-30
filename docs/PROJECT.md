@@ -81,6 +81,94 @@ firehose of every entity in the instance. So:
 | Gestures = shell (v0.11.1-2) | Taps fire on KEYDOWN; press-type disambiguation (short/long/double) is KeyMapper's job, emitting DISTINCT keycodes per gesture — zero timers in the webview (exception: select hold-capture, Enter delivers true key pairs). Confirmed Astrion matrix: Back `[`/`]`, Home `F1`/`;`, Power `F2`/`=` (hold = All Off w/ confirm), Menu `#`/`@` (hold → Apps drawer via `buttons` navigate binding), Mute `` ` ``, CH PageUp/PageDown. `buttons` bindings accept {navigate} and no-op on unresolved context targets. Key-event debug card (`global.debug` / `#debug=1`) for field diagnosis | KeyMapper-injected keys don't deliver reliable keyup/hold timing — keyup-gated taps and engine hold timers died on-device; the old hastrion dashboard-hotkeys card was the authoritative raw-emission map. Doubles taxed every single press, so avoided on nav keys. Same contract the native APK shell will honor |
 | Drawer pop + switch confirm (v0.12) | Drawer screens (`drawer: true` — Apps, Music Library) pop back after a preset fires (label flashed in the bar; target resolved eagerly for the deferred ensure-activity path). `confirm_switch` (global true, per-activity override) asks "Press again to switch to X" before starting an activity while another runs; same-activity open never asks. Per-activity `stop` used in anger: music ends via `script.activity_music_stop` (state + media_stop on the Sonos, nothing else) | Field report: "physical buttons don't work on App page" was really "make me not need them" — a drawer is pick-one-and-leave. And "I don't always want one activity to turn off the others" → confirm as a setting; "some activities' off is merely STOP" → per-activity stop scripts |
 
+## The 0.85.8 plan agreed + styling ambitions (2026-08-26, close)
+
+His "YES TO" the ordering: (1) harmonium.run_preset, (2) the
+fork-outdated shout — together the meat for 0.85.8. Beyond that,
+three styling asks captured in the PROJECT doc
+claude/design-style-editor.md (DRAFT, his review pending):
+presets become first-class (image + opacity + label_pos + the
+Styling tab, "just like devices" — engine machinery mostly exists,
+it's Studio surface); a SHARED Style popup ("CSS builder") that is
+a friendly writer for the css_vars the engine already reads
+(primary/secondary size + weight, color — needs two new engine
+hooks --lbl-color/--sub-color — and shadows), one component behind
+five doors (tile / section / profile / theme); his ruling: spec
+before code. His "Image 1" arrived (the Section settings pane, the
+css_vars example hint cramped under a one-column box beside two
+empty columns) and the small fix SHIPPED immediately: the CSS
+VARIABLES field now spans the full row — box left, an expanded
+example plus a common-keys legend (--fs-1/--fw-1/--fs-2/
+--lbl-shadow/--tile-shadow) breathing to its right. smoke-studio +
+section-style + dup-rename green. The popup-vs-inline question in
+the spec now has its answer leaning inline — his own instinct.
+
+## v0.85.8 STAGED, not tagged (2026-08-26, late night)
+
+v0.85.7 was published to HACS before the NP/skin/tooltip fixes
+landed, so those ship as v0.85.8. Stamps already bumped (manifest
+0.85.8, ENGINE_V 0.85.8, STUDIO_V 0.85.8 b1);
+release-notes-v0.85.8.md + github-release-v0.85.8.md drafted
+(currently the three fixes below + pointer back to 0.85.7 for the
+breaking changes). HIS CALL: hold the tag until there's more meat —
+harmonium.run_preset is the named next occupant. When it tags:
+make-release → commit → push → tag v0.85.8; notes will need the
+run_preset section added.
+
+## The stuck Now Playing + the seeking FWD (2026-08-26, late night)
+
+His bug pair, pre-tag. (1) "Artwork and playbar stop updating"
+after next-track — FOUR latches found: (a) the 1s progress ticker's
+selector never gained `.hero` — the SHIPPED DEFAULT card's bar only
+moved when a diff happened to arrive; (b) a player serving ONE
+proxy URL whose content changes per track never refetched the
+<img> (src-unchanged gate) — old cover forever; (c) a transient
+art-fetch failure set dataset.bad, which only a NEW url cleared —
+same-url players wore the placeholder forever; (d) the black-art
+cache keyed on the bare URL, so one dark cover marked the URL
+black permanently. Fixes in media.js: hero joins the ticker; the
+TRACK (media_content_id|media_title) is the change signal — on
+change the bad-latch clears and a same-url picture re-fetches with
+a per-track bust param; the black-art cache keys on the LOADED src
+so each track is judged fresh. probe-np-live.mjs pins all of it
+(the probe itself caught latch (d) — its first fixture PNG was
+near-black and the "recovered" art got re-flagged).
+(2) "Clicking rs90 FWD in preview is +15s but on hardware is next
+track" — the stock rs90 skin's transport hotspots were
+left_hold/right_hold (the HOLD/seek behavior) while a hardware TAP
+is prev/next; astrion2's skin already said prev/next. rs90 skin
+gen 3→4 in stocklib, starter-config edited IN PLACE on his machine
+via sed (2-line diff — a json.dump rewrite would have churned the
+whole file; his starter uses indent=1); both sync probes green.
+(3) "Tooltip says hold FWD does nothing" — keyDesc didn't know the
+engine's ambient meanings: prev/play_pause/stop/next (running
+music) and left/right_hold (seek ∓15s on music pages) added, so
+the tooltip stops calling working keys dead.
+
+## Next release, seeded by a beta ask: harmonium.run_preset (2026-08-26)
+
+The set_activity(start:true) beta user came back with the sharper
+version of their request: their presets "Call a service", and the
+value is the Belongs-to-activity ensure — which lives entirely
+engine-side (start if not running, poll ~12s for the select, then
+fire with $context target resolution). Their ask: a service that
+fires a preset directly. Design sketch for 0.85.8:
+`harmonium.run_preset {preset, workspace?}` — integration reads the
+stored config, ensures the activity (SKIP when already running,
+unlike set_activity start:true which runs Start unconditionally —
+flag that difference), resolves the target from the activity's
+context map, fires the action. Reply drafted
+(docs/posts/reply-preset-service.md) — asks for their preset JSON
+to pin the resolution shape.
+FOLLOW-UP: they sent three presets (music_assistant.play_media ×2,
+media_player.play_media with the NESTED `data.media` wrapper —
+which the engine passes through verbatim, so run_preset must too).
+All three name explicit entities, no $context — the easy case.
+Addressing: preset = tile id (found across the workspace's
+screens). Reply 2 drafted (reply-preset-service-2.md) with the
+service shape promised: `harmonium.run_preset {preset: tile_pfh5}`,
+skip-if-running semantics.
+
 ## Engine self-update — the honest "never again" (2026-08-26, night)
 
 Suresh: "Are you sure about your never reload again? I find I have
@@ -359,7 +447,7 @@ Suresh asked "prior page or up one level?", took the recommendation
 (both), and said make it. Back pops the history when there is one;
 with an EMPTY stack (boot or deep link straight onto a child page)
 it climbs one parent level, stopping at the boot view — never past
-it to the overview (Home's job). Also: remotes/astrion-facts.md
+it to the overview (Home's job). Also: remotes/astrion/facts.md
 created — the physical-key table (F1 Home, F2 Power, F4–F7
 lightbulb/curtains/music/climate doubling as transport on astrion2,
 F8–F11 = Red/Green/Blue/Yellow color keys, deliberately unbound and
@@ -757,7 +845,7 @@ labelled as a hub?").
 
 - **hardware-keys.md corrected**: Expert Mode scoped ASTRION-ONLY (it
   is a trap on the RS90 — boot ADB dialogs) + new §0b RS90 key-stack
-  section referencing remotes/rs90-facts.md, rs90-key-research.md,
+  section referencing remotes/rs90/facts.md, rs90-key-research.md,
   tools/ime-fix. Release-notes bullet scoped too.
 - **"Where is the word porch coming from!"**: the title bar is
   Room · Page and the Room half falls back to global.room ("Porch",
@@ -1340,7 +1428,7 @@ the LCD?"
   answer to "hold means the LCD" without losing track skip. HIS
   device step, not yet done: two KeyMapper long-press mappings
   (Channel Up/Down → KEYCODE_APOSTROPHE/KEYCODE_SLASH, Fully-scoped),
-  then `pull-keymapper.bat` — recipe in hardware-keys.md.
+  then `remotes/pull-keymapper.bat` — recipe in hardware-keys.md.
 - **Slider touch hygiene** — one shared `wireSlider()` intent gate
   (registry.js) replaces the four copy-pasted wire-ups (volume,
   stepper, grouping master + member rows). The old shape captured the
@@ -1375,7 +1463,7 @@ parity.
 
 His pair while testing the ladder:
 
-- **gen-map-docs.py NEW** (remotes/keymapper/astrion/): the map .md
+- **gen-map-docs.py NEW** (remotes/astrion/keymapper/v1/): the map .md
   and .xlsx rotted twice when hand-maintained — now they REGENERATE
   from data.json (the KeyMapper backup is the truth, the docs are
   its rendering). Parses keymap_list + groups: the regenerated table
@@ -1390,8 +1478,8 @@ His pair while testing the ladder:
   don't give the Astrion/setup and KeyMapper enough airtime. Without
   it, the project is compromised"): leads with the out-of-the-box
   KeyMapper profile — 3 numbered steps: community-guide hardware
-  prep (stop before manual remapping), setup-remote.bat +
-  push-keymapper.bat → ⋮ Restore (manual alternative =
+  prep (stop before manual remapping), remotes/setup-remote.bat +
+  remotes/push-keymapper.bat → ⋮ Restore (manual alternative =
   astrion-remote-map.md + the guide's screenshots), then Fully →
   pair → hardware-keys cookbook.
 
@@ -1482,7 +1570,7 @@ Follow-up decisions on the stranded-keys hatch (his questions):
 Three field findings from his Astrion session, all scripts/docs (no
 engine/studio change):
 
-- **setup-remote.bat NEW** (his ask): one-time Android prep — locks
+- **remotes/setup-remote.bat NEW** (his ask): one-time Android prep — locks
   display rotation to portrait (`accelerometer_rotation 0` +
   `user_rotation 0`; the accelerometer otherwise flips the kiosk
   when the remote is picked up). Same adb prologue as the keymapper
@@ -1493,7 +1581,7 @@ engine/studio change):
   The working door is **Settings → Change automatic backup location
   → Download**, after which KeyMapper rewrites the backup on every
   mapping change — no manual export step ever again.
-  pull-keymapper.bat now pulls only the NEWEST `*key*.zip` and
+  remotes/pull-keymapper.bat now pulls only the NEWEST `*key*.zip` and
   saves it under the stable name `key_mapper.zip` (the save dialog
   suffixes "(2)"/"(3)" instead of overwriting; suffixed names never
   enter the repo — git is the history). Device-side dupes are left
@@ -1690,8 +1778,8 @@ no HA restart owed.
   push.bat is the guarded engine under the family). CONTRIBUTING
   links it.
 - **#3 KeyMapper in GETTING-STARTED §5** — "skip the button-by-button
-  setup": his unpacked `remotes/keymapper/astrion/` (zip + md map +
-  xlsx) documented; `push-keymapper.bat` → KeyMapper ⋮ → Restore.
+  setup": his unpacked `remotes/astrion/keymapper/v1/` (zip + md map +
+  xlsx) documented; `remotes/push-keymapper.bat` → KeyMapper ⋮ → Restore.
 - **#2 beta-gaps refreshed** — new Status block (2026-08-17): beta is
   LIVE on .88, P0 trio struck through as SHIPPED (pairing v0.81, HACS
   v0.83.4, docs v0.83); open items now honestly: mute hardware overlay
@@ -1972,12 +2060,12 @@ deploy needs an HA restart.**
   protocol in beta-gaps: tap ↻ FIRST — survives ↻ + dies on browser
   refresh = stale transform inputs.
 - **KEYMAPPER TRAVELS WITH THE REPO** ("Is there a way to pull
-  them?"): pull-keymapper.bat <ip> [name] pulls every KeyMapper
+  them?"): remotes/pull-keymapper.bat <ip> [name] pulls every KeyMapper
   backup zip from /sdcard/Download into remotes/keymapper/<name>/
   (one-time manual step per export: Back up all → save via the
   Files target — the share sheet's Bluetooth lead is a decoy; no
   headless export intent exists, root would be needed for the data
-  dir) + bonus adb backup attempt; push-keymapper.bat <ip> [zip]
+  dir) + bonus adb backup attempt; remotes/push-keymapper.bat <ip> [zip]
   pushes the newest committed zip to a NEW remote and opens
   KeyMapper for the two-tap Restore. hardware-keys.md §Backing up
   KeyMapper documents the flow.

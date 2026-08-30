@@ -311,38 +311,25 @@
   @keyframes rubberR { 50% { transform: translateX(18px); } }
   @keyframes rubberL { 50% { transform: translateX(-18px); } }
 
+  /* SCROLL CUE (v0.85.8): the below-the-fold hint — a small filled
+     accent triangle floating at the very bottom, centered. Pure cue:
+     no pointer events; render.js positions it above the visible
+     strips (same math as gridVisBottom) and drops .on at the end of
+     the scroll. z-index 41: over the strips (40/39), under nothing
+     that matters — it never overlaps content taller than 11px. */
+  #scrollcue {
+    position: fixed; left: 50%; bottom: 2px;
+    -webkit-transform: translateX(-50%); transform: translateX(-50%);
+    width: 0; height: 0; pointer-events: none; z-index: 41;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 11px solid var(--accent);
+    opacity: 0; transition: opacity .15s;
+  }
+  #scrollcue.on { opacity: 1; }
+
 /* per-section column override (preset grids etc.) */
   .secgrid { grid-column: 1 / -1; display: grid; gap: var(--grid-gap, 10px); }
-
-  /* nav card, image style: full-bleed photo tiles (the old room card) */
-  .tile.wgt-nav.nav-image {
-    position: relative; padding: 0; min-height: 132px; overflow: hidden;
-  }
-  .tile.wgt-nav.nav-image .roomimg {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: var(--img-op, .85);
-    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
-       photo cards. tile.image_opacity sets it in nav wire; css_vars
-       can set it too, per tile or section-wide. Dark card = the dim. */
-  }
-  .tile.wgt-nav.nav-image .top {
-    position: absolute; left: 12px; bottom: 10px; z-index: 1;
-    text-shadow: 0 1px 8px rgba(0,0,0,.8);
-  }
-  .tile.wgt-nav.nav-image .lbl { font-size: calc(var(--fs-1) + 2px); }
-  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
-     bottom-left is the unstated default above. "center" = dead center. */
-  .tile.wgt-nav.nav-image.lp-top-left .top { top: 10px; bottom: auto; }
-  .tile.wgt-nav.nav-image.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
-  .tile.wgt-nav.nav-image.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
-  .tile.wgt-nav.nav-image.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
-  .tile.wgt-nav.nav-image.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
-  .tile.wgt-nav.nav-image.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
-  .tile.wgt-nav.nav-image.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
-  .tile.wgt-nav.nav-image.lp-bottom-right .top { left: auto; right: 12px; }
-  .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
-  .tile.wgt-nav.nav-image .hint { display: none; }
-  .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
 
   /* now-playing SLIM (v0.83.7 — style: "slim"): one line, playlist-
      row height — indicator + "Title — Artist"; the top row and state
@@ -619,14 +606,33 @@
   /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
      (bigger tiles, text) and get the alignment right"): the apps
      generator stamps cls "app"; the drawer stock went to 2 columns.
-     Bigger glyph/art, bigger label, everything centered on one axis. */
-  .tile.wgt-preset.app { min-height: 96px; padding: 14px 8px 12px; }
-  .tile.wgt-preset.app .top .ic { font-size: 38px; margin: 0 auto 8px; }
+     LOGO CARDS (v0.85.8 — his Roku-sourced pack): every app tile is
+     now a UNIFORM 290:218 (~4:3) box, the Roku channel-store poster
+     shape, held by the ::before padding trick (no aspect-ratio on
+     the Chromium-61 floor). With a logo the art fills the box, edge
+     to edge inside the tile's own rounded corners (.photo overflow
+     hides the corners), NO label — the poster carries the wordmark.
+     Without one (404 sheds the dress) the icon + label center in
+     the SAME box, so a mixed drawer stays even. Logos default to
+     full opacity (--img-op 1, not the photo card's .85 dim) — a
+     brand mark is not a room photo. */
+  .tile.wgt-preset.app { position: relative; min-height: 0; padding: 0; }
+  .tile.wgt-preset.app::before { content: ""; display: block; padding-top: 75.17%; }
+  .tile.wgt-preset.app .top {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .tile.wgt-preset.app .top .ic { font-size: 38px; width: auto; margin: 0 0 8px; }
   .tile.wgt-preset.app .top img {
     width: calc(var(--app-art) + 10px); height: calc(var(--app-art) + 10px);
-    margin: 0 auto 8px;
+    margin: 0 0 8px;
   }
   .tile.wgt-preset.app .lbl { font-size: calc(var(--fs-2) + 1px); }
+  /* out-classes the shared .photo.photo dress (end of this file) */
+  .tile.wgt-preset.app.photo .top { display: none; }
+  .tile.wgt-preset.app.photo { min-height: 0; }
+  .tile.wgt-preset.app.photo .roomimg { opacity: var(--img-op, 1); }
 
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
@@ -782,6 +788,47 @@
   /* 300px on a TV (v0.85.8, his number — was 340): the art gives the
      ~40px back. */
   .tile.wgt-media.poster.nptv .npart { width: 44.3%; margin-bottom: 4px; }
+
+  /* PHOTO TILE (v0.85.8) — full-bleed picture with an overlay label.
+     One shared dress, added as .photo by the widget's wire(): nav
+     cards in the image style (the old room card), and preset tiles
+     with an `image` (presets as first-class citizens). Doubled
+     .photo.photo on purpose: the preset widget's own dress
+     (.tile.wgt-preset .top .ic and friends, above) is what a photo
+     preset must OUT-CLASS — grid.css loads after this file, so ties
+     with it are lost, and order alone cannot save same-specificity
+     rules. Last in this file for the same reason. */
+  .tile.photo.photo {
+    position: relative; padding: 0; min-height: 132px; overflow: hidden;
+  }
+  .tile.photo .roomimg {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: var(--img-op, .85);
+    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
+       photo cards. tile.image_opacity sets it (chassis, v0.85.8);
+       css_vars can set it too, per tile or section-wide. Dark card
+       = the dim. */
+  }
+  .tile.photo.photo .top {
+    position: absolute; left: 12px; bottom: 10px; z-index: 1; right: auto;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  .tile.photo.photo .lbl { font-size: calc(var(--fs-1) + 2px); }
+  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
+     bottom-left is the unstated default above. "center" = dead center. */
+  .tile.photo.photo.lp-top-left .top { top: 10px; bottom: auto; }
+  .tile.photo.photo.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.photo.photo.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
+  .tile.photo.photo.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.photo.photo.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
+  .tile.photo.photo.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.photo.photo.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.photo.photo.lp-bottom-right .top { left: auto; right: 12px; }
+  /* the icon and any icon_image stamp yield to the photo; the label
+     overlay is the only chrome left on the picture */
+  .tile.photo.photo .top .ic, .tile.photo.photo .top img,
+  .tile.photo.photo .sub, .tile.photo.photo .hint { display: none; }
+  .tile.photo.photo.on { border-color: var(--accent); }
 
 /* screen grid */
   #grid {
@@ -1699,6 +1746,11 @@ const TIMING = {
   confirm: 5000,      // two-press confirm window (tile + status bar)
   presetPoll: 300,    // ensure-activity: poll interval for state flip
   wakeDelay: 600,     // dialect wake → app launch gap (v0.83.9)
+  dpadRepeat: 170,    // fast-dpad pacing: min gap between ACTION-valued
+                      // dpad sends (Fire TV field tests, 2026-08-27: the
+                      // UI consumes ~6 presses/sec and no transport beats
+                      // it — 150ms host-paced and 200ms device-paced
+                      // bursts converged on the same ceiling)
   padLatch: 8000      // CH borrows the D-pad this long (his field call: "5 secs
                       // maybe a touch to small" — 8s default; config
                       // input.pad_latch_seconds overrides per house)
@@ -2684,7 +2736,16 @@ function genAppTiles(t) {
       const e = entries[aid], meta = reg[aid] || {};
       const ov = typeof e === "object" && e !== null ? e : {};
       const action = classLaunch(e);
-      const image = ov.image || meta.image;
+      /* APP LOGO CARDS (v0.85.8 — the Roku-shape logo pack, shipped
+         in the integration and deployed to /local/harmonium/apps/).
+         Every app tile TRIES its logo by key convention; a per-app
+         `image` override still wins (its meaning moved from icon
+         stamp to logo card this release). No manifest needed: an app
+         with no logo on disk 404s, the tile sheds the photo dress
+         (data-pfb, the photo-preset machinery) and falls back to
+         icon + label in the same 4:3 box. */
+      const image = ov.image || meta.image ||
+        "/local/harmonium/apps/" + aid + ".webp";
       return action && {
         type: "preset", id: t.id + "_" + aid,
         /* cls "app" (v0.83.8 — "bigger tiles, text"): app launchers
@@ -2694,7 +2755,7 @@ function genAppTiles(t) {
         cls: "app",
         ...(wake ? { wake, ...(wakeDelay ? { wakeDelay } : {}) } : {}),
         icon: ov.icon || meta.icon || "material:apps",
-        ...(image ? { icon_image: image } : {}),
+        image,
         label: ov.name || meta.name || aid,
         action,
       };
@@ -3982,8 +4043,13 @@ function tileSig(sc) {
      from the Studio re-rendered NOTHING until the next navigation. A
      tile's mode and height are structural — body() and wire() build
      different DOM per mode — so they belong in the signature. */
+  /* image / image_opacity / label_pos / css_vars joined in v0.85.8
+     (photo presets): body() and the chassis build different DOM and
+     classes from them, so a Studio push changing one must re-render
+     the grid — the v0.85.4 `style` lesson, applied to the new knobs. */
   return JSON.stringify(tilesOf(sc).map(t =>
-    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h]));
+    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
+     t.image, t.image_opacity, t.label_pos, t.css_vars]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -6042,7 +6108,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.85.7";
+const ENGINE_V = "0.85.8";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -6824,14 +6890,13 @@ WIDGETS.nav = {
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
   wire: (el, t) => {
-    el.classList.add("nav-" + navStyle(t));
-    /* image_opacity (v0.85.7 — "Need an opacity on those device
-       images like we do on the HERO card"): same semantic as the
-       banner knob — how much of the photo shows over the dark card.
-       Absent = the stylesheet's .85 default. */
-    const op = t.image_opacity;
-    if (op != null && isFinite(+op))
-      el.style.setProperty("--img-op", String(Math.max(0, Math.min(1, +op))));
+    const style = navStyle(t);
+    el.classList.add("nav-" + style);
+    /* the shared photo-tile dress (v0.85.8): widgets.css styles
+       .tile.photo, and preset tiles with an `image` wear the same
+       class — one look, two widgets. image_opacity moved to the
+       chassis (tiles.js) for the same reason. */
+    if (style === "image") el.classList.add("photo");
   },
   select: (e, t) => { if (t.target) navigate(t.target); else flashBar("No page linked yet"); },
 };
@@ -6840,6 +6905,22 @@ WIDGETS.nav = {
    ensures its activity first); drawer screens pop back after firing. */
 WIDGETS.preset = {
     sub: (e, t) => t.sub_label || "",
+    /* PHOTO PRESETS (v0.85.8 — presets as first-class citizens:
+       "support for artwork, opacity, font stuff, just like devices").
+       An `image` turns the icon square into the same full-bleed photo
+       card the nav/room tile wears — shared .photo dress in
+       widgets.css, label_pos / image_opacity / css_vars all apply.
+       `icon_image` stays what it was: a small art stamp in the icon
+       slot. If the photo URL dies (remote art, wall tablet, internet
+       drops), data-pfb tells the chassis error handler to shed the
+       photo dress so the tile falls back to its icon square — same
+       doctrine as icon_image's understudy (v0.68.7). */
+    body: t => t.image && !IMG_DEAD.has(t.image)
+      ? `<img class="roomimg" src="${t.image}" alt="" data-pfb="1">`
+      : `<div class="meter hidden"><i></i></div>`,
+    wire: (el, t) => {
+      if (t.image && !IMG_DEAD.has(t.image)) el.classList.add("photo");
+    },
     /* NO ACTIVITY GLOW (v0.79 — review: "the Discover Weekly preset
        is always highlighted! Why?"). Because v0.68.6's ownership
        stamp doubled as an ON state: every preset of a RUNNING
@@ -7138,7 +7219,7 @@ WIDGETS.media = {
       /* the SOURCE gets its own line (v0.83.7 tidy-ups: "Music
          Assistant Queue should sit on its own line") — .sub is
          white-space: pre-line on media tiles */
-      const src = s.a.source ? "\n" + s.a.source : "";
+      const src = s.a.source ? "\n" + appLabel(s.a.source) : "";
       return cap(s.s) + src;
     },
     isOn: e => ["playing", "on", "paused"].includes(st(e).s),
@@ -7212,7 +7293,12 @@ WIDGETS.media = {
          same-origin, which is the common case). Cached per URL so a
          re-render never resamples. */
       img.addEventListener("load", () => {
-        const url = img.dataset.src || img.src;
+        /* keyed on the LOADED src, not dataset.src (v0.85.7 — the
+           stuck-art round): a same-URL player re-fetches with a
+           per-track bust param, and the cache must judge each
+           track's picture — keying on the bare URL froze the first
+           verdict forever. */
+        const url = img.src || img.dataset.src;
         if (!url) return;
         if (!window.NP_ART_DARK) window.NP_ART_DARK = {};
         const cache = window.NP_ART_DARK;
@@ -7249,7 +7335,7 @@ WIDGETS.media = {
                row was a bare "Playing" — the APP is the story there:
                "Playing • YouTube TV". Music with a title is unchanged. */
             : cap(s.s) + ((s.a.app_name || s.a.source)
-              ? " • " + (s.a.app_name || s.a.source) : ""));
+              ? " • " + appLabel(s.a.app_name || s.a.source) : ""));
         const box = el.querySelector(".npst");
         const tx = el.querySelector(".npstx");
         el.querySelector(".npsind").classList.toggle("live", s.s === "playing");
@@ -7286,7 +7372,7 @@ WIDGETS.media = {
           s0.s === "playing" ? (t.label || "Now Playing") : cap(s0.s);
         const sub0 = el.querySelector(".sub");
         if (sub0) {
-          const src0 = s0.a.app_name || s0.a.source || "";
+          const src0 = appLabel(s0.a.app_name || s0.a.source || "");
           /* "On a TV, there is no queue" (v0.85.5): queue language is
              music talk. A tv-class player (or anything reporting an
              app) just says where it is — "YouTube TV". */
@@ -7350,8 +7436,22 @@ WIDGETS.media = {
          paused player still looks like the thing it is playing. */
       const dimArt = !ACTIVE(s.s);
       el.classList.toggle("npdim", !!pic && dimArt);
+      /* THE STUCK-ART LATCHES (v0.85.7 — Suresh: "When I click next
+         track on a playlist, sometimes the artwork stops updating").
+         Two ways the old gate wedged: (a) a player that serves ONE
+         proxy URL whose CONTENT changes per track — src unchanged,
+         so the <img> never refetched and the old cover stayed;
+         (b) a transient fetch failure right after a track change set
+         dataset.bad, which only a NEW url ever cleared — same-url
+         players showed the placeholder forever after. The TRACK is
+         the honest change signal: when it changes, the bad-latch
+         clears and a same-url picture is re-fetched (tiny cache-bust
+         param — art changes per track anyway). */
+      const trk = (s.a.media_content_id || "") + "|" + (s.a.media_title || "");
+      const trkChanged = el.dataset.trk !== trk;
+      if (trkChanged) { el.dataset.trk = trk; img.dataset.bad = ""; }
       if (pic) {
-        if (wash && el.dataset.bg !== pic && !dimArt) {
+        if (wash && (el.dataset.bg !== pic || trkChanged) && !dimArt) {
           el.dataset.bg = pic;
           el.style.backgroundImage =
             `linear-gradient(rgba(13,15,18,.78), rgba(13,15,18,.78)), url('${pic}')`;
@@ -7360,6 +7460,8 @@ WIDGETS.media = {
         }
         if (img.dataset.src !== pic) {
           img.dataset.src = pic; img.src = pic; img.dataset.bad = "";
+        } else if (trkChanged) {
+          img.src = pic + (pic.indexOf("?") >= 0 ? "&" : "?") + "_hkt=" + Date.now();
         }
       } else {
         if (wash) { el.dataset.bg = ""; el.style.backgroundImage = ""; }
@@ -7402,7 +7504,7 @@ WIDGETS.media = {
          label, at title size and full brightness — and then it does
          NOT repeat below. */
       const hasTitle = !!s.a.media_title;
-      const appSrc = s.a.app_name || s.a.source || "";
+      const appSrc = appLabel(s.a.app_name || s.a.source || "");
       /* v0.85.7 (his: "ALL artwork styles should say No items in the
          queue when that is true"): a MUSIC player with an empty queue
          says so in the title row, source below — the same words Basic
@@ -7420,7 +7522,7 @@ WIDGETS.media = {
          has no album — "YouTube TV" is the whole story. */
       el.querySelector(".npb").textContent =
         s.a.media_album_name ||
-        (hasTitle ? appSrc : (tvish ? "" : s.a.source || ""));
+        (hasTitle ? appSrc : (tvish ? "" : appLabel(s.a.source || "")));
       npProgress(el, s);
     }
   };
@@ -7467,8 +7569,13 @@ function npProgress(el, s) {
   }
 }
 setInterval(() => {
+  /* .hero joined the list (v0.85.7 — Suresh: "the playbar stops
+     updating"): the ticker predates the hero class, so the SHIPPED
+     DEFAULT card's progress only moved when a state diff happened
+     to arrive — between diffs it sat frozen. */
   document.querySelectorAll(
-    ".tile.wgt-media.art, .tile.wgt-media.wash, .tile.wgt-media.poster"
+    ".tile.wgt-media.art, .tile.wgt-media.wash, " +
+    ".tile.wgt-media.poster, .tile.wgt-media.hero"
   ).forEach(el => {
     const s = st(el.dataset.eid);
     if (s.s === "playing") npProgress(el, s);
@@ -8786,8 +8893,68 @@ function chipOptions(e, kind) {
    untouched (deslug is display-layer only, like entOpt). */
 const deslug = s => String(s == null ? "" : s).replace(/_/g, " ");
 const cap = s => { s = deslug(s); return s.charAt(0).toUpperCase() + s.slice(1); };
+/* FRIENDLY APP NAMES (v0.85.8 — Suresh: "source shows as
+   com.britbox.us.firetv and com.fubo.firetv.screen, whereas Hulu and
+   ESPN show correctly. We need a friendly name key"): the master app
+   list already IS the friendly-name registry — every dialect launch
+   entry ties the raw package/source string a player reports to an app
+   id whose identity carries the display name. Build the reverse map
+   once per config: `source:` strings directly, `am start` commands by
+   the package before the "/". A string not in the map (a player that
+   already reports a real name, or an app Harmonium never launched)
+   passes through untouched. Display-layer only, like deslug. */
+let _alCfg = null, _alMap = null;
+function appLabel(v) {
+  if (!v) return v;
+  if (_alCfg !== CONFIG) {
+    _alCfg = CONFIG;
+    _alMap = {};
+    const reg = CONFIG.apps || {};
+    const dial = CONFIG.dialects || CONFIG.app_classes || {};
+    for (const d in dial) {
+      const apps = dial[d].apps || {};
+      for (const aid in apps) {
+        const e = apps[aid] || {};
+        const name = (reg[aid] && reg[aid].name) || cap(aid);
+        if (typeof e.source === "string") _alMap[e.source] = name;
+        const cmd = e.data && e.data.command;
+        if (typeof cmd === "string") {
+          const m = cmd.match(/am start (?:-n )?([\w.]+)\//);
+          if (m) _alMap[m[1]] = name;
+        }
+      }
+    }
+  }
+  return _alMap[v] || v;
+}
 const lvlEnt = (e, t) => resolveEntity(t && t.level_entity) || e;
-const rc = (e, c) => { if (e && c) callService("remote", "send_command", { command: c }, e); };
+/* FAST DPAD (2026-08-27 — his Fire TV latency investigation): a
+   dpad_commands value may be a full ACTION object instead of a key
+   name. `input keyevent` costs 150-400ms of Java process spawn per
+   press on Android/Fire TV; a raw-input action (androidtv.adb_command
+   → sendevent) lands in single-digit ms. Strings keep the
+   remote.send_command path byte-identical; objects run through
+   runAction and carry their own service/target (the entity rung is
+   theirs to name — "$context.media_player" keeps a dialect house-
+   portable). Object sends are PACED here, where every path funnels
+   (keydown, hold-repeat, widget capture, on-screen pad): his box's
+   UI consumes ~6 presses/sec — host-paced 150ms and device-paced
+   200ms tests converged on the same ceiling (the launcher's focus
+   animation, not the transport) — so a press landing inside
+   TIMING.dpadRepeat of the last is dropped, which mirrors what the
+   device itself would do with it. */
+var _rcLast = 0;
+const rc = (e, c) => {
+  if (!c) return;
+  if (typeof c === "object") {
+    const now = Date.now();
+    if (now - _rcLast < TIMING.dpadRepeat) return;
+    _rcLast = now;
+    runAction(c);
+    return;
+  }
+  if (e) callService("remote", "send_command", { command: c }, e);
+};
 /* command resolution (v0.84.7 — the DIALECT rung):
      DPAD_DEFAULT < dialect.dpad_commands < tile "commands"
                   < activity context "dpad_commands"
@@ -8868,12 +9035,29 @@ function iconHtml(t, row) {
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* photo URLs that failed to load this session — consulted by the
+   preset widget so a rebuilt tile skips a known-dead image */
+const IMG_DEAD = new Set();
 /* `error` does not bubble, but it DOES capture — one document-level
    listener covers every tile ever rendered, with no per-image wiring
    and nothing to clean up on re-render. */
 document.addEventListener("error", ev => {
   const im = ev.target;
   if (!im || im.tagName !== "IMG" || !im.parentNode) return;
+  /* photo preset whose picture died (v0.85.8): shed the .photo dress
+     so the tile reverts to its icon square — the icon and label are
+     already in the DOM, only hidden by the photo CSS. The URL is
+     REMEMBERED (IMG_DEAD): generated tiles (the apps drawer) rebuild
+     on every state diff, and without the memory each rebuild would
+     re-request the missing file — a 404 per state change on a kiosk.
+     A later-fixed file is picked up on the next engine reload. */
+  if (im.getAttribute("data-pfb")) {
+    IMG_DEAD.add(im.getAttribute("src"));
+    const tl = im.closest(".tile");
+    if (tl) tl.classList.remove("photo");
+    im.parentNode.removeChild(im);
+    return;
+  }
   const fbk = im.getAttribute("data-fbk");
   if (!fbk) return;
   const s = document.createElement("span");
@@ -8976,6 +9160,14 @@ function makeTile(t, row, spanCols) {
      (bottom-left stays the default), other overlay widgets can join. */
   if (t.label_pos && /^(top|center|bottom)(-(left|center|right))?$/.test(String(t.label_pos)))
     el.classList.add("lp-" + t.label_pos);
+  /* image_opacity (v0.85.7 on nav cards, chassis-level v0.85.8 now
+     that photo presets share the dress): how much of the photo shows
+     over the dark card. Absent = the stylesheet's .85 default. Only
+     .roomimg reads --img-op, so setting it on a photo-less tile is
+     inert. */
+  if (t.image_opacity != null && isFinite(+t.image_opacity))
+    el.style.setProperty("--img-op",
+      String(Math.max(0, Math.min(1, +t.image_opacity))));
   if (t.css_vars && typeof t.css_vars === "object")
     for (var vk in t.css_vars) {
       var vv = String(t.css_vars[vk]);
@@ -9151,6 +9343,30 @@ function gridVisBottom(gr) {
   }
   return b;
 }
+/* SCROLL CUE (v0.85.8 — Suresh: "a small filled, orange triangle at
+   the very bottom of the screen (centered)" whenever items sit below
+   the fold). A pure hint: accent-colored, pointer-events none, floats
+   2px under the visible grid bottom — which rides it up above the
+   tv/pad strips through the same math gridVisBottom gives every other
+   scroll consumer — and goes away at the end of the scroll. Driven by
+   the grid's scroll event plus a slow tick, because the layout can
+   grow without a scroll ever firing (re-renders, strip toggles,
+   artwork arriving late and stretching the page). */
+function updateScrollCue() {
+  let cue = document.getElementById("scrollcue");
+  if (!cue) {
+    cue = document.createElement("div");
+    cue.id = "scrollcue";
+    document.body.appendChild(cue);
+  }
+  const more = grid.scrollHeight - grid.scrollTop - grid.clientHeight > 6;
+  if (!more) { cue.classList.remove("on"); return; }
+  const vb = gridVisBottom(grid.getBoundingClientRect());
+  cue.style.bottom = Math.max(2, Math.round(window.innerHeight - vb + 2)) + "px";
+  cue.classList.add("on");
+}
+grid.addEventListener("scroll", updateScrollCue);
+setInterval(updateScrollCue, 600);
 function gridScrollTo(el, mode) {
   const gr = grid.getBoundingClientRect();
   const r = el.getBoundingClientRect();
@@ -9436,8 +9652,24 @@ function navigate(screenId, isBack) {
      the library take everything they can get. Declared, because only
      the page knows whether its width means "a wall" or "a column".
      Applied BEFORE the count, because it IS the width tiles fit into. */
-  const maxW = isWide() && sc.grid && +sc.grid.max_width > 0
-    ? +sc.grid.max_width : 0;
+  /* VIEW TUNING (v0.85.8 — Suresh: "I don't want to fork the base.
+     This should be a run-time knob I can tune… even if for now it's a
+     json setting in advanced on the activity"). An activity may carry
+       "views": { "<page id>": { "columns": 3, "tile_width": 150 } }
+     — grid keys spread OVER the page's own grid block whenever this
+     page draws as that activity. The stock page is never edited: no
+     fork, no heal fight, no lock. Per-activity by nature — the same
+     shared apps drawer can be 2-up for the TV and 3-up elsewhere.
+     Any grid key works: columns, tile_width, tile_h, row_h,
+     tile_style, max_width. */
+  const vAid = renderActivityId();
+  const vAll = (vAid && (CONFIG.activities[vAid] || {}).views) || {};
+  /* the key is the page id as the Studio shows it — accept the
+     canonical controller: spelling too */
+  const vTune = vAll[S.screen] ||
+    vAll[String(S.screen).replace(/^controller:/, "")];
+  const g = vTune ? Object.assign({}, sc.grid || {}, vTune) : (sc.grid || {});
+  const maxW = isWide() && +g.max_width > 0 ? +g.max_width : 0;
   /* PADDING, NOT max-width + auto MARGINS. Measured, and it cost an
      hour: #grid is a flex item in a COLUMN flex container, where auto
      margins on the cross axis OVERRIDE align-items: stretch — the grid
@@ -9450,8 +9682,8 @@ function navigate(screenId, isBack) {
     ? Math.max(12, Math.round(((window.innerWidth || REF_W) - maxW) / 2)) : 0;
   grid.style.paddingLeft = grid.style.paddingRight = pad ? pad + "px" : "";
   const usable = usableWidth(maxW);
-  const decl = (sc.grid && sc.grid.columns) || 2;
-  const cols = colsFor(decl, sc.grid && sc.grid.tile_width, usable);
+  const decl = g.columns || 2;
+  const cols = colsFor(decl, g.tile_width, usable);
   /* minmax(0,1fr): columns may shrink below content min-width, so a
      wide tile (trail + long label) can never burst the viewport */
   grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
@@ -9463,8 +9695,8 @@ function navigate(screenId, isBack) {
      other screen; removed when absent so a size can never leak into
      the next page. The band-1 bar (#brbar) sits outside #grid and is
      deliberately untouched. */
-  const gTileH = sc.grid && parseInt(sc.grid.tile_h);
-  const gRowH = sc.grid && parseInt(sc.grid.row_h);
+  const gTileH = parseInt(g.tile_h);
+  const gRowH = parseInt(g.row_h);
   if (gTileH > 0) grid.style.setProperty("--tile-h", gTileH + "px");
   else grid.style.removeProperty("--tile-h");
   if (gRowH > 0) grid.style.setProperty("--tile-row-h", gRowH + "px");
@@ -9479,7 +9711,7 @@ function navigate(screenId, isBack) {
      every existing page keeps its look at any width. */
   const rowOf = (styleDecl, declCols) =>
     styleDecl ? styleDecl === "row" : declCols === 1;
-  const row = rowOf(sc.grid && sc.grid.tile_style, decl);
+  const row = rowOf(g.tile_style, decl);
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];
@@ -10831,7 +11063,22 @@ document.addEventListener("keydown", e => {
     }, TIMING.hold);
     return;
   }
-  if (e.repeat && !S.captured && b !== "vol_up" && b !== "vol_down") return;
+  if (e.repeat && !S.captured && b !== "vol_up" && b !== "vol_down") {
+    /* FAST-DPAD HOLD (2026-08-27): auto-repeat drives the DEVICE only
+       when the pad is the device's (passthrough, no CH borrow) AND
+       the dialect speaks in actions — a string command means `input
+       keyevent`, far too slow to repeat (unchanged: repeats stay
+       dropped). rc() paces the stream (TIMING.dpadRepeat), so
+       browser-rate repeats cost nothing extra, and releasing the key
+       stops the flow instantly — the reason hold is host-paced
+       presses and NOT a device-side burst: his 5-press sendevent
+       bursts kept scrolling after the finger lifted. */
+    if (!["up", "down", "left", "right"].includes(b)) return;
+    if (padOwner() !== "device" || padLatched()) return;
+    if (typeof cmdFor({}, b) !== "object") return;
+    act(b, true);
+    return;
+  }
   act(b, true);
 });
 

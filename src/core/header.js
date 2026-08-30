@@ -36,6 +36,11 @@ const TIMING = {
   confirm: 5000,      // two-press confirm window (tile + status bar)
   presetPoll: 300,    // ensure-activity: poll interval for state flip
   wakeDelay: 600,     // dialect wake → app launch gap (v0.83.9)
+  dpadRepeat: 170,    // fast-dpad pacing: min gap between ACTION-valued
+                      // dpad sends (Fire TV field tests, 2026-08-27: the
+                      // UI consumes ~6 presses/sec and no transport beats
+                      // it — 150ms host-paced and 200ms device-paced
+                      // bursts converged on the same ceiling)
   padLatch: 8000      // CH borrows the D-pad this long (his field call: "5 secs
                       // maybe a touch to small" — 8s default; config
                       // input.pad_latch_seconds overrides per house)

@@ -85,10 +85,10 @@ This is where Harmonium earns its keep — and the physical buttons are half of 
    **[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
   **[ button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
    (stop before its manual button remapping — the profile below replaces that step).
-2. **With the remote on USB**: run `setup-remote.bat` from the repo
+2. **With the remote on USB**: run `remotes/setup-remote.bat` from the repo
   root (locks the display to portrait and warns — without changing
-  anything — if the HA100's factory display density of 220 has been lost), then `push-keymapper.bat` — it pushes the bundled profile from [`remotes/keymapper/astrion/`](remotes/keymapper/astrion/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
-   [`astrion-remote-map.md`](remotes/keymapper/astrion/astrion-remote-map.md), and the community guide's screenshots show where everything lives.
+  anything — if the HA100's factory display density of 220 has been lost), then `remotes/push-keymapper.bat` — it pushes the bundled profile from [`remotes/astrion/keymapper/v1/`](remotes/astrion/keymapper/v1/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
+   [`astrion-remote-map.md`](remotes/astrion/keymapper/v1/astrion-remote-map.md), and the community guide's screenshots show where everything lives.
 3. **Point Fully Kiosk at the URL above**, pair, and pick up at [our hardware-keys cookbook](docs/cookbook/hardware-keys.md) for what every key does — including the glyph row you can bind to anything in the Studio.
 4. **Turn on Remote Administration in Fully** (Settings → Remote Administration → enable, set a password). Then you never touch the remote's tiny settings screens again: manage every Fully setting from a desktop browser at `http://<remote-ip>:2323` (the remote's IP is on Harmonium's ⓘ screen), and HA's Fully Kiosk integration gets its device buttons — *Clear browser cache*, *Load Start URL* — which are also Harmonium's update failsafe.
 

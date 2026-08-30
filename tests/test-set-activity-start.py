@@ -66,7 +66,11 @@ script_mod.Script = Script
 pkg = _module("custom_components")
 pkg.__path__ = []
 hpkg = _module("custom_components.harmonium")
-hpkg.__path__ = []
+# catalogs.py is PURE (no HA imports) — resolve it from the real
+# package dir; the HA-touching siblings are stubbed above and
+# sys.modules wins over the path search
+hpkg.__path__ = [str(Path(__file__).resolve().parents[1]
+                     / "custom_components/harmonium")]
 api_stub = _module("custom_components.harmonium.api")
 api_stub.validate_config = lambda cfg: []
 const_stub = _module("custom_components.harmonium.const")

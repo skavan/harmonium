@@ -34,6 +34,66 @@ resolved and tracked in §6.)*
 
 ## 6. THE LIVING ROADMAP (rewritten 2026-08-21, v0.84.1 day)
 
+**INCOMING (2026-08-30, beta tester config-pass feedback — triage.
+Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
+
+- **Volume band type won't change — stuck on the fat (slider) default
+  (BUG, 0.86.0).** `gen-bands.js` resolves the style on a ladder:
+  per-tile `present.style` -> `device_options[entity].volume_style` ->
+  the Controller-tab default (`surface.volume_style`) -> global. The
+  Studio's Controller-tab "Volume style" dropdown writes the LOWEST
+  rung, so any per-tile ⚙ style or a `device_options.volume_style`
+  silently pins it and the dropdown reads as dead ("could change it
+  earlier today"). The real defect is the SILENT override, not the
+  precedence. ACTION: in ControllerTab, disable/annotate the dropdown
+  when a higher rung overrides (or surface the effective style);
+  tester filing a GitHub issue with the controller JSON.
+- **"Advanced" reads as a checkbox but is a one-way tab (BUG, fixed
+  in 0.86.0-dev source).** In `ActivityCard` / `TileRow` /
+  `PageSettings` the Advanced control is a TAB (`tab = "advanced"`)
+  dressed with a little square that looks like a checkbox: the square
+  never fills when active, and clicking it again just re-selects the
+  same tab instead of toggling off — so the only exit is clicking
+  another tab ("navigating away fixes it"). FIX: fill the square when
+  active and make a second click return to the default tab
+  (main / setup / layout). Rebuild the Studio to verify.
+- **Save + Reload Astrion fails silently unless the Fully entities are
+  named `astrion1` and kept out of an area (BUG + friction, 0.86.0).**
+  The reload/battery wiring keys off a magic device name + area
+  coupling instead of an explicit entity mapping. Two defects: the
+  silent failure, and the hardcoded convention. ACTION: give it an
+  entity mapping like the battery option; fail loudly with a hint when
+  unmapped.
+- **Entity rename orphans Activity references (LIMITATION / doc).**
+  `context`, device `roles`, `device_options` and presets each hold
+  entity ids; no rename-refactor rewrites them together and some refs
+  aren't UI-surfaced, so a rename leaves danglers. Delete + recreate is
+  the current path (and often easier). ACTION: document the "no
+  automatic entity-rename" caveat; consider a "references to this
+  entity" finder later.
+- **Fire TV sendevent / fast d-pad — no obvious place to set it
+  (ALREADY BUILT; needs Studio UI + docs).** Action-valued
+  `dpad_commands` (androidtv.adb_command -> sendevent, single-digit ms)
+  ship in the engine — see `docs/design-fast-dpad.md` — but it's a
+  Code-tab tuning with no Studio field yet. ACTION: point testers to
+  the design doc; promote "Studio field for action-valued dpad
+  commands" (already deferred) — there's real demand now.
+- **Fully Plus license needed for battery / reload / autostart (DOC
+  gap).** Not flagged up front; the per-device cost adds up. ACTION:
+  call out the Plus requirement in `GETTING-STARTED` and the astrion
+  setup guide.
+- **Music vs TV controllers show different bottom chrome (BY DESIGN —
+  document).** TV pages carry the extra on-screen Back/Home strip
+  (`boot.js`, the §7 TV strip, 2026-08-24) because the PHYSICAL pair
+  drives the device there, so touch gets its own UI back/home; music
+  pages don't need it. ACTION: one line of docs so it doesn't read as
+  inconsistency.
+- **Denon / Panasonic over IP — non-Android AVR commands (FEATURE /
+  roadmap).** Tester offers testing + documentation help. ACTION: park
+  under dialect expansion; take him up as a second-device test partner
+  for IP-based dialects.
+
+
 **INCOMING (2026-08-24, forum beta reports — triage. Both reporters
 are on v0.84.1; NOTHING from the 2026-08-24 session has shipped.):**
 
@@ -137,7 +197,7 @@ four videos · key map regenerated with all hold gestures.
 - 2026-08-21 (RS90 round): the **HA100 density story** — the
   Astrion's density-220 is a FACTORY override (physical 200 +
   shipped override; fleet-verified on a virgin Sanytron user's
-  unit), so no user-facing gap existed. `setup-remote.bat` now
+  unit), so no user-facing gap existed. `remotes/setup-remote.bat` now
   RE-ASSERTS it per model (insurance against a reset clearing it);
   README/GETTING-STARTED updated. Same fleet probe delivered the
   real find: **stock Astrion webview = Chromium 61** → the engine

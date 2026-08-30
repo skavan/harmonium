@@ -1,6 +1,7 @@
-"""Harmonium's services — run, reseed, restore_backup, set_activity.
+"""Harmonium's services — run, reseed, restore_backup, set_activity,
+run_preset.
 
-register_services() closes the four handlers over the store, the
+register_services() closes the handlers over the store, the
 entry's select registry, and the select-minting hook exactly as
 async_setup_entry used to — the bodies are unchanged (split out of
 __init__.py, v0.83.11)."""
@@ -18,6 +19,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.script import Script
 
 from .api import validate_config
+from .catalogs import merge_config, subtract_config
 from .const import DEPLOY_PATH, DOMAIN
 from .store import BACKUP_FILE, HarmoniumStore, read_json, write_json
 from .workspaces import MAIN, merge3
@@ -28,6 +30,13 @@ _LOGGER = logging.getLogger(__name__)
 SERVICE_RUN_SCHEMA = vol.Schema({
     vol.Required("sequence"): cv.string,
     vol.Optional("workspace", default=MAIN): cv.string,
+})
+SERVICE_RUN_PRESET_SCHEMA = vol.Schema({
+    # the preset TILE's id (Studio → the preset card → Advanced)
+    vol.Required("preset"): cv.string,
+    # NO default: an unnamed workspace means "find the owner" — same
+    # doctrine as set_activity (v0.47.9)
+    vol.Optional("workspace"): cv.string,
 })
 SERVICE_SET_ACTIVITY_SCHEMA = vol.Schema({
     vol.Required("activity"): cv.string,
@@ -147,7 +156,16 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
             raise HomeAssistantError(f"{deployed} does not exist")
         fresh = await hass.async_add_executor_job(read_json, deployed)
         data = await hstore.load()
+        # LAYERED CATALOGS (v0.86.0): the store holds the user LAYER;
+        # the deployed file, the base, and the merge all live in
+        # EFFECTIVE space — make current effective for the merge, and
+        # subtract the result before it goes back into the store. The
+        # backup file is written EFFECTIVE too, so restore_backup
+        # always holds a complete standalone config.
+        stock = hstore.stock()
         current = data["workspaces"].get(MAIN)
+        if current is not None:
+            current = merge_config(stock, current)
         base = data.get("base_main")
 
         if current is not None:
@@ -172,7 +190,7 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
             # first integration (no base yet): repo replaces, as before
             merged = fresh
 
-        data["workspaces"][MAIN] = merged
+        data["workspaces"][MAIN] = subtract_config(stock, merged)
         data["base_main"] = fresh            # the baseline for next time
         data["meta"].setdefault(MAIN, {"name": "Main"})
         if MAIN not in data["order"]:
@@ -182,7 +200,7 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         await hstore.deploy(MAIN, merged)
         for ws, cfg in data["workspaces"].items():
             if ws != MAIN:
-                await hstore.deploy(ws, cfg)
+                await hstore.deploy(ws, merge_config(stock, cfg))
         # MINT WHAT THE MERGE BROUGHT IN (2026-08-06). A reseed can add a
         # whole ROOM — the Games Room did — and every page that owns
         # activities needs its select.harmonium_<page>_activity. Save &
@@ -191,7 +209,7 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         # next restart or reload. The engine reads that select to know
         # what is running in the room, so this is not cosmetic.
         for ws, cfg in data["workspaces"].items():
-            await mint(ws, cfg)
+            await mint(ws, merge_config(stock, cfg))
         _LOGGER.info("Harmonium main reseeded from %s (three-way merge: %s; "
                      "+%d workspace file(s) re-deployed)", deployed,
                      "yes" if base is not None and current is not None else
@@ -207,7 +225,9 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
             raise HomeAssistantError(f"{backup} does not exist — nothing to restore")
         saved = await hass.async_add_executor_job(read_json, backup)
         data = await hstore.load()
-        data["workspaces"][MAIN] = saved
+        # the backup holds an EFFECTIVE config (see reseed) — subtract
+        # at the boundary; the deployed file stays effective
+        data["workspaces"][MAIN] = subtract_config(hstore.stock(), saved)
         await hstore.save(data)
         await hstore.deploy(MAIN, saved)
         _LOGGER.info("Harmonium main restored from %s", backup)
@@ -296,8 +316,111 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         DOMAIN, "set_activity", handle_set_activity, schema=SERVICE_SET_ACTIVITY_SCHEMA
     )
 
+    def _find_preset(config: dict, pid: str):
+        """The preset tile with this id, wherever it was authored —
+        screens and controllers, flat `tiles` and `sections[].tiles`.
+        Generated presets (favorites via presets_from) are minted by
+        the ENGINE at render time and never live in the stored
+        config, so they are not addressable here — by design."""
+        for coll in ("screens", "controllers"):
+            for scr in (config.get(coll) or {}).values():
+                groups = [scr.get("tiles") or []]
+                for sec in (scr.get("sections") or []):
+                    groups.append(sec.get("tiles") or [])
+                for g in groups:
+                    for t in g:
+                        if (isinstance(t, dict) and t.get("id") == pid
+                                and t.get("type") == "preset"):
+                            return t
+        return None
+
+    async def handle_run_preset(call: ServiceCall) -> None:
+        """harmonium.run_preset — fire a preset exactly as a tap on
+        its tile does (v0.85.8, the beta ask: "a service to call the
+        preset directly… The nice thing about the preset is the
+        `Belongs to activity` association"). In order: ensure the
+        preset's activity (start it ONLY if it isn't already running —
+        engine parity, and unlike set_activity start:true, which runs
+        Start unconditionally), then fire the preset's action with its
+        data passed VERBATIM (the nested `media:` shape included).
+        Engine features that need a panel — navigate landings, the
+        two-step confirm, wake-the-screen — don't apply here."""
+        pid = call.data["preset"]
+        ws = call.data.get("workspace")
+        if ws is None:
+            data = await hstore.load()
+            owners = [w for w, cfg in data["workspaces"].items()
+                      if _find_preset(cfg or {}, pid)]
+            if not owners:
+                raise HomeAssistantError(
+                    f"no Harmonium workspace has a preset tile '{pid}' — "
+                    "the id is on the preset card's Advanced tab; generated "
+                    "favorites tiles can't be called this way")
+            if len(owners) > 1:
+                raise HomeAssistantError(
+                    f"preset '{pid}' exists in workspaces "
+                    f"{', '.join(sorted(owners))} — pass workspace: to "
+                    "disambiguate")
+            ws = owners[0]
+        config = await hstore.get_ws(ws) or {}
+        tile = _find_preset(config, pid)
+        if tile is None:
+            raise HomeAssistantError(
+                f"Harmonium workspace '{ws}' has no preset tile '{pid}'")
+        action = tile.get("action") or {}
+        aid = tile.get("activity")
+        act = (config.get("activities") or {}).get(aid) if aid else None
+        if aid and act is None:
+            raise HomeAssistantError(
+                f"preset '{pid}' belongs to activity '{aid}', which "
+                f"workspace '{ws}' does not have")
+        # ── ensure the activity: skip when already running ─────────
+        if act is not None:
+            room = act.get("room_view")
+            ent = entry_data["selects"].get((ws, room))
+            if ent is None:
+                raise HomeAssistantError(
+                    f"no Harmonium select for room '{room}' (workspace "
+                    f"'{ws}') — reload the integration")
+            if getattr(ent, "current_option", None) != aid:
+                # select flips first — engine parity ("the tap IS the
+                # intent"); the Start action follows, awaited, so the
+                # preset fires into a started world
+                await ent.async_select_option(aid)
+                await _run_action_ref(ws, act.get("start"), call.context)
+        # ── fire the preset's own action ───────────────────────────
+        if action.get("sequence"):
+            await _run_sequence(ws, action["sequence"], call.context)
+            return
+        svc = str(action.get("service") or "")
+        parts = svc.split(".")
+        if len(parts) != 2:
+            raise HomeAssistantError(
+                f"preset '{pid}' has no runnable action (browse shortcuts "
+                "and empty presets can only be tapped on a remote)")
+        ref = action.get("target") or action.get("entity")
+        target = ref
+        if isinstance(ref, str) and ref.startswith("$context."):
+            key = ref[len("$context."):]
+            target = ((act or {}).get("context") or {}).get(key)
+            if not target:
+                raise HomeAssistantError(
+                    f"preset '{pid}' targets {ref}, but activity "
+                    f"'{aid}' wires no '{key}' in its context")
+        payload = json.loads(json.dumps(action.get("data") or {}))
+        await hass.services.async_call(
+            parts[0], parts[1], payload, blocking=True,
+            target={"entity_id": target} if target else None,
+            context=call.context)
+        _LOGGER.info("Harmonium preset '%s' fired (ws=%s, activity=%s, "
+                     "%s → %s)", pid, ws, aid or "none", svc, target or "—")
+
+    hass.services.async_register(
+        DOMAIN, "run_preset", handle_run_preset, schema=SERVICE_RUN_PRESET_SCHEMA
+    )
+
 
 def remove_services(hass: HomeAssistant) -> None:
-    """Unregister the four services — unload's mirror."""
-    for svc in ("run", "reseed", "restore_backup", "set_activity"):
+    """Unregister the five services — unload's mirror."""
+    for svc in ("run", "reseed", "restore_backup", "set_activity", "run_preset"):
         hass.services.async_remove(DOMAIN, svc)

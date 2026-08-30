@@ -38,7 +38,8 @@ comp = stub("homeassistant.components", frontend=stub("homeassistant.components.
                                          async_dismiss=lambda *a, **k: None))
 stub("homeassistant.components.http", HomeAssistantView=_View, StaticPathConfig=object)
 helpers = stub("homeassistant.helpers")
-stub("homeassistant.helpers.config_validation", string=str, SCRIPT_SCHEMA=lambda x: x)
+stub("homeassistant.helpers.config_validation", string=str, boolean=bool,
+     SCRIPT_SCHEMA=lambda x: x)
 stub("homeassistant.helpers.script", Script=object)
 stub("homeassistant.helpers.storage", Store=object)
 stub("homeassistant.helpers.entity", Entity=object)
@@ -111,8 +112,9 @@ class FakeHass:
 
 h = FakeHass()
 services.register_services(h, hstore=None, entry_data={}, mint=None)
-check("four services registered",
-      set(h.services.reg) == {"run", "reseed", "restore_backup", "set_activity"})
+check("five services registered",
+      set(h.services.reg)
+      == {"run", "reseed", "restore_backup", "set_activity", "run_preset"})
 services.remove_services(h)
 check("remove mirrors register", h.services.reg == {})
 

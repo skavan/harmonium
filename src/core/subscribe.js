@@ -75,8 +75,13 @@ function tileSig(sc) {
      from the Studio re-rendered NOTHING until the next navigation. A
      tile's mode and height are structural — body() and wire() build
      different DOM per mode — so they belong in the signature. */
+  /* image / image_opacity / label_pos / css_vars joined in v0.85.8
+     (photo presets): body() and the chassis build different DOM and
+     classes from them, so a Studio push changing one must re-render
+     the grid — the v0.85.4 `style` lesson, applied to the new knobs. */
   return JSON.stringify(tilesOf(sc).map(t =>
-    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h]));
+    [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
+     t.image, t.image_opacity, t.label_pos, t.css_vars]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }

@@ -61,7 +61,8 @@ export default {
   "firetv": [
    "71a4b903862d",
    "ba11a1e221b8",
-   "5408dda7c825"
+   "5408dda7c825",
+   "776cb3f4eb7e"
   ],
   "tizen": [
    "b962c6033f86"

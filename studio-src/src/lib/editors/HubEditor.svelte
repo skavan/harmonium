@@ -471,11 +471,38 @@
                 else sec.image_opacity = Math.max(0, Math.min(1, +v));
                 edit(); }} />
           </Field>
-          <Field label="CSS variables (all cards here)"
-            hint={'e.g. {"--fs-1":"17px","--tile-shadow":"0 4px 12px rgba(0,0,0,.4)"} — a card\'s own css_vars win key-by-key'}>
-            <JsonArea value={sec.css_vars ?? {}} rows={3}
-              onchange={(v) => { if (v && Object.keys(v).length) sec.css_vars = v; else delete sec.css_vars; edit(); }} />
-          </Field>
+          <!-- FULL ROW (v0.85.7 — Suresh's annotated screenshot: the
+               example hint wrapped cramped under the one-column box
+               while two empty columns sat beside it — "we can have
+               expanded text to the right of the box, loads of white
+               space"). The field spans the row: box on the left, the
+               example breathing to its right. -->
+          <!-- his layout (two annotated screenshots): full example →
+               key legend → scope sentence bottom, everything level
+               with the box so nothing spills below it. The example
+               is VALID JSON on purpose — made to be copy-pasted
+               straight in. This snippet renders identically for
+               activities, presets, devices and custom sections, and
+               is the template for every future css_vars surface. -->
+          <div class="col-span-3">
+            <Field label="CSS variables (all cards here)">
+              <div class="flex items-start gap-4">
+                <div class="w-1/3 shrink-0">
+                  <JsonArea value={sec.css_vars ?? {}} rows={4}
+                    onchange={(v) => { if (v && Object.keys(v).length) sec.css_vars = v; else delete sec.css_vars; edit(); }} />
+                </div>
+                <div class="min-w-0 flex-1 pt-0.5 text-[11px] leading-relaxed text-dim">
+                  <pre class="m-0 overflow-x-auto whitespace-pre rounded-[6px] bg-sunk px-2.5 py-1.5 font-mono text-[11px] text-ink-2">{
+`{ "--fs-1": "17px", "--fw-1": "700", "--fs-2": "12px",
+  "--lbl-shadow": "0 1px 3px rgba(0,0,0,.8)", "--tile-shadow": "0 4px 12px rgba(0,0,0,.4)" }`}</pre>
+                  <p class="mb-0 mt-1">
+                    label size · weight · second-line size · text shadow · card shadow
+                    <span class="italic">— applies to every card in this section; a card's own css_vars win key-by-key</span>
+                  </p>
+                </div>
+              </div>
+            </Field>
+          </div>
         </div>
       {/if}
     {/snippet}

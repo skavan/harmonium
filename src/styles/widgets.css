@@ -1,36 +1,6 @@
 /* per-section column override (preset grids etc.) */
   .secgrid { grid-column: 1 / -1; display: grid; gap: var(--grid-gap, 10px); }
 
-  /* nav card, image style: full-bleed photo tiles (the old room card) */
-  .tile.wgt-nav.nav-image {
-    position: relative; padding: 0; min-height: 132px; overflow: hidden;
-  }
-  .tile.wgt-nav.nav-image .roomimg {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: var(--img-op, .85);
-    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
-       photo cards. tile.image_opacity sets it in nav wire; css_vars
-       can set it too, per tile or section-wide. Dark card = the dim. */
-  }
-  .tile.wgt-nav.nav-image .top {
-    position: absolute; left: 12px; bottom: 10px; z-index: 1;
-    text-shadow: 0 1px 8px rgba(0,0,0,.8);
-  }
-  .tile.wgt-nav.nav-image .lbl { font-size: calc(var(--fs-1) + 2px); }
-  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
-     bottom-left is the unstated default above. "center" = dead center. */
-  .tile.wgt-nav.nav-image.lp-top-left .top { top: 10px; bottom: auto; }
-  .tile.wgt-nav.nav-image.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
-  .tile.wgt-nav.nav-image.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
-  .tile.wgt-nav.nav-image.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
-  .tile.wgt-nav.nav-image.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
-  .tile.wgt-nav.nav-image.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
-  .tile.wgt-nav.nav-image.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
-  .tile.wgt-nav.nav-image.lp-bottom-right .top { left: auto; right: 12px; }
-  .tile.wgt-nav.nav-image .ic, .tile.wgt-nav.nav-image .sub,
-  .tile.wgt-nav.nav-image .hint { display: none; }
-  .tile.wgt-nav.nav-image.on { border-color: var(--accent); }
-
   /* now-playing SLIM (v0.83.7 — style: "slim"): one line, playlist-
      row height — indicator + "Title — Artist"; the top row and state
      sub yield the space; the chassis trailing stays */
@@ -306,14 +276,33 @@
   /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
      (bigger tiles, text) and get the alignment right"): the apps
      generator stamps cls "app"; the drawer stock went to 2 columns.
-     Bigger glyph/art, bigger label, everything centered on one axis. */
-  .tile.wgt-preset.app { min-height: 96px; padding: 14px 8px 12px; }
-  .tile.wgt-preset.app .top .ic { font-size: 38px; margin: 0 auto 8px; }
+     LOGO CARDS (v0.85.8 — his Roku-sourced pack): every app tile is
+     now a UNIFORM 290:218 (~4:3) box, the Roku channel-store poster
+     shape, held by the ::before padding trick (no aspect-ratio on
+     the Chromium-61 floor). With a logo the art fills the box, edge
+     to edge inside the tile's own rounded corners (.photo overflow
+     hides the corners), NO label — the poster carries the wordmark.
+     Without one (404 sheds the dress) the icon + label center in
+     the SAME box, so a mixed drawer stays even. Logos default to
+     full opacity (--img-op 1, not the photo card's .85 dim) — a
+     brand mark is not a room photo. */
+  .tile.wgt-preset.app { position: relative; min-height: 0; padding: 0; }
+  .tile.wgt-preset.app::before { content: ""; display: block; padding-top: 75.17%; }
+  .tile.wgt-preset.app .top {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .tile.wgt-preset.app .top .ic { font-size: 38px; width: auto; margin: 0 0 8px; }
   .tile.wgt-preset.app .top img {
     width: calc(var(--app-art) + 10px); height: calc(var(--app-art) + 10px);
-    margin: 0 auto 8px;
+    margin: 0 0 8px;
   }
   .tile.wgt-preset.app .lbl { font-size: calc(var(--fs-2) + 1px); }
+  /* out-classes the shared .photo.photo dress (end of this file) */
+  .tile.wgt-preset.app.photo .top { display: none; }
+  .tile.wgt-preset.app.photo { min-height: 0; }
+  .tile.wgt-preset.app.photo .roomimg { opacity: var(--img-op, 1); }
 
   /* transport row: rew / big play-pause / ff */
   .trow { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 6px 0 2px; }
@@ -469,3 +458,44 @@
   /* 300px on a TV (v0.85.8, his number — was 340): the art gives the
      ~40px back. */
   .tile.wgt-media.poster.nptv .npart { width: 44.3%; margin-bottom: 4px; }
+
+  /* PHOTO TILE (v0.85.8) — full-bleed picture with an overlay label.
+     One shared dress, added as .photo by the widget's wire(): nav
+     cards in the image style (the old room card), and preset tiles
+     with an `image` (presets as first-class citizens). Doubled
+     .photo.photo on purpose: the preset widget's own dress
+     (.tile.wgt-preset .top .ic and friends, above) is what a photo
+     preset must OUT-CLASS — grid.css loads after this file, so ties
+     with it are lost, and order alone cannot save same-specificity
+     rules. Last in this file for the same reason. */
+  .tile.photo.photo {
+    position: relative; padding: 0; min-height: 132px; overflow: hidden;
+  }
+  .tile.photo .roomimg {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: var(--img-op, .85);
+    /* --img-op (v0.85.7): the hero banner's image_opacity knob, on
+       photo cards. tile.image_opacity sets it (chassis, v0.85.8);
+       css_vars can set it too, per tile or section-wide. Dark card
+       = the dim. */
+  }
+  .tile.photo.photo .top {
+    position: absolute; left: 12px; bottom: 10px; z-index: 1; right: auto;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  .tile.photo.photo .lbl { font-size: calc(var(--fs-1) + 2px); }
+  /* label_pos (v0.85.7) — where the overlay label sits on the photo;
+     bottom-left is the unstated default above. "center" = dead center. */
+  .tile.photo.photo.lp-top-left .top { top: 10px; bottom: auto; }
+  .tile.photo.photo.lp-top-center .top { top: 10px; bottom: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.photo.photo.lp-top-right .top { top: 10px; bottom: auto; left: auto; right: 12px; }
+  .tile.photo.photo.lp-center-left .top { top: 50%; bottom: auto; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.photo.photo.lp-center .top { top: 50%; bottom: auto; left: 50%; -webkit-transform: translate(-50%,-50%); transform: translate(-50%,-50%); }
+  .tile.photo.photo.lp-center-right .top { top: 50%; bottom: auto; left: auto; right: 12px; -webkit-transform: translateY(-50%); transform: translateY(-50%); }
+  .tile.photo.photo.lp-bottom-center .top { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .tile.photo.photo.lp-bottom-right .top { left: auto; right: 12px; }
+  /* the icon and any icon_image stamp yield to the photo; the label
+     overlay is the only chrome left on the picture */
+  .tile.photo.photo .top .ic, .tile.photo.photo .top img,
+  .tile.photo.photo .sub, .tile.photo.photo .hint { display: none; }
+  .tile.photo.photo.on { border-color: var(--accent); }

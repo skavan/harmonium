@@ -48,5 +48,5 @@ The **RS90 and the Astrion "v2" profile have physical transport keys** (REW / Pl
 
 ## Related
 
-- Which profile a remote wears, and its keys: `hardware-keys.md`, `../../remotes/astrion-facts.md`, `../../remotes/rs90-facts.md`
+- Which profile a remote wears, and its keys: `hardware-keys.md`, `../../remotes/astrion/facts.md`, `../../remotes/rs90/facts.md`
 - The band system (which rows show at all, per activity): the Controller tab's per-band Auto/Off switches

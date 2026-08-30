@@ -929,7 +929,22 @@ document.addEventListener("keydown", e => {
     }, TIMING.hold);
     return;
   }
-  if (e.repeat && !S.captured && b !== "vol_up" && b !== "vol_down") return;
+  if (e.repeat && !S.captured && b !== "vol_up" && b !== "vol_down") {
+    /* FAST-DPAD HOLD (2026-08-27): auto-repeat drives the DEVICE only
+       when the pad is the device's (passthrough, no CH borrow) AND
+       the dialect speaks in actions — a string command means `input
+       keyevent`, far too slow to repeat (unchanged: repeats stay
+       dropped). rc() paces the stream (TIMING.dpadRepeat), so
+       browser-rate repeats cost nothing extra, and releasing the key
+       stops the flow instantly — the reason hold is host-paced
+       presses and NOT a device-side burst: his 5-press sendevent
+       bursts kept scrolling after the finger lifted. */
+    if (!["up", "down", "left", "right"].includes(b)) return;
+    if (padOwner() !== "device" || padLatched()) return;
+    if (typeof cmdFor({}, b) !== "object") return;
+    act(b, true);
+    return;
+  }
   act(b, true);
 });
 

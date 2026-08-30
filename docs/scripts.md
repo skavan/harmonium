@@ -31,9 +31,12 @@ you rarely run it directly.
 |---|---|
 | `pull-config.bat <house>` | Snapshot a named house's LIVE config into `houses/<house>/` — a backup and a record; nothing in the push path reads it |
 | `pull-my-config.bat` | The same, for your default house (no argument) — sugar over the same idea, both earn their keep |
-| `setup-remote.bat [ip]` | One-time Android prep for a fresh remote: locks display rotation to portrait (the Astrion's accelerometer otherwise flips the kiosk when the remote is handled) |
-| `pull-keymapper.bat [ip]` | Pull the NEWEST KeyMapper backup zip into `remotes/keymapper/` over USB (or ADB-over-wifi); one-time device setup = KeyMapper Settings → automatic backup location → Download |
-| `push-keymapper.bat [ip] [zip]` | Provision a NEW remote: push the newest backed-up zip and open KeyMapper for the two-tap Restore |
+| `remotes/setup-remote.bat` | One-time Android prep for a fresh remote: locks display rotation to portrait. USB or wireless is chosen by the shared device picker (`remotes/lib/Resolve-AdbTarget.ps1`); `-Target <name\|ip\|serial>` to name one. |
+| `remotes/pull-keymapper.bat` | Pull the newest KeyMapper backup into `remotes/<type>/keymapper/<keymap>/` (routed by the unit's serial → type/keymap in `units.json`); never overwrites (timestamps the old); offers to regenerate the map `.md`/`.xlsx`. |
+| `remotes/push-keymapper.bat` | Provision a remote: push `remotes/<type>/keymapper/<keymap>/key_mapper.zip` (routed by the unit) and open KeyMapper for the two-tap Restore. `-Type`/`-Keymap`/`-Zip` override. |
+| `remotes/pull-fully.bat` | Pull a Fully Kiosk settings export off a remote (after you tap Export in Fully, so `/sdcard/fully-settings.json` exists) into `remotes/fully/<type>-fully-settings-raw.json` (gitignored); offers to distill it into the device-neutral `remote-fully-settings.json` via `fully/distill-fully.py`. Routed by the unit. |
+| `remotes/push-fully.bat` | Push a Fully Kiosk settings file (default the canonical `remotes/fully/remote-fully-settings.json`) to a remote's `/sdcard` root for Import in Fully. `-File` overrides. |
+| `remotes/device-facts.bat` | Dump a remote's identity (incl. `ro.serialno` for `units.json`), display, webview, and app versions. |
 
 ## Build scripts (not batch)
 

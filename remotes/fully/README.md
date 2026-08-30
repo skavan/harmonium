@@ -8,7 +8,7 @@ anyone provisioning a new remote.*
 ## Files
 
 - `remote-fully-settings.json` — the canonical, device-neutral
-  settings. Import this on a NEW remote.
+  settings. It **omits** startURL, the kiosk PIN, and the remote-admin password, so importing updates every shared setting while leaving each remote's own three fields untouched (see step 3). Import it on a new remote, or re-import to push a settings change across the fleet.
 - `astrion-fully-settings.json` — the raw export it was distilled
   from (kept as provenance; contains the reference house's
   encrypted PINs and start URL, so prefer the canonical file).
@@ -20,10 +20,11 @@ anyone provisioning a new remote.*
    File** → pick it. (Fully reads/writes settings files in the
    **root of `/sdcard`**, not Download — its own Export lands
    there too.)
-3. Personalize the three fields the file deliberately blanks:
-   - **Start URL** → `http://<your-ha>:8123/local/harmonium/index.html#device=<profile-id>`
+3. Set the three device-specific fields the canonical file **omits** (startURL, kiosk PIN, remote-admin password). Because they are omitted rather than blanked, importing never touches them: on a NEW remote set them once here; re-importing onto an already-configured remote leaves each one exactly as it was.
+   - **Start URL** → `http://<your-ha>:8123/local/harmonium/main/index.html#page=<page>&device=<profile-id>`
      (`#device=` pins which remote profile the engine uses — e.g.
-     `astrion`, `rs90`; it stores itself and strips from the URL).
+     `astrion`, `rs90`; `#page=` is the page it opens on; the engine
+     stores both and strips them from the URL).
    - **Kiosk exit PIN** (Kiosk settings) — set your own.
    - **Remote admin password** (Remote Administration) — set your
      own.

@@ -35,12 +35,29 @@ function iconHtml(t, row) {
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* photo URLs that failed to load this session — consulted by the
+   preset widget so a rebuilt tile skips a known-dead image */
+const IMG_DEAD = new Set();
 /* `error` does not bubble, but it DOES capture — one document-level
    listener covers every tile ever rendered, with no per-image wiring
    and nothing to clean up on re-render. */
 document.addEventListener("error", ev => {
   const im = ev.target;
   if (!im || im.tagName !== "IMG" || !im.parentNode) return;
+  /* photo preset whose picture died (v0.85.8): shed the .photo dress
+     so the tile reverts to its icon square — the icon and label are
+     already in the DOM, only hidden by the photo CSS. The URL is
+     REMEMBERED (IMG_DEAD): generated tiles (the apps drawer) rebuild
+     on every state diff, and without the memory each rebuild would
+     re-request the missing file — a 404 per state change on a kiosk.
+     A later-fixed file is picked up on the next engine reload. */
+  if (im.getAttribute("data-pfb")) {
+    IMG_DEAD.add(im.getAttribute("src"));
+    const tl = im.closest(".tile");
+    if (tl) tl.classList.remove("photo");
+    im.parentNode.removeChild(im);
+    return;
+  }
   const fbk = im.getAttribute("data-fbk");
   if (!fbk) return;
   const s = document.createElement("span");
@@ -143,6 +160,14 @@ function makeTile(t, row, spanCols) {
      (bottom-left stays the default), other overlay widgets can join. */
   if (t.label_pos && /^(top|center|bottom)(-(left|center|right))?$/.test(String(t.label_pos)))
     el.classList.add("lp-" + t.label_pos);
+  /* image_opacity (v0.85.7 on nav cards, chassis-level v0.85.8 now
+     that photo presets share the dress): how much of the photo shows
+     over the dark card. Absent = the stylesheet's .85 default. Only
+     .roomimg reads --img-op, so setting it on a photo-less tile is
+     inert. */
+  if (t.image_opacity != null && isFinite(+t.image_opacity))
+    el.style.setProperty("--img-op",
+      String(Math.max(0, Math.min(1, +t.image_opacity))));
   if (t.css_vars && typeof t.css_vars === "object")
     for (var vk in t.css_vars) {
       var vv = String(t.css_vars[vk]);

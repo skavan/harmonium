@@ -16,6 +16,7 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from .catalogs import merge_config, stock_catalogs
 from .const import DEPLOY_DIR, STORAGE_KEY, STORAGE_VERSION
 from .workspaces import deploy_file, empty_store, migrate, stub_html
 
@@ -70,6 +71,12 @@ class HarmoniumStore:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self.store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        self.component_dir = Path(__file__).parent
+
+    def stock(self) -> dict:
+        """The shipped catalogs (cached after the first read — setup
+        primes the cache off the event loop)."""
+        return stock_catalogs(self.component_dir)
 
     async def load(self) -> dict:
         data = migrate(await self.store.async_load())
@@ -106,6 +113,17 @@ class HarmoniumStore:
             pass
 
     async def get_ws(self, ws: str):
+        """The EFFECTIVE config for a workspace — the stored user
+        layer with the stock catalogs spread underneath (v0.86.0,
+        docs/design-layered-catalogs.md). Everything that reads a
+        config to ACT on it (the API's GET, the services, deploys)
+        wants this; the raw layer is get_ws_layer."""
+        data = await self.load()
+        cfg = data["workspaces"].get(ws)
+        return merge_config(self.stock(), cfg) if cfg is not None else None
+
+    async def get_ws_layer(self, ws: str):
+        """The stored user layer, verbatim — deltas + tombstones."""
         data = await self.load()
         return data["workspaces"].get(ws)
 

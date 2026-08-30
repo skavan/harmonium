@@ -386,8 +386,8 @@
         {/if}
         <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
             (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
-          onclick={() => (tab = "advanced")}>
-          <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+          onclick={() => (tab = tab === "advanced" ? "setup" : "advanced")}>
+          <span class={"mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]" + (tab === "advanced" ? " bg-current" : "")}></span>Advanced</button>
       </div>
 
       {#if tab === "setup"}<SetupTab {card} />{/if}

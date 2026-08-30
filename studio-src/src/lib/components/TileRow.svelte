@@ -377,8 +377,8 @@
       <span class="flex-1"></span>
       <button class={"cursor-pointer rounded-t-[6px] border border-b-0 border-line bg-glass px-2.5 py-[8px] text-xs " +
           (tab === "advanced" ? "font-semibold text-accent-text" : "font-medium text-dim hover:text-ink")}
-        onclick={() => (tab = "advanced")}>
-        <span class="mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]"></span>Advanced</button>
+        onclick={() => (tab = tab === "advanced" ? "main" : "advanced")}>
+        <span class={"mr-1 inline-block h-[9px] w-[9px] rounded-[2px] border border-current align-[-1px]" + (tab === "advanced" ? " bg-current" : "")}></span>Advanced</button>
     </div>
 
     {#snippet presFields()}
@@ -627,6 +627,36 @@
                  the engine fallback as a value. Inherit says what is
                  true: nothing set → section default → bottom-left.
                  Applies only when the card actually shows a photo. -->
+            <Field label="Label position"
+              hint="where the name sits on the photo — inherit = the section default, else bottom-left">
+              <Select value={tile.label_pos ?? "inherit"}
+                onchange={(e) => { if (e.target.value === "inherit") delete tile.label_pos; else tile.label_pos = e.target.value; }}
+                options={["inherit", "top-left", "top-center", "top-right",
+                  "center-left", "center", "center-right",
+                  "bottom-left", "bottom-center", "bottom-right"]} />
+            </Field>
+          {/if}
+        {:else if tile.type === "preset"}
+          <!-- PHOTO PRESETS (v0.85.8 — presets as first-class
+               citizens: "artwork, opacity, font stuff, just like
+               devices"). An Image turns the icon square into the
+               same full-bleed photo card a nav/room tile wears;
+               opacity and label position are the same knobs. Blank
+               image = the icon square you had. -->
+          <Field label="Image" hint="path under /local/ (HA www/) — turns the tile into a full photo card; blank = icon square">
+            <Input value={tile.image ?? ""} placeholder="/local/images/egofm.jpg" class="font-mono text-[12.5px]"
+              onchange={(e) => { const v = e.target.value.trim();
+                if (v) tile.image = v; else delete tile.image; }} />
+          </Field>
+          {#if tile.image}
+            <Field label="Image opacity"
+              hint="how much photo shows over the dark card — the hero banner's knob (blank = 0.85)">
+              <Input type="number" min="0" max="1" step="0.05" placeholder="0.85"
+                value={tile.image_opacity ?? ""}
+                onchange={(e) => { const v = e.target.value;
+                  if (v === "" || v == null) delete tile.image_opacity;
+                  else tile.image_opacity = Math.max(0, Math.min(1, +v)); }} />
+            </Field>
             <Field label="Label position"
               hint="where the name sits on the photo — inherit = the section default, else bottom-left">
               <Select value={tile.label_pos ?? "inherit"}

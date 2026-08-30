@@ -59,6 +59,30 @@ function gridVisBottom(gr) {
   }
   return b;
 }
+/* SCROLL CUE (v0.85.8 — Suresh: "a small filled, orange triangle at
+   the very bottom of the screen (centered)" whenever items sit below
+   the fold). A pure hint: accent-colored, pointer-events none, floats
+   2px under the visible grid bottom — which rides it up above the
+   tv/pad strips through the same math gridVisBottom gives every other
+   scroll consumer — and goes away at the end of the scroll. Driven by
+   the grid's scroll event plus a slow tick, because the layout can
+   grow without a scroll ever firing (re-renders, strip toggles,
+   artwork arriving late and stretching the page). */
+function updateScrollCue() {
+  let cue = document.getElementById("scrollcue");
+  if (!cue) {
+    cue = document.createElement("div");
+    cue.id = "scrollcue";
+    document.body.appendChild(cue);
+  }
+  const more = grid.scrollHeight - grid.scrollTop - grid.clientHeight > 6;
+  if (!more) { cue.classList.remove("on"); return; }
+  const vb = gridVisBottom(grid.getBoundingClientRect());
+  cue.style.bottom = Math.max(2, Math.round(window.innerHeight - vb + 2)) + "px";
+  cue.classList.add("on");
+}
+grid.addEventListener("scroll", updateScrollCue);
+setInterval(updateScrollCue, 600);
 function gridScrollTo(el, mode) {
   const gr = grid.getBoundingClientRect();
   const r = el.getBoundingClientRect();
@@ -344,8 +368,24 @@ function navigate(screenId, isBack) {
      the library take everything they can get. Declared, because only
      the page knows whether its width means "a wall" or "a column".
      Applied BEFORE the count, because it IS the width tiles fit into. */
-  const maxW = isWide() && sc.grid && +sc.grid.max_width > 0
-    ? +sc.grid.max_width : 0;
+  /* VIEW TUNING (v0.85.8 — Suresh: "I don't want to fork the base.
+     This should be a run-time knob I can tune… even if for now it's a
+     json setting in advanced on the activity"). An activity may carry
+       "views": { "<page id>": { "columns": 3, "tile_width": 150 } }
+     — grid keys spread OVER the page's own grid block whenever this
+     page draws as that activity. The stock page is never edited: no
+     fork, no heal fight, no lock. Per-activity by nature — the same
+     shared apps drawer can be 2-up for the TV and 3-up elsewhere.
+     Any grid key works: columns, tile_width, tile_h, row_h,
+     tile_style, max_width. */
+  const vAid = renderActivityId();
+  const vAll = (vAid && (CONFIG.activities[vAid] || {}).views) || {};
+  /* the key is the page id as the Studio shows it — accept the
+     canonical controller: spelling too */
+  const vTune = vAll[S.screen] ||
+    vAll[String(S.screen).replace(/^controller:/, "")];
+  const g = vTune ? Object.assign({}, sc.grid || {}, vTune) : (sc.grid || {});
+  const maxW = isWide() && +g.max_width > 0 ? +g.max_width : 0;
   /* PADDING, NOT max-width + auto MARGINS. Measured, and it cost an
      hour: #grid is a flex item in a COLUMN flex container, where auto
      margins on the cross axis OVERRIDE align-items: stretch — the grid
@@ -358,8 +398,8 @@ function navigate(screenId, isBack) {
     ? Math.max(12, Math.round(((window.innerWidth || REF_W) - maxW) / 2)) : 0;
   grid.style.paddingLeft = grid.style.paddingRight = pad ? pad + "px" : "";
   const usable = usableWidth(maxW);
-  const decl = (sc.grid && sc.grid.columns) || 2;
-  const cols = colsFor(decl, sc.grid && sc.grid.tile_width, usable);
+  const decl = g.columns || 2;
+  const cols = colsFor(decl, g.tile_width, usable);
   /* minmax(0,1fr): columns may shrink below content min-width, so a
      wide tile (trail + long label) can never burst the viewport */
   grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
@@ -371,8 +411,8 @@ function navigate(screenId, isBack) {
      other screen; removed when absent so a size can never leak into
      the next page. The band-1 bar (#brbar) sits outside #grid and is
      deliberately untouched. */
-  const gTileH = sc.grid && parseInt(sc.grid.tile_h);
-  const gRowH = sc.grid && parseInt(sc.grid.row_h);
+  const gTileH = parseInt(g.tile_h);
+  const gRowH = parseInt(g.row_h);
   if (gTileH > 0) grid.style.setProperty("--tile-h", gTileH + "px");
   else grid.style.removeProperty("--tile-h");
   if (gRowH > 0) grid.style.setProperty("--tile-row-h", gRowH + "px");
@@ -387,7 +427,7 @@ function navigate(screenId, isBack) {
      every existing page keeps its look at any width. */
   const rowOf = (styleDecl, declCols) =>
     styleDecl ? styleDecl === "row" : declCols === 1;
-  const row = rowOf(sc.grid && sc.grid.tile_style, decl);
+  const row = rowOf(g.tile_style, decl);
   grid.innerHTML = "";
   const sections = sc.sections || [{ tiles: sc.tiles || [] }];
   const heroJumps = [];

@@ -6,6 +6,8 @@ __pycache__/
 tools/ime-fix/.gradle/
 tools/ime-fix/local.properties
 tools/ime-fix/**/build/
+tools/km-fix/.gradle/
+tools/km-fix/**/build/
 
 # Large editable artwork stays local; publish rendered PNG/WebP assets instead.
 archive/images/FINAL-haptique v2 low res-topaz-upscale-4x.psd
@@ -35,3 +37,11 @@ _survey2/
 # the tracked truth is remotes/fully/remote-fully-settings.json
 remotes/fully/astrion-fully-settings.json
 remotes/fully/*-fully-settings-raw.json
+
+# ---- remote tooling local state (never repo material) ----
+# your named remotes + their LAN addresses (units.example.json is the template)
+remotes/units.json
+# the picker's remembered last device
+remotes/.last-target
+# your manual safety copy of the remotes tree
+remotes-snapshot/

@@ -786,7 +786,7 @@ export const STOCK_SKINS = {
     ]
   },
   "rs90": {
-    "gen": 3,
+    "gen": 4,
     "image": "/local/harmonium/skins/stock/rs90.png",
     "viewport": {
       "w": 350,
@@ -905,7 +905,7 @@ export const STOCK_SKINS = {
         "h": 5.5
       },
       {
-        "btn": "left_hold",
+        "btn": "prev",
         "x": 8,
         "y": 82.5,
         "w": 24,
@@ -919,7 +919,7 @@ export const STOCK_SKINS = {
         "h": 5
       },
       {
-        "btn": "right_hold",
+        "btn": "next",
         "x": 67,
         "y": 82.5,
         "w": 24,
@@ -1076,6 +1076,26 @@ export const STOCK_DIALECTS = {
       },
       "appletv": {
         "source": "com.apple.atve.amazon.appletv"
+      },
+      "hulu": {
+        "source": "com.hulu.plus"
+      },
+      "fubo": {
+        "source": "com.fubo.firetv.screen"
+      },
+      "espn": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.media_player",
+        "data": {
+          "command": "am start -n com.espn.gtv/com.espn.startup.presentation.StartupActivity"
+        }
+      },
+      "britbox": {
+        "action": "androidtv.adb_command",
+        "entity": "$context.media_player",
+        "data": {
+          "command": "am start -n com.britbox.us.firetv/axis.androidtv.sdk.app.MainActivity"
+        }
       }
     },
     "wake": {
@@ -1407,7 +1427,24 @@ export const STOCK_DIALECTS = {
    list (the list is copied from live at workspace-mint and never
    healed) — planted-if-absent so a backfilled dialect never points at
    a missing identity and the drawer never shows a raw id. */
+/* v0.86.0: grown to the FULL master list — the layered-catalog
+   provenance badges classify a config's app identities against this
+   (it is the stocklib twin of starter-config's `apps`; probe-stock-sync
+   guards the twinning). */
 export const STOCK_APP_IDENTITIES = {
+  netflix: { name: "Netflix", icon: "material:movie" },
+  prime:   { name: "Prime Video", icon: "material:play_circle" },
+  youtube: { name: "YouTube", icon: "material:smart_display" },
+  youtubetv: { name: "YouTube TV", icon: "material:live_tv" },
+  peacock: { name: "Peacock", icon: "material:theaters" },
+  paramount: { name: "Paramount+", icon: "material:star" },
+  max:     { name: "Max", icon: "material:local_movies" },
+  appletv: { name: "Apple TV", icon: "material:tv_gen" },
+  hulu:    { name: "Hulu", icon: "material:video_library" },
+  disney:  { name: "Disney+", icon: "material:castle" },
+  fubo:    { name: "Fubo TV", icon: "material:sports_football" },
+  espn:    { name: "ESPN", icon: "material:sports_basketball" },
+  britbox: { name: "BritBox", icon: "material:tv_gen" },
   spotify: { name: "Spotify", icon: "material:equalizer" },
   plex:    { name: "Plex", icon: "material:play_circle" },
   plutotv: { name: "Pluto TV", icon: "material:live_tv" },
