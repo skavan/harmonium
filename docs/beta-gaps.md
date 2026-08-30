@@ -90,6 +90,19 @@ Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
   drives the device there, so touch gets its own UI back/home; music
   pages don't need it. ACTION: one line of docs so it doesn't read as
   inconsistency.
+- **Custom icon sets (USER ASK, 0.87 candidate).** A beta user wants
+  the Custom Brand Icons set (github.com/elax46/custom-brand-icons,
+  the `phu:` prefix). Those register with the HA FRONTEND's icon
+  system; Harmonium's vocabulary is `material:` + image paths, so
+  they don't resolve. TODAY's path: save the SVG under /local/ and
+  use it as an image path in any Icon field. PROPER support = an
+  icon-set loader/registry in the engine — belongs beside the 0.87
+  entity-controls/presentation work.
+- **Save + Reload fans out to ONE remote (ENHANCEMENT, 0.87).** The
+  Startup & Home wiring holds one cache/reload button pair per
+  workspace, so the menu item reloads one device; a workspace with
+  several remotes wants a list (or all paired Fully devices) — natural
+  follow-on to the 0.86 mapping work.
 - **Denon / Panasonic over IP — non-Android AVR commands (FEATURE /
   roadmap).** Tester offers testing + documentation help. ACTION: park
   under dialect expansion; take him up as a second-device test partner

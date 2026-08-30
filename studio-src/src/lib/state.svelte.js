@@ -141,7 +141,13 @@ export function returnFromDevice() {
 
 
 export function clearCurrent() {
-  app.draft = starterConfig();
+  /* pass the live draft + workspace: starterConfig KEEPS the system
+     layer (remotes, keymaps, theme, devices, input policy) and mints
+     the workspace's own select — called bare (the bug this replaces,
+     2026-08-30) it wiped all of that and minted main's select id,
+     contradicting its own tooltip. */
+  app.draft = starterConfig(
+    JSON.parse(JSON.stringify($state.snapshot(app.draft))), app.workspace);
   selectSlice("room.home");
   pushPreview();
   setStatus("cleared " + app.workspace + " draft to a clean start (nothing saved yet)", "ok");

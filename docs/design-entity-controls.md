@@ -1,441 +1,172 @@
-# Entity controls, variants, and card groups
+# Entity controls — adapters, variants, and card groups
 
-Status: **PROPOSED — revised after design review on 2026-08-30; no implementation has started.**
+Status: **PROPOSED v2 (2026-08-30) — design only; no implementation has started.** This revision supersedes the v1 draft after review. Target: **the 0.87 keynote.** v0.86.0 ships without any of this — its keynote (layered catalogs, derived classes, first-class fast-dpad) is complete and must not wait on a refactor that has not begun.
 
-This document defines how an entity becomes a control in Harmonium, how that control may be drawn, and how several controls may share one visual card. It applies equally to:
+This document defines how an HA entity becomes a control in Harmonium, how that control may be drawn, and how several controls may share one visual card. It applies to every place a control is authored or generated: Activities → Cast (the `present` map), regular Devices sections (explicit tiles), and the generated bands of stock controllers.
 
-- **Activities → Cast → Devices**, where the activity's `present` map changes how generated cast members draw; and
-- **regular Devices sections**, where the page owns explicit entity tiles.
+## What changed from v1
 
-The two authoring surfaces must expose the same control choices, variants, defaults, labels, and validation. They are two entrances to one control system, not two feature implementations.
+The v1 draft's spine survives intact: the adapter/variant split, the Launcher contract, the parity contract, close-known-bugs-first, the migration discipline, and the acceptance-test culture were all right and are kept, much of it verbatim. The revision closes the review findings:
+
+- **The resolution ladder is now specified.** v1 modeled two envelopes; the system has three, plus a precedence ladder whose invisibility already produced a live bug (the stuck volume dropdown, fixed 2026-08-30 by *surfacing* the ladder). A design that renames one rung without pinning the others recreates that bug in new vocabulary.
+- **One canonical spelling.** v1's `shows` (present) vs `type` (tiles) split is killed. The adapter token is `type` in both envelopes; `variant` is the shape field in both; `shows` never ships.
+- **Fingerprint safety is ruled.** Respelling tile fields changes the bytes the ownership referee fingerprints — unruled, the migration flips pristine stock controllers into forks or trips the stock-sync drift guard. Ruling below.
+- **Weather is evicted** to its own future design. Modern HA serves forecasts through a websocket call, not a state attribute — that is a fetch/refresh/staleness subsystem, not an adapter variant, and it shares nothing with the machinery this document builds.
+- **Card grouping is phase-gated on a focus-geometry spec.** v1 asserted "traversal follows member order" in an engine whose focus walk is geometric. The open questions are listed; phase 3 does not start until they are answered in their own document.
+- **Auto is deterministic, and absent-variant semantics are pinned** (absent = legacy behavior, never Auto).
 
 ## Product decisions
 
-1. **Draws as chooses behavior; Variant chooses shape.** A Number control always reads and writes a number. Slider, Stepper, and Vertical are ways of drawing that control, not different service contracts.
-2. **Launcher Tile remains a first-class choice.** It is always available, including for entities with a native inline control. It is also the safe fallback when Harmonium does not support the entity's domain inline.
-3. **Cast Devices and regular Devices sections have parity.** A Number, Select, Volume, Brightness, or Launcher authored in either place must use the same adapter and render the same control.
-4. **The entity decides what can be controlled.** Domain, supported features, activity role claims, and entity metadata populate the Draws as list. A visual resemblance is not enough to offer an incompatible service contract.
-5. **Card grouping is presentation only.** Sharing a `card_group` joins controls into one visual container. It does not merge their entities, state, services, subscriptions, or collapse their individual row-focus identities.
-6. **Existing configurations do not change meaning silently.** New fields are additive, legacy forms remain readable, and migration is idempotent. An old loose entity that drew as a Launcher continues to do so until its owner chooses a native control.
-7. **Remote-first interaction is part of the contract.** Every new control and group must work with a D-pad and the supported legacy WebView baseline. Touch is an additional input, not the only usable one.
-8. **There is one canonical descriptor vocabulary.** Activity presentation overrides and explicit tiles have different owners, but new tools must not speak two live dialects for type, label, status, variant, or grouping.
-9. **Defaults are resolved, not guessed.** A missing variant follows one documented resolution ladder. There is no persisted `auto` whose meaning can drift with layout or engine version.
+1. **Draws as chooses behavior; Variant chooses shape.** A Number control always reads and writes a number. Slider, Stepper, and Vertical are ways of drawing that control, never different service contracts.
+2. **Launcher Tile remains a first-class choice** — always available, including for entities with a native inline control, and the safe fallback for unsupported domains.
+3. **Every authoring surface has parity.** The same entity offers the same Draws as and Variant choices, in the same order, with the same help text, wherever it is authored. One adapter registry, one compatibility function, one shared presentation-fields component. Copying options into both `PresPanel` and `TileRow` is the disease this design exists to cure, not an implementation strategy.
+4. **The entity decides what can be controlled.** Domain, supported features, role claims, and entity metadata populate the list. Visual resemblance never justifies an incompatible service contract.
+5. **Card grouping is presentation only.** A shared `card_group` joins controls into one visual container; entities, state, services, subscriptions, and focus identities stay separate.
+6. **Existing configurations never change meaning silently.** New fields are additive, legacy spellings remain readable, migration is idempotent, and an old Launcher stays a Launcher until its owner chooses otherwise.
+7. **Remote-first is part of the contract.** Every control and group works with a D-pad on the supported legacy WebView baseline. Touch is additional, never required.
+8. **One canonical spelling.** The adapter token is `type`, the shape is `variant`, in both envelopes. Legacy spellings (`style`, `volume_style`, `slider: true`, `kind`, `shows` if any escaped) are compat-read, normalized on Studio save, and never written anew.
+9. **The ladder is explicit and visible.** Variant resolution follows the three-rung ladder below, deterministically, and the Studio always shows *which rung won* when it is not the one being edited — the "⚙ pinned" pattern shipped in 0.86.0 is the template, generalized.
+10. **Respelling never changes ownership.** Fingerprinting canonicalizes spellings before hashing, so normalization can never flip pristine stock into a fork. Ruling below.
 
-## The model: adapter, variant, and envelope
+## The model: adapter, variant, envelope, ladder
 
-An **adapter** owns the semantic contract between an HA entity and a Harmonium control:
+An **adapter** owns the semantic contract between an HA entity and a Harmonium control: compatibility, state reads, the attributes that supply options/bounds/step/unit/features, the service that writes, the representation of unknown/unavailable/malformed state, and the set of legal variants.
 
-- whether the entity is compatible;
-- how current state is read;
-- which attributes provide options, bounds, step, unit, and features;
-- which service changes the value;
-- how unknown, unavailable, or malformed state is represented; and
-- which visual variants are legal.
+A **variant** is a renderer and interaction shape supported by that adapter. It never changes the contract.
 
-A **variant** is a renderer and interaction shape supported by that adapter. It never changes which entity contract or service is used.
+An **envelope** is where the authored choice is stored. There are **three**, and v1's miss of the third is why this section exists:
 
-An **envelope** is where a presentation choice is stored. There are two storage owners:
+- an activity-generated member: `activities.<id>.present[<member>]` (keyed by device id for cast members, by entity id for loose entities — an existing duality; see "Keying" below);
+- an explicit tile in a Devices section: the tile object in `tiles`;
+- a **generated band tile** in a (possibly stock) controller: the generator tile's own fields, beneath which sit the per-activity surface default (`surface.<x>`) and the global theme default.
 
-- an activity-generated member stores an override in `activities.<id>.present[<member>]`; and
-- a regular Devices section stores an explicit tile in its `tiles` array.
+### The resolution ladder
 
-The owners remain different, but their descriptor fields do not. Studio edits both through one shared presentation descriptor and the engine resolves both through the same adapter registry. A generator tile inside a controller is not a third descriptor dialect; it is a default-bearing source in the resolution ladder defined below.
+For any control, the effective variant resolves down exactly three rungs:
 
-### Canonical descriptor
+1. **The member's own choice** — `present[<member>].variant`, or the explicit tile's `variant`. (Legacy spellings read into this rung: `present.style`, `device_options[<entity>].volume_style`, a generator tile's `style`, `slider: true`, `kind: "volume"`.)
+2. **The activity surface default** — `surface.<adapter>_variant` (today's `surface.volume_style` reads into this rung).
+3. **The global/theme default** — `global.style.<adapter>` (today's `global.style.volume`), else the adapter's built-in default.
 
-The canonical presentation fields are:
+Rules: resolution stops at the first rung that answers; a rung never partially answers; and any editor writing rung 2 or 3 must display rung-1 pins that override it, each with a one-tap clear (the 0.86.0 volume-pin readout, generalized to every adapter). The legacy `device_options.volume_style` is read as rung 1 but never written again; the Studio's normalizer folds it into `present` on save.
 
-| Field | Meaning |
-| --- | --- |
-| `type` | adapter/widget identity: `device`, `number`, `select`, `volume`, and so on |
-| `variant` | explicit visual/interaction shape; absent means resolve the documented default |
-| `card_group` | optional visual-card id; blank/absent means standalone |
-| `label` | display name override |
-| `sub_text` | status-line override |
-| `icon` / `icon_image` | display icon override |
-| `tap` | tap-policy override where the envelope supports it |
+### Keying
 
-Legacy activity fields `shows`, `name`, `sub`, and `style` are compatibility-read spellings only. New authoring and canonical migration write `type`, `label`, `sub_text`, and `variant`.
+`present` is keyed by device id for cast members and entity id for loose entities. This duality is existing reality and this design does not change it; it *names* it. All new code resolves member keys through one shared helper, migration never rewrites keys, and the shared editor is key-shape-agnostic. Collapsing the duality is future work with its own migration, out of scope here.
 
-Activity presentation keys are also typed. `entity:<entity_id>` and `device:<device_id>` remove the existing ambiguity in which an unprefixed key may name either a device-library member or a loose entity. The compatibility reader accepts legacy unprefixed keys and the migration prefixes only those whose kind can be established unambiguously. An ambiguous key is preserved and reported rather than guessed.
+### Canonical persisted shapes
 
-### Proposed persisted shapes
-
-An activity-generated entity:
+An activity-generated entity and the same control as an explicit tile:
 
 ```jsonc
 "present": {
-  "entity:number.sonos_basement_bass": {
-    "type": "number",
-    "variant": "stepper",
-    "card_group": "sonos_tone",
-    "label": "Bass"
-  },
-  "entity:number.sonos_basement_treble": {
-    "type": "number",
-    "variant": "stepper",
-    "card_group": "sonos_tone",
-    "label": "Treble"
-  }
+  "number.sonos_basement_bass": { "type": "number", "variant": "stepper", "card_group": "sonos_tone", "name": "Bass" }
 }
 ```
-
-The same controls in a regular Devices section:
 
 ```jsonc
-{
-  "type": "number",
-  "entity": "number.sonos_basement_bass",
-  "variant": "stepper",
-  "card_group": "sonos_tone",
-  "label": "Bass"
-}
+{ "type": "number", "entity": "number.sonos_basement_bass", "variant": "stepper", "card_group": "sonos_tone", "label": "Bass" }
 ```
 
-The persisted value for Launcher may remain `device` for compatibility even though Studio labels it **Launcher Tile**. There is no value in rewriting every existing `device` tile solely to rename an internal token.
+Same `type` vocabulary, same `variant` vocabulary, both envelopes. `name`/`label` remain envelope-specific storage (existing reality, mapped by the shared editor to one "Display name" field); unifying them is not worth a migration. The persisted Launcher token remains `device` — renaming a working internal token buys nothing.
 
-### Variant resolution order
+## Fingerprints and ownership — the respelling ruling
 
-Every adapter exposes one resolver that returns both the winning variant and its source. All generator, group, inline, and explicit-tile paths must call that resolver; duplicating shorter ladders in individual generators is prohibited.
-
-For a generated activity member, the compatibility order is:
-
-1. the member's explicit `present[target].variant`;
-2. a legacy per-entity override such as `device_options[entity].volume_style` while it remains unread/migrated;
-3. the generator tile's explicit variant;
-4. the activity surface default for that adapter;
-5. the global default for that adapter; and
-6. the adapter's hard default.
-
-For an explicit regular-Devices tile, the first applicable rung is the tile's own `variant`; generator-only rungs are skipped. Each control then follows the same remaining applicable order.
-
-The canonical migration collapses `device_options[entity].volume_style` into the corresponding typed member descriptor when the target can be resolved, so it does not remain a permanent canonical rung. Until that migration is saved, the compatibility resolver preserves its current precedence. Existing generator-vs-surface precedence is also preserved in this feature; changing that behavior is a separate product decision.
-
-Studio must show the resolved result and source. The blank choice should read, for example, **Default — Slider (controller generator)** or **Default — Stepper (this activity)**. A lower-precedence dropdown must not imply that changing it will beat a pinned higher-precedence value.
-
-Missing `variant` means exactly this resolution order. The canonical format does not persist `variant: "auto"`.
+Normalization changes bytes; the ownership referee (`unitFp`, `healStockGen`, stock-sync) judges by bytes. **Ruling: fingerprinting canonicalizes before hashing.** `unitFp` (JS) and `unit_fp` (Python) gain one shared, versioned normalize step — legacy variant spellings map to canonical form before stringify — shipped in the same release as the compat reader, with byte-parity between the two implementations pinned by the existing stringify-parity test. Acceptance: every historical starter generation and every stock controller shape fingerprints **identically** before and after normalization; `probe-stock-sync` and the ownership battery stay green with zero `gen` bumps. If that acceptance cannot be met, the fallback is the loud path — respell stocklib + starter together with `gen` bumps — but the quiet path is the design intent.
 
 ## Initial adapter catalog
 
-The catalog below is the intended product vocabulary. It replaces hard-coded, surface-specific dropdown logic.
-
 | Draws as | Compatible source | Reads | Writes | Initial variants |
 | --- | --- | --- | --- | --- |
-| Launcher Tile | any entity or cast device | friendly name, icon, smart summary | the separate Tap policy decides | Default |
-| Number | `number`, `input_number` | state, minimum, maximum, step, unit, mode | that domain's `set_value` | Slider, Stepper, Vertical |
-| Select | `select`, `input_select` | current state and `options` | that domain's `select_option` | Picker, Cycle, Chips |
-| Volume | a `media_player`, or a device claiming the volume role | `volume_level` and supported features | media-player volume services | Compact, Slider, Stepper, Vertical |
-| Brightness | a compatible `light` | brightness and supported features | light brightness service data | Slider, Stepper, Vertical |
-| Power | a compatible power/toggle entity or claimed power role | state | the domain's supported power/toggle service | Default |
-| Now Playing | a compatible media-player entity or role | media state and metadata | existing media actions | existing styles |
-| Transport | a compatible media-player entity or role | supported media features | existing media actions | Default |
-| Sources | a compatible media-player entity or source-select role | source and source list | existing source service | Default |
+| Launcher Tile | any entity or cast device | name, icon, smart summary | Tap policy decides | Default |
+| Number | `number`, `input_number` | state, min, max, step, unit, mode | that domain's `set_value` | Auto, Slider, Stepper, Vertical |
+| Select | `select`, `input_select` | state, `options` | that domain's `select_option` | Auto, Picker, Cycle, Chips |
+| Volume | `media_player`, or volume role | `volume_level`, features | media-player volume services | Auto, Compact, Slider, Stepper, Vertical |
+| Brightness | compatible `light` | brightness, features | light brightness data | Auto, Slider, Stepper, Vertical |
+| Power | compatible toggle entity or power role | state | the domain's toggle service | Default |
+| Now Playing | media-player entity or role | media state, metadata | existing media actions | existing styles |
+| Transport | media-player entity or role | supported features | existing media actions | Default |
+| Sources | media-player or source-select role | source, source list | existing source service | Default |
 
-The range-shaped controls—Number, Volume, and Brightness—should share one numeric rendering primitive, but each keeps its own adapter. For example, `number.sonos_basement_bass` is a **Number** using `number.set_value`; making it look vertical must never cause it to call a light or media-player service.
+Weather is gone from this table by design; `design-weather-card.md` (future) owns it, including the forecast websocket contract, refresh policy, and stale-data behavior. Nothing in this catalog blocks on it.
 
-The initial Number contract follows HA's number model: current value, minimum, maximum, step, unit, and preferred mode come from the entity. Harmonium must not hard-code `0..100` or a step of `3` when the entity publishes its own values. A malformed or absent step gets a safe derived fallback and never produces invalid arithmetic. At the adapter-hard-default rung, Number maps `mode: slider` to Slider, `mode: box` to Stepper, and missing/unknown/`auto` mode to Slider. This mapping is versioned behavior, not a layout heuristic.
-
-The Select adapter treats `select` and `input_select` as the same user concept while retaining their domain-specific service calls. Picker is the deterministic hard default. Cycle is the compact remote-first form. Chips are explicit in version one; Harmonium does not silently switch to or from Chips based on a changing option count or viewport.
-
-Weather is deliberately outside this design. Modern forecast support requires its own fetch, refresh, cache, staleness, and failure contract rather than another row in an entity-state adapter table. `weather.*` continues to work as a Launcher Tile while a separate Weather-card design remains in the backlog.
+Number, Volume, and Brightness share one numeric rendering primitive but keep separate adapters: making `number.sonos_basement_bass` look vertical must never call a light or media-player service. The Number contract follows HA's number model — value, min, max, step, unit, mode from the entity, never hard-coded `0..100` or step 3; a malformed step gets a safe derived fallback.
 
 ## How Draws as is populated
 
-The list is deterministic and comes from the shared adapter registry.
+1. Launcher Tile first, always.
+2. Each registered adapter is asked whether it supports the entity's domain and published capabilities; only compatible adapters are offered.
+3. A temporarily unavailable entity keeps its configured adapter visible — state loss never erases an authored choice.
+4. An unknown adapter token is preserved in the raw config and shown as an actionable warning, never silently replaced.
 
-### For a loose or explicit entity
+For cast device-library members, choices come from claimed roles and traits (Volume only with a usable volume entity, and so on). Sibling entities like Sonos bass/treble are cast as entities themselves — a device bundle must not guess which of several `number` siblings a generic control means; an explicit trait may map this in the future.
 
-1. Offer **Launcher Tile** first, always.
-2. Ask each registered adapter whether it supports the entity's domain and published capabilities.
-3. Offer only compatible adapters.
-4. Keep the configured adapter visible if an entity is temporarily unavailable; temporary state loss is not a reason to erase an authored choice.
-5. If an old or unknown adapter token is loaded, preserve it in the raw configuration and show an actionable unsupported warning. Do not silently replace it while merely opening Studio.
+Defaults: existing configs keep their behavior; the new-add flow may author a native adapter for newly added `number`/`select` entities; Launcher remains selectable after; `variant` defaults to Auto and Studio does not write the word.
 
-Examples:
+## Auto — deterministic, or absent
 
-| Entity | Draws as choices |
-| --- | --- |
-| `number.sonos_basement_bass` | Launcher Tile, Number |
-| `select.denon_sound_mode` | Launcher Tile, Select |
-| `weather.home` | Launcher Tile |
-| `light.kitchen` | Launcher Tile, Power, Brightness |
-| unsupported domain | Launcher Tile |
-
-### For a cast device-library member
-
-Launcher Tile is again unconditional. Other choices come from the member's claimed roles and traits. Volume is offered only when the member has a usable volume entity; Sources only when it has a usable source entity; and so on.
-
-Generic sibling entities such as Sonos bass and treble should normally be cast as entities themselves. A device bundle must not guess which of several sibling `number` entities a generic Number control means. A future explicit trait may provide such a mapping, but domain guessing inside a bundle is out of scope.
-
-### Defaults
-
-- Existing configurations keep their current Draws as behavior.
-- A newly added `number`/`input_number` or `select`/`input_select` entity may be authored explicitly with its native adapter by the new-add flow.
-- Launcher Tile remains selectable after that default is applied.
-- A missing `variant` resolves through the pinned ladder and the Studio shows the winning value and source. New Number entities ultimately use the documented Number hard-default mapping; new Select entities ultimately use Picker.
+- **Absent `variant` = legacy resolution**, byte-for-byte today's behavior. Absent is not Auto.
+- **Written `auto` = these rules**, versioned with the engine:
+  - Numeric: HA `mode: "slider"` → Slider; `mode: "box"` → Stepper; `mode: "auto"`/absent → Slider when `(max−min)/step ≤ 100`, else Stepper.
+  - Select: **Picker. Period.** Cycle and Chips are explicit authored choices in v1 of this feature; layout-sensing Auto is future work, because two engine versions must never legally disagree about what Auto renders.
+- Every Auto rule must be assertable in a probe with fixed inputs.
 
 ## Studio parity contract
 
-Both authoring surfaces display the following shared fields where applicable:
-
-1. Display name
-2. Status line
-3. Display icon
-4. Draws as
-5. Variant, only when the selected adapter offers meaningful choices
-6. Card group, blank by default
-7. Tap behavior
-
-Surface-specific placement remains surface-specific. In particular, an activity cast member may retain its **Where** choice because it can be promoted from the generated Devices band into Controls. A regular tile already lives in an authored section and does not need that field.
-
-The implementation must use:
-
-- one adapter catalog;
-- one compatibility/filtering function;
-- one set of variant labels and help text; and
-- one reusable presentation-fields component or one thin wrapper over a shared component.
-
-Copying a new Number option into both `PresPanel` and `TileRow` is not acceptable parity. It would recreate the inconsistency this design is meant to remove.
+Both authoring surfaces present, through one shared component: Display name, Status line, Display icon, Draws as, Variant (only when the adapter offers real choices, with rung-1 pin visibility per decision 9), Card group (blank default), and Tap behavior. Surface-specific placement (the cast member's "Where") stays surface-specific.
 
 ## Launcher Tile contract
 
-Launcher Tile is both an explicit choice and the universal fallback. It has no inline value editor and does not pretend to support a domain service Harmonium does not understand.
+Unchanged from v1, kept in full force: no inline value editor; the Tap selector (Smart default / Open / Nothing) stays orthogonal; and **Smart default must never produce an apparently interactive but inert tile** — when no authored controller resolves, the entity's generated detail page is the final fallback.
 
-The existing Tap selector remains orthogonal:
+## Card grouping — semantics now, focus later
 
-- **Smart default** preserves the current domain-aware behavior for existing entity tiles: obvious play/pause or toggle verbs may run; when there is no safe obvious verb, the tile opens its controller or entity detail.
-- **Open** always opens the resolved controller/detail page.
-- **Nothing** produces a read-only tile.
+Semantics (unchanged from v1): `card_group` is an optional string; controls merge only within the same resolved screen, same rendered section, same non-empty value; first member anchors, authored order holds; grouping is a visual wrapper, never a focus stop or an enter/exit mode; an adapter advertises whether it has a row form, and an incompatible member renders standalone with a Studio warning; no group title in v1.
 
-The important invariant is that Smart default must never create an apparently interactive but inert launcher. If no authored controller can be resolved, the entity's generated detail page is the final fallback.
+**Phase gate:** implementation of grouping does not begin until `design-card-group-focus.md` exists and answers, with probe sketches: how a multi-stop card occupies the grid (one spanning cell? per-member cells in a shared skin?); how the geometric `spatialMove` enters the card (nearest member by geometry, or first member?); what the focus ring draws around a focused member inside a shared card; how capture/latch interacts with members that capture (a slider mid-drag); and how hide/unavailable transitions of one member reflow the card without losing focus. These are exactly the questions the pad doctrine spent three releases answering for single tiles; they will not be answered as a side effect.
 
-## Variants
+## Migration and compatibility
 
-Variant options are adapter-owned. Studio must not offer a global bag of shapes that some controls cannot honor.
+**Compatibility reader** (ships first, stays through the observed upgrade window): activity `shows`/`style` spellings, `type: "volume", slider: true`, `type: "stepper", kind: "volume"`, `device_options.volume_style`, and `device` all read into their canonical meanings. The reader is small, engine-side, and lets an updated engine render safely before anyone opens the Studio.
 
-### Numeric variants
+**Canonical migration** (Studio-side normalizer, on load): converts unambiguous legacy spellings to canonical `type` + `variant`; idempotent; preserves names, icons, status lines, tap behavior, targets, ARC `level_entity`, placement, ordering, and unknown fields; never invents `card_group`; never upgrades a Launcher to a native control; runs under the fingerprint ruling above so ownership never flips.
 
-- **Slider** — horizontal continuous/ranged control.
-- **Stepper** — decrement/value/increment; uses the adapter's true step.
-- **Vertical** — vertical range control, useful for volume and brightness but still legal for a generic number.
-- **Compact** — volume-specific existing compact presentation.
+**Rollout:** the reader and migration ship together and do not gate on a fixture campaign — sanitized beta exports are gathered opportunistically and retained as fixtures as they arrive, and the double-normalize stability check (`normalize(normalize(x)) == normalize(x)`) plus before/after equivalence of tiles, subscriptions, resolved entities, and service calls run on every fixture we have. A Studio upgrade summary before the first post-migration Save & Deploy lists what was canonicalized and anything that could not be.
 
-All numeric variants must clamp to the adapter's bounds, respect decimal precision, display the unit, and converge on HA's returned state after an optimistic interaction.
+## Existing inconsistencies to close first (unchanged from v1 — the gate)
 
-### Select variants
+1. A loose Launcher with no obvious verb resolves to `detail:<entity>` instead of going inert.
+2. Converting an ARC-split volume to Stepper preserves and uses `level_entity`.
+3. Activity and regular-Devices Draws-as filtering are identical.
+4. Number range/step come from entity metadata, not hard-coded assumptions.
+5. The runtime media_player generated-detail fallback keeps working without a destructive controller migration.
 
-- **Picker** — opens or expands the complete option list.
-- **Cycle** — left/right changes the highlighted option; Select commits.
-- **Chips** — visible options become focusable chips; this variant is explicitly authored in version one.
+Equivalence tests for every currently supported control are green **before** Number, Select, or grouping lands. This gate is the whole plan; phase 1 is the riskiest phase precisely because it refactors everything that already works, and the probe battery — not the new features — is where it succeeds or dies.
 
-There must always be a way to reach every option. Studio warns when Chips is a poor fit for the current option count, but the engine does not silently change an authored variant. A large or changing list remains safe under the default Picker.
+## Implementation sequence (sequencing, not authorization)
 
-## Card grouping
-
-`card_group` is an optional string. Blank means the control remains an independent card. Controls merge only when all of the following match:
-
-- the same resolved screen;
-- the same rendered section/band; and
-- the same non-empty `card_group` value.
-
-The first member anchors the visual card, and members retain authored order. Reusing an id in another section does not pull controls across the page. The field is deliberately named `card_group` rather than `group`: Harmonium already uses groups for cast navigation and speaker membership, while HA media players also have runtime grouping.
-
-The current engine's page walk is geometric: it chooses candidates from rendered rectangles. Authored order alone therefore cannot guarantee sensible movement inside a multi-row card. A card group is one outer grid cell with an explicit internal focus graph; its rows are not left to compete as unrelated top-level geometric candidates.
-
-### Group focus identities
-
-- The group owns one stable outer focus identity used when comparing it with neighboring grid cells.
-- Every visible member owns a stable row focus identity derived from the group and member, not from its current array index.
-- Landing on the outer identity immediately resolves to a row identity; the outer wrapper itself is never an activation target.
-- The focused row receives the strong focus ring. The outer card receives a quieter group outline so the visual containment remains clear.
-- Each row keeps its own entity, label, state, adapter, service, unavailable state, and capture state. The group never synthesizes one combined entity or action.
-
-### Entering and leaving a group
-
-- Entering from above selects the first visible row.
-- Entering from below selects the last visible row.
-- Entering from the left or right selects the visible row whose vertical center is closest to the incoming focus center; ties resolve to the first authored row.
-- Up/Down moves to the previous/next visible row. At the first or last row it bubbles to normal spatial navigation using the outer card's rectangle, not the small row rectangle.
-- Left/Right is first offered to the focused row's adapter. If that adapter declines the key, navigation bubbles from the outer card.
-- Select runs the focused row's normal action or enters that row's existing capture contract.
-- Back releases row capture first. When no row is captured, Back retains the page's normal navigation meaning; card grouping introduces no extra enter/exit mode.
-- Touch targets a row directly and synchronizes the logical row focus before running its action.
-
-### Interaction with the existing pad doctrine
-
-Existing input precedence remains intact: an active widget capture wins first; device passthrough and the panel-borrow latch are resolved before the panel focus graph; only when the panel owns the pad does the group handle row navigation. CH-based panel walking treats the group as one outer grid stop and never changes a row's value. A grouping implementation may not create a second capture system.
-
-### Dynamic rows and focus repair
-
-Unavailable rows remain present, dimmed, and focusable under the normal unavailable contract, but do not issue invalid service calls. A conditionally hidden row leaves the internal graph. If the focused row disappears, focus moves to the next visible row, then the previous row, then a spatial neighbor of the outer card. If no rows remain, the group disappears and the existing page focus-repair path selects a surviving page target. Reordering preserves focus by stable row identity.
-
-An adapter must advertise whether it has a row form suitable for a grouped card. Number, Select, Power, readouts, and Launcher can have row forms. Full-bleed cards such as Now Playing are initially standalone-only. If a configured member cannot join, Studio warns and the engine renders it standalone rather than hiding or breaking it.
-
-Version one does not require a group title. The entities' own labels make a Bass/Treble card understandable. A separate card-title model can be designed later if real configurations need it; overloading one member's label as the group title is rejected.
-
-## Migration and the ten-user beta
-
-The user count makes validation tractable, but migration should still be productized rather than performed by hand.
-
-### Compatibility reader
-
-The engine initially accepts both old and new spellings:
-
-- an unprefixed activity-presentation key is resolved as a legacy device or entity target without changing the stored key until that kind is unambiguous;
-- activity `shows`/`name`/`sub` read as canonical `type`/`label`/`sub_text`;
-- activity `shows: "stepper"` reads as `type: "volume", variant: "stepper"`;
-- activity `style` and `device_options[entity].volume_style` participate in the documented variant ladder;
-- regular `type: "volume", slider: true` reads as Volume + Slider;
-- regular `type: "stepper", kind: "volume"` reads as Volume + Stepper; and
-- `device` reads as Launcher Tile.
-
-The compatibility reader is deliberately small and may remain longer than the old Studio controls. It lets an updated engine render safely before a user has opened and saved Studio.
-
-### Canonical migration
-
-On Studio load/import, the normalizer converts unambiguous legacy spellings to the canonical typed-target + descriptor form. The migration:
-
-- is idempotent;
-- preserves names, icons, status lines, tap behavior, targets, ARC `level_entity` wiring, placement, ordering, and all unknown fields;
-- never assigns `card_group` where none existed;
-- never writes `variant: "auto"`;
-- never changes an existing Launcher into Number, Select, or another native control merely because the entity domain now permits it;
-- prefixes a presentation target only when it can prove `entity:` or `device:`;
-- migrates a resolvable legacy per-entity volume style into the corresponding item/member `variant` without changing the winning rendered style;
-- preserves unknown/custom tiles and controller forks; and
-- participates in the existing backup/migration discipline before a changed configuration is persisted.
-
-Activities are user-owned data. Normalization may update a known schema spelling while preserving its meaning; it must not heal an activity toward a stock opinion. Stock controllers continue through the existing ownership referee: pristine stock may advance, while forks remain the user's.
-
-### Stock ownership and fingerprints
-
-Canonical respelling changes controller content and therefore participates in the ownership fingerprint contract. It may not be shipped as a normalizer-only change.
-
-In the release that changes controller tile spellings:
-
-1. current canonical shapes land in `stocklib` and starter truth together;
-2. every affected stock-controller generation is bumped;
-3. stock history is regenerated so every previously shipped pristine shape remains recognizable;
-4. the ownership referee classifies/heals stock controllers before the general schema normalizer touches their content;
-5. an old pristine stock copy heals to the new canonical stock shape;
-6. an edited-in-place stock copy is first legitimized as the user's fork, after which only provably equivalent schema spellings may be canonicalized; and
-7. existing `variant_of` forks remain user-owned and are never replaced with stock.
-
-Fingerprint normalization must not broadly ignore `type`, `variant`, or other behavior-bearing fields. If a narrowly proven legacy/canonical equivalence is ever added to fingerprint normalization, it needs dedicated collision-of-intent tests showing that a real user edit still classifies as edited.
-
-The required ordering is a build invariant: referee first, canonical schema migration second. A probe must fail if reversing that order would cause our own migration output to classify as a fork on the next load.
-
-### Beta rollout
-
-For the current install base:
-
-1. Historical starter generations and constructed edge cases form the mandatory migration gate.
-2. Obtain sanitized exports from willing users and retain every available export as an additional migration fixture; collecting all ten is valuable but does not block a release when the compatibility reader and mandatory fixtures pass.
-3. Run old-config → normalize → normalize-again checks; the second pass must be byte/meaning stable.
-4. Compare generated tiles, variant sources, subscriptions, resolved entities, and service calls before and after migration.
-5. Ship the compatibility reader and migration together.
-6. Show an upgrade summary in Studio before Save & Deploy, including preserved custom/forked items, typed targets created, and anything that could not be canonicalized.
-7. Keep the reader through at least the observed upgrade window; old authoring controls do not need to remain once all known users have moved.
-
-## Existing inconsistencies to close first
-
-The abstraction must not preserve known mistakes as its reference behavior:
-
-1. A loose Launcher with no obvious verb must resolve to `detail:<entity>` instead of becoming inert.
-2. Converting an ARC-split volume control to Stepper must preserve and use its `level_entity` rather than falling back to the media entity.
-3. Activity and regular-Devices Draws as filtering must be identical.
-4. Number range and step must come from entity metadata rather than the existing hard-coded stepper assumptions.
-5. The runtime `media_player` generated-detail fallback must continue working while controller ownership and stock-controller changes are considered separately. This feature must not require a destructive controller migration.
-
-Equivalence tests for the current supported controls must be green before Number, Select, or grouping is layered on top. This is a release gate, not an aspirational test target.
-
-## Implementation sequence
-
-This is sequencing, not authorization to code.
-
-1. **Freeze current behavior:** close the known launcher and ARC-split bugs, then expand the probe battery until the currently supported controls, resolution sources, service targets, and focus behavior are pinned.
-2. **Descriptor and resolver foundation:** add the compatibility decoder, canonical descriptor helpers, typed-target resolver, adapter catalog, and pure variant-resolution function without rerouting every working renderer.
-3. **Shared Studio authoring:** make both Devices surfaces consume the same catalog, filtering, labels, help text, default-source readout, and presentation-fields component.
-4. **Number and Select:** add these native adapters through the new path, including deterministic defaults and their D-pad interactions.
-5. **Existing controls, one at a time:** move Launcher, Power, Volume, Now Playing, Transport, Sources, and Brightness behind the shared resolver individually. Each conversion lands only when its focused equivalence probes pass; completion of the registry is not itself success.
-6. **Card grouping:** implement the explicit outer-container/internal-row focus contract, row compatibility, ordering, warnings, and dynamic focus repair. Do not infer this behavior from CSS geometry.
-7. **Canonical stock release:** land any stock respelling, generation bumps, regenerated history, migration, and ownership-order probes atomically.
-8. **Retire old authoring spellings:** after beta migration evidence, remove redundant Studio controls while retaining the compact runtime reader for the agreed compatibility window.
+1. **Parity foundation:** shared adapter registry + shared Studio fields + the fingerprint-safe normalizer; route Launcher, Power, Volume, Now Playing, Transport, Sources through it with zero behavior change; close the five inconsistencies; generalize the pin readout to the full ladder.
+2. **Number and Select:** native adapters, D-pad interactions, identical authoring in all surfaces.
+3. **Card grouping:** gated on `design-card-group-focus.md`.
+4. **Retire old authoring spellings** after migration evidence, keeping the runtime reader.
 
 ## Acceptance tests
 
-### Adapter and engine
+v1's lists stand (adapter/engine, Studio parity, grouping/navigation, migration), minus Weather, plus:
 
-- Number reads current/min/max/step/unit correctly for integer, decimal, negative, and non-`0..100` ranges.
-- Number calls the correct domain service for both `number` and `input_number`, clamps values, and converges on returned HA state.
-- Select lists every option and calls the correct domain service for both `select` and `input_select`.
-- Number's hard-default mode mapping and Select's Picker default are deterministic across viewport sizes and repeated engine runs.
-- Chips is never selected or abandoned implicitly.
-- Unavailable/unknown entities remain visible, dimmed and safe; they do not emit invalid service calls.
-- Volume Slider/Stepper/Compact behavior is equivalent before and after adapter routing, including ARC-split `level_entity`.
-- Launcher Smart/Open/Nothing behavior is identical in generated and explicit tiles, with a working detail fallback.
+- **Ladder:** for each adapter, a rung-1 pin beats rung 2 beats rung 3; the editor for a lower rung displays the winning pin; clearing the pin restores the lower rung's answer.
+- **Fingerprint stability:** every historical stock shape fingerprints identically pre/post normalization; ownership and stock-sync batteries green with no gen bumps.
+- **Auto determinism:** fixed entity fixtures produce the specified variant, asserted in probes.
+- **Absent ≠ Auto:** a config with no `variant` renders byte-identically to the previous release.
 
-### Resolution
+## Non-goals
 
-- Every generator, group, inline, and explicit-tile path calls the shared resolver rather than maintaining a private shortened ladder.
-- Each rung wins in the documented order, including the temporary legacy `device_options` rung.
-- Missing `variant` preserves historical behavior and reports the winning value and source.
-- No canonical configuration writes `variant: "auto"`.
-- A configured but temporarily unavailable entity retains its adapter and explicit variant.
-- Studio's displayed default value/source matches the engine's resolved result.
-
-### Studio parity
-
-- Given the same entity, both authoring surfaces offer the same Draws as and Variant options in the same order with the same help text.
-- Both surfaces persist `type`, `label`, `sub_text`, `variant`, and `card_group` with the same meanings.
-- Switching adapters round-trips without losing unrelated fields.
-- Temporary entity unavailability does not make a configured option disappear from the editor.
-- Newly added native entities get the documented default; existing Launcher entities do not change on load.
-- A legacy unprefixed presentation key becomes typed only when its target kind is provable; an ambiguous key survives with a visible warning.
-- Raw/unknown tile types and controller forks survive load/save.
-
-### Grouping and navigation
-
-- Two Number controls with one `card_group` render in one outer grid cell and retain stable, distinct internal row identities.
-- The same id in a different section remains a different card.
-- Mixed compatible rows preserve order and independent services.
-- An incompatible full-card member falls back standalone with a Studio warning.
-- Entry from above/below/left/right selects the row required by the interaction contract.
-- Up/Down walks internal rows and bubbles from boundaries using the outer rectangle; Left/Right is offered to the row before it bubbles.
-- CH-based panel walking treats the group as one outer stop and never changes a value.
-- D-pad, touch, Back, existing capture/release, focus restoration, row reordering, and dynamic hide/unavailable transitions never trap or lose focus.
-
-### Migration
-
-- Every historical starter generation, constructed ownership edge case, and available sanitized beta fixture renders equivalently before and after migration.
-- Normalization is idempotent.
-- Old activity descriptor, Volume/Stepper/Slider, and unambiguous target spellings become canonical without losing custom fields.
-- Missing `variant` and `card_group` preserve historical behavior.
-- No existing loose entity is silently reinterpreted as a new native control.
-- Old pristine stock heals to canonical stock; edited stock becomes a preserved fork; an existing fork remains untouched; migration output does not become a fork on the next load.
-- Current stock, starter truth, stock history, and controller generations move together.
-- Full engine, Studio, ownership, stock-sync, and supported-WebView probe batteries remain green.
-
-## Non-goals for this feature
-
-- cloning Mushroom's visual design or entire option surface;
-- treating arbitrary attributes and services as safe generic controls;
-- replacing the separately proposed Composite Card row editor;
-- merging controls across sections or screens;
-- changing HA device or media-player group membership;
-- automatically redesigning existing user activities;
-- using a control variant to change the underlying service contract;
-- adding fuzzy viewport- or option-count-dependent variant selection; or
-- implementing Weather or forecast retrieval, which requires a separate design for fetching, caching, refresh, staleness, and failure.
-
-The Composite Card remains a possible later power-user layer. It can reuse these adapters and grouped row renderers, but ordinary Number and Select entities must not require users to author service/attribute recipes by hand.
+v1's list stands: no Mushroom cloning, no arbitrary attribute/service controls, no replacing the Composite Card proposal, no cross-section merging, no HA group-membership changes, no auto-redesign of user activities, no variant ever changing a service contract. Added: no Weather in this feature; no layout-sensing Select Auto in v1; no `present` key-shape unification; no grouping implementation before its focus spec.
 
 ## References
 
-- [Mushroom Number card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/number.md) — one semantic card for `number` and `input_number`, with presentation selected separately.
-- [Mushroom Select card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/select.md) — one semantic card for `select` and `input_select`.
-- [Home Assistant Number entity](https://developers.home-assistant.io/docs/core/entity/number/) — current value, min/max, step, unit, and preferred display mode.
-- [Home Assistant Select entity](https://developers.home-assistant.io/docs/core/entity/select/) — current option and required option list.
-- `docs/design-ownership-buckets.md` — stock, variant, and user ownership rules.
-- `docs/beta-gaps.md` §6.3–6.4 — original new-card and composite-card sketches.
-- `docs/screen-schema.md` — current Launcher/device, cast generator, group, and controller contracts.
+- `docs/design-entity-controls.v1.md` — the superseded draft, if retained; otherwise git history.
+- [Mushroom Number card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/number.md) · [Mushroom Select card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/select.md) — one semantic card, presentation separate.
+- [HA Number entity](https://developers.home-assistant.io/docs/core/entity/number/) · [HA Select entity](https://developers.home-assistant.io/docs/core/entity/select/).
+- `src/core/gen-bands.js` — the live four-rung volume ladder this design canonicalizes; `studio-src/.../ControllerTab.svelte` — the 0.86.0 pin readout, the ladder-visibility template.
+- `docs/design-layered-catalogs.md` — the spread model; `docs/design-ownership-buckets.md` — ownership rules; `docs/beta-gaps.md` §6.3–6.4 — the original sketches; `docs/screen-schema.md` — current contracts.

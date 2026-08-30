@@ -78,17 +78,10 @@ The full walk-through (including hardware remotes) is in **[docs/GETTING-STARTED
 
 This is where Harmonium earns its keep — and the physical buttons are half of it, so don't skip this part. **Harmonium ships a ready-made KeyMapper profile for the Sanytron Astrion / HA100**: the whole button story — app-launcher keys, volume/mute/menu, the long-press escape hatches — restores onto a fresh remote in two taps, no button-by-button authoring.
 
-1. **Hardware prep** (once per remote): sideload Fully Kiosk and
-  KeyMapper per Brad Sanders' excellent community guide — **and
-  check the Astrion's webview** (ⓘ on the remote shows the version —
-  if it reads Chromium 61, [update it](docs/GETTING-STARTED.md#%EF%B8%8F-update-the-webview--do-this-its-two-minutes)) —  
-   **[Astrion Remote for Home Assistant — sideloading, Fully Kiosk,](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
-  **[ button remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570)**  
-   (stop before its manual button remapping — the profile below replaces that step).
+1. **Hardware prep** (once per remote): follow **[our end-to-end Astrion/HA100 setup guide](remotes/astrion/README.md)** — Fully Kiosk, Key Mapper via the **IME path** (required on current firmware, where the older Expert-Mode method dies at reboot), KISS as the Home app, wireless ADB on the Blue key, and the Fully settings applied in one import. It builds on [Brad Sanders' community guide](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570) (credit where due) but supersedes its Key Mapper steps. **And check the Astrion's webview** (ⓘ shows the version — if it reads Chromium 61, [update it](docs/GETTING-STARTED.md#%EF%B8%8F-update-the-webview--do-this-its-two-minutes)).
 2. **With the remote on USB**: run `remotes/setup-remote.bat` from the repo
   root (locks the display to portrait and warns — without changing
-  anything — if the HA100's factory display density of 220 has been lost), then `remotes/push-keymapper.bat` — it pushes the bundled profile from [`remotes/astrion/keymapper/v1/`](remotes/astrion/keymapper/v1/) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key in 
-   [`astrion-remote-map.md`](remotes/astrion/keymapper/v1/astrion-remote-map.md), and the community guide's screenshots show where everything lives.
+  anything — if the HA100's factory display density of 220 has been lost), then `remotes/push-keymapper.bat` — it pushes the bundled profile (current units: [`remotes/astrion/keymapper/v2/`](remotes/astrion/keymapper/v2/), the IME-path config with the wireless-ADB sound cues; `v1/` remains for Expert-Mode-era units) and opens KeyMapper; finish with **⋮ → Restore**. Prefer doing it by hand? The mapping is documented key-by-key — including the decoded shell commands — in [`astrion-remote-map.md`](remotes/astrion/keymapper/v2/astrion-remote-map.md).
 3. **Point Fully Kiosk at the URL above**, pair, and pick up at [our hardware-keys cookbook](docs/cookbook/hardware-keys.md) for what every key does — including the glyph row you can bind to anything in the Studio.
 4. **Turn on Remote Administration in Fully** (Settings → Remote Administration → enable, set a password). Then you never touch the remote's tiny settings screens again: manage every Fully setting from a desktop browser at `http://<remote-ip>:2323` (the remote's IP is on Harmonium's ⓘ screen), and HA's Fully Kiosk integration gets its device buttons — *Clear browser cache*, *Load Start URL* — which are also Harmonium's update failsafe.
 
@@ -144,7 +137,7 @@ Fork setup, deploy scripts (`build-push.bat` and friends, driven by `houses\defa
 
 ## Status
 
-Beta (v0.85.7). Daily-driving on a Sanytron Astrion and a Haptique RS90 (Fully Kiosk) across two houses. Recent: a config ownership system (updates refresh built-ins without ever touching your edits), the physical-key routing doctrine with a fixed hold-key vocabulary, a redesigned Music Library and queue, engine self-update on deployed remotes, per-activity Now Playing styles with a [picture menu](docs/cookbook/now-playing-styles.md), and page deep links. Release notes: [docs/releases](docs/releases). Roadmap and open items:  
+Beta (v0.86.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. Recent: **layered catalogs** (built-in apps and platforms update beneath your config — your edits win, your removals hold), **derived platform classes** (clone Fire TV into your own, keep it tracking stock), **first-class fast d-pad** (sendevent actions with single-digit-ms presses, now editable in the Studio), the `harmonium.run_preset` service, TV app logo cards, photo presets, and a rebuilt hardware-remote toolkit under `remotes/`. Release notes: [docs/releases](docs/releases). Roadmap and open items:  
 [docs/PROJECT.md](docs/PROJECT.md).
 
 ## Asks

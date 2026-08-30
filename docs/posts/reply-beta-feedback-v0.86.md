@@ -1,6 +1,6 @@
 # Reply — the config-pass feedback list (post with/after the v0.86.0 release)
 
-*Audience: the beta tester whose "Minor Problems / Issues" list arrived 2026-08-30. Post to the forum thread once v0.86.0 is tagged. Tone: his list drove a release — say so.*
+*Audience: the beta tester whose "Minor Problems / Issues" list arrived 2026-08-30 — [post #23 in the beta thread](https://community.home-assistant.io/t/harmonium-a-fast-activity-based-universal-remote-platform-for-home-assistant-open-beta-via-hacs/1022037/23). Post there once v0.86.0 is tagged. Tone: his list drove a release — say so.*
 
 ---
 

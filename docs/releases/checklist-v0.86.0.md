@@ -7,7 +7,7 @@
 - [ ] **Layered catalogs: verified + extended (2026-08-30).** Test surface green (`test-layered-catalogs.py` ALL PASS incl. 15 new derivation fences, `probe-catalog-provenance` ok) and the migration already ran live (the `prelayers.backup` files in www are its receipts). NEW this round, per the derivation ruling: **derived classes** (`derived_from` — deltas over the shipped parent; merge + subtract in `catalogs.py`; ⑂ Derive / View parent / Reset to parent / adopt-activities in the editor), **action-valued D-pad fields** (⚡ chip + JSON editor; kills the `[object Object]` data-loss trap; ⚡ convert button on every key), **stock/yours visual separation** + section renamed **Platforms**; design doc + release notes updated. Notes now carry today's work (Fixed section, Disney+, derived classes, remotes toolkit) — Remaining: Suresh reviews and de-DRAFTs. Tester reply drafted: `docs/posts/reply-beta-feedback-v0.86.md` (post after tagging).
 - [ ] Bump `custom_components/harmonium/manifest.json` `0.86.0-dev` → `0.86.0` (the tag must match).
 - [ ] Run `make-release.bat` (build Studio + engine, bundle into the integration).
-- [ ] Run the test probes (`tests/*.mjs`) green after the build — engine `src/` changed this cycle, so confirm no regressions.
+- [x] Probes green (2026-08-30, sandbox, source byte-synced with the tree): 19/19 smoke suites + 8 touched probes + python integration-split 21/21 + layered-catalogs ALL PASS. Deck→Watch Projector verified by hand in the preview.
 - [ ] Tag `v0.86.0` + draft the GitHub Release, then verify a HACS install on a test HA.
 
 ## Bug fixes (tester triage — see beta-gaps §6, 2026-08-30)
@@ -23,10 +23,11 @@
 - [x] **No automatic entity-rename** — GETTING-STARTED Troubleshooting entry (delete + recreate, rename before building).
 - [x] **Music vs TV bottom chrome by design** — GETTING-STARTED Troubleshooting entry (the TV Back/Home strip and why music pages don't need it).
 
-## Roadmap — decide in-or-out for 0.86.0
+## Roadmap — settled 2026-08-30
 
-- [ ] **Fire TV sendevent as a Studio field** (today it's a Code-tab tuning; see `docs/design-fast-dpad.md`). Real user demand now.
-- [ ] **IP dialects (Denon / Panasonic, non-Android).** Take the tester up on the test + doc offer.
+- [x] **Fire TV sendevent first-class** — delivered via derived classes + action-valued dpad fields, per the "clone FireTV → FireTV-SE" design discussion.
+- [x] **IP dialects (Denon/Panasonic)** — ruled OUT as a transport: receivers ride their HA integrations; extra commands ride HA services. Tester reply drafted (`docs/posts/reply-beta-feedback-v0.86.md`).
+- [x] **Entity controls (`design-entity-controls.md`) rewritten as v2** per review — resolution ladder specified, one canonical spelling, fingerprint-safe normalization ruled, Weather evicted, grouping phase-gated on a focus spec, deterministic Auto. Positioned as the **0.87 keynote**; 0.86.0 does NOT gate on it.
 
 ## Housekeeping
 

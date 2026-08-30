@@ -115,11 +115,15 @@ That's the whole loop. Repeat per device; each gets its own token.
 
 ## 5. A hardware remote (Astrion / HA100-class)
 
-The hardware prep — sideloading Fully Kiosk Browser, installing
-KeyMapper, remapping the physical buttons — is covered start to
-finish by Brad Sanders' community guide:
-[Astrion Remote for Home Assistant — sideloading, Fully Kiosk, button
-remapping](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570).
+The hardware prep — Fully Kiosk, Key Mapper, the physical buttons —
+is covered start to finish by **our own setup guide**,
+[remotes/astrion/README.md](../remotes/astrion/README.md): it uses
+Key Mapper's **IME path** (required on current firmware — the older
+Expert-Mode method does not survive a reboot there), sets KISS as the
+Home app, puts wireless ADB on the Blue key, and applies the tuned
+Fully settings in one import. It builds on
+[Brad Sanders' community guide](https://community.home-assistant.io/t/astrion-remote-for-home-assistant-sideloading-fully-kiosk-button-remapping-guide/1008570),
+which remains a good orientation read.
 
 One profile fact worth knowing up front: the **RS90 and the Astrion
 "v2" profile declare physical transport keys**, so the stock music
