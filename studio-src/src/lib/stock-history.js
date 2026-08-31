@@ -5,8 +5,8 @@
 export default {
  "controllers": {
   "music": [
-   "fbf0d8a8f60f",
-   "7d95303cb3da",
+   "41c13130a71d",
+   "b3cc1bd486c4",
    "dbdb85e9f658"
   ],
   "apps": [
@@ -17,8 +17,8 @@ export default {
    "c12d797cbda5"
   ],
   "tv": [
-   "e1c85d69efa5",
-   "a33625c95d38"
+   "78dbfe5da550",
+   "1e1983347676"
   ],
   "climate": [
    "2d62ab684453"
@@ -36,7 +36,7 @@ export default {
    "f29b6aa1dc17"
   ],
   "media": [
-   "8ca02fba232c"
+   "a7f15a534e3f"
   ]
  },
  "remoteKeymaps": {

@@ -53,18 +53,12 @@ function volHeld(le, l) {
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
-    sub: (e, t) => {
-      /* SLIDER MODE SAYS IT ONCE (v0.83.7 — Suresh, four screenshots
-         deep: "note we duplicate the volume % on the 1st and 3rd"):
-         the center readout owns the number (and the mute glyph), so
-         the title line carries only the name. Compact keeps the
-         "Vol n%" title — its meter has no numeral of its own. */
-      if (t && t.slider !== false) return "";
-      if (volMuted(e, t)) return "Muted";
-      const l = st(lvlEnt(e, t)).a.volume_level;
-      return "Vol " + (l != null ? pct(l) : "–");
-    },
-    inlineSub: true,                 // value rides the title line
+    /* ONE LANGUAGE (2026-08-31 — Suresh: "we need a design language
+       that is consistent"): the control owns its number in BOTH
+       modes now — slider's center readout as always, and compact's
+       value sits under its meter (the stepmid column every numeric
+       row shares). The title line is the name, nothing else. */
+    sub: () => "",
     isOn: e => st(e).s !== "off",
     meter: (e, t) => st(lvlEnt(e, t)).a.volume_level || 0,
     /* NO MORE CAPTURE (2026-08-20 field round 4 — Suresh, volume
@@ -113,7 +107,8 @@ WIDGETS.volume = {
       return (sl ? `<div class="sldr"><i></i></div>` : "") +
         `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
-      ${sl ? `<div class="volpct">–</div>` : `<div class="meter"><i></i></div>`}
+      ${sl ? `<div class="volpct">–</div>`
+        : `<div class="stepmid"><div class="meter"><i></i></div><div class="stepval sm">–</div></div>`}
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -188,7 +183,8 @@ WIDGETS.volume = {
       const le = lvlEnt(e, t);
       const l = volHeld(le, st(le).a.volume_level);
       const m = volMuted(e, t);
-      const pc = el.querySelector(".volpct");
+      const pc = el.querySelector(".volpct") ||
+        el.querySelector(".stepmid .stepval");   /* compact's readout */
       /* muted: the center % becomes the mute glyph (v0.83.7) — the
          level is still on the track, dimmed, so unmuting is no
          surprise */

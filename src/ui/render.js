@@ -501,11 +501,34 @@ function navigate(screenId, isBack) {
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }
+    /* CARD GROUPS (entity-controls Phase 3 — design-card-group-focus):
+       members sharing a non-empty card_group in THIS rendered section
+       merge into one .cardgrp wrapper — first member anchors (its
+       span is the card's footprint), authored order holds, later
+       same-group tiles join the card at the anchor's position. The
+       wrapper is presentation only: each member keeps its #tile_<id>
+       element, so the focus walk, ring, and capture see ordinary
+       tiles. An adapter with no row form renders standalone. */
+    const cgHosts = {};
     vis.forEach(t => {
-      const el = makeTile(t, t.brRow != null ? !!t.brRow : secRow,
-        spanOf(t, secDecl, secCols));
-      host.appendChild(el);
-      anchorEl = anchorEl || el;
+      const sp = spanOf(t, secDecl, secCols);
+      const el = makeTile(t, t.brRow != null ? !!t.brRow : secRow, sp);
+      const gid = typeof t.card_group === "string" && t.card_group &&
+        tileGroupable(t) ? t.card_group : null;
+      if (!gid) {
+        host.appendChild(el);
+        anchorEl = anchorEl || el;
+        return;
+      }
+      let g = cgHosts[gid];
+      if (!g) {
+        g = cgHosts[gid] = document.createElement("div");
+        g.className = "cardgrp" + (sp >= 2 ? " span2" : "");
+        if (sp > 2) g.style.gridColumn = "span " + sp;
+        host.appendChild(g);
+      }
+      g.appendChild(el);
+      anchorEl = anchorEl || g;
     });
     /* v0.85.7 (Suresh: "ChUp and ChDn should jump sections. Since we
        have them."): a TITLED section is a jump stop too — CH▲▼ can
@@ -664,6 +687,16 @@ function renderStates() {
     }
     el.querySelector(".hint").textContent = w.captureHint || "";
     if (w.render) w.render(el, eid, t);   // widget-managed dynamic body
+  });
+  /* a card group whose members are ALL hidden is chrome — hide the
+     wrapper too, so it neither draws an empty skin nor traps the
+     walk's geometry (design-card-group-focus §5) */
+  grid.querySelectorAll(".cardgrp").forEach(g => {
+    let any = false;
+    for (let i = 0; i < g.children.length; i++)
+      if (g.children[i].classList.contains("tile") &&
+          !g.children[i].classList.contains("hidden")) { any = true; break; }
+    g.classList.toggle("hidden", !any);
   });
 }
 

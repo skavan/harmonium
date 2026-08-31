@@ -42,10 +42,16 @@ function genVolumeTiles(t) {
     const dopts = act.device_options || {};
     /* fat by default (v0.83.1 — statusreview: "default should be fat"):
        the slider treatment is the default volume everywhere; compact
-       and stepper remain one declaration away */
-    const dflt = t.style ||
-      (act.surface && act.surface.volume_style) ||   /* Controller tab default */
-      ((CONFIG.global || {}).style || {}).volume || "slider";
+       and stepper remain one declaration away. Phase 1: the rungs
+       resolve through the NAMED ladder (core/adapters.js) — the
+       generator tile's own choice, the activity surface default, the
+       global/theme default, the adapter's built-in. Canonical
+       spellings (`variant`, surface.volume_variant) read first;
+       legacy (`style`, surface.volume_style) stay readable. */
+    const dflt = resolveVariant(
+      t.variant || t.style,
+      surfaceVariant(act, "volume"),                 /* Controller tab default */
+      globalVariant("volume")) || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -62,7 +68,10 @@ function genVolumeTiles(t) {
          and STYLE, on the ladder present.style → device_options.
          volume_style → the generator tile's own → global. */
       const pv = presOf(act, did);
-      const style = (pv && pv.style) || o.volume_style || dflt;
+      /* rung 1: the member's own choice (canonical `variant`, legacy
+         `style`), then the legacy device_options pin — read but never
+         written anew (design decision: rung 1's legacy tail) */
+      const style = resolveVariant(presVariant(pv), o.volume_style, dflt);
       const base = {
         id: t.id + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
         entity: ve,
@@ -70,6 +79,10 @@ function genVolumeTiles(t) {
         icon: (pv && pv.icon) || d.icon || "material:volume_up",
         span: 2
       };
+      /* the band builds its tiles inline (not via presApply), so the
+         member's card_group rides explicitly (Phase 3) */
+      if (pv && typeof pv.card_group === "string" && pv.card_group)
+        base.card_group = pv.card_group;
       /* WHICH TILE IS "THE VOLUME BAND" (v0.83.7 — Suresh: "the
          volume band is the row associated with the Volume Role"):
          the tile whose entity is the activity's WIRED volume takes
@@ -78,7 +91,11 @@ function genVolumeTiles(t) {
          surfDressTile skips those). */
       if (ve !== (act.context || {}).volume) base.bandGen = 1;
       out.push(style === "stepper"
-        ? Object.assign(base, { type: "stepper", kind: "volume" })
+        /* the ARC split rides the stepper too (Phase 0, entity-controls
+           inconsistency #2): converting a volume to Stepper must not
+           drop where the LEVEL actually lives */
+        ? Object.assign(base, { type: "stepper", kind: "volume",
+            level_entity: roles.volume_level || ve })
         : Object.assign(base, {
             type: "volume",
             level_entity: roles.volume_level || ve,
@@ -99,7 +116,7 @@ function genVolumeTiles(t) {
         const o2 = dopts[ctxV] || {};
         if (o2.volume !== false) {
           const pv2 = presOf(act, ctxV);
-          const style2 = (pv2 && pv2.style) || o2.volume_style || dflt;
+          const style2 = resolveVariant(presVariant(pv2), o2.volume_style, dflt);
           const base2 = {
             id: t.id + "_" + ctxV.replace(/[^a-zA-Z0-9]+/g, "_"),
             entity: ctxV,
@@ -110,8 +127,11 @@ function genVolumeTiles(t) {
                so the label override applies (no bandGen) */
             span: 2
           };
+          if (pv2 && typeof pv2.card_group === "string" && pv2.card_group)
+            base2.card_group = pv2.card_group;
           out.push(style2 === "stepper"
-            ? Object.assign(base2, { type: "stepper", kind: "volume" })
+            ? Object.assign(base2, { type: "stepper", kind: "volume",
+                level_entity: (act.context || {}).volume_level || ctxV })
             : Object.assign(base2, { type: "volume",
                 level_entity: (act.context || {}).volume_level || ctxV,
                 slider: style2 === "slider" }));
@@ -318,14 +338,16 @@ function genGroupTiles(t) {
       if (groupedW.indexOf(did) >= 0) return;
       const p = presW[did];
       if (!p || p.where !== "controls") return;
+      const shD = presType(p);
       const tl = groupChildTile(did,
-        (p.shows && p.shows !== "device") ? p.shows : "device", t.id, p);
+        (shD && shD !== "device") ? shD : "device", t.id, p);
       if (tl) gout.push(tl);
     });
     (act.extra_devices || []).forEach(ent => {
       const p = presW[ent];
       if (!p || p.where !== "controls") return;
-      const tl = (p.shows && p.shows !== "device")
+      const shL = presType(p);
+      const tl = (shL && shL !== "device")
         ? looseShowTile(ent, p, t.id)
         : presApply({ type: "device",
             id: t.id + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),

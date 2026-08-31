@@ -61,12 +61,15 @@ function groupedDeviceIds(act) {
 function castGroup(act, gid) {
   return castGroups(act).filter(g => g.group === gid)[0] || null;
 }
-/* which ROLE a `shows` type binds to. Unknown types fall back to the
-   launcher, which is always available and always correct. */
-const SHOWS_ROLE = {
-  volume: "volume", stepper: "volume", power: "power",
-  media: "media_player", transport: "media_player", sources: "source_select"
-};
+/* which ROLE a Draws-as type binds to — DERIVED from the adapter
+   registry (core/adapters.js, Phase 1), plus the one legacy alias:
+   `stepper` survives as volume-drawn-as-stepper. Unknown types fall
+   back to the launcher, which is always available and always correct. */
+const SHOWS_ROLE = (function () {
+  const m = { stepper: "volume" };
+  for (const k in ADAPTERS) if (ADAPTERS[k].role) m[k] = ADAPTERS[k].role;
+  return m;
+})();
 /* ---- PRESENTATION, PER MEMBER (v0.76 — Suresh: "put the device
    options in the device rows… display name, display icon, display
    mode, click to"). `act.present` is a keyed map — device id for cast
@@ -99,6 +102,10 @@ function presApply(tile, p, ent) {
   if (typeof p.name === "string") tile.label = p.name;
   if (typeof p.sub === "string") tile.sub_text = p.sub;   /* "" = none */
   if (p.icon) tile.icon = p.icon;
+  /* card_group rides into the generated tile (Phase 3) — the render
+     walk merges same-group tiles of one section into one card */
+  if (typeof p.card_group === "string" && p.card_group)
+    tile.card_group = p.card_group;
   if (p.tap === "none") { tile.tap = "none"; tile.trailing = false; }
   else if (p.tap === "open") {
     if (tile.type === "device") tile.tap = "open";
@@ -160,22 +167,26 @@ function groupChildTile(did, shows, idPrefix, pres) {
      survives as a legacy alias for volume + style stepper. */
   if (shows === "volume" || shows === "stepper") {
     const vstyle = shows === "stepper" ? "stepper" :
-      ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "slider");
+      resolveVariant(presVariant(pres), globalVariant("volume")) || "slider";
     /* a PROMOTED per-device control, never "the volume band" —
        exempt from the band-label override (v0.83.7: typing a band
        label renamed his promoted Receiver) */
     return presApply(vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
-          brRow: false, bandGen: 1, entity: ent })
+          brRow: false, bandGen: 1, entity: ent,
+          level_entity: roles.volume_level || ent })
       : Object.assign(base, { type: "volume", entity: ent,
           brRow: false, bandGen: 1,
           level_entity: roles.volume_level || ent,
           slider: vstyle === "slider" }),
       pres, ent);
   }
-  return presApply(Object.assign(base, { type: shows, brRow: false,
-    entity: ent }), pres, ent);
+  /* generic control branch — through the canonical reader (Phase 2:
+     a member drawn as Number/Select carries its variant and lands on
+     the right widget; the six older types pass through untouched) */
+  const gtile = Object.assign(base, { type: shows, brRow: false, entity: ent });
+  if (pres && pres.variant) gtile.variant = pres.variant;
+  return presApply(canonTile(gtile), pres, ent);
 }
 /* a LOOSE entity drawn as a control (v0.76): no device bundle to
    resolve roles from — the entity IS every role it needs */
@@ -186,21 +197,24 @@ function looseShowTile(ent, p, idPrefix) {
     icon: "material:devices",
     span: 2
   };
-  const shows = p.shows;
+  const shows = presType(p);
   base.brRow = false;              /* controls are cards — see above */
   let tile;
   if (shows === "volume" || shows === "stepper") {
     /* style decides the shape here too (v0.83.7 unification) */
     const vstyle = shows === "stepper" ? "stepper" :
-      ((p && p.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact");
+      resolveVariant(presVariant(p), globalVariant("volume")) || "compact";
     tile = vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
-          bandGen: 1, entity: ent })
+          bandGen: 1, entity: ent, level_entity: ent })
       : Object.assign(base, { type: "volume", entity: ent, bandGen: 1,
           level_entity: ent, slider: vstyle === "slider" });
   }
-  else tile = Object.assign(base, { type: shows, entity: ent });
+  else {
+    tile = Object.assign(base, { type: shows, entity: ent });
+    if (p && p.variant) tile.variant = p.variant;
+    tile = canonTile(tile);     /* Number/Select land on their widget */
+  }
   return presApply(tile, p, ent);
 }
 

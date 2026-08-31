@@ -39,10 +39,28 @@
     .filter((g) => !devLib[g.stem])
     .filter((g) => castHit(g.stem + " " + g.ents.join(" ")))
     .slice(0, 8));
-  const pickEnts = $derived(app.entities
-    .filter((e) => castHit(e.entity_id + " " + (e.name || "")))
-    .filter((e) => !(a.extra_devices || []).includes(e.entity_id))
-    .slice(0, 12));
+  /* the UNQUERIED list ranks CONTROL domains first (2026-08-31 —
+     Suresh: "only a very short list of automations and binary
+     sensors": app.entities is alphabetical, and the alphabet starts
+     at automation./binary_sensor. — the 12-row head was noise). A
+     typed query still searches everything, unranked. */
+  const ENT_DOMS = ["media_player", "remote", "select", "number",
+    "light", "switch", "climate", "cover", "fan", "input_select",
+    "input_number", "scene", "script", "button", "input_boolean",
+    "lock", "vacuum", "humidifier", "camera", "sensor"];
+  const domRank = (id) => {
+    const i = ENT_DOMS.indexOf(id.split(".")[0]);
+    return i < 0 ? ENT_DOMS.length : i;
+  };
+  const pickEnts = $derived.by(() => {
+    const base = app.entities
+      .filter((e) => castHit(e.entity_id + " " + (e.name || "")))
+      .filter((e) => !(a.extra_devices || []).includes(e.entity_id));
+    return (castQ.trim()
+      ? base
+      : [...base].sort((x, y) => domRank(x.entity_id) - domRank(y.entity_id)))
+      .slice(0, 12);
+  });
   function castLibDevice(devId) {
     addCast(devId);
     castQ = ""; castOpen = false;

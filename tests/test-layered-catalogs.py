@@ -155,71 +155,51 @@ check("ACCEPTANCE: the younger wake field flows from stock",
       final["dialects"]["firetv"].get("wake")
       == STOCK["dialects"]["firetv"].get("wake"))
 
-# ---- 6. DERIVED dialects (2026-08-30 — "clone the FireTV, edit the
-# dpad stuff, call it FireTV-SE") — deltas over the SHIPPED parent ----
-duser = {
-    "dialects": {
-        "firetv_se": {
-            "derived_from": "firetv",
-            "name": "FireTV-SE",
-            "dpad_commands": {"up": {"service": "androidtv.adb_command",
-                                     "entity": "$context.media_player",
-                                     "data": {"command": "sendevent ..."}}},
-            "apps": {"prime": {"source": "SE-EDITED"}, "netflix": None,
-                     "sky": {"source": "uk.sky"}},
-        },
-        # user ALSO tombstones the parent — must not affect the derivative
-        "firetv": None,
-    },
-}
-_, ddial = C.merge_catalogs(STOCK, None, duser["dialects"])
-se = ddial.get("firetv_se") or {}
-check("derived: resolves against the shipped parent",
-      "firetv_se" in ddial and se.get("wake")
-      == STOCK["dialects"]["firetv"].get("wake"))
-check("derived: parent's untouched apps flow through",
-      (se.get("apps") or {}).get("hulu")
-      == STOCK["dialects"]["firetv"]["apps"]["hulu"])
-check("derived: the delta wins", se["apps"]["prime"] == {"source": "SE-EDITED"})
-check("derived: its tombstone holds", "netflix" not in se["apps"])
-check("derived: its addition present", se["apps"]["sky"] == {"source": "uk.sky"})
-check("derived: dpad delta (action object) wins whole",
-      se["dpad_commands"]["up"]["service"] == "androidtv.adb_command")
-check("derived: the marker survives the merge",
-      se.get("derived_from") == "firetv")
-check("derived: name delta wins", se.get("name") == "FireTV-SE")
-check("derived: tombstoning the PARENT hides the parent only",
-      "firetv" not in ddial and "firetv_se" in ddial)
-
-# unknown / non-stock parent → the entry is the user's own, untouched
-_, udial = C.merge_catalogs(STOCK, None, {
-    "solo": {"derived_from": "no_such_platform", "name": "Solo"}})
-check("derived: unknown parent passes through unchanged (one level deep)",
-      udial["solo"] == {"derived_from": "no_such_platform", "name": "Solo"})
-
-# subtract: an effective derivative reduces to deltas + marker
-eff_cfg = {"dialects": dict(ddial)}
-layer = C.subtract_config(STOCK, copy.deepcopy(eff_cfg))
-lse = (layer.get("dialects") or {}).get("firetv_se") or {}
-check("derived subtract: marker kept", lse.get("derived_from") == "firetv")
-check("derived subtract: equal fields drop (wake follows the parent)",
-      "wake" not in lse and "wake_delay" not in lse)
-check("derived subtract: only the deltas remain in apps",
-      set((lse.get("apps") or {})) == {"prime", "netflix", "sky"}
-      and lse["apps"]["netflix"] is None)
-check("derived subtract: dpad delta kept",
-      "up" in (lse.get("dpad_commands") or {}))
-# round-trip stability: merge(subtract(effective)) == effective
-_, ddial2 = C.merge_catalogs(STOCK, None, layer["dialects"])
-check("derived round-trip is stable",
-      C.unit_fp(ddial2.get("firetv_se")) == C.unit_fp(se))
-
 # ---- fingerprint parity guard --------------------------------------
 ok = all(C.unit_fp(STOCK["dialects"]["firetv"]["apps"][a])
          in (HISTORY.get("dialect_apps", {}).get("firetv", {}).get(a) or [])
          for a in STOCK["dialects"]["firetv"]["apps"])
 check("python fingerprints appear in the JS-generated history "
       "(stringify parity)", ok)
+
+# ---- FP-NORM v1 (entity-controls Phase 1, the respelling ruling) ----
+# Every spelling of one volume tile hashes as one form, and the three
+# hexes are PINNED against ownership.js (probe-entity-phase1 asserts
+# the same values from the JS twin — a drift on either side breaks
+# exactly one suite, which names the twin).
+# FP-NORM v2 (2026-08-31): bare volume = SLIDER (the v0.83.1 fat
+# default); only an explicit slider: False is Compact.
+_fpv = [
+    ({"tiles": [{"id": "v", "type": "stepper", "kind": "volume",
+                 "entity": "media_player.x",
+                 "level_entity": "media_player.y"}]},
+     {"tiles": [{"id": "v", "type": "volume", "variant": "stepper",
+                 "entity": "media_player.x",
+                 "level_entity": "media_player.y"}]},
+     "14ba7ecd8115"),
+    ({"tiles": [{"id": "v", "type": "volume", "slider": True,
+                 "entity": "media_player.x"}]},
+     {"tiles": [{"id": "v", "type": "volume", "variant": "slider",
+                 "entity": "media_player.x"}]},
+     "00ca0fa8af46"),
+    ({"tiles": [{"id": "v", "type": "volume",
+                 "entity": "media_player.x"}]},
+     {"tiles": [{"id": "v", "type": "volume", "variant": "slider",
+                 "entity": "media_player.x"}]},
+     "00ca0fa8af46"),
+    ({"tiles": [{"id": "v", "type": "volume", "slider": False,
+                 "entity": "media_player.x"}]},
+     {"tiles": [{"id": "v", "type": "volume", "variant": "compact",
+                 "entity": "media_player.x"}]},
+     "b6970da5a428"),
+]
+check("FP-NORM: legacy and canonical spellings fingerprint identically",
+      all(C.controller_fp(a) == C.controller_fp(b) for a, b, _ in _fpv))
+check("FP-NORM: python controller_fp matches the JS pins",
+      all(C.controller_fp(a) == pin for a, _, pin in _fpv))
+check("FP-NORM: non-volume tiles are untouched by the canonicalizer",
+      C.fp_canon_tile({"type": "stepper", "kind": "temperature"})
+      == {"type": "stepper", "kind": "temperature"})
 
 print(("\nlayered-catalogs: FAIL " + str(fails)) if fails
       else "\nlayered-catalogs: ALL PASS")

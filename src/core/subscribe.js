@@ -79,9 +79,15 @@ function tileSig(sc) {
      (photo presets): body() and the chassis build different DOM and
      classes from them, so a Studio push changing one must re-render
      the grid — the v0.85.4 `style` lesson, applied to the new knobs. */
+  /* type / kind / slider / cycle joined in Phase 2 (entity-controls):
+     the Number adapter's Auto reads entity metadata at expansion, so
+     a tile legitimately flips slider ↔ stepper when state arrives —
+     that is structural, so the signature must see it (the v0.85.4
+     `style` lesson, applied to the canonical reader). */
   return JSON.stringify(tilesOf(sc).map(t =>
     [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
-     t.image, t.image_opacity, t.label_pos, t.css_vars]));
+     t.image, t.image_opacity, t.label_pos, t.css_vars,
+     t.type, t.kind, t.slider, t.cycle, t.card_group]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -90,8 +96,15 @@ function entitiesFor(screenId) {
   const sc = screenOf(screenId), set = new Set();
   const add = v => { v = resolveEntity(v, screenId); if (v) set.add(v); };
   /* raw tiles too: a presets_from source entity must be subscribed
-     even though expansion replaces the tile itself */
-  rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
+     even though expansion replaces the tile itself.
+     UNFILTERED on purpose (2026-08-31 — the solitary-select
+     deadlock): a widget that self-hides until state arrives (a
+     chips/picker row with no options yet) was excluded by
+     visibleTile here, so its entity was never subscribed and it
+     could never unhide. Subscribing a hidden tile's entity is
+     harmless; not subscribing it is a lock. */
+  rawTilesOf(sc)
+    .concat(rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), []))
     .forEach(t => { add(t.entity); add(t.level_entity);
       (t.entities || []).forEach(add); groupEntities(t).forEach(add); });
   /* context values that ARE entities get subscribed — but context also

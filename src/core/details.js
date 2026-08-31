@@ -10,6 +10,7 @@
 const STEP_KINDS = {
   temperature: {
     get: e => st(e).a.temperature, fmt: v => (v != null ? v : "–") + "°", step: 1,
+    stepAttr: "target_temp_step", minAttr: "min_temp", maxAttr: "max_temp",
     set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
   },
   brightness: {
@@ -25,6 +26,7 @@ const STEP_KINDS = {
   percentage: {
     get: e => { const p = st(e).a.percentage; return p != null ? p : 0; },
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    stepAttr: "percentage_step",
     set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
   },
   position: {
@@ -38,14 +40,50 @@ const STEP_KINDS = {
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "v",
     set: (e, v) => callService("cover", "set_cover_position",
       { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
+  },
+  /* THE NUMBER ADAPTER's range (entity-controls Phase 2): the value
+     IS the state, and min/max/step/unit are the ENTITY's own
+     contract — never hard-coded 0..100 or step 3 (the design's
+     Number rule). A missing or malformed step falls back to 1 via
+     nudgeStep's published-attribute guard. Serves number.* and
+     input_number.* — the domain picks the service. */
+  number: {
+    get: e => { const v = parseFloat(st(e).s); return isNaN(v) ? null : v; },
+    fmt: (v, e) => {
+      if (v == null) return "–";
+      const u = (e && st(e).a.unit_of_measurement) || "";
+      return (Math.round(v * 1000) / 1000) + (u ? " " + u : "");
+    },
+    step: 1, stepAttr: "step", minAttr: "min", maxAttr: "max",
+    set: (e, v) => callService((e || "").split(".")[0], "set_value",
+      { value: Math.round(v * 1000) / 1000 }, e)
   }
 };
+/* one range resolution for every consumer (nudge, slider drag, track
+   fill): the entity's published attributes beat the kind's defaults —
+   extracted from nudgeStep (Phase 0 #4), byte-identical precedence */
+function stepBounds(k, e) {
+  const a = st(e).a || {};
+  return {
+    step: k.stepAttr && +a[k.stepAttr] > 0 ? +a[k.stepAttr] : k.step,
+    min: k.minAttr && a[k.minAttr] != null ? +a[k.minAttr] : k.min,
+    max: k.maxAttr && a[k.maxAttr] != null ? +a[k.maxAttr] : k.max
+  };
+}
 function nudgeStep(e, kind, dir) {
   const k = STEP_KINDS[kind];
   if (!k || !e) return;
-  let v = (+k.get(e) || 0) + dir * k.step;
-  if (k.min != null) v = Math.max(k.min, v);
-  if (k.max != null) v = Math.min(k.max, v);
+  /* PHASE 0, entity-controls (inconsistency #4): the entity's OWN
+     published step and range win over the kind's defaults — a climate
+     that declares target_temp_step 0.5 steps by 0.5, a fan that
+     declares percentage_step 25 steps by 25. Kinds without a
+     published attribute keep their defaults, byte-identical.
+     (Resolution now lives in stepBounds so the slider track and the
+     −/+ can never disagree about the range — Phase 2.) */
+  const b = stepBounds(k, e);
+  let v = (+k.get(e) || 0) + dir * b.step;
+  if (b.min != null) v = Math.max(b.min, v);
+  if (b.max != null) v = Math.min(b.max, v);
   k.set(e, v);
 }
 
@@ -64,7 +102,13 @@ const CHIP_KINDS = {
   /* v0.57: receivers publish listening modes — MultiChannel Stereo on
      the Onkyo's own page beats bouncing it through Harmony IR */
   sound_mode: { options: e => st(e).a.sound_mode_list, current: e => st(e).a.sound_mode,
-    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) }
+    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) },
+  /* THE SELECT ADAPTER (entity-controls Phase 2): the entity's own
+     options list, the state as the current choice, select_option to
+     write — select.* and input_select.*, domain picks the service */
+  select: { options: e => st(e).a.options, current: e => st(e).s,
+    set: (e, v) => callService((e || "").split(".")[0], "select_option",
+      { option: v }, e) }
 };
 function cycleChip(e, t, dir) {
   const k = CHIP_KINDS[t.kind], opts = (k && k.options(e)) || [];
@@ -128,13 +172,34 @@ const DETAIL_TILES = {
   ],
   switch: e => [
     { id: "dp", type: "power", entity: e, label: "", span: 2 }
+  ],
+  /* entity-controls Phase 2: the native domains get real pages —
+     number is its stepper (the entity's own range), select is its
+     options row. input_* twins share the composers. */
+  number: e => [
+    { id: "ds", type: "stepper", kind: "number", entity: e,
+      icon: "material:tune", label: "", span: 2 }
+  ],
+  select: e => [
+    { id: "dch", type: "chips", kind: "select", entity: e,
+      icon: "material:list", label: "", span: 2 }
   ]
 };
+DETAIL_TILES.input_number = DETAIL_TILES.number;
+DETAIL_TILES.input_select = DETAIL_TILES.select;
+/* PHASE 0, entity-controls (inconsistency #1): domains with no
+   composer (sensor, remote, …) still get a page — a lone readout
+   tile. The launcher fallback (device.js select/hold → detail:<e>)
+   counts on detail: never resolving null for a real entity. */
+const genericDetail = e => [
+  { id: "dr", type: "device", entity: e, tap: "none", label: "", span: 2 }
+];
 /* VOL keys retarget to the device's primary range ON ITS DETAIL SCREEN
    ONLY (everywhere else VOL stays room/activity audio). */
 const DETAIL_VOL_KIND = {
   climate: "temperature", light: "brightness",
-  media_player: "volume", cover: "position", fan: "percentage"
+  media_player: "volume", cover: "position", fan: "percentage",
+  number: "number", input_number: "number"
 };
 
 /* the STOCK domain controllers (config.controllers.<domain>, tiles
@@ -164,7 +229,7 @@ function detailScreen(eid) {
   const raw = def
     ? ((def.tiles && def.tiles.length) ? def.tiles
         : (def.sections || []).reduce((a, x) => a.concat(x.tiles || []), []))
-    : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
+    : (DETAIL_TILES[eid.split(".")[0]] || genericDetail)(eid);
   if (!raw || !raw.length) return null;
   const tiles = def ? bindDeviceTiles(raw, eid) : raw;
   return {
@@ -184,9 +249,32 @@ function sourcesScreen(eid) {
   return {
     name: (fn || eid.split(".")[1].replace(/_/g, " ")) + " · Inputs",
     virtual: true,
+    /* pickpage (2026-08-31 — Suresh: "bad formatting"): a page whose
+       whole body is ONE options list sheds the tile chrome — no
+       floating icon, no card skin, no page-sized focus ring; the
+       roving pill highlight is the cursor here */
     tiles: [{ id: "dsrc", type: "chips", kind: "source", entity: eid,
-      icon: "material:input", label: "", span: 2 }],
+      label: "", span: 2, cls: "pickpage", trailing: false }],
     initial_focus: "dsrc"
+  };
+}
+
+/* PICK (entity-controls Phase 2): navigate("pick:<entity>:<kind>") —
+   the Picker variant's destination, sourcesScreen generalized: one
+   chips row of the entity's live options, current highlighted, pick
+   commits. Virtual, so the Picker tile works from any surface. */
+function pickScreen(spec) {
+  const i = spec.lastIndexOf(":");
+  const eid = i > 0 ? spec.slice(0, i) : spec;
+  const kind = i > 0 ? spec.slice(i + 1) : "select";
+  if (!eid || !CHIP_KINDS[kind]) return null;
+  const fn = st(eid).a.friendly_name;
+  return {
+    name: fn || eid.split(".")[1].replace(/_/g, " "),
+    virtual: true,
+    tiles: [{ id: "dpick", type: "chips", kind: kind, entity: eid,
+      label: "", span: 2, cls: "pickpage", trailing: false }],
+    initial_focus: "dpick"
   };
 }
 
@@ -216,7 +304,7 @@ function groupScreen(gid) {
   const tiles = (g.members || [])
     .map(did => {
       const p = presOf(act, did);
-      return groupChildTile(did, (p && p.shows) || g.shows || "device",
+      return groupChildTile(did, presType(p) || presType(g) || "device",
         "g_" + gid, p);
     })
     .filter(Boolean);
@@ -287,6 +375,8 @@ function screenOf(id) {
     return detailScreen(id.slice(7));
   if (typeof id === "string" && id.startsWith("sources:"))
     return sourcesScreen(id.slice(8));
+  if (typeof id === "string" && id.startsWith("pick:"))
+    return pickScreen(id.slice(5));   /* Select's Picker (Phase 2) */
   if (typeof id === "string" && id.startsWith("queue:"))
     return queueScreen(id.slice(6));
   if (id === "keys:")           /* key capture (v0.55) */

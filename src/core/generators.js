@@ -12,7 +12,10 @@
    ================================================================ */
 function expandTile(t) {
   const gen = TILE_GENERATORS[t.type];
-  return gen ? gen(t) : [t];
+  /* canonTile (core/adapters.js): an AUTHORED tile in the canonical
+     type+variant spelling translates to the widgets' working shape
+     here; legacy tiles pass through untouched (Phase 1) */
+  return gen ? gen(t) : [canonTile(t)];
 }
     /* NOTE: `sources` stopped being a generator in v0.35 — it's a plain
      tile now (widgets/sources.js) that opens the sources:<mp> detail.
@@ -204,7 +207,8 @@ function genDeviceTiles(t) {
         if (!d) return;
         Object.values(d.roles || {}).forEach(e => {
           if (p.where === "controls") { skipW[e] = 1; return; }
-          if (p.shows && p.shows !== "device") inlineOf[e] = did;
+          const sh = presType(p);
+          if (sh && sh !== "device") inlineOf[e] = did;
           else devPres[e] = p;
         });
       });
@@ -227,9 +231,10 @@ function genDeviceTiles(t) {
       if (did) {
         if (doneInline[did]) return null;      /* the bundle collapsed */
         doneInline[did] = 1;
-        return groupChildTile(did, presM[did].shows, t.id, presM[did]);
+        return groupChildTile(did, presType(presM[did]), t.id, presM[did]);
       }
-      if (presM[e] && presM[e].shows && presM[e].shows !== "device")
+      const shE = presType(presM[e]);
+      if (shE && shE !== "device")
         return looseShowTile(e, presM[e], t.id);
       const s = st(e), dom = e.split(".")[0];
       return presApply({

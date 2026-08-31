@@ -8,7 +8,6 @@ those live in api.py and services.py (split out of __init__.py,
 v0.83.11)."""
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import logging
@@ -19,8 +18,8 @@ from homeassistant.helpers.storage import Store
 
 from .catalogs import merge_config, stock_catalogs
 from .const import DEPLOY_DIR, STORAGE_KEY, STORAGE_VERSION
-from .workspaces import (deploy_file, empty_store, migrate, stub_html,
-                         wire_activity_selects)
+from .icons import distill_icons, frontend_root
+from .workspaces import deploy_file, empty_store, migrate, stub_html
 
 # one-deep undo for reseed (lives beside config.json)
 BACKUP_FILE = "config.main.backup.json"
@@ -95,10 +94,6 @@ class HarmoniumStore:
 
     async def deploy(self, ws: str, config) -> Path:
         path = self.deploy_path(ws)
-        # deploy-time derivation: the engine-facing copy carries every
-        # room's minted activity_select (see workspaces.py). The STORE
-        # copy is untouched — derived keys never enter the 3-way merge.
-        config = wire_activity_selects(copy.deepcopy(config), ws)
         await self.hass.async_add_executor_job(write_json, path, config)
         # the workspace's ADDRESS: /local/harmonium/<ws>/ — MAIN
         # INCLUDED (v0.48.3, Suresh: "workspacename/index.html
@@ -106,6 +101,24 @@ class HarmoniumStore:
         # kiosks; the engine canonicalizes the bar to <ws>/index.html.
         await self.hass.async_add_executor_job(
             write_text, self.stub_path(ws), stub_html(ws))
+        # ICON DISTILLATION (0.87 — icons.py): every deploy tops up
+        # www/harmonium/icons/ with the set icons THIS config
+        # references, extracted from packs the user installed (phu:
+        # HACS module, mdi: HA's own frontend). Cheap (writes only
+        # what's missing or ours-and-stale), and a failure never
+        # blocks the deploy — the engine falls back per icon.
+        try:
+            report = await self.hass.async_add_executor_job(
+                distill_icons, Path(self.hass.config.path("www")),
+                config, frontend_root())
+            if report["written"]:
+                _LOGGER.info("distilled %d icon(s): %s",
+                             len(report["written"]),
+                             ", ".join(report["written"]))
+            for miss in report["missing"]:
+                _LOGGER.warning("icon %s: not in the installed set", miss)
+        except Exception:  # noqa: BLE001 — icons never block a deploy
+            _LOGGER.exception("icon distillation failed (deploy unaffected)")
         return path
 
     async def retire(self, ws: str) -> None:
@@ -126,13 +139,7 @@ class HarmoniumStore:
         wants this; the raw layer is get_ws_layer."""
         data = await self.load()
         cfg = data["workspaces"].get(ws)
-        if cfg is None:
-            return None
-        # a derived key is derived at EVERY serving boundary, not just
-        # the deploy write (2026-08-30 — the Studio PREVIEW renders the
-        # config served here; unwired, it re-created the wrong-room bug
-        # the deploy-side wiring had just fixed on the deployed page)
-        return wire_activity_selects(merge_config(self.stock(), cfg), ws)
+        return merge_config(self.stock(), cfg) if cfg is not None else None
 
     async def get_ws_layer(self, ws: str):
         """The stored user layer, verbatim — deltas + tombstones."""

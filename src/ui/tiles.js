@@ -32,9 +32,30 @@ function iconHtml(t, row) {
     if (t.brw && !row) inner = `<span class="artbox">${inner}</span>`;
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
+  else if (t.icon && ICON_SET_RE.test(t.icon)) {
+    /* ICON SETS (0.87 — design-icon-sets): "<set>:<name>" resolves to
+       a FILE — /local/harmonium/icons/<set>/<name>.svg — rendered as
+       a CSS-masked block painted with currentColor, so a phu:/mdi:
+       icon tints exactly like a font glyph in every theme. The file
+       is the wiring (the app-logos doctrine); the distiller fills the
+       folder from installed packs, and a hand-dropped SVG works with
+       no tooling at all. Masks fire no error event, so a hidden probe
+       <img> inside detects a missing file → the delegated error
+       handler below swaps in the neutral glyph and remembers the URL
+       (IMG_DEAD) so rebuilt tiles skip the re-request. */
+    const url = "/local/harmonium/icons/" +
+      t.icon.replace(":", "/") + ".svg";
+    inner = IMG_DEAD.has(url)
+      ? `<span class="ic">•</span>`
+      : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
+        `<img class="mprobe" src="${url}" alt=""></span>`;
+  }
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* one set-icon spelling: set and name are file-name-safe tokens
+   (material: is the font and never reaches this test first) */
+const ICON_SET_RE = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/;
 /* photo URLs that failed to load this session — consulted by the
    preset widget so a rebuilt tile skips a known-dead image */
 const IMG_DEAD = new Set();
@@ -56,6 +77,17 @@ document.addEventListener("error", ev => {
     const tl = im.closest(".tile");
     if (tl) tl.classList.remove("photo");
     im.parentNode.removeChild(im);
+    return;
+  }
+  /* a SET ICON whose file is missing (0.87 icon sets): the probe img
+     inside the masked span errored — fall back to the neutral glyph
+     and remember, so rebuilds render the fallback directly */
+  if (im.classList.contains("mprobe")) {
+    IMG_DEAD.add(im.getAttribute("src"));
+    const sp = im.parentNode;
+    sp.className = "ic";
+    sp.removeAttribute("style");
+    sp.textContent = "•";
     return;
   }
   const fbk = im.getAttribute("data-fbk");

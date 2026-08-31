@@ -92,6 +92,38 @@ export function sha1hex(str) {
    edit (harmless but noisy: legitimize instead of silent heal). */
 export const VOLATILE_KEYS = ["gen", "parent", "variant_of", "forked_by_update"];
 
+/* FP-NORM v1 (entity-controls Phase 1 — the respelling ruling,
+   design-entity-controls.md): fingerprinting canonicalizes variant
+   spellings BEFORE hashing, so the Studio normalizer respelling a
+   tile can never flip pristine stock into a fork. Every spelling of
+   one meaning hashes as ONE form — for the volume adapter:
+     {type:"stepper", kind:"volume"}  → {type:"volume", variant:"stepper"}
+     {type:"volume", slider:true}     → {type:"volume", variant:"slider"}
+     {type:"volume"}                  → {type:"volume", variant:"compact"}
+   This is a HASH form only — nothing renders it. Versioned: any
+   change to these rules is FP-NORM v2 and requires regenerating
+   stock-history.js (tools/gen-stock-history.mjs recomputes every
+   historical fingerprint through this same function, so generator
+   and referee cannot disagree). Twin: catalogs.py fp_canon_tile —
+   byte-parity pinned by the python suite + probe-entity-phase1. */
+function fpCanonTile(c) {
+  const isVol = c.type === "volume" ||
+    (c.type === "stepper" && c.kind === "volume");
+  if (!isVol) return c;
+  /* FP-NORM v2 (2026-08-31): bare volume = SLIDER — the v0.83.1
+     fat-default is the bare shape's real meaning, so absent-slider
+     hashes with slider:true (v1 wrongly hashed bare as "compact",
+     colliding two different-rendering shapes). Only an explicit
+     slider:false is Compact. stock-history regenerated with this. */
+  const v = c.variant ||
+    (c.type === "stepper" ? "stepper"
+      : c.slider === false ? "compact" : "slider");
+  c.type = "volume";
+  c.variant = v;
+  delete c.slider;
+  delete c.kind;
+  return c;
+}
 function normalizeTiles(tiles) {
   const out = [];
   for (const t of tiles || []) {
@@ -102,7 +134,7 @@ function normalizeTiles(tiles) {
       delete c.style;                              // v0.85.0 bug: heal-stripped
       delete c.np_default;                         // v0.85.x: heal-added
     }
-    out.push(c);
+    out.push(fpCanonTile(c));                      // FP-NORM v1, above
   }
   return out;
 }

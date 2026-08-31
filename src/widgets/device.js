@@ -82,7 +82,14 @@ WIDGETS.device = {
   detailable: true,   /* auto ⚙ trail → the generated detail screen */
   select: (e, t) => {
     const dom = (e || "").split(".")[0];
-    const open = () => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); };
+    /* PHASE 0, entity-controls: a launcher must never be interactive
+       and inert — no authored controller resolving is not a reason to
+       swallow the tap; the entity's generated detail page is the
+       final fallback (design-entity-controls, inconsistency #1). */
+    const open = () => {
+      const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
+      if (tgt) navigate(tgt);
+    };
     if (t.tap === "none") return;      /* a pure readout */
     if (t.tap === "open") return open();
     const verb =
@@ -92,5 +99,8 @@ WIDGETS.device = {
     if (verb) return verb();
     open(); /* no verb → the compound page */
   },
-  hold: (e, t) => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); },
+  hold: (e, t) => {
+    const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
+    if (tgt) navigate(tgt);
+  },
 };

@@ -3,7 +3,7 @@
      per-activity band switches on the shared surface, label slots,
      and the activity's presets. Split out of ActivityCard.svelte
      (v0.83.11). */
-  import { app, selectSlice, instantiateController, revertToStock, snippetsOf, presetSnippetTile, schedulePreview } from "../../state.svelte.js";
+  import { app, selectSlice, instantiateController, revertToStock, snippetsOf, presetSnippetTile, schedulePreview, ladderPins, clearLadderPin, variantOptions } from "../../state.svelte.js";
   import Select from "../Select.svelte";
   import Switch from "../Switch.svelte";
   import Button from "../Button.svelte";
@@ -155,34 +155,22 @@
      row and the dropdown reads as dead, with nothing saying why.
      Surface every pin beside the dropdown, each with its own ↺, so
      "why won't it change" answers itself and unsticking is one tap. */
-  const volPins = $derived.by(() => {
-    const out = [];
-    const pres = a?.present || {};
-    for (const k in pres)
-      if (pres[k] && pres[k].style)
-        out.push({ k, via: "present", style: pres[k].style });
-    const dops = a?.device_options || {};
-    for (const k in dops)
-      if (dops[k] && dops[k].volume_style)
-        out.push({ k, via: "device_options", style: dops[k].volume_style });
-    return out;
-  });
+  /* Phase 1: the pins come from the SHARED ladder helper
+     (state.svelte.js ladderPins/clearLadderPin) — this tab is a
+     consumer of the readout pattern it pioneered in 0.86.0, no
+     longer its owner. */
+  const volPins = $derived.by(() => ladderPins(a, "volume"));
   const pinName = (k) => { const i = k.indexOf("."); return i > 0 ? k.slice(i + 1) : k; };
   function clearVolPin(p) {
-    if (p.via === "present") {
-      delete a.present[p.k].style;
-      if (!Object.keys(a.present[p.k]).length) delete a.present[p.k];
-      if (!Object.keys(a.present).length) delete a.present;
-    } else {
-      delete a.device_options[p.k].volume_style;
-      if (!Object.keys(a.device_options[p.k]).length) delete a.device_options[p.k];
-      if (!Object.keys(a.device_options).length) delete a.device_options;
-    }
+    clearLadderPin(a, p);
     schedulePreview();
   }
   function setVolStyle(v) {
-    if (v) a.surface = { ...(a.surface || {}), volume_style: v };
-    else if (a.surface) {
+    /* rung 2, canonical spelling: surface.volume_variant (legacy
+       volume_style healed on load, never written anew) */
+    if (v) a.surface = { ...(a.surface || {}), volume_variant: v };
+    else if (a.surface) delete a.surface.volume_variant;
+    if (a.surface) {
       delete a.surface.volume_style;
       if (!Object.keys(a.surface).length) delete a.surface;
     }
@@ -271,14 +259,9 @@
                     <span class="w-[158px] shrink-0"></span>
                   {/if}
                   {#if bd.key === "volume" && bandOn("volume")}
-                    <Select value={a.surface?.volume_style ?? ""} class="max-w-44"
+                    <Select value={a.surface?.volume_variant ?? a.surface?.volume_style ?? ""} class="max-w-44"
                       title="this activity's default volume treatment — per-tile and per-member settings still win"
-                      options={[
-                        { value: "", label: "Theme default" },
-                        { value: "compact", label: "Compact" },
-                        { value: "slider", label: "Slider — the fat one" },
-                        { value: "stepper", label: "Stepper − / +" },
-                      ]}
+                      options={variantOptions("volume", "Theme default")}
                       onchange={(e) => setVolStyle(e.target.value)} />
                     {#if volPins.length}
                       <span class="text-[11px] text-dim italic"
@@ -286,7 +269,7 @@
                         ⚙ pinned:
                         {#each volPins as pin (pin.via + pin.k)}
                           <span class="whitespace-nowrap">
-                            {pinName(pin.k)} = {pin.style}
+                            {pinName(pin.k)} = {pin.value}
                             <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-ink"
                               title={"Clear this row's own style so the dropdown's default applies"}
                               onclick={() => clearVolPin(pin)}>↺</button>

@@ -21,6 +21,9 @@
     padding: 10px 4px 0;
   }
   .tile {
+    /* text in tiles is CHROME, not copy (2026-08-31 — Suresh: "make
+       sure label isn't selectable so it doesn't mess with drag") */
+    -webkit-user-select: none; user-select: none;
     background: var(--tile); border-radius: var(--radius);
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
     border: 2px solid transparent;
@@ -38,6 +41,39 @@
   .trail:active, .dpbtn:active, .brk:active, .brroot:active,
   .brchip:active, .hjump:active { transform: scale(.94); }
   .tile.span2 { grid-column: span 2; }
+  /* CARD GROUP (entity-controls Phase 3 — design-card-group-focus):
+     ONE visual container, many focus stops. The wrapper wears the
+     card skin; member tiles go flat inside (skin off, hairline
+     between rows) but KEEP their 2px border slot, so the .focused
+     ring draws on the member row with zero layout shift. The
+     wrapper itself is never a stop and never takes .focused. */
+  .cardgrp {
+    background: var(--tile); border-radius: var(--radius);
+    box-shadow: var(--tile-shadow, none);
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .cardgrp.span2 { grid-column: span 2; }
+  .cardgrp > .tile {
+    background: transparent; box-shadow: none;
+    border-radius: calc(var(--radius) - 4px);
+  }
+  .cardgrp > .tile + .tile {
+    margin-top: 2px;
+    box-shadow: 0 -2px 0 -1px var(--tile-hi, #2c333d);
+  }
+  /* PICK PAGE (2026-08-31 — "bad formatting"): the sources:/pick:
+     virtual screens are ONE options list — the tile sheds its card
+     skin, header row and page-sized focus ring; the roving pill
+     highlight (chips .rove) is the cursor. Chips get air. */
+  .tile.pickpage,
+  .tile.pickpage.focused {
+    background: transparent; border-color: transparent;
+    box-shadow: none; padding: 2px 0;
+  }
+  .tile.pickpage .top, .tile.pickpage .sub { display: none; }
+  .tile.pickpage .chiprow { gap: 10px; padding-top: 4px; }
+  .tile.pickpage .chip { padding: 12px 14px; }
   .tile.focused {
     border-color: var(--accent);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
@@ -76,6 +112,19 @@
   }
   .tile .ic { font-size: 22px; width: 28px; text-align: center; }
   .tile .ic.material-symbols-outlined { font-size: 24px; }
+  /* ICON SETS (0.87 — design-icon-sets): the masked block paints
+     currentColor through the set SVG, so phu:/mdi: icons follow the
+     theme (and .on/.tacc tints) exactly like font glyphs. The probe
+     img inside only detects missing files — never shown. */
+  .ic.icmask {
+    display: inline-block; width: 24px; height: 24px;
+    vertical-align: -5px;
+    background: currentColor;
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center;
+  }
+  .ic.icmask .mprobe { display: none; }
   .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
     font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }

@@ -2041,7 +2041,94 @@ export const SHOWS_KINDS = [
     hint: "play / pause / skip" },
   { value: "sources", label: "Source picker", role: "source_select",
     hint: "the device's input list" },
+  /* entity-controls Phase 2: the native adapters — a Number always
+     reads and writes a number, a Select always picks one option;
+     variants are shapes, never different service contracts */
+  { value: "number", label: "Number", role: null,
+    hint: "the entity's own range — slider or − / + set its value" },
+  { value: "select", label: "Select", role: null,
+    hint: "one of the entity's own options — picker, cycle, or chips" },
 ];
+/* THE ADAPTER REGISTRY (entity-controls Phase 1) — the Studio twin of
+   src/core/adapters.js. The region between the markers is BYTE-
+   IDENTICAL in both files; probe-entity-phase1 compares them, so the
+   two surfaces can never drift. See the engine file for the doc. */
+export const ADAPTERS =
+/* @adapter-table-begin v1 */
+{
+  device:    { role: null,            variants: [] },
+  volume:    { role: "volume",        domains: ["media_player"],
+               variants: ["compact", "slider", "stepper"], dflt: "slider" },
+  power:     { role: "power",
+               domains: ["media_player", "switch", "light", "fan",
+                         "input_boolean"], variants: [] },
+  media:     { role: "media_player",  domains: ["media_player"],
+               variants: [], row: false },
+  transport: { role: "media_player",  domains: ["media_player"],
+               variants: [] },
+  sources:   { role: "source_select", domains: ["media_player"],
+               variants: ["auto", "picker", "cycle", "chips"],
+               dflt: "auto" },
+  number:    { role: null, domains: ["number", "input_number"],
+               variants: ["auto", "compact", "slider", "stepper",
+                          "vertical"], dflt: "auto" },
+  select:    { role: null, domains: ["select", "input_select"],
+               variants: ["auto", "picker", "cycle", "chips"],
+               dflt: "auto" },
+}
+/* @adapter-table-end */
+;
+/* the variant vocabulary, labeled ONCE — every surface's shape select
+   reads this list so the wording can never fork (parity contract) */
+/* labels are PROFESSIONAL one-worders (Suresh, 2026-08-31: "tidy up
+   our casual language") — the meaning lives in VARIANT_HINTS, shown
+   as the option's tooltip where the select supports it */
+export const VARIANT_LABELS = {
+  auto: "Auto",
+  compact: "Compact",
+  slider: "Slider",
+  stepper: "Stepper",
+  vertical: "Vertical slider",
+  picker: "Picker",
+  cycle: "Cycle",
+  chips: "Chips",
+};
+export const VARIANT_HINTS = {
+  auto: "Follows the entity's own hint and range",
+  compact: "Value on the title line with − / + controls",
+  slider: "A full-width drag track",
+  stepper: "− / + buttons with the value between them",
+  vertical: "An upright drag track",
+  picker: "Shows the current option; opens the full list",
+  cycle: "Each press advances to the next option",
+  chips: "Every option shown inline",
+};
+/* the blank option IS Auto for auto-default adapters ("variant
+   defaults to Auto and Studio does not write the word" — the design's
+   Number/Select rule), so the explicit "auto" row is skipped there */
+export const variantOptions = (adapter, blankLabel) => [
+  { value: "", label: blankLabel },
+  ...((ADAPTERS[adapter] || {}).variants || [])
+    .filter((v) => v !== "auto")
+    .map((v) => ({ value: v, label: VARIANT_LABELS[v] || v })),
+];
+/* PHASE 0 #3 → PHASE 1: ONE Draws-as filter per member shape, shared
+   by the activity ⚙ (PresPanel) and the page-tile row (TileRow), now
+   DRIVEN BY THE REGISTRY: an adapter with no `domains` offers itself
+   to any entity (the Launcher rule); otherwise the entity's domain
+   must be listed. Devices filter by claimed roles instead. */
+export const showsForDomain = (dom) =>
+  SHOWS_KINDS.filter((k) => {
+    const a = ADAPTERS[k.value] || {};
+    return !a.domains || a.domains.includes(dom);
+  });
+/* devices offer the launcher plus their CLAIMED roles — the role-less
+   native adapters (Number, Select) are entity-only until a device
+   trait maps them (the design's Sonos bass/treble rule: a bundle
+   must not guess which of several number siblings a control means) */
+export const showsForRoles = (roles) =>
+  SHOWS_KINDS.filter((k) =>
+    k.value === "device" || (k.role && (roles || {})[k.role]));
 
 export function compileContext(a, devices) {
   const ctx = {};
@@ -2222,25 +2309,55 @@ export function normalizeSectionOrder(cfg) {
   return cfg;
 }
 
-/* v0.83.7 — the Draws-as unification: shows "stepper" was a second
-   volume entry overlapping the Volume style select; it becomes
-   volume + style: stepper (the engine keeps honouring the legacy
-   value on already-deployed configs). */
+/* THE CANONICAL-SPELLING NORMALIZER (entity-controls Phase 1,
+   absorbing v0.83.7's normalizePresentShows). ONE spelling in the
+   activity envelope: the adapter token is `type`, the shape is
+   `variant` — legacy `shows`/`style` (and the `stepper` alias) heal
+   on Studio load and are never written anew. Idempotent
+   (normalize(normalize(x)) == normalize(x) — probe-entity-phase1);
+   preserves every unknown field; scoped to the ACTIVITY envelope
+   (present + surface), which is wholly user-owned — tile respelling
+   inside possibly-stock controllers waits for its subtract-aware
+   ruling (Phase 2), though the engine already reads canonical tiles
+   and the fingerprint referee already treats the spellings as one
+   (ownership.js FP-NORM v1). Cast-group `shows` (the legacy group
+   default) stays untouched: `style` on a group is its NAV-CARD
+   style, not a variant, and renaming beside it invites the exact
+   confusion this normalizer exists to end. */
 
-export function normalizePresentShows(cfg) {
+/* the UPGRADE SUMMARY's raw material (Phase 4): how many legacy
+   spellings the LAST normalizeVariants call healed — the load path
+   reads it and tells the user before their first post-migration
+   Save & Deploy, per the design's rollout section */
+export const NORMALIZE_REPORT = { variants: 0 };
+
+export function normalizeVariants(cfg) {
+  let n = 0;
   for (const a of Object.values(cfg?.activities || {})) {
     for (const p of Object.values(a?.present || {})) {
-      if (p && p.shows === "stepper") {
-        p.shows = "volume";
-        if (!p.style) p.style = "stepper";
+      if (!p || typeof p !== "object") continue;
+      if (p.shows) { if (!p.type) p.type = p.shows; delete p.shows; n++; }
+      if (p.type === "stepper") {           /* the v0.83.7 alias */
+        p.type = "volume";
+        if (!p.variant && !p.style) p.variant = "stepper";
+        n++;
       }
+      if (p.style) { if (!p.variant) p.variant = p.style; delete p.style; n++; }
+    }
+    const s = a?.surface;
+    if (s && s.volume_style) {
+      if (!s.volume_variant) s.volume_variant = s.volume_style;
+      delete s.volume_style;
+      n++;
     }
   }
+  NORMALIZE_REPORT.variants = n;
+  return cfg;
 }
 
 export function normalizeConfig(cfg, ws) {
   ensureStockControllers(cfg);
-  normalizePresentShows(cfg);
+  normalizeVariants(cfg);
   normalizeNavTiles(cfg);
   normalizeHosts(cfg);
   normalizeOffActivity(cfg);

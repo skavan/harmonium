@@ -342,26 +342,35 @@
   .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
   .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
   .tile.wgt-power { min-height: 0; background: transparent; }
-  .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
-  .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
-  /* volume-kind stepper rides the volume widget's proportions (v0.83.3) */
-  .steprow.vol { gap: 12px; }
-  .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
-  .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
-  /* stepper volume (v0.83.7): the fat track rides IN the row between
-     −/+ — compact's layout with a real slider for a middle; height
-     matches the 46px buttons exactly (the "slightly squashed" note),
-     and the row sits 6px under the title — the same breath the fat
-     slider's track takes ("the gap ... is too small") */
+  /* ONE NUMERIC LANGUAGE (2026-08-31 — Suresh: "we need a design
+     language that is consistent"): every numeric row rides the
+     VOLUME proportions — 58×46 buttons, the 21px/600 value type —
+     whether it's a volume band, a Number tile, or a detail page.
+     The 42px display type is retired. */
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 2px 0; }
+  .steprow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
   .steprow.vol { padding-top: 6px; }
-  .steprow.vol .sldr.inrow { flex: 1; min-width: 0; margin: 0; height: 46px; }
+  /* the ROW shape's middle: track over value (img-4) — together they
+     stand the height of the buttons, so rows of mixed kinds align */
+  .stepmid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .stepmid .sldr.inrow { flex: none; min-width: 0; margin: 0; height: 30px; border-radius: 9px; }
+  .stepmid .stepval,
+  .stepval.sm { font-size: 14px; font-weight: 600; line-height: 1; }
+  /* volume Compact's mini meter, in the language: a visible 12px
+     bar over the value (the 6px whisper vanished in the column).
+     The .volrow .stepmid qualifier outranks controls.css's
+     .volrow .meter rules — controls.css loads last. */
+  .volrow .stepmid .meter,
+  .stepmid .meter { flex: none; margin-top: 8px; height: 12px; border-radius: 6px; }
   .stepval {
     flex: 1; text-align: center;
-    font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
+    font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text);
   }
+  .stepval .vmute { font-size: 18px; color: var(--accent); vertical-align: -3px; }
   .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
-  /* the volume-kind stepper carries "Vol n%" on the title line
-     (v0.83.7) — only the block-level sub stays hidden */
+  /* the numeric shapes own their number — the block-level sub is
+     never part of them */
   .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
   /* stepper slider: fat touch track, fill = value; −/+ row stays below */
   .sldr {

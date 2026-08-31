@@ -6,7 +6,8 @@
      shows" (generators & raw widgets). `type`, `tile id` and the raw
      JSON live in Advanced (vocabulary: they never walk the primary
      path). Styling = column span + how a doorway renders. */
-  import { app, selectSlice, beginPageDraft, showUndo, tileDirty, saveSnippet, previewGoto, SHOWS_KINDS } from "../state.svelte.js";
+  import { app, selectSlice, beginPageDraft, showUndo, tileDirty, saveSnippet, previewGoto, showsForDomain, variantOptions, VARIANT_HINTS } from "../state.svelte.js";
+  import PresFields from "./PresFields.svelte";
   import Field from "./Field.svelte";
   import IconPicker from "./IconPicker.svelte";
   import Input from "./Input.svelte";
@@ -127,30 +128,42 @@
            ONE volume entry: a volume stepper reads as Volume control
            with style Stepper (a brightness stepper hides the select) */
       : tile.type;
-  const drawsAsOptions = () => {
-    const dom = (tile.entity || "").split(".")[0];
-    return SHOWS_KINDS.filter((k) => !k.role || dom === "media_player" ||
-      (k.value === "power" &&
-        ["switch", "light", "fan", "input_boolean"].includes(dom)))
+  const drawsAsOptions = () =>
+    /* the SHARED filter (Phase 0 #3): same list as the activity ⚙ */
+    showsForDomain((tile.entity || "").split(".")[0])
       .map((k) => ({ value: k.value, label: k.label }));
-  };
+  /* CANONICAL WRITES (Phase 1): the Studio speaks type + variant from
+     here on — the legacy working spellings (slider: true, stepper +
+     kind: "volume") stay READABLE below but are never written anew;
+     the engine's compat reader (core/adapters.js canonTile)
+     translates canonical tiles at render. */
   function setDrawsAs(v) {
-    delete tile.slider; delete tile.kind;
-    if (v === "stepper") { tile.type = "stepper"; tile.kind = "volume"; }
-    else tile.type = v;
+    delete tile.slider; delete tile.kind; delete tile.variant;
+    tile.type = v;
   }
-  /* volume style, mirroring the generator's mapping (compact = bare
-     volume · slider = the fat one · stepper = − / + as its own type) */
+  /* volume shape, canonical `variant` first, then the legacy reads
+     (compact = bare volume · slider = the fat one · stepper = − / +) */
   const volStyleValue = () =>
-    tile.type === "stepper" && tile.kind === "volume" ? "stepper"
-      : tile.slider ? "slider" : "";
+    tile.variant ??
+    (tile.type === "stepper" && tile.kind === "volume" ? "stepper"
+      : tile.slider ? "slider" : "");
   function setVolStyle(v) {
     delete tile.slider; delete tile.kind;
-    if (v === "stepper") { tile.type = "stepper"; tile.kind = "volume"; }
-    else { tile.type = "volume"; if (v === "slider") tile.slider = true; }
+    tile.type = "volume";
+    if (v) tile.variant = v; else delete tile.variant;
   }
   const showsVolStyle = () =>
     tile.type === "volume" || (tile.type === "stepper" && tile.kind === "volume");
+  /* Phase 2: which adapter's variant select this row shows — the
+     native adapters get theirs (labeled "Variant", blank = Auto);
+     volume keeps its "Volume style" wording */
+  const variantAdapter = () =>
+    tile.type === "number" || tile.type === "select" || tile.type === "sources"
+      ? tile.type
+      : showsVolStyle() ? "volume" : null;
+  function setVariant(v) {
+    if (v) tile.variant = v; else delete tile.variant;
+  }
   /* status line: text (with {tokens}) beats the widget's smart line;
      "" — the ∅ button — means NO line; absent means auto */
   const tileAttrs = () => ["state", ...(rec(tile.entity)?.attrs || [])];
@@ -387,47 +400,44 @@
            Draws-as select only shows where the type IS a draws-as
            choice (a light row's "light" is not) — Status line is for
            everyone -->
-      {#if ["device", "volume", "stepper", "power", "media", "transport", "sources"].includes(drawsAsValue())}
-        <Field label="Draws as" hint="">
-          <Select value={drawsAsValue()} onchange={(e) => setDrawsAs(e.target.value)}
-            options={drawsAsOptions()} />
-        </Field>
-      {/if}
-      {#if showsVolStyle()}
-        <Field label="Volume style" hint="">
-          <Select value={volStyleValue()} onchange={(e) => setVolStyle(e.target.value)}
-            options={[
-              { value: "", label: "Theme default" },
-              { value: "slider", label: "Slider — the fat one" },
-              { value: "stepper", label: "Stepper − / +" },
-            ]} />
-        </Field>
-      {/if}
-      <Field label="Status line" hint="">
-        <div class="flex gap-1">
-          <Input value={typeof tile.sub_text === "string" ? tile.sub_text : ""}
-            title={"the tile's second line — blank = the widget's smart summary · ∅ = no line at all · {curly} tokens read the entity live"}
-            placeholder={tile.sub_text === "" ? "hidden" : "auto"}
-            oninput={(e) => { const v = e.target.value;
-              if (v) tile.sub_text = v;
-              else if (tile.sub_text !== "") delete tile.sub_text; }} />
-          <select value="" title={"insert a live attribute — {token}s follow the entity"}
-            onchange={(e) => { const v = e.target.value;
-              if (v) tile.sub_text = (typeof tile.sub_text === "string" ? tile.sub_text : "") + "{" + v + "}";
-              e.target.value = ""; }}
-            class="h-[38px] w-[30px] shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-field text-center text-[15px] text-dim outline-none hover:text-ink">
-            <option value="">＋</option>
-            {#each tileAttrs() as at (at)}
-              <option value={at}>{at}</option>
-            {/each}
-          </select>
-          <button title="No status line at all (∅) — click again for auto"
-            onclick={() => { if (tile.sub_text === "") delete tile.sub_text; else tile.sub_text = ""; }}
-            class={"h-[38px] w-[30px] shrink-0 cursor-pointer rounded-[4px] border text-[14px] " +
-              (tile.sub_text === "" ? "border-accent/60 bg-accent-wash text-accent-text"
-                : "border-line-strong bg-field text-dim hover:text-ink")}>∅</button>
-        </div>
-      </Field>
+      <PresFields
+        drawsAs={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select"].includes(drawsAsValue())
+          ? { value: drawsAsValue(), options: drawsAsOptions(),
+              set: (v) => setDrawsAs(v) }
+          : null}
+        variantLabel={variantAdapter() === "volume" ? "Volume style" : "Variant"}
+        variant={variantAdapter() === "volume"
+          ? { value: volStyleValue(),
+              hint: VARIANT_HINTS[volStyleValue()] || "",
+              options: variantOptions("volume", "Theme default"),
+              set: (v) => setVolStyle(v) }
+          : variantAdapter()
+            ? { value: tile.variant ?? "",
+                hint: VARIANT_HINTS[tile.variant] || "",
+                options: variantOptions(variantAdapter(), "Auto"),
+                set: (v) => setVariant(v) }
+            : null}
+        cardGroup={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select"].includes(drawsAsValue())
+          ? { value: tile.card_group ?? "",
+              warn: tile.type === "media" && tile.card_group
+                ? "Now Playing has no row form — this tile renders standalone." : null,
+              set: (v) => { if (v) tile.card_group = v;
+                else delete tile.card_group; } }
+          : null}
+        sub={{
+          value: typeof tile.sub_text === "string" ? tile.sub_text : "",
+          placeholder: tile.sub_text === "" ? "hidden" : "auto",
+          attrs: tileAttrs(),
+          set: (v) => { if (v) tile.sub_text = v;
+            else if (tile.sub_text !== "") delete tile.sub_text; },
+          insert: (at) => (tile.sub_text =
+            (typeof tile.sub_text === "string" ? tile.sub_text : "") + "{" + at + "}"),
+          clear: {
+            active: tile.sub_text === "",
+            toggle: () => { if (tile.sub_text === "") delete tile.sub_text;
+              else tile.sub_text = ""; },
+          },
+        }} />
     {/snippet}
     {#if tab === "main"}
       {#if tile.type === "device"}

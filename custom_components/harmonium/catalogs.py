@@ -9,16 +9,6 @@ definition. Full spec: docs/design-layered-catalogs.md.
 
 Scope (0.86.0): the ``apps`` master list and ``dialects``. The merge
 grain, per the spec's rulings:
-  - DERIVED dialects (2026-08-30, Suresh: "clone the FireTV, edit the
-    dpad stuff, call it FireTV-SE"): a user dialect whose id is NOT
-    stock may carry ``derived_from: <stock id>`` — it then stores only
-    its DELTAS and resolves with the same two-level merge an edited
-    stock dialect uses, against the SHIPPED parent (never the user's
-    edited copy of it). New stock apps flow into every derivative;
-    the derivative's edits win; its tombstones hold. One level deep:
-    the parent must be a stock id — an unknown/non-stock parent makes
-    the entry the user's own, passed through untouched. A user-layer
-    tombstone of the parent hides the PARENT, never the derivative.
   - apps: per entry;
   - dialects: two-level — the dialect map merges per dialect id, and
     inside a stock dialect the ``apps``/``keys`` sub-catalogs merge
@@ -82,6 +72,67 @@ def unit_fp(u) -> str:
         u = {k: v for k, v in u.items() if k not in VOLATILE_KEYS}
     return hashlib.sha1(
         stable_stringify(u).encode("utf-8")).hexdigest()[:12]
+
+
+# ---- FP-NORM v1 (entity-controls Phase 1, the respelling ruling) ----
+# Twin of ownership.js fpCanonTile/normalizeTiles/controllerFp, kept
+# byte-parity so a server-side referee (future) and the Studio's can
+# never disagree about what a tile IS. Hash form only — nothing
+# renders these shapes. Any rule change is FP-NORM v2 and requires
+# regenerating stock-history.js.
+
+def fp_canon_tile(c: dict) -> dict:
+    """Canonicalize one tile's variant spelling for hashing —
+    ownership.js fpCanonTile, byte-for-byte. FP-NORM v2
+    (2026-08-31): bare volume = SLIDER (the v0.83.1 fat default);
+    only an explicit slider: false is Compact."""
+    is_vol = c.get("type") == "volume" or (
+        c.get("type") == "stepper" and c.get("kind") == "volume")
+    if not is_vol:
+        return c
+    v = c.get("variant") or (
+        "stepper" if c.get("type") == "stepper"
+        else "compact" if c.get("slider") is False else "slider")
+    c["type"] = "volume"
+    c["variant"] = v
+    c.pop("slider", None)
+    c.pop("kind", None)
+    return c
+
+
+def _normalize_tiles(tiles) -> list:
+    """ownership.js normalizeTiles."""
+    out = []
+    for t in tiles or []:
+        if not isinstance(t, dict):
+            out.append(t)
+            continue
+        if t.get("id") == "mq_pull":          # v0.51: heal-removed
+            continue
+        c = dict(t)
+        if c.get("type") == "media":
+            c.pop("style", None)              # v0.85.0 bug: heal-stripped
+            c.pop("np_default", None)         # v0.85.x: heal-added
+        out.append(fp_canon_tile(c))          # FP-NORM v1
+    return out
+
+
+def controller_fp(u) -> str:
+    """ownership.js controllerFp — the tile-bearing unit's referee
+    fingerprint, with the FP-NORM canonicalization applied."""
+    c = json.loads(json.dumps(u or {}))
+    for k in VOLATILE_KEYS:
+        c.pop(k, None)
+    c.pop("font_scope", None)                 # v0.52.1: heal-added
+    c.pop("banner", None)                     # v0.50.2: heal-removed
+    c.pop("context", None)                    # v0.48.2: heal-stripped
+    if c.get("tiles"):
+        c["tiles"] = _normalize_tiles(c["tiles"])
+    for sec in c.get("sections") or []:
+        if isinstance(sec, dict) and sec.get("tiles"):
+            sec["tiles"] = _normalize_tiles(sec["tiles"])
+    return hashlib.sha1(
+        stable_stringify(c).encode("utf-8")).hexdigest()[:12]
 
 
 # ---- the stock layer ------------------------------------------------
@@ -168,16 +219,8 @@ def merge_catalogs(stock: dict, user_apps, user_dialects) -> tuple:
                 continue                       # whole-dialect tombstone
             dialects[did] = _merge_dialect(s_dial[did], u_dial[did])
         elif did in u_dial:
-            if u_dial[did] is None:
-                continue
-            entry = u_dial[did]
-            parent = entry.get("derived_from") if isinstance(entry, dict) \
-                else None
-            if parent in s_dial:
-                # DERIVED: deltas over the SHIPPED parent (see module doc)
-                dialects[did] = _merge_dialect(s_dial[parent], entry)
-            else:
-                dialects[did] = entry          # user's own dialect
+            if u_dial[did] is not None:
+                dialects[did] = u_dial[did]    # user's own dialect
         else:
             dialects[did] = s_dial[did]
     return apps, dialects
@@ -277,14 +320,6 @@ def subtract_config(stock: dict, cfg: dict) -> dict:
                 sub = _subtract_dialect(s_dial[did], d)
                 if sub:
                     dialects[did] = sub
-            elif isinstance(d, dict) and d.get("derived_from") in s_dial:
-                # DERIVED: subtract against the shipped parent so the
-                # layer keeps only deltas + the marker (which is never
-                # in stock, so it always survives and keeps the entry
-                # alive) — the never-write-merged contract holds for
-                # derivatives too.
-                dialects[did] = _subtract_dialect(
-                    s_dial[d["derived_from"]], d)
             else:
                 dialects[did] = d
         for did in s_dial:

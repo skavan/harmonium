@@ -5,11 +5,12 @@
      state machine — editPres backfills the two bind fields before
      this renders, closePres sweeps empties after. Peeled out of
      SetupTab (v0.83.11 round 2). */
-  import { app, SHOWS_KINDS } from "../../state.svelte.js";
+  import { app, SHOWS_KINDS, showsForDomain, showsForRoles, variantOptions, VARIANT_HINTS } from "../../state.svelte.js";
   import Field from "../Field.svelte";
   import Input from "../Input.svelte";
-  import Select from "../Select.svelte";
   import IconPicker from "../IconPicker.svelte";
+  import PresFields from "../PresFields.svelte";
+  import Select from "../Select.svelte";
 
   let { card, key, isEnt, inGroup, open, onclose } = $props();
   const a = $derived(card.a);
@@ -18,27 +19,33 @@
 
   /* the INTELLIGENT list: only render modes this member can honour —
      a claimed role for devices, the entity's own domain for loose
-     entities. Launcher is always offered. */
+     entities. Launcher is always offered. The filters themselves are
+     the SHARED pair in stocklib (Phase 0 #3 — TileRow uses the same
+     showsForDomain, so activity ⚙ and page tiles can never drift). */
   function presShows(key, isEnt) {
-    if (!isEnt) {
-      const roles = devLib[key]?.roles || {};
-      return SHOWS_KINDS.filter((k) => !k.role || roles[k.role]);
-    }
-    const dom = key.split(".")[0];
-    return SHOWS_KINDS.filter((k) => !k.role || dom === "media_player" ||
-      (k.value === "power" &&
-        ["switch", "light", "fan", "input_boolean"].includes(dom)));
+    if (!isEnt) return showsForRoles(devLib[key]?.roles);
+    return showsForDomain(key.split(".")[0]);
   }
   /* the Volume style select shows only where a volume control can
-     exist: a device claiming roles.volume, or a media_player entity */
-  const canVolume = (key, isEnt) =>
-    isEnt ? key.startsWith("media_player.") : !!devLib[key]?.roles?.volume;
-  const STYLE_OPTS = [
-    { value: "", label: "Theme default" },
-    { value: "compact", label: "Compact" },
-    { value: "slider", label: "Slider — the fat one" },
-    { value: "stepper", label: "Stepper − / +" },
-  ];
+     exist: a device claiming roles.volume, or a media_player entity.
+     The option list itself comes from the registry (variantOptions),
+     same as TileRow's — the parity contract. */
+  /* which adapter's variant select this member shows — ONLY when
+     applicable (Suresh, 2026-08-31): the chosen Draws-as has shapes
+     (Number / Select / Volume), or the member owns a volume-BAND row
+     that the style governs regardless of how it draws in the Devices
+     section — a cast device claiming the volume role, or the loose
+     entity wired as the activity's volume. A loose media_player
+     drawn as, say, Power no longer offers a style that would do
+     nothing. */
+  const variantFor = (key, isEnt) => {
+    const t = a.present[key]?.type;
+    if (t === "number" || t === "select" || t === "sources") return t;
+    const band = isEnt
+      ? a.context?.volume === key
+      : !!devLib[key]?.roles?.volume;
+    return t === "volume" || band ? "volume" : null;
+  };
   /* the STATUS LINE's raw material (v0.79 review: "A text box with a
      drop down of available attributes"): the member's live attribute
      names, offered as {token} inserts — the engine substitutes them
@@ -85,44 +92,24 @@
                    whole panel. Compile passed (unknown ids are globals);
                    only the runtime probe caught it. Tooltip text that
                    mentions tokens must be a string EXPRESSION: title={"…"}. -->
-              <div class="min-w-[200px] flex-[1.4]">
-                <Field label="Status line">
-                  <div class="flex gap-1">
-                    <Input bind:value={a.present[key].sub}
-                      title={"the tile's second line — blank = the widget's smart summary · clearing a SAVED line shows none · {curly} tokens read the entity live"}
-                      placeholder="auto" />
-                    <!-- a quiet ＋ button, not a visible select (v0.79.2
-                         — Suresh: "the + dropdown looks wonky. Do we
-                         need the down chevron?"): appearance-none kills
-                         the native chevron; the ＋ centres alone -->
-                    <select value="" title={"insert a live attribute — {token}s follow the entity"}
-                      onchange={(e) => { const v = e.target.value;
-                        if (v) a.present[key].sub = (a.present[key].sub || "") + "{" + v + "}";
-                        e.target.value = ""; }}
-                      class="h-[38px] w-[30px] shrink-0 cursor-pointer appearance-none rounded-[4px] border border-line-strong bg-field text-center text-[15px] text-dim outline-none hover:text-ink">
-                      <option value="">＋</option>
-                      {#each presAttrs(key, isEnt) as at (at)}
-                        <option value={at}>{at}</option>
-                      {/each}
-                    </select>
-                  </div>
-                </Field>
-              </div>
+              <!-- Status line via the SHARED fields component (Phase
+                   1 — the ⚙ and TileRow draw from one source) -->
+              <PresFields only="sub" wrap="min-w-[200px] flex-[1.4]"
+                sub={{
+                  value: a.present[key].sub ?? "",
+                  placeholder: "auto",
+                  attrs: presAttrs(key, isEnt),
+                  set: (v) => (a.present[key].sub = v),
+                  insert: (at) => (a.present[key].sub = (a.present[key].sub || "") + "{" + at + "}"),
+                }} />
               <div class="min-w-[200px] flex-[1.3]">
                 <Field label="Display icon">
                   <IconPicker bind:value={a.present[key].icon} onchange={recompile} />
                 </Field>
               </div>
-              <div class="min-w-[150px] flex-1">
-                <Field label="Draws as">
-                  <Select value={a.present[key].shows ?? "device"}
-                    title={SHOWS_KINDS.find((k) => k.value === (a.present[key].shows || "device"))?.hint || ""}
-                    options={presShows(key, isEnt).map((k) => ({ value: k.value, label: k.label }))}
-                    onchange={(e) => { const v = e.target.value;
-                      if (v === "device") delete a.present[key].shows;
-                      else a.present[key].shows = v; }} />
-                </Field>
-              </div>
+              <!-- FIELD ORDER (Suresh, 2026-08-31): Tap rides the
+                   first row; Draws-as and Variant sit TOGETHER —
+                   the choice and its shape are one thought. -->
               <div class="min-w-[150px] flex-1">
                 <Field label="Tap">
                   <Select value={a.present[key].tap ?? ""}
@@ -133,22 +120,50 @@
                       else delete a.present[key].tap; }} />
                 </Field>
               </div>
-              {#if canVolume(key, isEnt)}
-                <!-- HOW ITS VOLUME DRAWS (v0.77.1): rides the ladder
-                     present.style → device_options.volume_style →
-                     global.style.volume — the volume band, group pages
-                     and inline volume controls all read it -->
-                <div class="min-w-[150px] flex-1">
-                  <Field label="Volume style">
-                    <Select value={a.present[key].style ?? ""}
-                      title="how this member's volume control draws — band, group page and inline alike"
-                      options={STYLE_OPTS}
-                      onchange={(e) => { const v = e.target.value;
-                        if (v) a.present[key].style = v;
-                        else delete a.present[key].style; }} />
-                  </Field>
-                </div>
+              <!-- canonical spelling: the adapter token is `type`
+                   (legacy `shows` healed on load by normalizeVariants
+                   and never written anew — Phase 1) -->
+              <PresFields only="drawsAs" wrap="min-w-[150px] flex-1"
+                drawsAs={{
+                  value: a.present[key].type ?? "device",
+                  hint: SHOWS_KINDS.find((k) => k.value === (a.present[key].type || "device"))?.hint || "",
+                  options: presShows(key, isEnt).map((k) => ({ value: k.value, label: k.label })),
+                  set: (v) => {
+                    if (v === "device") delete a.present[key].type;
+                    else a.present[key].type = v;
+                  },
+                }} />
+              {#if variantFor(key, isEnt)}
+                <!-- VARIANT lights up only when APPLICABLE (Suresh):
+                     the chosen Draws-as has shapes, or the member owns
+                     a volume-band row the style governs. Rung 1 of the
+                     ladder — canonical `variant`, legacy healed. -->
+                <PresFields only="variant" wrap="min-w-[150px] flex-1"
+                  variantLabel={variantFor(key, isEnt) === "volume" ? "Volume style" : "Variant"}
+                  variant={{
+                    value: a.present[key].variant ?? "",
+                    hint: VARIANT_HINTS[a.present[key].variant] || "",
+                    options: variantOptions(variantFor(key, isEnt),
+                      variantFor(key, isEnt) === "volume" ? "Theme default" : "Auto"),
+                    set: (v) => {
+                      if (v) a.present[key].variant = v;
+                      else delete a.present[key].variant;
+                      delete a.present[key].style;
+                    },
+                  }} />
               {/if}
+              <!-- CARD GROUP (Phase 3): members sharing a name merge
+                   into one card on the rendered surface -->
+              <PresFields only="cardGroup" wrap="min-w-[150px] flex-1"
+                cardGroup={{
+                  value: a.present[key].card_group ?? "",
+                  warn: a.present[key].type === "media" && a.present[key].card_group
+                    ? "Now Playing has no row form — this member renders standalone." : null,
+                  set: (v) => {
+                    if (v) a.present[key].card_group = v;
+                    else delete a.present[key].card_group;
+                  },
+                }} />
               {#if !inGroup}
                 <!-- WHERE IT LIVES (v0.77 — Suresh: "be consistent or
                      give optionality!"): Devices section is the

@@ -5,14 +5,18 @@ import {
   STOCK_MUSIC_LIBRARY, STOCK_MUSIC, healStockGen, ensureStockControllers,
   starterConfig as starterConfigLib, normalizeNavTiles, stampHost,
   normalizeHosts, normalizeOffActivity, normalizeApps, ROLE_KEYS,
-  isCastGroup, SHOWS_KINDS, compileContext, recompileContext,
+  isCastGroup, SHOWS_KINDS, showsForDomain, showsForRoles,
+  ADAPTERS, variantOptions, VARIANT_HINTS, NORMALIZE_REPORT,
+  compileContext, recompileContext,
   normalizeDevices, normalizeSelect as normalizeSelectLib,
   normalizeConfig as normalizeConfigLib, currentStockController } from "./stocklib.js";
 export {
   GENERIC_MEDIA_CONTROLLER, DOMAIN_STOCKS, STOCK_APPS_DRAWER,
   STOCK_MUSIC_LIBRARY, STOCK_MUSIC, normalizeNavTiles, stampHost,
   normalizeHosts, normalizeOffActivity, normalizeApps, ROLE_KEYS,
-  isCastGroup, SHOWS_KINDS, compileContext, recompileContext,
+  isCastGroup, SHOWS_KINDS, showsForDomain, showsForRoles,
+  ADAPTERS, variantOptions, VARIANT_HINTS,
+  compileContext, recompileContext,
   normalizeDevices,
 };
 /* wrappers close over live state so every caller keeps its
@@ -120,6 +124,42 @@ export { pairs, pollPairs, approvePair, denyPair, version, loadVersion };
 
 export const showsRole = (shows) =>
   SHOWS_KINDS.find((k) => k.value === (shows || "device"))?.role || null;
+
+/* THE LADDER PINS, GENERALIZED (entity-controls Phase 1, decision 9:
+   "any editor writing rung 2 or 3 must display rung-1 pins that
+   override it, each with a one-tap clear" — the 0.86.0 volume "⚙
+   pinned" readout, promoted from ControllerTab-local to the shared
+   layer). Returns one activity's rung-1 pins for one adapter:
+   [{k, via, value}] — `present` pins (canonical `variant`, legacy
+   `style`) and, for volume, the read-only legacy device_options
+   rung. New adapters with variants plug in HERE, not in the tabs. */
+export function ladderPins(a, adapter) {
+  const out = [];
+  const pres = a?.present || {};
+  for (const k in pres) {
+    const v = pres[k] && (pres[k].variant || pres[k].style);
+    if (v) out.push({ k, via: "present", value: v });
+  }
+  if (adapter === "volume") {
+    const dops = a?.device_options || {};
+    for (const k in dops)
+      if (dops[k] && dops[k].volume_style)
+        out.push({ k, via: "device_options", value: dops[k].volume_style });
+  }
+  return out;
+}
+export function clearLadderPin(a, pin) {
+  if (pin.via === "present") {
+    delete a.present[pin.k].variant;
+    delete a.present[pin.k].style;
+    if (!Object.keys(a.present[pin.k]).length) delete a.present[pin.k];
+    if (!Object.keys(a.present).length) delete a.present;
+  } else {
+    delete a.device_options[pin.k].volume_style;
+    if (!Object.keys(a.device_options[pin.k]).length) delete a.device_options[pin.k];
+    if (!Object.keys(a.device_options).length) delete a.device_options;
+  }
+}
 
 /* the cast is a DOORWAY: open this device in the library, and carry
    the way back with you. `back` = {key, label, activityId} — the slice
@@ -1121,13 +1161,22 @@ export async function boot() {
   loadEntities();
   loadRegistry();
   loadServices();
+  /* THE UPGRADE SUMMARY (entity-controls Phase 4): when the load
+     healed legacy spellings, say so before the first post-migration
+     Save & Deploy — the config changes shape once, on purpose,
+     and silently would be the wrong way to do it. */
+  const healed = NORMALIZE_REPORT.variants > 0
+    ? " · modernized " + NORMALIZE_REPORT.variants + " legacy spelling" +
+      (NORMALIZE_REPORT.variants === 1 ? "" : "s") +
+      " (style/shows → variant/type; Save & Deploy makes it permanent)"
+    : "";
   setStatus(
     app.virgin
       ? "fresh install — starter workspace loaded (a draft). Look around, " +
         "then Save & Deploy to create your config; remotes can load it after that"
       : (app.sandbox ? "SANDBOX (integration not installed — Save disabled) — " : "loaded — ") +
         Object.keys(app.draft.screens).length + " views, " +
-        Object.keys(app.draft.activities || {}).length + " activities",
+        Object.keys(app.draft.activities || {}).length + " activities" + healed,
     app.sandbox ? "err" : "ok",
   );
 }

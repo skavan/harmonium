@@ -1,45 +1,44 @@
-/* STEPPER — the − value + row (brightness, setpoint, position,
-   percentage…); kind picks entity attribute + service. */
+/* STEPPER — the numeric control family (volume, brightness,
+   setpoint, position, percentage, number…); kind picks entity
+   attribute + service.
+
+   ONE DESIGN LANGUAGE (2026-08-31 — Suresh, four screenshots deep:
+   "In short we need a design language that is consistent"). Every
+   numeric control is one of exactly TWO shapes, sharing the volume
+   widget's proportions (58×46 buttons, 21px/600 value type):
+
+     ROW  — − [track over value] + on one line: the volume-stepper
+            classic, now carrying its number beneath the track (his
+            img-4 ruling: "volume stepper is the way to go (but
+            missing the value)"). The default for every kind and for
+            Number's Stepper/Compact variants. A kind whose bounds
+            don't resolve hides the track and centers the value.
+     FAT  — the big drag track above, − value + row below: the
+            Slider/Vertical variants and the detail-page ranges.
+
+   The 42px display type and the title-line "Vol n%" are RETIRED —
+   the control owns its own number in both shapes; the title line is
+   the name, nothing else. */
 WIDGETS.stepper = {
     /* v0.58: a stepper for a range the device does not expose is a lie
-       that reads 0% forever — the Fire TV reports 22961 (no VOLUME_SET
-       / STEP / MUTE), so its generated detail page drew a dead volume
-       control. Only the volume kind has a feature bit to check; the
-       rest are gated by their own attributes elsewhere. */
+       that reads 0% forever — only the volume kind has a feature bit
+       to check; the rest are gated by their own attributes. */
+    /* ARC split (Phase 0): capability, level reads and level writes
+       all follow t.level_entity when set. Mute stays on the MAIN
+       entity, matching the volume widget's doctrine. */
     hidden: (e, t) => !!e && t.kind === "volume" &&
-      !sfHas(e, MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
-    /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
-       Kinds with a bounded 0-100 range also get a fat slider track
-       (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
-       sets the value directly; −/+ remain the precision control. */
-    /* THE VOLUME KIND IS ITS OWN SHAPE (v0.83.7 — Suresh: "Volume
-       Slider vs Volume Stepper -- they are pretty much identical...
-       Maybe Volume Stepper is like Compact except a fat slider bar"):
-       exactly that. Compact's layout — "Vol n%" on the title line,
-       −/+ around the middle — but the middle is the fat track IN the
-       row instead of the mini meter, and there is no second track
-       above. Now the four styles are four different controls. */
-    sub: (e, t) => {
-      if (t.kind !== "volume") return "";
-      if (st(e).a.is_volume_muted) return "Muted";
-      const l = st(e).a.volume_level;
-      return "Vol " + (l != null ? pct(l) : "–");
-    },
-    inlineSub: t => t.kind === "volume",
+      !sfHas(lvlEnt(e, t), MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
+    sub: () => "",
     isOn: e => ACTIVE(st(e).s),
-    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — his AirCon
-       ruling: "DPad Up and Down should navigate the tiles as usual.
-       Left and Right DPad should navigate within the Tiles"): ◀▶
-       nudge the value while focused — volume, brightness, setpoint,
-       position, all of them — ▲▼ always walk, and the last
-       select-captures die. OK's secondary: the volume kind toggles
-       mute; other kinds have no secondary (their tap targets are on
-       screen). Even a vertical slider track adjusts on ◀▶ — one
-       grammar beats axis-matching. */
+    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — the AirCon
+       ruling): ◀▶ nudge the value while focused, ▲▼ always walk;
+       OK's secondary: the volume kind toggles mute. */
     nav: "value",
     keys: {
-      left:  (e, t) => void nudgeStep(e, (t && t.kind) || "volume", -1),
-      right: (e, t) => void nudgeStep(e, (t && t.kind) || "volume", +1),
+      left:  (e, t) => void nudgeStep(t && t.kind === "volume" ? lvlEnt(e, t) : e,
+        (t && t.kind) || "volume", -1),
+      right: (e, t) => void nudgeStep(t && t.kind === "volume" ? lvlEnt(e, t) : e,
+        (t && t.kind) || "volume", +1),
     },
     select: (e, t) => {
       if (!e || !t || t.kind !== "volume") return;
@@ -48,60 +47,87 @@ WIDGETS.stepper = {
       if (cur && cur.a) cur.a.is_volume_muted = next;
       callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
-    body: t => {
-      /* volume: track-in-row, number on the title line — see above */
-      if (t.kind === "volume") return `<div class="steprow vol">
-      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
-      <div class="sldr inrow"><i></i></div>
-      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
-    </div>`;
+    /* which track the tile wants: the FAT deck only via an explicit
+       tile ask (Slider/Vertical variants) or the kind's detail-page
+       default — the volume kind always takes the row (its fat form
+       is the volume widget) */
+    _fat: t => {
+      if (t.kind === "volume") return false;
       const k = STEP_KINDS[t.kind] || {};
-      const sl = k.slider
-        ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      /* other kinds (brightness, setpoint, position) keep the big
-         display type — they ARE the page */
-      return sl + `<div class="steprow">
+      return t.slider !== undefined ? t.slider : k.slider;
+    },
+    body: t => {
+      const fat = WIDGETS.stepper._fat(t);
+      if (fat) return `<div class="sldr${fat === "v" ? " vert" : ""}"><i></i></div>
+    <div class="steprow">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
+      return `<div class="steprow vol">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="stepmid"><div class="sldr inrow"><i></i></div><div class="stepval sm">–</div></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
     },
     wire(el, t) {
-      wireTaps(el, "st", d => nudgeStep(resolveEntity(t.entity), t.kind, +d));
+      wireTaps(el, "st", d => nudgeStep(
+        t.kind === "volume" ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity),
+        t.kind, +d));
       const k = STEP_KINDS[t.kind], sl = el.querySelector(".sldr");
       if (!k || !sl) return;
-      /* drag/tap on the track → proportional set. Optimistic fill for
-         responsiveness; service calls throttled, final on release. */
+      /* orientation: the fat deck says, the row is always horizontal */
+      const ori = WIDGETS.stepper._fat(t) || "h";
+      /* drag/tap on the track → proportional set. Optimistic fill;
+         calls throttled, final on release. Bounds via stepBounds:
+         the entity's published min/max win. */
       const apply = (ev, final) => {
         const r = sl.getBoundingClientRect();
-        let f = k.slider === "v"
+        let f = ori === "v"
           ? 1 - (ev.clientY - r.top) / r.height
           : (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
+        sl.firstElementChild.style[ori === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";
-        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
+        const ent = t.kind === "volume"
+          ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity);
+        const b = stepBounds(k, ent);
+        const min = b.min != null ? b.min : 0, max = b.max != null ? b.max : 100;
         const v = Math.round(min + f * (max - min));
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
           sl._t = now; sl._lastV = v;
-          k.set(resolveEntity(t.entity), v);
+          k.set(ent, v);
         }
       };
-      wireSlider(sl, apply, k.slider);   // intent-gated; covers stay vertical
+      wireSlider(sl, apply, ori);   // intent-gated; covers stay vertical
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
+      const le = t.kind === "volume" ? lvlEnt(e, t) : e;
+      /* the value — BOTH shapes own their number now; volume's mute
+         state swaps it for the glyph, matching the volume widget */
       const sv = el.querySelector(".stepval");
-      if (sv) sv.textContent = k ? k.fmt(k.get(e)) : "–";
-      const sl = el.querySelector(".sldr");
-      if (t.kind === "volume" && sl)
-        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
-      if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
-        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
-        const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
-        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
-          Math.round(f * 100) + "%";
+      if (sv) {
+        if (t.kind === "volume" && st(e).a.is_volume_muted)
+          sv.innerHTML = `<span class="material-symbols-outlined vmute">volume_off</span>`;
+        else sv.textContent = k ? k.fmt(k.get(le), le) : "–";
       }
+      const sl = el.querySelector(".sldr");
+      if (!sl || !k) return;
+      if (t.kind === "volume")
+        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+      if (sl._drag) return;              // don't fight the finger
+      const b = stepBounds(k, le);
+      const has = b.min != null && b.max != null && b.max > b.min;
+      /* a row track with no resolvable range hides — the value
+         centers alone rather than drawing a 0-100 lie */
+      if (sl.classList.contains("inrow"))
+        sl.classList.toggle("hidden", !has);
+      if (!has) return;
+      const f = Math.max(0, Math.min(1,
+        ((+k.get(le) || 0) - b.min) / (b.max - b.min)));
+      sl.firstElementChild.style[sl.classList.contains("vert") ? "height" : "width"] =
+        Math.round(f * 100) + "%";
     }
   };

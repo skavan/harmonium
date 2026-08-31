@@ -124,7 +124,17 @@
   function addCast(devId) {
     if (!devId || !devLib[devId]) return;
     if (!a.cast) a.cast = [];
-    if (a.cast.includes(devId)) return;
+    if (a.cast.includes(devId)) {
+      /* the refusal SPEAKS (2026-08-31 — Suresh hit the silent
+         return): the cast is one row per member by design (present
+         is keyed by id); a second control of the same device lives
+         as a page tile, whose Draws-as is free */
+      setStatus("'" + (devLib[devId].name || devId) + "' is already in the "
+        + "cast — one row per member. For a second control of the same "
+        + "device, add a tile to the page (its Draws-as is independent).",
+        "err");
+      return;
+    }
     /* ADOPT THE WIRED-BUT-UNCAST (v0.75.1, hardened v0.75.2 — Suresh:
        "adding a device (onkyo receiver) REPLACES media_player.
        ma_sonos_basement!", then "Same problem!"). An activity that
@@ -276,7 +286,13 @@
     if (!ent) return;
     adoptWired(null);          /* v0.75.3: this door erases too — see above */
     if (!a.extra_devices) a.extra_devices = [];
-    if (!a.extra_devices.includes(ent)) a.extra_devices.push(ent);
+    if (a.extra_devices.includes(ent)) {
+      setStatus("'" + ent + "' is already in the cast — one row per "
+        + "member. For a second control of the same entity, add a tile "
+        + "to the page (its Draws-as is independent).", "err");
+      return;
+    }
+    a.extra_devices.push(ent);
     guessRoles(ent);           /* v0.78: unwired roles fill from the domain */
     regenDevices();
     recompile();
@@ -284,6 +300,30 @@
   function removeExtraEnt(ent) {
     a.extra_devices = (a.extra_devices || []).filter((x) => x !== ent);
     dropPres(ent);
+    regenDevices();
+    recompile();
+  }
+  /* CAST ORDER (2026-08-31 — Suresh: "We need to be able to order
+     the elements in the cast"): swap within the owning array, then
+     regenDevices — a.devices (the generated band's order) rebuilds
+     from cast order, so the move is immediately real. Devices and
+     groups move in a.cast; loose entities within extra_devices
+     (they render after the cast — the two lists don't interleave,
+     which is existing structure). */
+  function moveCastMember(devId, dir) {
+    const i = (a.cast || []).indexOf(devId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= a.cast.length) return;
+    [a.cast[i], a.cast[j]] = [a.cast[j], a.cast[i]];
+    regenDevices();
+    recompile();
+  }
+  function moveExtra(ent, dir) {
+    const l = a.extra_devices || [];
+    const i = l.indexOf(ent);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= l.length) return;
+    [l[i], l[j]] = [l[j], l[i]];
     regenDevices();
     recompile();
   }
@@ -582,6 +622,20 @@
                   <span class="text-[11px] text-faint opacity-60"
                     title="Can't lead — no media_player claim; it's a device, not the face">☆</span>
                 {/if}
+                <!-- CAST ORDER (2026-08-31 — Suresh: "We need to be
+                     able to order the elements in the cast"): the
+                     cast's order IS the Devices band's order
+                     (regenDevices rebuilds a.devices from it) -->
+                {#if !g}
+                  <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                    disabled={a.cast?.indexOf(devId) <= 0}
+                    title="Move up — the cast's order is the controller's order"
+                    onclick={() => moveCastMember(devId, -1)}>▲</button>
+                  <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                    disabled={a.cast?.indexOf(devId) >= (a.cast?.length ?? 0) - 1}
+                    title="Move down"
+                    onclick={() => moveCastMember(devId, 1)}>▼</button>
+                {/if}
                 <button class={"cursor-pointer border-0 bg-transparent p-1 " +
                     (a.present?.[devId] && openPres !== devId ? "text-accent" : "text-dim hover:text-accent")}
                   title="Presentation — display name, icon, what it draws as, what a tap does"
@@ -686,6 +740,14 @@
                 {#each rolesOf(ent) as role (role)}
                   <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
                 {/each}
+                <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                  disabled={(a.extra_devices || []).indexOf(ent) <= 0}
+                  title="Move up — the cast's order is the controller's order"
+                  onclick={() => moveExtra(ent, -1)}>▲</button>
+                <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                  disabled={(a.extra_devices || []).indexOf(ent) >= (a.extra_devices || []).length - 1}
+                  title="Move down"
+                  onclick={() => moveExtra(ent, 1)}>▼</button>
                 <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
                   title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
                   onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>

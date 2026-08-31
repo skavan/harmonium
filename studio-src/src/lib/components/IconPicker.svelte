@@ -16,6 +16,26 @@
   const place = () => { rect = inputEl?.getBoundingClientRect() || null; };
   const cur = $derived((value || "").startsWith("material:")
     ? value.slice(9) : null);
+  /* ICON SETS (0.87 — design-icon-sets): "<set>:<name>" free-typed is
+     a FILE at /local/harmonium/icons/<set>/<name>.svg. The chip
+     previews it mask-rendered (theme-tinted, like the remote); a
+     missing file turns the chip into the warning (ruling: silent
+     fallback on the remote, visible warning here). Deploys distill
+     the file from the installed pack; hand-dropping the SVG works
+     too. */
+  const setIcon = $derived(!cur &&
+    /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(value || "") ? value : null);
+  const setUrl = $derived(setIcon
+    ? "/local/harmonium/icons/" + setIcon.replace(":", "/") + ".svg"
+    : null);
+  let setMissing = $state(false);
+  $effect(() => {
+    setMissing = false;
+    if (!setUrl) return;
+    const im = new Image();
+    im.onerror = () => (setMissing = true);
+    im.src = setUrl;
+  });
   const q = $derived(((value || "").startsWith("material:")
     ? value.slice(9) : value || "").toLowerCase().trim().replace(/\s+/g, "_"));
   const hits = $derived(!q
@@ -34,8 +54,19 @@
        TEXT (font still loading, or an unligated name) inherited the
        page line-height and spilled out of the 38px chip toward the
        top; pinned to the box, clipped, centred. -->
-  <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[22px] leading-none text-ink"
-    title={value || "no icon"}>{cur || "•"}</span>
+  {#if setIcon && !setMissing}
+    <span class="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile"
+      title={value}>
+      <span class="inline-block h-[22px] w-[22px] bg-current text-ink"
+        style="-webkit-mask-image:url('{setUrl}');mask-image:url('{setUrl}');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center"></span>
+    </span>
+  {:else if setIcon}
+    <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-danger/50 bg-tile text-[20px] leading-none text-danger"
+      title={"no file yet for " + value + " — Save & Deploy distills it from the installed pack, or drop the SVG in www/harmonium/icons/" + value.split(":")[0] + "/"}>warning</span>
+  {:else}
+    <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[22px] leading-none text-ink"
+      title={value || "no icon"}>{cur || "•"}</span>
+  {/if}
   <input bind:value bind:this={inputEl} spellcheck="false" {placeholder}
     onfocus={() => { place(); open = true; }}
     oninput={() => { place(); open = true; }}

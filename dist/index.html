@@ -672,26 +672,35 @@
   .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
   .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
   .tile.wgt-power { min-height: 0; background: transparent; }
-  .steprow { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0; }
-  .steprow .dpbtn { width: 72px; height: 62px; border-radius: 16px; flex: 0 0 auto; }
-  /* volume-kind stepper rides the volume widget's proportions (v0.83.3) */
-  .steprow.vol { gap: 12px; }
-  .steprow.vol .dpbtn { width: 58px; height: 46px; border-radius: 12px; }
-  .steprow.vol .stepval { font-size: 21px; font-weight: 600; }
-  /* stepper volume (v0.83.7): the fat track rides IN the row between
-     −/+ — compact's layout with a real slider for a middle; height
-     matches the 46px buttons exactly (the "slightly squashed" note),
-     and the row sits 6px under the title — the same breath the fat
-     slider's track takes ("the gap ... is too small") */
+  /* ONE NUMERIC LANGUAGE (2026-08-31 — Suresh: "we need a design
+     language that is consistent"): every numeric row rides the
+     VOLUME proportions — 58×46 buttons, the 21px/600 value type —
+     whether it's a volume band, a Number tile, or a detail page.
+     The 42px display type is retired. */
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 2px 0; }
+  .steprow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
   .steprow.vol { padding-top: 6px; }
-  .steprow.vol .sldr.inrow { flex: 1; min-width: 0; margin: 0; height: 46px; }
+  /* the ROW shape's middle: track over value (img-4) — together they
+     stand the height of the buttons, so rows of mixed kinds align */
+  .stepmid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .stepmid .sldr.inrow { flex: none; min-width: 0; margin: 0; height: 30px; border-radius: 9px; }
+  .stepmid .stepval,
+  .stepval.sm { font-size: 14px; font-weight: 600; line-height: 1; }
+  /* volume Compact's mini meter, in the language: a visible 12px
+     bar over the value (the 6px whisper vanished in the column).
+     The .volrow .stepmid qualifier outranks controls.css's
+     .volrow .meter rules — controls.css loads last. */
+  .volrow .stepmid .meter,
+  .stepmid .meter { flex: none; margin-top: 8px; height: 12px; border-radius: 6px; }
   .stepval {
     flex: 1; text-align: center;
-    font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums;
+    font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--text);
   }
+  .stepval .vmute { font-size: 18px; color: var(--accent); vertical-align: -3px; }
   .tile.wgt-stepper, .tile.wgt-chips { min-height: 0; }
-  /* the volume-kind stepper carries "Vol n%" on the title line
-     (v0.83.7) — only the block-level sub stays hidden */
+  /* the numeric shapes own their number — the block-level sub is
+     never part of them */
   .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
   /* stepper slider: fat touch track, fill = value; −/+ row stays below */
   .sldr {
@@ -853,6 +862,9 @@
     padding: 10px 4px 0;
   }
   .tile {
+    /* text in tiles is CHROME, not copy (2026-08-31 — Suresh: "make
+       sure label isn't selectable so it doesn't mess with drag") */
+    -webkit-user-select: none; user-select: none;
     background: var(--tile); border-radius: var(--radius);
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
     border: 2px solid transparent;
@@ -870,6 +882,39 @@
   .trail:active, .dpbtn:active, .brk:active, .brroot:active,
   .brchip:active, .hjump:active { transform: scale(.94); }
   .tile.span2 { grid-column: span 2; }
+  /* CARD GROUP (entity-controls Phase 3 — design-card-group-focus):
+     ONE visual container, many focus stops. The wrapper wears the
+     card skin; member tiles go flat inside (skin off, hairline
+     between rows) but KEEP their 2px border slot, so the .focused
+     ring draws on the member row with zero layout shift. The
+     wrapper itself is never a stop and never takes .focused. */
+  .cardgrp {
+    background: var(--tile); border-radius: var(--radius);
+    box-shadow: var(--tile-shadow, none);
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .cardgrp.span2 { grid-column: span 2; }
+  .cardgrp > .tile {
+    background: transparent; box-shadow: none;
+    border-radius: calc(var(--radius) - 4px);
+  }
+  .cardgrp > .tile + .tile {
+    margin-top: 2px;
+    box-shadow: 0 -2px 0 -1px var(--tile-hi, #2c333d);
+  }
+  /* PICK PAGE (2026-08-31 — "bad formatting"): the sources:/pick:
+     virtual screens are ONE options list — the tile sheds its card
+     skin, header row and page-sized focus ring; the roving pill
+     highlight (chips .rove) is the cursor. Chips get air. */
+  .tile.pickpage,
+  .tile.pickpage.focused {
+    background: transparent; border-color: transparent;
+    box-shadow: none; padding: 2px 0;
+  }
+  .tile.pickpage .top, .tile.pickpage .sub { display: none; }
+  .tile.pickpage .chiprow { gap: 10px; padding-top: 4px; }
+  .tile.pickpage .chip { padding: 12px 14px; }
   .tile.focused {
     border-color: var(--accent);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
@@ -908,6 +953,19 @@
   }
   .tile .ic { font-size: 22px; width: 28px; text-align: center; }
   .tile .ic.material-symbols-outlined { font-size: 24px; }
+  /* ICON SETS (0.87 — design-icon-sets): the masked block paints
+     currentColor through the set SVG, so phu:/mdi: icons follow the
+     theme (and .on/.tacc tints) exactly like font glyphs. The probe
+     img inside only detects missing files — never shown. */
+  .ic.icmask {
+    display: inline-block; width: 24px; height: 24px;
+    vertical-align: -5px;
+    background: currentColor;
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center;
+  }
+  .ic.icmask .mprobe { display: none; }
   .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
     font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
@@ -2429,6 +2487,207 @@ function classLaunch(e) {
 
 
 /* ================================================================
+   THE ADAPTER REGISTRY — entity-controls Phase 1
+   (docs/design-entity-controls.md v2, 2026-08-30).
+
+   An ADAPTER owns the semantic contract between an HA entity and a
+   Harmonium control; a VARIANT is a shape that never changes the
+   contract. ONE canonical spelling in every envelope: the adapter
+   token is `type`, the shape is `variant`. Legacy spellings
+   (`style`, `slider: true`, `kind: "volume"`, `shows`,
+   `volume_style`) are COMPAT-READ here — the reader lets an updated
+   engine render canonical configs safely before anyone opens the
+   Studio, and renders legacy configs byte-for-byte as before.
+
+   The table below has a TWIN in studio-src/src/lib/stocklib.js —
+   probe-entity-phase1 byte-compares the marked region, so the two
+   surfaces can never drift (the Draws-as lesson, Phase 0 #3,
+   promoted to doctrine). Mushroom's card model is the reference:
+   one semantic card, presentation separate (its display_mode is
+   our variant); the shared options block is identical everywhere.
+
+   `domains`: entity domains the adapter offers itself to (absent =
+   any entity — the Launcher rule). `role`: the device-library claim
+   it binds to (null = none needed). `variants`: the legal shapes,
+   [] = single shape. `dflt`: the adapter's built-in default shape.
+   Number/Select rows land in Phase 2 — reserving the tokens here
+   would put dead choices in every Draws-as list. */
+var ADAPTERS =
+/* @adapter-table-begin v1 */
+{
+  device:    { role: null,            variants: [] },
+  volume:    { role: "volume",        domains: ["media_player"],
+               variants: ["compact", "slider", "stepper"], dflt: "slider" },
+  power:     { role: "power",
+               domains: ["media_player", "switch", "light", "fan",
+                         "input_boolean"], variants: [] },
+  media:     { role: "media_player",  domains: ["media_player"],
+               variants: [], row: false },
+  transport: { role: "media_player",  domains: ["media_player"],
+               variants: [] },
+  sources:   { role: "source_select", domains: ["media_player"],
+               variants: ["auto", "picker", "cycle", "chips"],
+               dflt: "auto" },
+  number:    { role: null, domains: ["number", "input_number"],
+               variants: ["auto", "compact", "slider", "stepper",
+                          "vertical"], dflt: "auto" },
+  select:    { role: null, domains: ["select", "input_select"],
+               variants: ["auto", "picker", "cycle", "chips"],
+               dflt: "auto" },
+}
+/* @adapter-table-end */
+;
+
+/* ---- the resolution ladder (design decision 9) ----
+   Three rungs: the member's own choice → the activity surface
+   default → the global/theme default (else the adapter's built-in).
+   Resolution stops at the first rung that answers; a rung never
+   partially answers. Call sites feed rungs IN LADDER ORDER — the
+   function is trivial on purpose: it exists so the ladder has ONE
+   name, one shape, and one place to read it. */
+function resolveVariant() {
+  for (var i = 0; i < arguments.length; i++)
+    if (arguments[i]) return arguments[i];
+  return null;
+}
+/* rung 1 of a `present` entry: canonical `variant`, legacy `style` */
+function presVariant(p) { return (p && (p.variant || p.style)) || null; }
+/* what a present entry DRAWS AS: canonical `type`, legacy `shows` */
+function presType(p) { return (p && (p.type || p.shows)) || null; }
+/* rung 2: canonical surface.<adapter>_variant, legacy volume_style */
+function surfaceVariant(act, adapter) {
+  const s = (act && act.surface) || {};
+  return s[adapter + "_variant"] ||
+    (adapter === "volume" ? s.volume_style : null) || null;
+}
+/* rung 3: global.style.<adapter> (today's spelling IS canonical) */
+function globalVariant(adapter) {
+  return (((CONFIG || {}).global || {}).style || {})[adapter] || null;
+}
+
+/* ---- the compat reader: canonical tile → working shape ----
+   Widgets keep today's internal vocabulary ({type:"stepper",
+   kind:"volume"}, {type:"volume", slider:true}); an AUTHORED tile in
+   the canonical spelling translates here, at expandTile, before any
+   widget sees it. Legacy and unknown tiles pass through UNTOUCHED
+   (absent variant = legacy behavior, byte-for-byte; an unknown
+   adapter token is preserved, never silently replaced). Returns the
+   SAME object when no translation applies — generated tiles and
+   legacy configs pay nothing. */
+function canonTile(t) {
+  if (!t) return t;
+  if (t.type === "volume" && t.variant) {
+    const c = Object.assign({}, t);
+    const v = c.variant;
+    delete c.variant;
+    delete c.slider;
+    if (v === "stepper") { c.type = "stepper"; c.kind = "volume"; }
+    else if (v === "compact") c.slider = false;
+    else c.slider = true;
+    /* NOTE (2026-08-31 bug fix — Suresh's compact Receiver rendered
+       the fat track): bare volume has meant SLIDER since v0.83.1
+       ("default should be fat"), so Compact must write
+       slider: false explicitly — the earlier reader dropped the key
+       and got the fat default. FP-NORM v2 (ownership.js/catalogs.py)
+       carries the matching hash-form ruling. */
+    return c;
+  }
+  /* THE NUMBER ADAPTER (Phase 2): rides the stepper widget with
+     kind "number" (STEP_KINDS.number — the entity's own range).
+     Slider/Vertical add the fat track; Auto is DETERMINISTIC and
+     versioned with the engine (design ruling): HA mode "slider" →
+     Slider; "box" → Stepper; auto/absent → Slider when
+     (max−min)/step ≤ 100, else Stepper. Absent variant = Auto here —
+     these adapters have no legacy behavior to preserve. */
+  if (t.type === "number") {
+    const c = Object.assign({}, t);
+    const v = numberAutoVariant(c);
+    delete c.variant;
+    c.type = "stepper";
+    c.kind = "number";
+    if (v === "slider") c.slider = "h";
+    else if (v === "vertical") c.slider = "v";
+    /* stepper AND compact: the ROW shape — − [track over value] +
+       (the unified numeric language, 2026-08-31; Compact may later
+       earn a shorter chassis, but the shape is one) */
+    else c.slider = false;
+    return c;
+  }
+  /* THE SELECT ADAPTER (Phase 2): Auto = Picker. Period. (the design
+     ruling — layout-sensing Auto is future work, because two engine
+     versions must never disagree about what Auto renders). Chips is
+     the inline row; Cycle is the pageless picker. */
+  if (t.type === "select") {
+    const c = Object.assign({}, t);
+    const v = c.variant || "auto";
+    delete c.variant;
+    c.kind = "select";
+    if (v === "chips") c.type = "chips";
+    else {
+      c.type = "picker";
+      if (v === "cycle") c.cycle = true;
+    }
+    return c;
+  }
+  /* SOURCES gains the same shapes (2026-08-31 — Suresh: "surely I
+     should get the variant option too?"): the input list IS a
+     select, kind "source". Auto/absent keeps the CLASSIC sources
+     tile (byte-identical — zero change for every deployed config);
+     an explicit variant rides the Select machinery: Picker adds the
+     ◀▶-cycle-in-place value grammar, Cycle is pageless, Chips is
+     the inline row. The role's default entity bakes in so a bare
+     generated tile still resolves. */
+  if (t.type === "sources" && t.variant && t.variant !== "auto") {
+    const c = Object.assign({}, t);
+    const v = c.variant;
+    delete c.variant;
+    c.kind = "source";
+    c.entity = c.entity || "$context.source_select";
+    if (v === "chips") c.type = "chips";
+    else {
+      c.type = "picker";
+      if (v === "cycle") c.cycle = true;
+    }
+    return c;
+  }
+  return t;
+}
+/* which adapter a WORKING-shape tile belongs to (the reverse of
+   canonTile — used by card grouping's row-form check, Phase 3) */
+function adapterOfTile(t) {
+  if (!t) return null;
+  if (t.type === "volume") return "volume";
+  if (t.type === "stepper")
+    return t.kind === "volume" ? "volume"
+      : t.kind === "number" ? "number" : null;
+  if (t.type === "picker") return "select";
+  if (t.type === "chips") return t.kind === "select" ? "select" : null;
+  return ADAPTERS[t.type] ? t.type : null;
+}
+/* card-groupable? An adapter that advertises NO row form (media —
+   an art hero cannot flatten into a card row) renders standalone;
+   everything else, non-adapter tiles included, may share a card
+   (design-card-group-focus.md, "Row-form advertisement"). */
+function tileGroupable(t) {
+  const a = adapterOfTile(t);
+  return !(a && ADAPTERS[a] && ADAPTERS[a].row === false);
+}
+/* Number's Auto rules — deterministic on the entity's published
+   metadata, assertable in a probe with fixed inputs */
+function numberAutoVariant(c) {
+  const v = c.variant;
+  if (v && v !== "auto") return v;
+  const a = st(c.entity || "").a || {};
+  if (a.mode === "slider") return "slider";
+  if (a.mode === "box") return "stepper";
+  const min = +a.min, max = +a.max;
+  const step = +a.step > 0 ? +a.step : 1;
+  if (isFinite(min) && isFinite(max) && (max - min) / step <= 100)
+    return "slider";
+  return "stepper";
+}
+
+/* ================================================================
    THE CAST VOCABULARY — shared by every generator and by
    activities.js/render.js: who is in an activity's cast, its groups,
    per-member presentation (presApply), the tiles a member draws as
@@ -2491,12 +2750,15 @@ function groupedDeviceIds(act) {
 function castGroup(act, gid) {
   return castGroups(act).filter(g => g.group === gid)[0] || null;
 }
-/* which ROLE a `shows` type binds to. Unknown types fall back to the
-   launcher, which is always available and always correct. */
-const SHOWS_ROLE = {
-  volume: "volume", stepper: "volume", power: "power",
-  media: "media_player", transport: "media_player", sources: "source_select"
-};
+/* which ROLE a Draws-as type binds to — DERIVED from the adapter
+   registry (core/adapters.js, Phase 1), plus the one legacy alias:
+   `stepper` survives as volume-drawn-as-stepper. Unknown types fall
+   back to the launcher, which is always available and always correct. */
+const SHOWS_ROLE = (function () {
+  const m = { stepper: "volume" };
+  for (const k in ADAPTERS) if (ADAPTERS[k].role) m[k] = ADAPTERS[k].role;
+  return m;
+})();
 /* ---- PRESENTATION, PER MEMBER (v0.76 — Suresh: "put the device
    options in the device rows… display name, display icon, display
    mode, click to"). `act.present` is a keyed map — device id for cast
@@ -2529,6 +2791,10 @@ function presApply(tile, p, ent) {
   if (typeof p.name === "string") tile.label = p.name;
   if (typeof p.sub === "string") tile.sub_text = p.sub;   /* "" = none */
   if (p.icon) tile.icon = p.icon;
+  /* card_group rides into the generated tile (Phase 3) — the render
+     walk merges same-group tiles of one section into one card */
+  if (typeof p.card_group === "string" && p.card_group)
+    tile.card_group = p.card_group;
   if (p.tap === "none") { tile.tap = "none"; tile.trailing = false; }
   else if (p.tap === "open") {
     if (tile.type === "device") tile.tap = "open";
@@ -2590,22 +2856,26 @@ function groupChildTile(did, shows, idPrefix, pres) {
      survives as a legacy alias for volume + style stepper. */
   if (shows === "volume" || shows === "stepper") {
     const vstyle = shows === "stepper" ? "stepper" :
-      ((pres && pres.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "slider");
+      resolveVariant(presVariant(pres), globalVariant("volume")) || "slider";
     /* a PROMOTED per-device control, never "the volume band" —
        exempt from the band-label override (v0.83.7: typing a band
        label renamed his promoted Receiver) */
     return presApply(vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
-          brRow: false, bandGen: 1, entity: ent })
+          brRow: false, bandGen: 1, entity: ent,
+          level_entity: roles.volume_level || ent })
       : Object.assign(base, { type: "volume", entity: ent,
           brRow: false, bandGen: 1,
           level_entity: roles.volume_level || ent,
           slider: vstyle === "slider" }),
       pres, ent);
   }
-  return presApply(Object.assign(base, { type: shows, brRow: false,
-    entity: ent }), pres, ent);
+  /* generic control branch — through the canonical reader (Phase 2:
+     a member drawn as Number/Select carries its variant and lands on
+     the right widget; the six older types pass through untouched) */
+  const gtile = Object.assign(base, { type: shows, brRow: false, entity: ent });
+  if (pres && pres.variant) gtile.variant = pres.variant;
+  return presApply(canonTile(gtile), pres, ent);
 }
 /* a LOOSE entity drawn as a control (v0.76): no device bundle to
    resolve roles from — the entity IS every role it needs */
@@ -2616,21 +2886,24 @@ function looseShowTile(ent, p, idPrefix) {
     icon: "material:devices",
     span: 2
   };
-  const shows = p.shows;
+  const shows = presType(p);
   base.brRow = false;              /* controls are cards — see above */
   let tile;
   if (shows === "volume" || shows === "stepper") {
     /* style decides the shape here too (v0.83.7 unification) */
     const vstyle = shows === "stepper" ? "stepper" :
-      ((p && p.style) ||
-        ((CONFIG.global || {}).style || {}).volume || "compact");
+      resolveVariant(presVariant(p), globalVariant("volume")) || "compact";
     tile = vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
-          bandGen: 1, entity: ent })
+          bandGen: 1, entity: ent, level_entity: ent })
       : Object.assign(base, { type: "volume", entity: ent, bandGen: 1,
           level_entity: ent, slider: vstyle === "slider" });
   }
-  else tile = Object.assign(base, { type: shows, entity: ent });
+  else {
+    tile = Object.assign(base, { type: shows, entity: ent });
+    if (p && p.variant) tile.variant = p.variant;
+    tile = canonTile(tile);     /* Number/Select land on their widget */
+  }
   return presApply(tile, p, ent);
 }
 
@@ -2659,7 +2932,10 @@ function castOf(aid) {
    ================================================================ */
 function expandTile(t) {
   const gen = TILE_GENERATORS[t.type];
-  return gen ? gen(t) : [t];
+  /* canonTile (core/adapters.js): an AUTHORED tile in the canonical
+     type+variant spelling translates to the widgets' working shape
+     here; legacy tiles pass through untouched (Phase 1) */
+  return gen ? gen(t) : [canonTile(t)];
 }
     /* NOTE: `sources` stopped being a generator in v0.35 — it's a plain
      tile now (widgets/sources.js) that opens the sources:<mp> detail.
@@ -2851,7 +3127,8 @@ function genDeviceTiles(t) {
         if (!d) return;
         Object.values(d.roles || {}).forEach(e => {
           if (p.where === "controls") { skipW[e] = 1; return; }
-          if (p.shows && p.shows !== "device") inlineOf[e] = did;
+          const sh = presType(p);
+          if (sh && sh !== "device") inlineOf[e] = did;
           else devPres[e] = p;
         });
       });
@@ -2874,9 +3151,10 @@ function genDeviceTiles(t) {
       if (did) {
         if (doneInline[did]) return null;      /* the bundle collapsed */
         doneInline[did] = 1;
-        return groupChildTile(did, presM[did].shows, t.id, presM[did]);
+        return groupChildTile(did, presType(presM[did]), t.id, presM[did]);
       }
-      if (presM[e] && presM[e].shows && presM[e].shows !== "device")
+      const shE = presType(presM[e]);
+      if (shE && shE !== "device")
         return looseShowTile(e, presM[e], t.id);
       const s = st(e), dom = e.split(".")[0];
       return presApply({
@@ -2966,10 +3244,16 @@ function genVolumeTiles(t) {
     const dopts = act.device_options || {};
     /* fat by default (v0.83.1 — statusreview: "default should be fat"):
        the slider treatment is the default volume everywhere; compact
-       and stepper remain one declaration away */
-    const dflt = t.style ||
-      (act.surface && act.surface.volume_style) ||   /* Controller tab default */
-      ((CONFIG.global || {}).style || {}).volume || "slider";
+       and stepper remain one declaration away. Phase 1: the rungs
+       resolve through the NAMED ladder (core/adapters.js) — the
+       generator tile's own choice, the activity surface default, the
+       global/theme default, the adapter's built-in. Canonical
+       spellings (`variant`, surface.volume_variant) read first;
+       legacy (`style`, surface.volume_style) stay readable. */
+    const dflt = resolveVariant(
+      t.variant || t.style,
+      surfaceVariant(act, "volume"),                 /* Controller tab default */
+      globalVariant("volume")) || "slider";
     const out = [];
     castDeviceIds(act).forEach(did => {
       if (grouped.indexOf(did) >= 0) return;
@@ -2986,7 +3270,10 @@ function genVolumeTiles(t) {
          and STYLE, on the ladder present.style → device_options.
          volume_style → the generator tile's own → global. */
       const pv = presOf(act, did);
-      const style = (pv && pv.style) || o.volume_style || dflt;
+      /* rung 1: the member's own choice (canonical `variant`, legacy
+         `style`), then the legacy device_options pin — read but never
+         written anew (design decision: rung 1's legacy tail) */
+      const style = resolveVariant(presVariant(pv), o.volume_style, dflt);
       const base = {
         id: t.id + "_" + did.replace(/[^a-zA-Z0-9]+/g, "_"),
         entity: ve,
@@ -2994,6 +3281,10 @@ function genVolumeTiles(t) {
         icon: (pv && pv.icon) || d.icon || "material:volume_up",
         span: 2
       };
+      /* the band builds its tiles inline (not via presApply), so the
+         member's card_group rides explicitly (Phase 3) */
+      if (pv && typeof pv.card_group === "string" && pv.card_group)
+        base.card_group = pv.card_group;
       /* WHICH TILE IS "THE VOLUME BAND" (v0.83.7 — Suresh: "the
          volume band is the row associated with the Volume Role"):
          the tile whose entity is the activity's WIRED volume takes
@@ -3002,7 +3293,11 @@ function genVolumeTiles(t) {
          surfDressTile skips those). */
       if (ve !== (act.context || {}).volume) base.bandGen = 1;
       out.push(style === "stepper"
-        ? Object.assign(base, { type: "stepper", kind: "volume" })
+        /* the ARC split rides the stepper too (Phase 0, entity-controls
+           inconsistency #2): converting a volume to Stepper must not
+           drop where the LEVEL actually lives */
+        ? Object.assign(base, { type: "stepper", kind: "volume",
+            level_entity: roles.volume_level || ve })
         : Object.assign(base, {
             type: "volume",
             level_entity: roles.volume_level || ve,
@@ -3023,7 +3318,7 @@ function genVolumeTiles(t) {
         const o2 = dopts[ctxV] || {};
         if (o2.volume !== false) {
           const pv2 = presOf(act, ctxV);
-          const style2 = (pv2 && pv2.style) || o2.volume_style || dflt;
+          const style2 = resolveVariant(presVariant(pv2), o2.volume_style, dflt);
           const base2 = {
             id: t.id + "_" + ctxV.replace(/[^a-zA-Z0-9]+/g, "_"),
             entity: ctxV,
@@ -3034,8 +3329,11 @@ function genVolumeTiles(t) {
                so the label override applies (no bandGen) */
             span: 2
           };
+          if (pv2 && typeof pv2.card_group === "string" && pv2.card_group)
+            base2.card_group = pv2.card_group;
           out.push(style2 === "stepper"
-            ? Object.assign(base2, { type: "stepper", kind: "volume" })
+            ? Object.assign(base2, { type: "stepper", kind: "volume",
+                level_entity: (act.context || {}).volume_level || ctxV })
             : Object.assign(base2, { type: "volume",
                 level_entity: (act.context || {}).volume_level || ctxV,
                 slider: style2 === "slider" }));
@@ -3242,14 +3540,16 @@ function genGroupTiles(t) {
       if (groupedW.indexOf(did) >= 0) return;
       const p = presW[did];
       if (!p || p.where !== "controls") return;
+      const shD = presType(p);
       const tl = groupChildTile(did,
-        (p.shows && p.shows !== "device") ? p.shows : "device", t.id, p);
+        (shD && shD !== "device") ? shD : "device", t.id, p);
       if (tl) gout.push(tl);
     });
     (act.extra_devices || []).forEach(ent => {
       const p = presW[ent];
       if (!p || p.where !== "controls") return;
-      const tl = (p.shows && p.shows !== "device")
+      const shL = presType(p);
+      const tl = (shL && shL !== "device")
         ? looseShowTile(ent, p, t.id)
         : presApply({ type: "device",
             id: t.id + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
@@ -4047,9 +4347,15 @@ function tileSig(sc) {
      (photo presets): body() and the chassis build different DOM and
      classes from them, so a Studio push changing one must re-render
      the grid — the v0.85.4 `style` lesson, applied to the new knobs. */
+  /* type / kind / slider / cycle joined in Phase 2 (entity-controls):
+     the Number adapter's Auto reads entity metadata at expansion, so
+     a tile legitimately flips slider ↔ stepper when state arrives —
+     that is structural, so the signature must see it (the v0.85.4
+     `style` lesson, applied to the canonical reader). */
   return JSON.stringify(tilesOf(sc).map(t =>
     [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
-     t.image, t.image_opacity, t.label_pos, t.css_vars]));
+     t.image, t.image_opacity, t.label_pos, t.css_vars,
+     t.type, t.kind, t.slider, t.cycle, t.card_group]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -4058,8 +4364,15 @@ function entitiesFor(screenId) {
   const sc = screenOf(screenId), set = new Set();
   const add = v => { v = resolveEntity(v, screenId); if (v) set.add(v); };
   /* raw tiles too: a presets_from source entity must be subscribed
-     even though expansion replaces the tile itself */
-  rawTilesOf(sc).filter(visibleTile).concat(tilesOf(sc))
+     even though expansion replaces the tile itself.
+     UNFILTERED on purpose (2026-08-31 — the solitary-select
+     deadlock): a widget that self-hides until state arrives (a
+     chips/picker row with no options yet) was excluded by
+     visibleTile here, so its entity was never subscribed and it
+     could never unhide. Subscribing a hidden tile's entity is
+     harmless; not subscribing it is a lock. */
+  rawTilesOf(sc)
+    .concat(rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), []))
     .forEach(t => { add(t.entity); add(t.level_entity);
       (t.entities || []).forEach(add); groupEntities(t).forEach(add); });
   /* context values that ARE entities get subscribed — but context also
@@ -6337,6 +6650,7 @@ function diagScreen() {
 const STEP_KINDS = {
   temperature: {
     get: e => st(e).a.temperature, fmt: v => (v != null ? v : "–") + "°", step: 1,
+    stepAttr: "target_temp_step", minAttr: "min_temp", maxAttr: "max_temp",
     set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
   },
   brightness: {
@@ -6352,6 +6666,7 @@ const STEP_KINDS = {
   percentage: {
     get: e => { const p = st(e).a.percentage; return p != null ? p : 0; },
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    stepAttr: "percentage_step",
     set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
   },
   position: {
@@ -6365,14 +6680,50 @@ const STEP_KINDS = {
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "v",
     set: (e, v) => callService("cover", "set_cover_position",
       { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
+  },
+  /* THE NUMBER ADAPTER's range (entity-controls Phase 2): the value
+     IS the state, and min/max/step/unit are the ENTITY's own
+     contract — never hard-coded 0..100 or step 3 (the design's
+     Number rule). A missing or malformed step falls back to 1 via
+     nudgeStep's published-attribute guard. Serves number.* and
+     input_number.* — the domain picks the service. */
+  number: {
+    get: e => { const v = parseFloat(st(e).s); return isNaN(v) ? null : v; },
+    fmt: (v, e) => {
+      if (v == null) return "–";
+      const u = (e && st(e).a.unit_of_measurement) || "";
+      return (Math.round(v * 1000) / 1000) + (u ? " " + u : "");
+    },
+    step: 1, stepAttr: "step", minAttr: "min", maxAttr: "max",
+    set: (e, v) => callService((e || "").split(".")[0], "set_value",
+      { value: Math.round(v * 1000) / 1000 }, e)
   }
 };
+/* one range resolution for every consumer (nudge, slider drag, track
+   fill): the entity's published attributes beat the kind's defaults —
+   extracted from nudgeStep (Phase 0 #4), byte-identical precedence */
+function stepBounds(k, e) {
+  const a = st(e).a || {};
+  return {
+    step: k.stepAttr && +a[k.stepAttr] > 0 ? +a[k.stepAttr] : k.step,
+    min: k.minAttr && a[k.minAttr] != null ? +a[k.minAttr] : k.min,
+    max: k.maxAttr && a[k.maxAttr] != null ? +a[k.maxAttr] : k.max
+  };
+}
 function nudgeStep(e, kind, dir) {
   const k = STEP_KINDS[kind];
   if (!k || !e) return;
-  let v = (+k.get(e) || 0) + dir * k.step;
-  if (k.min != null) v = Math.max(k.min, v);
-  if (k.max != null) v = Math.min(k.max, v);
+  /* PHASE 0, entity-controls (inconsistency #4): the entity's OWN
+     published step and range win over the kind's defaults — a climate
+     that declares target_temp_step 0.5 steps by 0.5, a fan that
+     declares percentage_step 25 steps by 25. Kinds without a
+     published attribute keep their defaults, byte-identical.
+     (Resolution now lives in stepBounds so the slider track and the
+     −/+ can never disagree about the range — Phase 2.) */
+  const b = stepBounds(k, e);
+  let v = (+k.get(e) || 0) + dir * b.step;
+  if (b.min != null) v = Math.max(b.min, v);
+  if (b.max != null) v = Math.min(b.max, v);
   k.set(e, v);
 }
 
@@ -6391,7 +6742,13 @@ const CHIP_KINDS = {
   /* v0.57: receivers publish listening modes — MultiChannel Stereo on
      the Onkyo's own page beats bouncing it through Harmony IR */
   sound_mode: { options: e => st(e).a.sound_mode_list, current: e => st(e).a.sound_mode,
-    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) }
+    set: (e, v) => callService("media_player", "select_sound_mode", { sound_mode: v }, e) },
+  /* THE SELECT ADAPTER (entity-controls Phase 2): the entity's own
+     options list, the state as the current choice, select_option to
+     write — select.* and input_select.*, domain picks the service */
+  select: { options: e => st(e).a.options, current: e => st(e).s,
+    set: (e, v) => callService((e || "").split(".")[0], "select_option",
+      { option: v }, e) }
 };
 function cycleChip(e, t, dir) {
   const k = CHIP_KINDS[t.kind], opts = (k && k.options(e)) || [];
@@ -6455,13 +6812,34 @@ const DETAIL_TILES = {
   ],
   switch: e => [
     { id: "dp", type: "power", entity: e, label: "", span: 2 }
+  ],
+  /* entity-controls Phase 2: the native domains get real pages —
+     number is its stepper (the entity's own range), select is its
+     options row. input_* twins share the composers. */
+  number: e => [
+    { id: "ds", type: "stepper", kind: "number", entity: e,
+      icon: "material:tune", label: "", span: 2 }
+  ],
+  select: e => [
+    { id: "dch", type: "chips", kind: "select", entity: e,
+      icon: "material:list", label: "", span: 2 }
   ]
 };
+DETAIL_TILES.input_number = DETAIL_TILES.number;
+DETAIL_TILES.input_select = DETAIL_TILES.select;
+/* PHASE 0, entity-controls (inconsistency #1): domains with no
+   composer (sensor, remote, …) still get a page — a lone readout
+   tile. The launcher fallback (device.js select/hold → detail:<e>)
+   counts on detail: never resolving null for a real entity. */
+const genericDetail = e => [
+  { id: "dr", type: "device", entity: e, tap: "none", label: "", span: 2 }
+];
 /* VOL keys retarget to the device's primary range ON ITS DETAIL SCREEN
    ONLY (everywhere else VOL stays room/activity audio). */
 const DETAIL_VOL_KIND = {
   climate: "temperature", light: "brightness",
-  media_player: "volume", cover: "position", fan: "percentage"
+  media_player: "volume", cover: "position", fan: "percentage",
+  number: "number", input_number: "number"
 };
 
 /* the STOCK domain controllers (config.controllers.<domain>, tiles
@@ -6491,7 +6869,7 @@ function detailScreen(eid) {
   const raw = def
     ? ((def.tiles && def.tiles.length) ? def.tiles
         : (def.sections || []).reduce((a, x) => a.concat(x.tiles || []), []))
-    : (DETAIL_TILES[eid.split(".")[0]] || (() => null))(eid);
+    : (DETAIL_TILES[eid.split(".")[0]] || genericDetail)(eid);
   if (!raw || !raw.length) return null;
   const tiles = def ? bindDeviceTiles(raw, eid) : raw;
   return {
@@ -6511,9 +6889,32 @@ function sourcesScreen(eid) {
   return {
     name: (fn || eid.split(".")[1].replace(/_/g, " ")) + " · Inputs",
     virtual: true,
+    /* pickpage (2026-08-31 — Suresh: "bad formatting"): a page whose
+       whole body is ONE options list sheds the tile chrome — no
+       floating icon, no card skin, no page-sized focus ring; the
+       roving pill highlight is the cursor here */
     tiles: [{ id: "dsrc", type: "chips", kind: "source", entity: eid,
-      icon: "material:input", label: "", span: 2 }],
+      label: "", span: 2, cls: "pickpage", trailing: false }],
     initial_focus: "dsrc"
+  };
+}
+
+/* PICK (entity-controls Phase 2): navigate("pick:<entity>:<kind>") —
+   the Picker variant's destination, sourcesScreen generalized: one
+   chips row of the entity's live options, current highlighted, pick
+   commits. Virtual, so the Picker tile works from any surface. */
+function pickScreen(spec) {
+  const i = spec.lastIndexOf(":");
+  const eid = i > 0 ? spec.slice(0, i) : spec;
+  const kind = i > 0 ? spec.slice(i + 1) : "select";
+  if (!eid || !CHIP_KINDS[kind]) return null;
+  const fn = st(eid).a.friendly_name;
+  return {
+    name: fn || eid.split(".")[1].replace(/_/g, " "),
+    virtual: true,
+    tiles: [{ id: "dpick", type: "chips", kind: kind, entity: eid,
+      label: "", span: 2, cls: "pickpage", trailing: false }],
+    initial_focus: "dpick"
   };
 }
 
@@ -6543,7 +6944,7 @@ function groupScreen(gid) {
   const tiles = (g.members || [])
     .map(did => {
       const p = presOf(act, did);
-      return groupChildTile(did, (p && p.shows) || g.shows || "device",
+      return groupChildTile(did, presType(p) || presType(g) || "device",
         "g_" + gid, p);
     })
     .filter(Boolean);
@@ -6614,6 +7015,8 @@ function screenOf(id) {
     return detailScreen(id.slice(7));
   if (typeof id === "string" && id.startsWith("sources:"))
     return sourcesScreen(id.slice(8));
+  if (typeof id === "string" && id.startsWith("pick:"))
+    return pickScreen(id.slice(5));   /* Select's Picker (Phase 2) */
   if (typeof id === "string" && id.startsWith("queue:"))
     return queueScreen(id.slice(6));
   if (id === "keys:")           /* key capture (v0.55) */
@@ -7637,18 +8040,12 @@ function volHeld(le, l) {
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
-    sub: (e, t) => {
-      /* SLIDER MODE SAYS IT ONCE (v0.83.7 — Suresh, four screenshots
-         deep: "note we duplicate the volume % on the 1st and 3rd"):
-         the center readout owns the number (and the mute glyph), so
-         the title line carries only the name. Compact keeps the
-         "Vol n%" title — its meter has no numeral of its own. */
-      if (t && t.slider !== false) return "";
-      if (volMuted(e, t)) return "Muted";
-      const l = st(lvlEnt(e, t)).a.volume_level;
-      return "Vol " + (l != null ? pct(l) : "–");
-    },
-    inlineSub: true,                 // value rides the title line
+    /* ONE LANGUAGE (2026-08-31 — Suresh: "we need a design language
+       that is consistent"): the control owns its number in BOTH
+       modes now — slider's center readout as always, and compact's
+       value sits under its meter (the stepmid column every numeric
+       row shares). The title line is the name, nothing else. */
+    sub: () => "",
     isOn: e => st(e).s !== "off",
     meter: (e, t) => st(lvlEnt(e, t)).a.volume_level || 0,
     /* NO MORE CAPTURE (2026-08-20 field round 4 — Suresh, volume
@@ -7697,7 +8094,8 @@ WIDGETS.volume = {
       return (sl ? `<div class="sldr"><i></i></div>` : "") +
         `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
-      ${sl ? `<div class="volpct">–</div>` : `<div class="meter"><i></i></div>`}
+      ${sl ? `<div class="volpct">–</div>`
+        : `<div class="stepmid"><div class="meter"><i></i></div><div class="stepval sm">–</div></div>`}
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -7772,7 +8170,8 @@ WIDGETS.volume = {
       const le = lvlEnt(e, t);
       const l = volHeld(le, st(le).a.volume_level);
       const m = volMuted(e, t);
-      const pc = el.querySelector(".volpct");
+      const pc = el.querySelector(".volpct") ||
+        el.querySelector(".stepmid .stepval");   /* compact's readout */
       /* muted: the center % becomes the mute glyph (v0.83.7) — the
          level is still on the track, dimmed, so unmuting is no
          surprise */
@@ -8454,48 +8853,47 @@ WIDGETS.coverbtns = {
       callService("cover", svc, null, resolveEntity(t.entity)))
   };
 
-/* STEPPER — the − value + row (brightness, setpoint, position,
-   percentage…); kind picks entity attribute + service. */
+/* STEPPER — the numeric control family (volume, brightness,
+   setpoint, position, percentage, number…); kind picks entity
+   attribute + service.
+
+   ONE DESIGN LANGUAGE (2026-08-31 — Suresh, four screenshots deep:
+   "In short we need a design language that is consistent"). Every
+   numeric control is one of exactly TWO shapes, sharing the volume
+   widget's proportions (58×46 buttons, 21px/600 value type):
+
+     ROW  — − [track over value] + on one line: the volume-stepper
+            classic, now carrying its number beneath the track (his
+            img-4 ruling: "volume stepper is the way to go (but
+            missing the value)"). The default for every kind and for
+            Number's Stepper/Compact variants. A kind whose bounds
+            don't resolve hides the track and centers the value.
+     FAT  — the big drag track above, − value + row below: the
+            Slider/Vertical variants and the detail-page ranges.
+
+   The 42px display type and the title-line "Vol n%" are RETIRED —
+   the control owns its own number in both shapes; the title line is
+   the name, nothing else. */
 WIDGETS.stepper = {
     /* v0.58: a stepper for a range the device does not expose is a lie
-       that reads 0% forever — the Fire TV reports 22961 (no VOLUME_SET
-       / STEP / MUTE), so its generated detail page drew a dead volume
-       control. Only the volume kind has a feature bit to check; the
-       rest are gated by their own attributes elsewhere. */
+       that reads 0% forever — only the volume kind has a feature bit
+       to check; the rest are gated by their own attributes. */
+    /* ARC split (Phase 0): capability, level reads and level writes
+       all follow t.level_entity when set. Mute stays on the MAIN
+       entity, matching the volume widget's doctrine. */
     hidden: (e, t) => !!e && t.kind === "volume" &&
-      !sfHas(e, MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
-    /* big −/value/+ row bound to a STEP_KINDS range (t.kind).
-       Kinds with a bounded 0-100 range also get a fat slider track
-       (slider: "h" | "v" in STEP_KINDS) above the row — drag or tap
-       sets the value directly; −/+ remain the precision control. */
-    /* THE VOLUME KIND IS ITS OWN SHAPE (v0.83.7 — Suresh: "Volume
-       Slider vs Volume Stepper -- they are pretty much identical...
-       Maybe Volume Stepper is like Compact except a fat slider bar"):
-       exactly that. Compact's layout — "Vol n%" on the title line,
-       −/+ around the middle — but the middle is the fat track IN the
-       row instead of the mini meter, and there is no second track
-       above. Now the four styles are four different controls. */
-    sub: (e, t) => {
-      if (t.kind !== "volume") return "";
-      if (st(e).a.is_volume_muted) return "Muted";
-      const l = st(e).a.volume_level;
-      return "Vol " + (l != null ? pct(l) : "–");
-    },
-    inlineSub: t => t.kind === "volume",
+      !sfHas(lvlEnt(e, t), MPF.VOLUME_SET | MPF.VOLUME_STEP | MPF.VOLUME_MUTE),
+    sub: () => "",
     isOn: e => ACTIVE(st(e).s),
-    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — his AirCon
-       ruling: "DPad Up and Down should navigate the tiles as usual.
-       Left and Right DPad should navigate within the Tiles"): ◀▶
-       nudge the value while focused — volume, brightness, setpoint,
-       position, all of them — ▲▼ always walk, and the last
-       select-captures die. OK's secondary: the volume kind toggles
-       mute; other kinds have no secondary (their tap targets are on
-       screen). Even a vertical slider track adjusts on ◀▶ — one
-       grammar beats axis-matching. */
+    /* VALUE MODE, EVERY KIND (2026-08-20 nav modes — the AirCon
+       ruling): ◀▶ nudge the value while focused, ▲▼ always walk;
+       OK's secondary: the volume kind toggles mute. */
     nav: "value",
     keys: {
-      left:  (e, t) => void nudgeStep(e, (t && t.kind) || "volume", -1),
-      right: (e, t) => void nudgeStep(e, (t && t.kind) || "volume", +1),
+      left:  (e, t) => void nudgeStep(t && t.kind === "volume" ? lvlEnt(e, t) : e,
+        (t && t.kind) || "volume", -1),
+      right: (e, t) => void nudgeStep(t && t.kind === "volume" ? lvlEnt(e, t) : e,
+        (t && t.kind) || "volume", +1),
     },
     select: (e, t) => {
       if (!e || !t || t.kind !== "volume") return;
@@ -8504,61 +8902,88 @@ WIDGETS.stepper = {
       if (cur && cur.a) cur.a.is_volume_muted = next;
       callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
-    body: t => {
-      /* volume: track-in-row, number on the title line — see above */
-      if (t.kind === "volume") return `<div class="steprow vol">
-      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
-      <div class="sldr inrow"><i></i></div>
-      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
-    </div>`;
+    /* which track the tile wants: the FAT deck only via an explicit
+       tile ask (Slider/Vertical variants) or the kind's detail-page
+       default — the volume kind always takes the row (its fat form
+       is the volume widget) */
+    _fat: t => {
+      if (t.kind === "volume") return false;
       const k = STEP_KINDS[t.kind] || {};
-      const sl = k.slider
-        ? `<div class="sldr${k.slider === "v" ? " vert" : ""}"><i></i></div>` : "";
-      /* other kinds (brightness, setpoint, position) keep the big
-         display type — they ARE the page */
-      return sl + `<div class="steprow">
+      return t.slider !== undefined ? t.slider : k.slider;
+    },
+    body: t => {
+      const fat = WIDGETS.stepper._fat(t);
+      if (fat) return `<div class="sldr${fat === "v" ? " vert" : ""}"><i></i></div>
+    <div class="steprow">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
+      return `<div class="steprow vol">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="stepmid"><div class="sldr inrow"><i></i></div><div class="stepval sm">–</div></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
     },
     wire(el, t) {
-      wireTaps(el, "st", d => nudgeStep(resolveEntity(t.entity), t.kind, +d));
+      wireTaps(el, "st", d => nudgeStep(
+        t.kind === "volume" ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity),
+        t.kind, +d));
       const k = STEP_KINDS[t.kind], sl = el.querySelector(".sldr");
       if (!k || !sl) return;
-      /* drag/tap on the track → proportional set. Optimistic fill for
-         responsiveness; service calls throttled, final on release. */
+      /* orientation: the fat deck says, the row is always horizontal */
+      const ori = WIDGETS.stepper._fat(t) || "h";
+      /* drag/tap on the track → proportional set. Optimistic fill;
+         calls throttled, final on release. Bounds via stepBounds:
+         the entity's published min/max win. */
       const apply = (ev, final) => {
         const r = sl.getBoundingClientRect();
-        let f = k.slider === "v"
+        let f = ori === "v"
           ? 1 - (ev.clientY - r.top) / r.height
           : (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
+        sl.firstElementChild.style[ori === "v" ? "height" : "width"] =
           Math.round(f * 100) + "%";
-        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
+        const ent = t.kind === "volume"
+          ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity);
+        const b = stepBounds(k, ent);
+        const min = b.min != null ? b.min : 0, max = b.max != null ? b.max : 100;
         const v = Math.round(min + f * (max - min));
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
           sl._t = now; sl._lastV = v;
-          k.set(resolveEntity(t.entity), v);
+          k.set(ent, v);
         }
       };
-      wireSlider(sl, apply, k.slider);   // intent-gated; covers stay vertical
+      wireSlider(sl, apply, ori);   // intent-gated; covers stay vertical
     },
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
+      const le = t.kind === "volume" ? lvlEnt(e, t) : e;
+      /* the value — BOTH shapes own their number now; volume's mute
+         state swaps it for the glyph, matching the volume widget */
       const sv = el.querySelector(".stepval");
-      if (sv) sv.textContent = k ? k.fmt(k.get(e)) : "–";
-      const sl = el.querySelector(".sldr");
-      if (t.kind === "volume" && sl)
-        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
-      if (sl && k && k.slider && !sl._drag) {   // don't fight the finger
-        const min = k.min != null ? k.min : 0, max = k.max != null ? k.max : 100;
-        const f = Math.max(0, Math.min(1, ((+k.get(e) || 0) - min) / (max - min)));
-        sl.firstElementChild.style[k.slider === "v" ? "height" : "width"] =
-          Math.round(f * 100) + "%";
+      if (sv) {
+        if (t.kind === "volume" && st(e).a.is_volume_muted)
+          sv.innerHTML = `<span class="material-symbols-outlined vmute">volume_off</span>`;
+        else sv.textContent = k ? k.fmt(k.get(le), le) : "–";
       }
+      const sl = el.querySelector(".sldr");
+      if (!sl || !k) return;
+      if (t.kind === "volume")
+        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+      if (sl._drag) return;              // don't fight the finger
+      const b = stepBounds(k, le);
+      const has = b.min != null && b.max != null && b.max > b.min;
+      /* a row track with no resolvable range hides — the value
+         centers alone rather than drawing a 0-100 lie */
+      if (sl.classList.contains("inrow"))
+        sl.classList.toggle("hidden", !has);
+      if (!has) return;
+      const f = Math.max(0, Math.min(1,
+        ((+k.get(le) || 0) - b.min) / (b.max - b.min)));
+      sl.firstElementChild.style[sl.classList.contains("vert") ? "height" : "width"] =
+        Math.round(f * 100) + "%";
     }
   };
 
@@ -8771,7 +9196,14 @@ WIDGETS.device = {
   detailable: true,   /* auto ⚙ trail → the generated detail screen */
   select: (e, t) => {
     const dom = (e || "").split(".")[0];
-    const open = () => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); };
+    /* PHASE 0, entity-controls: a launcher must never be interactive
+       and inert — no authored controller resolving is not a reason to
+       swallow the tap; the entity's generated detail page is the
+       final fallback (design-entity-controls, inconsistency #1). */
+    const open = () => {
+      const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
+      if (tgt) navigate(tgt);
+    };
     if (t.tap === "none") return;      /* a pure readout */
     if (t.tap === "open") return open();
     const verb =
@@ -8781,7 +9213,10 @@ WIDGETS.device = {
     if (verb) return verb();
     open(); /* no verb → the compound page */
   },
-  hold: (e, t) => { const tgt = deviceTarget(t); if (tgt) navigate(tgt); },
+  hold: (e, t) => {
+    const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
+    if (tgt) navigate(tgt);
+  },
 };
 
 /* SOURCES tile (v0.35, role-governed v0.36) — ONE tile that opens the
@@ -8795,9 +9230,15 @@ WIDGETS.device = {
 WIDGETS.sources = {
   /* v0.57: no SELECT_SOURCE on the device -> no input picker to open */
   hidden: e => !!e && !sfHas(e, MPF.SELECT_SOURCE),
+  /* never a BLANK tile (2026-08-31 — Suresh's screenshot: a TV
+     reporting no current source left the tile empty — a mystery, not
+     a control): with inputs to offer, invite the choice instead. */
   sub: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
-    return (mp && st(mp).a.source) || "";
+    if (!mp) return "";
+    const cur = st(mp).a.source;
+    if (cur) return cur;
+    return chipOptions(mp, "source").length ? "Choose input…" : "";
   },
   isOn: () => false,
   select: (e, t) => {
@@ -8806,6 +9247,53 @@ WIDGETS.sources = {
     if (!(st(mp).a.source_list || []).length) { flashBar("No inputs reported"); return; }
     navigate("sources:" + mp);
   }
+};
+
+/* PICKER — the Select adapter's default shape (entity-controls
+   Phase 2): a value tile. The sub line shows the CURRENT option (the
+   sources-tile pattern, generalized to any CHIP_KINDS list), so the
+   tile doubles as a readout. Interactions, remote-first:
+     ◀▶  step through the options in place (the value grammar —
+         the AirCon ruling: no capture, ▲▼ always walk);
+     OK / tap  opens the pick:<entity>:<kind> options page —
+         unless `cycle` (the Cycle variant), where OK/tap steps
+         forward and there is no page.
+   Self-hides when the entity publishes no options (the chips-row
+   doctrine: a control with nothing to choose is chrome). */
+WIDGETS.picker = {
+  hidden: (e, t) => !!e && !chipOptions(e, (t && t.kind) || "select").length,
+  /* the READOUT never goes blank (2026-08-31 — Suresh's screenshot:
+     an empty tile is a mystery, not a control): the current option
+     always shows, and the CYCLE variant also names what the next
+     press brings — "Movie ▸ Night mode". No current yet → invite. */
+  sub: (e, t) => {
+    const kind = (t && t.kind) || "select";
+    const k = CHIP_KINDS[kind];
+    const c = e && k && k.current(e);
+    const cur = c != null && c !== "" && c !== "…" ? deslug(String(c)) : "";
+    if (!cur) return "Choose…";
+    if (!(t && t.cycle)) return cur;
+    const opts = chipOptions(e, kind);
+    const i = opts.indexOf(c);
+    const next = opts.length > 1
+      ? opts[(Math.max(0, i) + 1) % opts.length] : null;
+    return next ? cur + " ▸ " + deslug(String(next)) : cur;
+  },
+  isOn: () => false,
+  nav: "value",
+  keys: {
+    left:  (e, t) => void cycleChip(e, t, -1),
+    right: (e, t) => void cycleChip(e, t, +1),
+  },
+  select: (e, t) => {
+    if (!e) return;
+    if (t && t.cycle) return void cycleChip(e, t, +1);
+    if (!chipOptions(e, (t && t.kind) || "select").length) {
+      flashBar("No options reported");
+      return;
+    }
+    navigate("pick:" + e + ":" + ((t && t.kind) || "select"));
+  },
 };
 
 /* KSLOT — one slot of THE REMOTE on the key-capture screen (v0.56).
@@ -9032,9 +9520,30 @@ function iconHtml(t, row) {
     if (t.brw && !row) inner = `<span class="artbox">${inner}</span>`;
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
+  else if (t.icon && ICON_SET_RE.test(t.icon)) {
+    /* ICON SETS (0.87 — design-icon-sets): "<set>:<name>" resolves to
+       a FILE — /local/harmonium/icons/<set>/<name>.svg — rendered as
+       a CSS-masked block painted with currentColor, so a phu:/mdi:
+       icon tints exactly like a font glyph in every theme. The file
+       is the wiring (the app-logos doctrine); the distiller fills the
+       folder from installed packs, and a hand-dropped SVG works with
+       no tooling at all. Masks fire no error event, so a hidden probe
+       <img> inside detects a missing file → the delegated error
+       handler below swaps in the neutral glyph and remembers the URL
+       (IMG_DEAD) so rebuilt tiles skip the re-request. */
+    const url = "/local/harmonium/icons/" +
+      t.icon.replace(":", "/") + ".svg";
+    inner = IMG_DEAD.has(url)
+      ? `<span class="ic">•</span>`
+      : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
+        `<img class="mprobe" src="${url}" alt=""></span>`;
+  }
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
 }
+/* one set-icon spelling: set and name are file-name-safe tokens
+   (material: is the font and never reaches this test first) */
+const ICON_SET_RE = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/;
 /* photo URLs that failed to load this session — consulted by the
    preset widget so a rebuilt tile skips a known-dead image */
 const IMG_DEAD = new Set();
@@ -9056,6 +9565,17 @@ document.addEventListener("error", ev => {
     const tl = im.closest(".tile");
     if (tl) tl.classList.remove("photo");
     im.parentNode.removeChild(im);
+    return;
+  }
+  /* a SET ICON whose file is missing (0.87 icon sets): the probe img
+     inside the masked span errored — fall back to the neutral glyph
+     and remember, so rebuilds render the fallback directly */
+  if (im.classList.contains("mprobe")) {
+    IMG_DEAD.add(im.getAttribute("src"));
+    const sp = im.parentNode;
+    sp.className = "ic";
+    sp.removeAttribute("style");
+    sp.textContent = "•";
     return;
   }
   const fbk = im.getAttribute("data-fbk");
@@ -9785,11 +10305,34 @@ function navigate(screenId, isBack) {
       grid.appendChild(host);
       anchorEl = anchorEl || host;
     }
+    /* CARD GROUPS (entity-controls Phase 3 — design-card-group-focus):
+       members sharing a non-empty card_group in THIS rendered section
+       merge into one .cardgrp wrapper — first member anchors (its
+       span is the card's footprint), authored order holds, later
+       same-group tiles join the card at the anchor's position. The
+       wrapper is presentation only: each member keeps its #tile_<id>
+       element, so the focus walk, ring, and capture see ordinary
+       tiles. An adapter with no row form renders standalone. */
+    const cgHosts = {};
     vis.forEach(t => {
-      const el = makeTile(t, t.brRow != null ? !!t.brRow : secRow,
-        spanOf(t, secDecl, secCols));
-      host.appendChild(el);
-      anchorEl = anchorEl || el;
+      const sp = spanOf(t, secDecl, secCols);
+      const el = makeTile(t, t.brRow != null ? !!t.brRow : secRow, sp);
+      const gid = typeof t.card_group === "string" && t.card_group &&
+        tileGroupable(t) ? t.card_group : null;
+      if (!gid) {
+        host.appendChild(el);
+        anchorEl = anchorEl || el;
+        return;
+      }
+      let g = cgHosts[gid];
+      if (!g) {
+        g = cgHosts[gid] = document.createElement("div");
+        g.className = "cardgrp" + (sp >= 2 ? " span2" : "");
+        if (sp > 2) g.style.gridColumn = "span " + sp;
+        host.appendChild(g);
+      }
+      g.appendChild(el);
+      anchorEl = anchorEl || g;
     });
     /* v0.85.7 (Suresh: "ChUp and ChDn should jump sections. Since we
        have them."): a TITLED section is a jump stop too — CH▲▼ can
@@ -9948,6 +10491,16 @@ function renderStates() {
     }
     el.querySelector(".hint").textContent = w.captureHint || "";
     if (w.render) w.render(el, eid, t);   // widget-managed dynamic body
+  });
+  /* a card group whose members are ALL hidden is chrome — hide the
+     wrapper too, so it neither draws an empty skin nor traps the
+     walk's geometry (design-card-group-focus §5) */
+  grid.querySelectorAll(".cardgrp").forEach(g => {
+    let any = false;
+    for (let i = 0; i < g.children.length; i++)
+      if (g.children[i].classList.contains("tile") &&
+          !g.children[i].classList.contains("hidden")) { any = true; break; }
+    g.classList.toggle("hidden", !any);
   });
 }
 
