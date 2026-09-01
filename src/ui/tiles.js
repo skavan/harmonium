@@ -33,22 +33,29 @@ function iconHtml(t, row) {
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else if (t.icon && ICON_SET_RE.test(t.icon)) {
-    /* ICON SETS (0.87 — design-icon-sets): "<set>:<name>" resolves to
-       a FILE — /local/harmonium/icons/<set>/<name>.svg — rendered as
-       a CSS-masked block painted with currentColor, so a phu:/mdi:
-       icon tints exactly like a font glyph in every theme. The file
-       is the wiring (the app-logos doctrine); the distiller fills the
-       folder from installed packs, and a hand-dropped SVG works with
-       no tooling at all. Masks fire no error event, so a hidden probe
-       <img> inside detects a missing file → the delegated error
-       handler below swaps in the neutral glyph and remembers the URL
-       (IMG_DEAD) so rebuilt tiles skip the re-request. */
-    const url = "/local/harmonium/icons/" +
-      t.icon.replace(":", "/") + ".svg";
-    inner = IMG_DEAD.has(url)
-      ? `<span class="ic">•</span>`
-      : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
-        `<img class="mprobe" src="${url}" alt=""></span>`;
+    /* ICON SETS (0.87 re-cut, 2026-09-01 — Suresh: "live preview in
+       the studio and then mint into the deployed artifacts"): every
+       deploy bakes the referenced icons' PATH DATA into the config
+       (store.py minting → CONFIG.icon_paths), so a phu:/mdi: icon is
+       inline SVG here — currentColor-tinted like a font glyph, zero
+       runtime dependency on any pack or file. A hand-dropped SVG in
+       www/harmonium/icons/<set>/<name>.svg survives as the fallback
+       (mask + probe, exactly the app-logos machinery); a name
+       nothing supplies falls to the neutral glyph. */
+    const ip = (CONFIG.icon_paths || {})[t.icon];
+    if (ip && ip.path) {
+      const vb = String(ip.viewBox || "0 0 24 24").replace(/[^0-9 .-]/g, "");
+      const d = String(ip.path).replace(/["<>&]/g, "");
+      inner = `<span class="ic icsvg"><svg viewBox="${vb}" aria-hidden="true">` +
+        `<path d="${d}" fill="currentColor"/></svg></span>`;
+    } else {
+      const url = "/local/harmonium/icons/" +
+        t.icon.replace(":", "/") + ".svg";
+      inner = IMG_DEAD.has(url)
+        ? `<span class="ic">•</span>`
+        : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
+          `<img class="mprobe" src="${url}" alt=""></span>`;
+    }
   }
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;

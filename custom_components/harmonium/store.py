@@ -18,7 +18,7 @@ from homeassistant.helpers.storage import Store
 
 from .catalogs import merge_config, stock_catalogs
 from .const import DEPLOY_DIR, STORAGE_KEY, STORAGE_VERSION
-from .icons import distill_icons, frontend_root
+from .icons import frontend_root, mint_icon_paths
 from .workspaces import deploy_file, empty_store, migrate, stub_html
 
 # one-deep undo for reseed (lives beside config.json)
@@ -94,6 +94,30 @@ class HarmoniumStore:
 
     async def deploy(self, ws: str, config) -> Path:
         path = self.deploy_path(ws)
+        # MINT THE ICONS (2026-09-01 — Suresh: "live preview in the
+        # studio and then mint into the deployed artifacts"): every
+        # set icon the config references resolves to its path data
+        # HERE, baked into the deployed file as icon_paths — the
+        # remote renders inline SVG with no pack dependency. Deploy-
+        # only: the stored layer never carries it. A failure never
+        # blocks the deploy — the engine falls back per icon.
+        try:
+            if isinstance(config, dict):
+                rep = await self.hass.async_add_executor_job(
+                    mint_icon_paths, config,
+                    Path(self.hass.config.path("www")), frontend_root())
+                config = dict(config)
+                config.pop("icon_paths", None)
+                if rep["found"]:
+                    config["icon_paths"] = rep["found"]
+                    _LOGGER.info("minted %d icon(s) into %s",
+                                 len(rep["found"]), deploy_file(ws))
+                for miss in rep["missing"]:
+                    _LOGGER.warning("icon %s: not in the installed pack", miss)
+                for st in rep["no_source"]:
+                    _LOGGER.warning("icon set '%s': no installed pack found", st)
+        except Exception:  # noqa: BLE001 — icons never block a deploy
+            _LOGGER.exception("icon minting failed (deploy unaffected)")
         await self.hass.async_add_executor_job(write_json, path, config)
         # the workspace's ADDRESS: /local/harmonium/<ws>/ — MAIN
         # INCLUDED (v0.48.3, Suresh: "workspacename/index.html
@@ -101,24 +125,6 @@ class HarmoniumStore:
         # kiosks; the engine canonicalizes the bar to <ws>/index.html.
         await self.hass.async_add_executor_job(
             write_text, self.stub_path(ws), stub_html(ws))
-        # ICON DISTILLATION (0.87 — icons.py): every deploy tops up
-        # www/harmonium/icons/ with the set icons THIS config
-        # references, extracted from packs the user installed (phu:
-        # HACS module, mdi: HA's own frontend). Cheap (writes only
-        # what's missing or ours-and-stale), and a failure never
-        # blocks the deploy — the engine falls back per icon.
-        try:
-            report = await self.hass.async_add_executor_job(
-                distill_icons, Path(self.hass.config.path("www")),
-                config, frontend_root())
-            if report["written"]:
-                _LOGGER.info("distilled %d icon(s): %s",
-                             len(report["written"]),
-                             ", ".join(report["written"]))
-            for miss in report["missing"]:
-                _LOGGER.warning("icon %s: not in the installed set", miss)
-        except Exception:  # noqa: BLE001 — icons never block a deploy
-            _LOGGER.exception("icon distillation failed (deploy unaffected)")
         return path
 
     async def retire(self, ws: str) -> None:

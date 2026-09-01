@@ -675,10 +675,20 @@ function renderStates() {
        not in this case"): a tile-level sub_text beats the widget's
        smart summary — "" included, which means "no status line".
        Presentation (presApply) is the setter today. */
-    el.querySelector(".sub").textContent =
+    /* the pre-state placeholder ("…") is an internal sentinel and
+       must never reach a status line (2026-09-01, his preview: a
+       tile with a bad entity read "…" under its name) — a bare "…"
+       collapses to no line at all, whatever widget produced it */
+    const subT =
       typeof t.sub_text === "string" ? subTextOf(t.sub_text, eid)
         : typeof w.sub === "function" ? w.sub(eid, t) : "";
+    el.querySelector(".sub").textContent = subT === "…" ? "" : subT;
     el.classList.toggle("on", !!(w.isOn && w.isOn(eid, t)));
+    /* Wave B (the control language): CAPABILITY hides, STATE greys —
+       an unavailable device keeps its full chassis, greyed, actions
+       live, so a list never reflows because the network blinked */
+    el.classList.toggle("unav",
+      !!eid && (st(eid).s === "unavailable" || st(eid).s === "unknown"));
     el.classList.toggle("confirm", S.confirmTile === t.id);
     const m = el.querySelector(".meter");
     if (m && w.meter && eid) {

@@ -7,14 +7,35 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
 <style>
 :root {
-    --bg: #0d0f12;
-    --tile: #1a1e24;
-    --tile-hi: #232932;
-    --text: #e8eaed;
-    --dim: #8a919c;
-    --accent: #ffb300;
-    --on: #ffd54f;
-    --wash: rgba(255,179,0,.10);
+    /* THE SKIN TOKENS (v3 canvas, ruled 2026-08-31 — Suresh: "I
+       want those passes"): the inferred hexes are the shipped skin.
+       Themes override any of these per profile as before. */
+    --bg: #0a0b0d;              /* canvas */
+    --tile: #171e27;
+    --tile-hi: #222b36;         /* control surface */
+    /* ---- V4 §0 track/geometry tokens (2026-09-01, pasted as
+       specced — geometry is authorable, the rest derives) ---- */
+    --track-inset: 2px;         /* channel-to-fill gap, all sides */
+    --lead-ratio: 3;            /* aspect for a full leading corner */
+    --fill-min: 4px;            /* floor: small values never vanish */
+    --track-h-1: 44px;          /* fat track */
+    --track-h-2: 32px;          /* compact track */
+    --btn-w: 58px;              /* ± button */
+    --btn-h: 46px;              /* ± buttons, pills, actions */
+    --focus-w: 2px;             /* d-pad focus ring */
+    --focus-offset: 2px;        /* outset; negated on a card */
+    --track-channel: #1a212b;   /* recessed channel */
+    --track-hairline: #2a3340;  /* channel edge */
+    --radius-inner: calc(var(--radius) - var(--track-inset));  /* derived */
+    --ctl-dis: #141a22;         /* disabled surface */
+    --text: #f2f5f8;
+    --dim: #98a2ae;             /* text · secondary */
+    --faint: #5b6674;           /* text · disabled */
+    --accent: #ffb020;
+    --accent-ink: #14181d;      /* ink on an accent fill */
+    --on: #ffb020;              /* accent means active — one colour rule */
+    --ok: #4ade80;              /* status · online */
+    --wash: rgba(255,176,32,.10);
     --danger: #e05252;
     --radius: 12px;
     /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
@@ -152,7 +173,7 @@
     color: var(--text); white-space: pre; overflow: hidden;
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
-  #dot.ok { background: #4caf7d; }
+  #dot.ok { background: var(--ok, #4ade80); }
   /* ⓘ hit zone: ~56×52 finger target (v0.85.7 — Suresh: "really hit
      or miss"; padding grows the tap area, negative margin keeps the
      glyph visually where it was) */
@@ -595,7 +616,7 @@
   .tile.wgt-media.poster .trail .ic.material-symbols-outlined,
   .tile.wgt-media.hero .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
   .tile.wgt-media.poster .trail:active,
-  .tile.wgt-media.hero .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.hero .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined,
   .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
   .tile.wgt-media.poster .trail.focused,
@@ -642,7 +663,7 @@
   .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
   .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
-  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }
+  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: var(--accent-ink, #14181d); }
   .trow .trbig:active { background: var(--on); }
   .trow .trbig .material-symbols-outlined { font-size: 38px; }
   .tile.wgt-transport .top, .tile.wgt-transport .sub, .tile.wgt-transport .hint { display: none; }
@@ -669,7 +690,7 @@
   .pwrow { display: flex; justify-content: center; padding: 6px 0 2px; }
   .pwbtn { width: 64px; height: 64px; border-radius: 50%; }
   .pwbtn .material-symbols-outlined { font-size: 30px; }
-  .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
+  .tile.wgt-power.on .pwbtn { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
   .tile.wgt-power { min-height: 0; background: transparent; }
   /* ONE NUMERIC LANGUAGE (2026-08-31 — Suresh: "we need a design
@@ -677,21 +698,23 @@
      VOLUME proportions — 58×46 buttons, the 21px/600 value type —
      whether it's a volume band, a Number tile, or a detail page.
      The 42px display type is retired. */
-  .steprow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 2px 0; }
-  .steprow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
-  .steprow.vol { padding-top: 6px; }
-  /* the ROW shape's middle: track over value (img-4) — together they
-     stand the height of the buttons, so rows of mixed kinds align */
-  .stepmid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .stepmid .sldr.inrow { flex: none; min-width: 0; margin: 0; height: 30px; border-radius: 9px; }
-  .stepmid .stepval,
-  .stepval.sm { font-size: 14px; font-weight: 600; line-height: 1; }
-  /* volume Compact's mini meter, in the language: a visible 12px
-     bar over the value (the 6px whisper vanished in the column).
-     The .volrow .stepmid qualifier outranks controls.css's
-     .volrow .meter rules — controls.css loads last. */
-  .volrow .stepmid .meter,
-  .stepmid .meter { flex: none; margin-top: 8px; height: 12px; border-radius: 6px; }
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; padding: 0; }
+  .steprow .dpbtn { width: var(--btn-w, 58px); height: var(--btn-h, 46px); border-radius: var(--radius, 12px); flex: 0 0 auto; }
+  /* a row under a FAT track opens 10px, not the title's 8 (v3:
+     156 = 12 + 22 + 10 + 44 + 10 + 46 + 12) */
+  .sldr + .steprow { margin-top: 10px; }
+  /* COMPACT's middle (the control language): the 32px track with
+     the value INSET, right-aligned — the track carries its number.
+     Past ~88% fill the value flips to accent ink (render toggles
+     .flip) so it stays legible over the fill. */
+  .sldr.inrow { flex: 1; min-width: 0; margin: 0; }
+  .sldr .inval {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; font-weight: 600; font-style: normal;
+    font-variant-numeric: tabular-nums; color: var(--text); z-index: 1;
+  }
+  .sldr .inval.flip { color: var(--accent-ink, #14181d); }
+  .sldr .inval .vmute { font-size: 16px; color: var(--accent); vertical-align: -3px; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums;
@@ -702,31 +725,54 @@
   /* the numeric shapes own their number — the block-level sub is
      never part of them */
   .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
-  /* stepper slider: fat touch track, fill = value; −/+ row stays below */
+  /* THE TRACK (V4 §2, 2026-09-01 — fully tokenised; supersedes the
+     v3 flat leading edge). Channel: recessed, hairline inside the
+     radius. Fill: inset --track-inset, trailing corners inner,
+     LEADING corner read from the fill's own aspect — square at 1:1,
+     full at --lead-ratio (default 3:1). SYNTAX FLOOR (Chromium 61,
+     the stock Astrion webview — probe-syntax-floor): CSS min()/
+     clamp()/inset need 79+/87+, so the V4 derivations run in
+     registry.js setFill, which reads the SAME theme tokens and
+     writes px — the formula and the knobs are unchanged, only where
+     the arithmetic happens. The clamp min(--radius, h/2) is
+     identity at every shipped height (engages below 24px only). */
   .sldr {
-    position: relative; height: 44px; border-radius: 12px;
-    background: #2c333d; overflow: hidden; margin: 6px 0 10px;
+    position: relative; height: var(--track-h-1, 44px);
+    border-radius: var(--radius, 12px);
+    background: var(--track-channel, #1a212b);
+    box-shadow: inset 0 0 0 1px var(--track-hairline, #2a3340);
+    overflow: hidden; margin: 10px 0 0;
     /* pan-y, not none (v0.83.11): a vertical swipe that starts on the
        track belongs to the PAGE — wireSlider only claims committed
        horizontal drags (vertical tracks get pan-x inline) */
     touch-action: pan-y; cursor: pointer;
   }
   .sldr i {
-    display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+    display: block; position: absolute;
+    left: var(--track-inset, 2px); top: var(--track-inset, 2px);
+    bottom: var(--track-inset, 2px);
+    width: 0; border-radius: 10px;   /* setFill writes both per fill */
     background: var(--accent); transition: none;
   }
+  .sldr.inrow { height: var(--track-h-2, 32px); }
   .sldr.vert { height: 300px; width: 92px; margin: 6px auto 10px; }
-  .sldr.vert i { top: auto; right: 0; bottom: 0; left: 0; width: 100%; height: 0%; }
+  .sldr.vert i { top: auto; left: var(--track-inset, 2px);
+    right: var(--track-inset, 2px); bottom: var(--track-inset, 2px);
+    width: auto; height: 0%; max-height: calc(100% - 4px);
+    border-radius: 10px; }
   .tile.wgt-stepper .top .ic, .tile.wgt-chips .top .ic { color: var(--dim); }
   .tile .lbl:empty { display: none; }
-  /* option buttons: preset-tile sized, 3-up grid */
-  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 0 2px; }
+  /* option buttons: 3 columns ALWAYS (v3 — a four-item set leaves
+     the last cell empty rather than reflowing to 2-up), 10px gaps */
+  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 0 0; }
+  /* pills ride the 46px button height and the ONE 12px radius
+     (Wave B — the control language) */
   .chip {
-    border: 0; font: inherit; font-size: 15px; color: var(--text);
-    background: var(--tile-hi); border-radius: 14px; min-height: 56px;
+    border: 0; font: inherit; font-size: 15px; font-weight: 600; color: var(--text);
+    background: var(--tile-hi); border-radius: var(--radius, 12px); min-height: var(--btn-h, 46px);
     padding: 8px 6px; cursor: pointer;
   }
-  .chip.on { background: var(--accent); color: #1a1400; font-weight: 700; }
+  .chip.on { background: var(--accent); color: var(--accent-ink, #14181d); font-weight: 600; }
   /* OPTIONS-MODE ROVING (2026-08-20 nav modes): ◀▶ walk this
      highlight through the pills; OK commits it. Distinct from .on
      (the committed value) — an outline, not a fill. */
@@ -866,8 +912,11 @@
        sure label isn't selectable so it doesn't mess with drag") */
     -webkit-user-select: none; user-select: none;
     background: var(--tile); border-radius: var(--radius);
-    padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 14px); min-height: var(--tile-h);
-    border: 2px solid transparent;
+    /* the 2px focus/confirm border lives INSIDE the 12/14 spec
+       padding (v3: content sits at 12/14 from the card edge) */
+    padding: calc(var(--tile-pad-y, 12px) - 2px) calc(var(--tile-pad-x, 14px) - 2px);
+    min-height: var(--tile-h);
+    border: var(--focus-w, 2px) solid transparent;
     box-shadow: var(--tile-shadow, none);   /* per-tile css_vars hook */
     display: block;
     min-width: 0;               /* let grid columns shrink below content */
@@ -900,8 +949,7 @@
     border-radius: calc(var(--radius) - 4px);
   }
   .cardgrp > .tile + .tile {
-    margin-top: 2px;
-    box-shadow: 0 -2px 0 -1px var(--tile-hi, #2c333d);
+    margin-top: -10px;   /* 12 + 12 pads − 10 = the v3 14px member gap */
   }
   /* PICK PAGE (2026-08-31 — "bad formatting"): the sources:/pick:
      virtual screens are ONE options list — the tile sheds its card
@@ -915,10 +963,24 @@
   .tile.pickpage .top, .tile.pickpage .sub { display: none; }
   .tile.pickpage .chiprow { gap: 10px; padding-top: 4px; }
   .tile.pickpage .chip { padding: 12px 14px; }
+  /* FOCUS (v3 — "a card can hold focus, ring INSET on the tile",
+     re-ruled 2026-08-31 after the doubled-ring field report: the
+     outside outline stacked on cfm-on's border pulse when starting
+     an activity, and any offset overflows the card edge). The ring
+     is the 2px border slot every tile already reserves — zero
+     offset, zero layout shift, and the confirm/captured cues own
+     the same slot so they can never double. */
   .tile.focused {
     border-color: var(--accent);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
   }
+  /* UNAVAILABLE keeps its chassis (Wave B): grey the identity, keep
+     the box and the actions — a list never reflows because the
+     network blinked. Capability still hides (v0.57); this is STATE. */
+  .tile.unav .top .ic, .tile.unav .lbl { opacity: .45; }
+  .tile.unav .sub { color: var(--faint, #5b6674); }
+  /* an ON device tile carries its status value in accent (Wave B) */
+  .tile.wgt-device.on .sub { color: var(--accent); }
   .tile.captured { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,179,0,.25), inset 0 0 22px rgba(255,179,0,.08); }
   .tile.confirm {
     border-color: var(--danger);
@@ -938,6 +1000,12 @@
     animation: cfmpulse .9s ease-in-out infinite;
   }
   .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tile.wgt-volume .top, .tile.wgt-stepper .top, .tile.wgt-chips .top,
+  .tile.dvi .top, .tile.dvc .top, .tile.wgt-picker .top { height: 22px; }
+  /* launcher cards centre their identity block in the 84px chassis */
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) {
+    display: flex; flex-direction: column; justify-content: center;
+  }
   /* browse thumbnails that are brand WORDMARKS (v0.49.1: "SONOS"
      was center-cropping to "N") — contain on a light chip */
   .tile .top > img.contain, .tile.row .icwrap img.contain {
@@ -966,14 +1034,42 @@
     -webkit-mask-position: center; mask-position: center;
   }
   .ic.icmask .mprobe { display: none; }
+  /* minted set icons: inline SVG, painted with currentColor (the
+     2026-09-01 ruling — path data rides the deployed config) */
+  .ic.icsvg { display: inline-block; width: 24px; height: 24px;
+    vertical-align: -5px; }
+  .ic.icsvg svg { display: block; width: 100%; height: 100%; }
   .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
     font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
-  /* inline sub: value on the title line, right-aligned, a notch bigger */
+  /* AN EMPTY STATUS LINE LEAVES NO HOLE (v3 canvas, the one-chassis
+     rule): a control that owns its number drops the line entirely —
+     the card heights (fat 156, compact 100) sum WITHOUT it. Rows
+     keep their slot: one list height whether a status exists. */
+  .tile:not(.row) .sub:empty { display: none; }
+  /* inline sub: value on the title line, right-aligned — the v3
+     title-row value slot, 14/600 tabular */
   .tile .sub.subin {
     margin: 0 0 0 auto; min-height: 0; flex-shrink: 0;
-    font-size: var(--fs-1); padding-left: 8px;
+    font-size: 14px; font-weight: 400;
+    font-variant-numeric: tabular-nums; padding-left: 8px;
   }
+  /* a STATE in the value slot (cover compact) reads 14/600; a picked
+     option (source rows) stays 14/400 secondary */
+  .tile.wgt-device .sub.subin { font-weight: 600; }
+  /* v3 rows: the 24px unboxed chevron page cue, name+value clear it */
+  .tile .pickcue {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 24px; color: var(--dim); pointer-events: none;
+  }
+  .tile.haspickcue { position: relative; }
+  .tile.haspickcue .top { padding-right: 32px; }
+  .tile.wgt-picker:not(.row), .tile.wgt-sources:not(.row),
+  .tile.wgt-nav.nav-plain:not(.row), .tile.wgt-nav.nav-summary:not(.row),
+  .tile.wgt-grouplaunch:not(.row) {
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .tile.wgt-sources:not(.row) .top { height: 22px; }
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
   /* per-tile accent (v0.48.3 — Suresh: "simply color the icon circle
@@ -1081,7 +1177,7 @@
     letter-spacing: .04em; padding: 6px 8px; border-radius: 10px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .brscb.on { background: var(--accent); color: var(--accent-ink, #1a1400); }
+  .brscb.on { background: var(--accent); color: var(--accent-ink, var(--accent-ink, #14181d)); }
   .brchipq, .brchipv { padding-bottom: 3px; }
   .brchipq .material-symbols-outlined, .brchipv .material-symbols-outlined {
     font-size: calc(var(--chip-fs, 12.5px) + 6.5px); display: block;
@@ -1420,7 +1516,7 @@
   .trail > * { pointer-events: none; }
   .trail .ic { width: auto; }
   .trail .ic.material-symbols-outlined { font-size: 26px; }
-  .trail:active { background: var(--accent); color: #1a1400; }
+  .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .trail.focused {
     border-color: var(--accent); color: var(--text);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
@@ -1465,7 +1561,7 @@
   .tile.wgt-media.art .trail .ic.material-symbols-outlined,
   .tile.wgt-media.art .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
   .tile.wgt-media.art .trail:active,
-  .tile.wgt-media.art .trail.tracc:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.art .trail.tracc:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-media.art .trail.focused,
   .tile.wgt-media.art .trail.tracc.focused {
     /* borderless — the focus ring is an inset shadow instead */
@@ -1473,8 +1569,27 @@
     background: linear-gradient(to right,
       rgba(13, 15, 18, .15), rgba(13, 15, 18, .7) 45%, rgba(13, 15, 18, .92));
   }
-  .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
-  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
+  /* the read-only METER rides the track rules (2026-09-01):
+     12 tall, radius 6, channel + hairline, fill inset 2 at radius 4
+     with the same 4px floor */
+  .meter { height: 12px; border-radius: 6px;
+    background: var(--track-channel, #1a212b);
+    box-shadow: inset 0 0 0 1px var(--track-hairline, #2a3340);
+    margin-top: 8px; overflow: hidden; position: relative; }
+  .meter i { display: block; position: absolute;
+    left: 2px; top: 2px; bottom: 2px;
+    max-width: calc(100% - 4px); min-width: 4px; border-radius: 4px;
+    background: var(--accent); transition: width .15s; }
+  .meter i.nil, .meter i[style*="width: 0%"] { min-width: 0; }
+  /* the Now Playing PROGRESS is the scoped exception: those card
+     heights are LOCKED (v0.85 — "size locked and not jumping
+     around"), designed around the slim bar — the 12px system meter
+     would grow every hero. Channel colour, no hairline (a 1px line
+     inside 4px degenerates). */
+  .meter.npprog { height: 4px; border-radius: 2px; box-shadow: none;
+    margin-top: 8px; }
+  .meter.npprog i { left: 0; top: 0; bottom: 0; border-radius: 2px;
+    min-width: 0; max-width: 100%; }
 
   /* touch buttons (dpad + volume) */
   .dpbtn {
@@ -1482,7 +1597,7 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; font: inherit; padding: 0;
   }
-  .dpbtn:active { background: var(--accent); color: #1a1400; }
+  .dpbtn:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .dpbtn > * { pointer-events: none; }
   .dpbtn { overflow: hidden; }
   .dp-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 4px; }
@@ -1509,13 +1624,17 @@
   .dp-pad .ok {
     top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 76px; height: 76px;
-    background: var(--accent); color: #1a1400; font-weight: 800;
+    background: var(--accent); color: var(--accent-ink, #14181d); font-weight: 800;
   }
   .dp-pad .ok:active { background: var(--on); }
   .tile.wgt-dpad { min-height: 412px; }
-  .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-  .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
-  .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+  /* geometry consistent with the stepper rows (control language,
+     2026-08-31): 8px under the title, 2px under a fat track — the
+     volume and number decks measure identical */
+  .volrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .sldr + .volrow { margin-top: 10px; }
+  .volrow .dpbtn { width: var(--btn-w, 58px); height: var(--btn-h, 46px); border-radius: var(--radius, 12px); flex: 0 0 auto; }
+  .volrow .meter { flex: 1; margin-top: 0; }
   /* slider mode's center readout (v0.83.3) — same row height as the
      meter it replaced; sized to the 46px button row, not the
      stepper's 42px display type */
@@ -1529,6 +1648,37 @@
      unmuting lands where you expect */
   .volrow .volpct .vmute { font-size: 24px; color: var(--accent); vertical-align: -3px; }
   .sldr.muted i, .meter.muted i { opacity: .3; }
+  /* ---- DEVICE-TILE DENSITIES (v3 canvas — ONE chassis: "a device
+     tile is the numeric card". Fat (.dvi, h156) is the fat slider
+     unmodified: title row, 44px track, one 46px action row —
+     continuous domains put the value at 21px between the ± buttons,
+     discrete domains fill the row with three stretched buttons and
+     the value moves INTO the track. Compact (.dvc, h100) is the
+     compact card: continuous = − [32px track, value inset] +,
+     discrete = the trio fills the row and the value sits top-right
+     in the title row. The v2 fixed side cluster is retired — it
+     starved every name at the panel's real 349px. ---- */
+  .devrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .devrow .dpbtn { flex: 1; width: auto; height: var(--btn-h, 46px); border-radius: var(--radius, 12px); }
+  .sldr + .devrow { margin-top: 10px; }
+  .devrow + .devrow { margin-top: 10px; }
+  /* a disabled action keeps its BOX (disabled surface + glyph) so
+     the trio never shifts */
+  .dpbtn.dis { background: var(--ctl-dis, #141a22);
+    color: var(--faint, #5b6674); pointer-events: none; }
+  /* fat's detail route: the 24px UNBOXED tune glyph in the title
+     row (a 58×46 button would force the tile to 180) — hit area
+     padded to 44×44, glyph right edge on the content edge */
+  .tile.dvi .trail {
+    top: 1px; right: 4px; bottom: auto; width: 44px; height: 44px;
+    background: transparent; color: var(--dim);
+  }
+  .tile.dvi .trail .ic.material-symbols-outlined { font-size: 24px; }
+  .tile.dvi .trail:active { background: transparent; color: var(--accent); }
+  .tile.dvi.has-trail { padding-right: var(--tile-pad-x, 14px); }
+  .tile.dvi.has-trail .top { padding-right: 34px; }
+  /* the value INSIDE a fat track (discrete readout) rides at 21px */
+  .sldr:not(.inrow) .inval { font-size: 21px; right: 14px; }
   /* SPEAKER-GROUP TILES (2026-08-20 nav modes — the spkgrp: page is
      real tiles now): member/group-volume rows reuse the volume-row
      chassis; the % rides inside the fat track; link toggles keep
@@ -1558,7 +1708,7 @@
     width: 52px; height: 40px; border-radius: 12px;
   }
   .tile.wgt-grpmember .gjoin.on {
-    background: var(--accent); color: #1a1400;
+    background: var(--accent); color: var(--accent-ink, #14181d);
   }
   .tile.wgt-grpmember .rslpct, .tile.wgt-grpvol .rslpct {
     position: absolute; top: 0; right: 0; bottom: 0; left: 0;
@@ -1615,9 +1765,14 @@
   /* list-row variant (grid.columns = 1) — height rides the global
      tile-height knob (6px slimmer than grid tiles, matching the 84/78
      defaults); --tile-row-h overrides independently (Code tab) */
+  .tile.wgt-device:not(.dvi) .trail {
+    top: 50%; transform: translateY(-50%); bottom: auto;
+    width: 58px; height: 46px; right: 14px;
+  }
+  /* ONE list height (v3): rows are 84 like every tile, status or not */
   .tile.row {
     display: flex; flex-direction: row; align-items: center; gap: var(--tile-gap);
-    min-height: var(--tile-row-h, calc(var(--tile-h) - 6px));
+    min-height: var(--tile-row-h, var(--tile-h));
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 16px);
   }
   .tile.row .icwrap {
@@ -2510,12 +2665,12 @@ function classLaunch(e) {
    any entity — the Launcher rule). `role`: the device-library claim
    it binds to (null = none needed). `variants`: the legal shapes,
    [] = single shape. `dflt`: the adapter's built-in default shape.
-   Number/Select rows land in Phase 2 — reserving the tokens here
-   would put dead choices in every Draws-as list. */
+   Fan/Cover (final 0.87 review) are the density controls promoted
+   to first-class Draws-as — the Launcher is a launcher again. */
 var ADAPTERS =
 /* @adapter-table-begin v1 */
 {
-  device:    { role: null,            variants: [] },
+  device:    { role: null, variants: [] },
   volume:    { role: "volume",        domains: ["media_player"],
                variants: ["compact", "slider", "stepper"], dflt: "slider" },
   power:     { role: "power",
@@ -2534,6 +2689,10 @@ var ADAPTERS =
   select:    { role: null, domains: ["select", "input_select"],
                variants: ["auto", "picker", "cycle", "chips"],
                dflt: "auto" },
+  fan:       { role: null, domains: ["fan"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  cover:     { role: null, domains: ["cover"],
+               variants: ["inline", "compact"], dflt: "inline" },
 }
 /* @adapter-table-end */
 ;
@@ -2592,6 +2751,32 @@ function canonTile(t) {
        carries the matching hash-form ruling. */
     return c;
   }
+  /* FAN / COVER CONTROLS (final 0.87 review — Suresh: "DRAWS AS…
+     Surely it should be Launcher or Fan Control"): the density
+     control is a FIRST-CLASS Draws-as, not a dress on the Launcher.
+     Canonical spelling {type:"fan"|"cover", variant:"inline"|
+     "compact"}; the working shape stays the device widget with a
+     density. A density tile is ITS OWN COMPONENT (the v2 canvas):
+     it pins the card chassis and the 2-wide span, whatever section
+     it lands in — the row chassis and the 223px column were how the
+     shapes broke in his screenshots. Compact takes the .dvc chassis
+     and owns its right edge, so the trailing zone goes. */
+  if (t.type === "fan" || t.type === "cover") {
+    const c = Object.assign({}, t);
+    const v = c.variant === "compact" ? "compact" : "inline";
+    delete c.variant;
+    return densityDress(c, v);
+  }
+  /* the Wave C spelling ({type:"device", variant}) survives as a
+     COMPAT READ — envelopes saved before the fan/cover adapters
+     landed render identically; the Studio heals them on load */
+  if (t.type === "device" && t.variant && t.variant !== "auto") {
+    const c = Object.assign({}, t);
+    const v = c.variant;
+    delete c.variant;
+    if (v === "inline" || v === "compact") return densityDress(c, v);
+    return c;
+  }
   /* THE NUMBER ADAPTER (Phase 2): rides the stepper widget with
      kind "number" (STEP_KINDS.number — the entity's own range).
      Slider/Vertical add the fat track; Auto is DETERMINISTIC and
@@ -2607,10 +2792,14 @@ function canonTile(t) {
     c.kind = "number";
     if (v === "slider") c.slider = "h";
     else if (v === "vertical") c.slider = "v";
-    /* stepper AND compact: the ROW shape — − [track over value] +
-       (the unified numeric language, 2026-08-31; Compact may later
-       earn a shorter chassis, but the shape is one) */
-    else c.slider = false;
+    else {
+      c.slider = false;
+      /* the control language (2026-08-31): COMPACT = the 32px track
+         with the value inset (scrubbable); STEPPER = trackless, the
+         value alone at 21px — a track means scrubbable, and its
+         absence is what makes the stepper a different control */
+      if (v === "compact") c.inset = true;
+    }
     return c;
   }
   /* THE SELECT ADAPTER (Phase 2): Auto = Picker. Period. (the design
@@ -2651,6 +2840,19 @@ function canonTile(t) {
     return c;
   }
   return t;
+}
+/* the density working shape, shared by both spellings above and by
+   presApply (gen-cast.js): the device widget + density, card
+   chassis, 2-wide — never the row form, never a 1-wide column */
+function densityDress(c, v) {
+  c.type = "device";
+  c.density = v;
+  c.brRow = false;
+  if (!c.span) c.span = 2;
+  c.cls = ((c.cls || "") + (v === "compact" ? " dvc" : " dvi"))
+    .replace(/^ /, "");
+  if (v === "compact") c.trailing = false;
+  return c;
 }
 /* which adapter a WORKING-shape tile belongs to (the reverse of
    canonTile — used by card grouping's row-form check, Phase 3) */
@@ -2795,6 +2997,14 @@ function presApply(tile, p, ent) {
      walk merges same-group tiles of one section into one card */
   if (typeof p.card_group === "string" && p.card_group)
     tile.card_group = p.card_group;
+  /* COMPAT (Wave C's first spelling): a variant on a device-typed
+     present entry still dresses the launcher into its density —
+     envelopes saved before the fan/cover adapters heal in the
+     Studio, but the engine renders them right meanwhile. The dress
+     pins the card chassis and span like every density tile. */
+  if (tile.type === "device" && !tile.density &&
+      (p.variant === "inline" || p.variant === "compact"))
+    densityDress(tile, p.variant);
   if (p.tap === "none") { tile.tap = "none"; tile.trailing = false; }
   else if (p.tap === "open") {
     if (tile.type === "device") tile.tap = "open";
@@ -2880,10 +3090,14 @@ function groupChildTile(did, shows, idPrefix, pres) {
 /* a LOOSE entity drawn as a control (v0.76): no device bundle to
    resolve roles from — the entity IS every role it needs */
 function looseShowTile(ent, p, idPrefix) {
+  const dom0 = ent.split(".")[0];
   const base = {
     id: idPrefix + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
     label: st(ent).a.friendly_name || ent.split(".").pop(),
-    icon: "material:devices",
+    /* the domain's own glyph where the domain IS the control (the
+       canvas: identity is the icon and status string only) */
+    icon: dom0 === "fan" ? "material:mode_fan"
+      : dom0 === "cover" ? "material:blinds" : "material:devices",
     span: 2
   };
   const shows = presType(p);
@@ -2891,8 +3105,12 @@ function looseShowTile(ent, p, idPrefix) {
   let tile;
   if (shows === "volume" || shows === "stepper") {
     /* style decides the shape here too (v0.83.7 unification) */
+    /* the adapter's dflt (slider — v0.83.1 "default should be fat")
+       closes the ladder here too; "compact" was a pre-ruling relic
+       (2026-09-01 review: Onkyo chosen as stepper rendered compact
+       whenever the variant write was lost — the FALLBACK was wrong) */
     const vstyle = shows === "stepper" ? "stepper" :
-      resolveVariant(presVariant(p), globalVariant("volume")) || "compact";
+      resolveVariant(presVariant(p), globalVariant("volume")) || "slider";
     tile = vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
           bandGen: 1, entity: ent, level_entity: ent })
@@ -4355,7 +4573,7 @@ function tileSig(sc) {
   return JSON.stringify(tilesOf(sc).map(t =>
     [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
      t.image, t.image_opacity, t.label_pos, t.css_vars,
-     t.type, t.kind, t.slider, t.cycle, t.card_group]));
+     t.type, t.kind, t.slider, t.cycle, t.card_group, t.inset, t.density]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -6692,7 +6910,9 @@ const STEP_KINDS = {
     fmt: (v, e) => {
       if (v == null) return "–";
       const u = (e && st(e).a.unit_of_measurement) || "";
-      return (Math.round(v * 1000) / 1000) + (u ? " " + u : "");
+      /* % and ° hug the number; worded units get their space */
+      return (Math.round(v * 1000) / 1000) +
+        (u ? ((u === "%" || u === "°") ? "" : " ") + u : "");
     },
     step: 1, stepAttr: "step", minAttr: "min", maxAttr: "max",
     set: (e, v) => callService((e || "").split(".")[0], "set_value",
@@ -7083,6 +7303,39 @@ function wireTaps(el, attr, fn) {
    `sl._drag` keeps its old meaning, so render()'s don't-fight-the-
    finger checks are untouched. apply(ev, final) is the widget's own
    value function, exactly as before. */
+/* THE FILL CONTRACT (V4 §2, computed here for the Chromium-61
+   floor): the leading corner reads the FILL'S OWN aspect — square
+   at 1:1, full at --lead-ratio (3:1 default) — trailing corners
+   pinned at inner = --radius − --track-inset, width floored at
+   --fill-min so a small non-zero value never vanishes; zero and
+   unreadable draw NO fill. All four knobs come from the theme
+   tokens, so devtools tuning still works — the next state render
+   picks a changed token up. */
+function fillTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  const n = (name, dflt) => {
+    const v = parseFloat(cs.getPropertyValue(name));
+    return isFinite(v) ? v : dflt;
+  };
+  return { radius: n("--radius", 12), inset: n("--track-inset", 2),
+    lead: n("--lead-ratio", 3), fmin: n("--fill-min", 4) };
+}
+function setFill(sl, f) {
+  const el = sl && sl.firstElementChild;
+  if (!el) return;
+  if (f == null || f <= 0) { el.style.width = "0px"; return; }
+  const T = fillTokens();
+  const r = sl.getBoundingClientRect();
+  const fh = Math.max(1, r.height - 2 * T.inset);
+  const w = Math.max(T.fmin, r.width * Math.min(1, f) - 2 * T.inset);
+  const inner = T.radius - T.inset;
+  const left = Math.min(inner, fh / 2);
+  const lead = Math.max(0, Math.min(inner,
+    inner * ((w / fh) - 1) / (T.lead - 1)));
+  el.style.width = Math.round(w) + "px";
+  el.style.borderRadius = left + "px " + lead.toFixed(1) + "px " +
+    lead.toFixed(1) + "px " + left + "px";
+}
 function wireSlider(sl, apply, axis) {
   const h = axis !== "v";
   sl.style.touchAction = h ? "pan-y" : "pan-x";
@@ -7102,7 +7355,18 @@ function wireSlider(sl, apply, axis) {
       catch (x) { /* synthetic events carry no pointer id */ }
       sl._drag = true;
       apply(ev, false);
-    } else if (across > 8) sl._live = false;    // it's a scroll — let go
+    } else if (across > 8) {
+      sl._live = false;                         // it's a scroll — let go
+      /* …and SWALLOW the click the browser still synthesizes on the
+         down/up common ancestor (0.87 final review: a mouse drag
+         down a fat volume track released over the tile and toggled
+         MUTE — exactly the "scrolling triggers buttons" class the
+         v0.83.11 gate exists to kill). One shot, capture phase. */
+      const swallow = (ev2) => { ev2.stopPropagation(); ev2.preventDefault(); };
+      document.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() =>
+        document.removeEventListener("click", swallow, true), 400);
+    }
   });
   sl.addEventListener("pointerup", ev => {
     if (sl._drag) { sl._drag = false; apply(ev, true); }
@@ -7289,12 +7553,15 @@ WIDGETS.nav = {
     navStyle(t) === "summary" && navTargetEntities(t).some(x => ACTIVE(st(x).s)),
   body: t => navStyle(t) === "image"
     ? `<img class="roomimg" src="${navImage(t)}" alt="">`
-    : `<div class="meter hidden"><i></i></div>`,
+    /* v3 rows: the unboxed chevron is the page cue */
+    : `<div class="meter hidden"><i></i></div>
+       <span class="pickcue material-symbols-outlined">chevron_right</span>`,
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
   wire: (el, t) => {
     const style = navStyle(t);
     el.classList.add("nav-" + style);
+    if (style !== "image") el.classList.add("haspickcue");
     /* the shared photo-tile dress (v0.85.8): widgets.css styles
        .tile.photo, and preset tiles with an `image` wear the same
        class — one look, two widgets. image_opacity moved to the
@@ -8089,13 +8356,17 @@ WIDGETS.volume = {
        level, and the mini-meter just duplicated it. Compact mode
        (slider:false) keeps the meter: with no track above, it IS the
        level. Row height unchanged either way. */
+    /* COMPACT (the control language, 2026-08-31): the 32px track
+       with the value INSET — continuous but secondary, and
+       scrubbable (a track means scrubbable; the wire below already
+       claims any .sldr present). The old 6px meter is retired. */
     body: t => {
       const sl = t && t.slider !== false;
       return (sl ? `<div class="sldr"><i></i></div>` : "") +
         `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
       ${sl ? `<div class="volpct">–</div>`
-        : `<div class="stepmid"><div class="meter"><i></i></div><div class="stepval sm">–</div></div>`}
+        : `<div class="sldr inrow"><i></i><b class="inval">–</b></div>`}
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -8144,7 +8415,7 @@ WIDGETS.volume = {
         const r = sl.getBoundingClientRect();
         let f = (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        setFill(sl, f);
         /* the drag is optimistic in STATE too (v0.83.1): the "Vol n%"
            title line and any sibling meter follow the finger, not the
            round-trip */
@@ -8171,19 +8442,21 @@ WIDGETS.volume = {
       const l = volHeld(le, st(le).a.volume_level);
       const m = volMuted(e, t);
       const pc = el.querySelector(".volpct") ||
-        el.querySelector(".stepmid .stepval");   /* compact's readout */
-      /* muted: the center % becomes the mute glyph (v0.83.7) — the
+        el.querySelector(".inval");              /* compact's inset */
+      /* muted: the readout becomes the mute glyph (v0.83.7) — the
          level is still on the track, dimmed, so unmuting is no
          surprise */
       if (pc) pc.innerHTML = m
         ? `<span class="material-symbols-outlined vmute">volume_off</span>`
         : (l != null ? pct(l) : "–");
       const sl = el.querySelector(".sldr");
-      const mt = el.querySelector(".meter");
       if (sl) sl.classList.toggle("muted", m);
-      if (mt) mt.classList.toggle("muted", m);
       if (!sl || sl._drag) return;
-      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      const f = Math.max(0, Math.min(1, l || 0));
+      setFill(sl, f);
+      /* the inset flips to accent ink past ~88% fill (one threshold) */
+      const iv = sl.querySelector(".inval");
+      if (iv) iv.classList.toggle("flip", f >= 0.88);
     }
   };
 
@@ -8339,7 +8612,7 @@ WIDGETS.grouping = {
           const r = rs.getBoundingClientRect();
           let f = (ev.clientX - r.left) / r.width;
           f = Math.max(0, Math.min(1, f));
-          rs.firstElementChild.style.width = Math.round(f * 100) + "%";
+          setFill(rs, f);
           if (pcEl) pcEl.textContent = Math.round(f * 100) + "%";
           const cur = S.states.get(m);
           if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
@@ -8392,7 +8665,7 @@ WIDGETS.grouping = {
         const r = sl.getBoundingClientRect();
         let f = (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        setFill(sl, f);
         const now = Date.now();
         if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
         sl._t = now; sl._lastF = f;
@@ -8499,7 +8772,7 @@ WIDGETS.grouping = {
       el.querySelectorAll(".sldr.rowsl").forEach(rs => {
         if (rs._drag) return;
         const l = st(rs.dataset.rsl).a.volume_level;
-        rs.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+        setFill(rs, (l || 0));
         const pc = rs.querySelector(".rslpct");
         if (pc) pc.textContent = l != null ? pct(l) : "–";
       });
@@ -8514,7 +8787,7 @@ WIDGETS.grouping = {
       const linked = joined.filter(m => m === e || !GRP_VOL_UNLINKED.has(m));
       const lv = linked.map(m => st(m).a.volume_level || 0);
       const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
-      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      setFill(sl, avg);
     }
   };
 /* ================================================================
@@ -8620,7 +8893,7 @@ WIDGETS.grpmember = {
       const r = sl.getBoundingClientRect();
       let f = (ev.clientX - r.left) / r.width;
       f = Math.max(0, Math.min(1, f));
-      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      setFill(sl, f);
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = Math.round(f * 100) + "%";
       const cur = S.states.get(m);
@@ -8647,7 +8920,7 @@ WIDGETS.grpmember = {
     const l = volHeld(e, st(e).a.volume_level);
     const sl = el.querySelector(".sldr");
     if (sl && !sl._drag) {
-      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      setFill(sl, (l || 0));
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = l != null ? pct(l) : "–";
       sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
@@ -8727,7 +9000,7 @@ WIDGETS.grpvol = {
       const r = sl.getBoundingClientRect();
       let f = (ev.clientX - r.left) / r.width;
       f = Math.max(0, Math.min(1, f));
-      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      setFill(sl, f);
       const now = Date.now();
       if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
       sl._t = now; sl._lastF = f;
@@ -8761,7 +9034,7 @@ WIDGETS.grpvol = {
     const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
     const sl = el.querySelector(".sldr");
     if (sl && !sl._drag) {
-      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      setFill(sl, avg);
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = pct(avg);
     }
@@ -8776,6 +9049,9 @@ WIDGETS.grpvol = {
    trim sliders) lives. Lit when any member is linked to the master. */
 WIDGETS.grouplaunch = {
     hidden: (e, t) => (t.entities || []).length < 2,
+    /* v3 rows: the unboxed chevron page cue */
+    body: () => `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+    wire: (el) => el.classList.add("haspickcue"),
     /* counts live on the SUB line (tidy-ups: "put the info in the
        state area, not clipping the title") */
     linkedCount: (e, t) => {
@@ -8857,23 +9133,29 @@ WIDGETS.coverbtns = {
    setpoint, position, percentage, number…); kind picks entity
    attribute + service.
 
-   ONE DESIGN LANGUAGE (2026-08-31 — Suresh, four screenshots deep:
-   "In short we need a design language that is consistent"). Every
-   numeric control is one of exactly TWO shapes, sharing the volume
-   widget's proportions (58×46 buttons, 21px/600 value type):
+   THE CONTROL LANGUAGE (2026-08-31 — docs/design-control-language.md,
+   from the Claude Design canvas; Suresh's ruling). Every numeric
+   control is one of exactly THREE shapes on ONE chassis — the same
+   title row, the same 58×46 ± buttons, the same 12px radius. What
+   sits between the buttons is what tells the user how the control
+   behaves, and A TRACK MEANS SCRUBBABLE — that presence is
+   load-bearing across the app:
 
-     ROW  — − [track over value] + on one line: the volume-stepper
-            classic, now carrying its number beneath the track (his
-            img-4 ruling: "volume stepper is the way to go (but
-            missing the value)"). The default for every kind and for
-            Number's Stepper/Compact variants. A kind whose bounds
-            don't resolve hides the track and centers the value.
-     FAT  — the big drag track above, − value + row below: the
-            Slider/Vertical variants and the detail-page ranges.
+     FAT      — the 44px drag track above, − [value 21px] + row
+                below. The screen's headline value (one per screen
+                as guidance, not law): volume on an activity,
+                temperature on a climate device, detail ranges.
+     COMPACT  — − [32px track, value 14px INSET right] +. Continuous
+                but secondary: scrubbable, carries its own value in
+                the track; the value flips to accent ink past ~88%
+                fill so it stays legible over the fill (t.inset).
+     STEPPER  — − [value 21px] +, NO track. Discrete values only —
+                bass, trim, signed offsets. No track because there
+                is nothing to scrub; that absence is what makes it a
+                different control rather than a smaller slider.
 
-   The 42px display type and the title-line "Vol n%" are RETIRED —
-   the control owns its own number in both shapes; the title line is
-   the name, nothing else. */
+   The title line is the name, nothing else — no shape puts its
+   number there, and no tile shows the same number twice. */
 WIDGETS.stepper = {
     /* v0.58: a stepper for a range the device does not expose is a lie
        that reads 0% forever — only the volume kind has a feature bit
@@ -8902,12 +9184,11 @@ WIDGETS.stepper = {
       if (cur && cur.a) cur.a.is_volume_muted = next;
       callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
-    /* which track the tile wants: the FAT deck only via an explicit
-       tile ask (Slider/Vertical variants) or the kind's detail-page
-       default — the volume kind always takes the row (its fat form
-       is the volume widget) */
+    /* the FAT deck: an explicit tile ask (Slider/Vertical variants)
+       or the kind's detail-page default; volume's fat form is the
+       volume widget, never this one */
     _fat: t => {
-      if (t.kind === "volume") return false;
+      if (t.kind === "volume" || t.inset) return false;
       const k = STEP_KINDS[t.kind] || {};
       return t.slider !== undefined ? t.slider : k.slider;
     },
@@ -8919,9 +9200,16 @@ WIDGETS.stepper = {
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
-      return `<div class="steprow vol">
+      /* COMPACT: the 32px track with the value inset in it */
+      if (t.inset || t.kind === "volume") return `<div class="steprow vol">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
-      <div class="stepmid"><div class="sldr inrow"><i></i></div><div class="stepval sm">–</div></div>
+      <div class="sldr inrow"><i></i><b class="inval">–</b></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
+      /* STEPPER: no track — the value takes the middle at 21px */
+      return `<div class="steprow">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -8931,19 +9219,18 @@ WIDGETS.stepper = {
         t.kind, +d));
       const k = STEP_KINDS[t.kind], sl = el.querySelector(".sldr");
       if (!k || !sl) return;
-      /* orientation: the fat deck says, the row is always horizontal */
+      /* orientation: the fat deck says; the compact track is always
+         horizontal. A track present means scrubbable — wire it. */
       const ori = WIDGETS.stepper._fat(t) || "h";
-      /* drag/tap on the track → proportional set. Optimistic fill;
-         calls throttled, final on release. Bounds via stepBounds:
-         the entity's published min/max win. */
       const apply = (ev, final) => {
         const r = sl.getBoundingClientRect();
         let f = ori === "v"
           ? 1 - (ev.clientY - r.top) / r.height
           : (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style[ori === "v" ? "height" : "width"] =
-          Math.round(f * 100) + "%";
+        if (ori === "v")
+          sl.firstElementChild.style.height = Math.round(f * 100) + "%";
+        else setFill(sl, f);
         const ent = t.kind === "volume"
           ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity);
         const b = stepBounds(k, ent);
@@ -8960,30 +9247,36 @@ WIDGETS.stepper = {
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
       const le = t.kind === "volume" ? lvlEnt(e, t) : e;
-      /* the value — BOTH shapes own their number now; volume's mute
-         state swaps it for the glyph, matching the volume widget */
-      const sv = el.querySelector(".stepval");
+      const muted = t.kind === "volume" && !!st(e).a.is_volume_muted;
+      const text = k ? k.fmt(k.get(le), le) : "–";
+      /* the value — every shape owns its number: the fat/stepper
+         middle (.stepval) or the compact inset (.inval) */
+      const sv = el.querySelector(".stepval") || el.querySelector(".inval");
       if (sv) {
-        if (t.kind === "volume" && st(e).a.is_volume_muted)
+        if (muted)
           sv.innerHTML = `<span class="material-symbols-outlined vmute">volume_off</span>`;
-        else sv.textContent = k ? k.fmt(k.get(le), le) : "–";
+        else sv.textContent = text;
       }
       const sl = el.querySelector(".sldr");
       if (!sl || !k) return;
-      if (t.kind === "volume")
-        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+      if (t.kind === "volume") sl.classList.toggle("muted", muted);
       if (sl._drag) return;              // don't fight the finger
       const b = stepBounds(k, le);
       const has = b.min != null && b.max != null && b.max > b.min;
-      /* a row track with no resolvable range hides — the value
-         centers alone rather than drawing a 0-100 lie */
+      /* a compact track with no resolvable range hides — the value
+         would sit on a 0-100 lie */
       if (sl.classList.contains("inrow"))
         sl.classList.toggle("hidden", !has);
       if (!has) return;
       const f = Math.max(0, Math.min(1,
         ((+k.get(le) || 0) - b.min) / (b.max - b.min)));
-      sl.firstElementChild.style[sl.classList.contains("vert") ? "height" : "width"] =
-        Math.round(f * 100) + "%";
+      if (sl.classList.contains("vert"))
+        sl.firstElementChild.style.height = Math.round(f * 100) + "%";
+      else setFill(sl, f);
+      /* the INSET value flips to accent ink once the fill runs
+         beneath it — a single threshold at ~88%, not a blend */
+      const iv = sl.querySelector(".inval");
+      if (iv) iv.classList.toggle("flip", f >= 0.88);
     }
   };
 
@@ -9163,13 +9456,49 @@ function deviceTarget(t) {
   return null;
 }
 
+/* DEVICE-TILE DENSITIES (Wave C — docs/design-control-language.md,
+   the v2 canvas): screens, fans and covers reduce to one tile with
+   three densities. A = the launcher (this widget as it always was).
+   B = `density: "inline"`: the launcher band plus one 46px action
+   row — a drag track for a continuous value (fan), or three
+   stretched buttons for discrete positioning (cover), plus a tilt
+   row when the cover supports it. C = `density: "compact"`: the
+   control shares the 84px row with the name (fixed cluster right).
+   Exactly two control fillings, ever; domain identity is the icon
+   and status string only. Domains without a density mapping ignore
+   the field and stay launchers. */
+const DENSITY_DOMS = { fan: 1, cover: 1 };
+const CVF = { OPEN_TILT: 16, CLOSE_TILT: 32, STOP_TILT: 64 };
+const devDensity = t =>
+  t && t.density && DENSITY_DOMS[(resolveEntity(t.entity) || t.entity || "").split(".")[0]]
+    ? t.density : null;
+
 WIDGETS.device = {
   sub: (e, t) => {
     const s = st(e), dom = (e || "").split(".")[0];
+    const den = devDensity(t);
     /* advanced: show a specific attribute instead of the smart summary */
     if (t.attr) {
       const v = s.a[t.attr];
       return v == null ? cap(s.s) : String(v);
+    }
+    /* STATUS IS DROPPED BY THE CONTROL THAT REPLACES IT, not by the
+       density (the canvas rule): a fan's track reads the number, so
+       inline drops the "· 25%" and compact drops the line; a cover's
+       buttons show nothing, so its state line stays at every density */
+    if (dom === "fan") {
+      /* both densities own the number (row value / inset value) —
+         the status line goes entirely; the launcher keeps it */
+      if (den) return "";
+      const p = s.a.percentage;
+      return cap(s.s) + (p == null || !ACTIVE(s.s) ? "" : " · " + p + "%");
+    }
+    if (dom === "cover") {
+      const p = s.a.current_position;
+      /* fat: the value lives IN the track — no line. Compact: the
+         title-row value slot (inlineSub). Launcher: the full line. */
+      if (den === "inline") return "";
+      return cap(s.s) + (p != null ? " · " + p + "%" : "");
     }
     if (dom === "media_player") {
       const detail = s.a.media_title || s.a.source;
@@ -9193,6 +9522,10 @@ WIDGETS.device = {
     return cap(s.s);
   },
   isOn: e => ACTIVE(st(e).s),
+  /* v3: the discrete compact keeps its state in the TITLE-ROW value
+     slot — the trio below shows nothing */
+  inlineSub: t => devDensity(t) === "compact" &&
+    (resolveEntity(t.entity) || t.entity || "").split(".")[0] === "cover",
   detailable: true,   /* auto ⚙ trail → the generated detail screen */
   select: (e, t) => {
     const dom = (e || "").split(".")[0];
@@ -9206,6 +9539,13 @@ WIDGETS.device = {
     };
     if (t.tap === "none") return;      /* a pure readout */
     if (t.tap === "open") return open();
+    /* density cover: OK commits the roved button (the coverbtns
+       grammar) — Stop by default */
+    if (devDensity(t) && dom === "cover") {
+      const svc = rovePick(t, "cv") || "stop_cover";
+      const tilt = svc.indexOf("tilt:") === 0;
+      return void callService("cover", tilt ? svc.slice(5) : svc, null, e);
+    }
     const verb =
       t.tap === "toggle" ? () => callService("homeassistant", "toggle", null, e)
       : t.tap === "play_pause" ? () => callService("media_player", "media_play_pause", null, e)
@@ -9216,6 +9556,144 @@ WIDGETS.device = {
   hold: (e, t) => {
     const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
     if (tgt) navigate(tgt);
+  },
+  /* ---- the density bodies (v3 — one chassis, two fillings) ---- */
+  body: t => {
+    const den = devDensity(t);
+    if (!den) return "";
+    const e = resolveEntity(t.entity) || t.entity || "";
+    const dom = e.split(".")[0];
+    const trio = (pre) => `
+      <button class="dpbtn" data-cv="${pre}open_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">arrow_upward</span></button>
+      <button class="dpbtn" data-cv="${pre}stop_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">stop</span></button>
+      <button class="dpbtn" data-cv="${pre}close_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">arrow_downward</span></button>`;
+    if (dom === "fan") {
+      /* continuous: ± around the value (fat) or the 32px track
+         (compact) — the numeric card, nothing else */
+      if (den === "compact")
+        return `<div class="steprow">
+        <button class="dpbtn" data-dvn="-1"><span class="material-symbols-outlined">remove</span></button>
+        <div class="sldr inrow"><i></i><b class="inval">–</b></div>
+        <button class="dpbtn" data-dvn="1"><span class="material-symbols-outlined">add</span></button>
+      </div>`;
+      return `<div class="sldr"><i></i></div>
+      <div class="steprow">
+        <button class="dpbtn" data-dvn="-1"><span class="material-symbols-outlined">remove</span></button>
+        <b class="stepval">–</b>
+        <button class="dpbtn" data-dvn="1"><span class="material-symbols-outlined">add</span></button>
+      </div>`;
+    }
+    /* discrete: the trio fills the action row. Fat adds the position
+       track above it (scrubbable — a track means scrubbable — and it
+       doubles as the readout, value inset at 21px). Tilt stays a
+       second row, revealed by the device's features at render. */
+    if (den === "compact")
+      return `<div class="devrow">${trio("")}</div>
+      <div class="devrow tiltrow hidden">${trio("tilt:")}</div>`;
+    return `<div class="sldr"><i></i><b class="inval">–</b></div>
+      <div class="devrow">${trio("")}</div>
+      <div class="devrow tiltrow hidden">${trio("tilt:")}</div>`;
+  },
+  wire: (el, t) => {
+    const den = devDensity(t);
+    if (!den) return;
+    const ent = () => resolveEntity(t.entity);
+    const dom = (resolveEntity(t.entity) || t.entity || "").split(".")[0];
+    /* cover buttons — tilt spellings carry a prefix the tap strips */
+    wireTaps(el, "cv", v => {
+      const tilt = v.indexOf("tilt:") === 0;
+      callService("cover", tilt ? v.slice(5) : v, null, ent());
+    });
+    /* fan ± — the shared numeric step (entity metadata decides) */
+    wireTaps(el, "dvn", d => { nudgeStep(ent(), "percentage", +d); renderStates(); });
+    /* v3 detail route in compact: the icon-plus-name zone opens the
+       device's page — there is no room for a tune affordance */
+    if (den === "compact") {
+      const top = el.querySelector(".top");
+      if (top) top.addEventListener("click", ev => {
+        ev.stopPropagation();
+        const e = ent() || t.entity;
+        const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
+        if (tgt) navigate(tgt);
+      });
+    }
+    const sl = el.querySelector(".sldr");
+    if (!sl) return;
+    const apply = (ev, final) => {
+      const r = sl.getBoundingClientRect();
+      let f = (ev.clientX - r.left) / r.width;
+      f = Math.max(0, Math.min(1, f));
+      setFill(sl, f);
+      const v = Math.round(f * 100);
+      const now = Date.now();
+      if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
+        sl._t = now; sl._lastV = v;
+        if (dom === "cover")
+          callService("cover", "set_cover_position", { position: v }, ent());
+        else callService("fan", "set_percentage", { percentage: v }, ent());
+      }
+    };
+    wireSlider(sl, apply, "h");
+  },
+  /* D-pad: fan ◀▶ nudge the percentage; cover ◀▶ rove the buttons
+     (both rows, one highlight). Launcher tiles decline — the walk
+     proceeds as always. */
+  keys: {
+    left: (e, t) => {
+      const den = devDensity(t);
+      if (!den) return false;
+      if ((e || "").split(".")[0] === "fan")
+        return void nudgeStep(e, "percentage", -1);
+      return void roveMove(t, "cv", -1);
+    },
+    right: (e, t) => {
+      const den = devDensity(t);
+      if (!den) return false;
+      if ((e || "").split(".")[0] === "fan")
+        return void nudgeStep(e, "percentage", +1);
+      return void roveMove(t, "cv", +1);
+    },
+  },
+  render: (el, e, t) => {
+    const den = devDensity(t);
+    if (!den || !e) return;
+    const dom = e.split(".")[0];
+    const sl = el.querySelector(".sldr");
+    const fillTo = (p) => {
+      if (!sl || sl._drag) return null;
+      const f = Math.max(0, Math.min(1, (p || 0) / 100));
+      setFill(sl, f);
+      return f;
+    };
+    if (dom === "fan") {
+      const p = st(e).a.percentage;
+      const f = fillTo(p);
+      const iv = el.querySelector(".inval");
+      const sv = el.querySelector(".stepval");
+      if (iv) { iv.textContent = p != null ? p + "%" : "–";
+        if (f != null) iv.classList.toggle("flip", f >= 0.88); }
+      if (sv) sv.textContent = p != null ? p + "%" : "–";
+      return;
+    }
+    /* cover: the fat track doubles as the position readout — the
+       inset value reads the % (or the bare state when the device
+       reports none: Unknown lives in the track, not a status line);
+       tilt row appears with the feature; end-stop actions take the
+       disabled surface but KEEP their box, so the trio never shifts */
+    const p = st(e).a.current_position;
+    const f = fillTo(p);
+    const iv = el.querySelector(".inval");
+    if (iv) { iv.textContent = p != null ? p + "%" : cap(st(e).s);
+      if (f != null) iv.classList.toggle("flip", f >= 0.88); }
+    const tr = el.querySelector(".tiltrow");
+    if (tr) tr.classList.toggle("hidden",
+      !sfHas(e, CVF.OPEN_TILT | CVF.CLOSE_TILT | CVF.STOP_TILT));
+    el.querySelectorAll("[data-cv]").forEach(b => {
+      const v = b.getAttribute("data-cv");
+      const dis = (v === "open_cover" && p === 100) ||
+                  (v === "close_cover" && p === 0);
+      b.classList.toggle("dis", !!dis);
+    });
   },
 };
 
@@ -9241,6 +9719,10 @@ WIDGETS.sources = {
     return chipOptions(mp, "source").length ? "Choose input…" : "";
   },
   isOn: () => false,
+  /* v3 row shape — value in the title-row slot, chevron cue */
+  inlineSub: true,
+  body: () => `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+  wire: (el) => el.classList.add("haspickcue"),
   select: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
     if (!mp) { flashBar("No source device wired here"); return; }
@@ -9280,6 +9762,13 @@ WIDGETS.picker = {
     return next ? cur + " ▸ " + deslug(String(next)) : cur;
   },
   isOn: () => false,
+  /* v3 "Rows & navigation": ONE 84px row — name left, the current
+     value right in the title-row slot (14/400 secondary), a 24px
+     unboxed chevron as the page cue (Cycle has no page, no cue) */
+  inlineSub: true,
+  body: t => (t && t.cycle) ? "" :
+    `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+  wire: (el, t) => { if (!(t && t.cycle)) el.classList.add("haspickcue"); },
   nav: "value",
   keys: {
     left:  (e, t) => void cycleChip(e, t, -1),
@@ -9521,22 +10010,29 @@ function iconHtml(t, row) {
   } else if (t.icon && t.icon.startsWith("material:"))
     inner = `<span class="ic material-symbols-outlined">${t.icon.slice(9)}</span>`;
   else if (t.icon && ICON_SET_RE.test(t.icon)) {
-    /* ICON SETS (0.87 — design-icon-sets): "<set>:<name>" resolves to
-       a FILE — /local/harmonium/icons/<set>/<name>.svg — rendered as
-       a CSS-masked block painted with currentColor, so a phu:/mdi:
-       icon tints exactly like a font glyph in every theme. The file
-       is the wiring (the app-logos doctrine); the distiller fills the
-       folder from installed packs, and a hand-dropped SVG works with
-       no tooling at all. Masks fire no error event, so a hidden probe
-       <img> inside detects a missing file → the delegated error
-       handler below swaps in the neutral glyph and remembers the URL
-       (IMG_DEAD) so rebuilt tiles skip the re-request. */
-    const url = "/local/harmonium/icons/" +
-      t.icon.replace(":", "/") + ".svg";
-    inner = IMG_DEAD.has(url)
-      ? `<span class="ic">•</span>`
-      : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
-        `<img class="mprobe" src="${url}" alt=""></span>`;
+    /* ICON SETS (0.87 re-cut, 2026-09-01 — Suresh: "live preview in
+       the studio and then mint into the deployed artifacts"): every
+       deploy bakes the referenced icons' PATH DATA into the config
+       (store.py minting → CONFIG.icon_paths), so a phu:/mdi: icon is
+       inline SVG here — currentColor-tinted like a font glyph, zero
+       runtime dependency on any pack or file. A hand-dropped SVG in
+       www/harmonium/icons/<set>/<name>.svg survives as the fallback
+       (mask + probe, exactly the app-logos machinery); a name
+       nothing supplies falls to the neutral glyph. */
+    const ip = (CONFIG.icon_paths || {})[t.icon];
+    if (ip && ip.path) {
+      const vb = String(ip.viewBox || "0 0 24 24").replace(/[^0-9 .-]/g, "");
+      const d = String(ip.path).replace(/["<>&]/g, "");
+      inner = `<span class="ic icsvg"><svg viewBox="${vb}" aria-hidden="true">` +
+        `<path d="${d}" fill="currentColor"/></svg></span>`;
+    } else {
+      const url = "/local/harmonium/icons/" +
+        t.icon.replace(":", "/") + ".svg";
+      inner = IMG_DEAD.has(url)
+        ? `<span class="ic">•</span>`
+        : `<span class="ic icmask" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')">` +
+          `<img class="mprobe" src="${url}" alt=""></span>`;
+    }
   }
   else inner = `<span class="ic">${t.icon || "•"}</span>`;
   return row ? `<div class="icwrap">${inner}</div>` : inner;
@@ -10483,6 +10979,11 @@ function renderStates() {
       typeof t.sub_text === "string" ? subTextOf(t.sub_text, eid)
         : typeof w.sub === "function" ? w.sub(eid, t) : "";
     el.classList.toggle("on", !!(w.isOn && w.isOn(eid, t)));
+    /* Wave B (the control language): CAPABILITY hides, STATE greys —
+       an unavailable device keeps its full chassis, greyed, actions
+       live, so a list never reflows because the network blinked */
+    el.classList.toggle("unav",
+      !!eid && (st(eid).s === "unavailable" || st(eid).s === "unknown"));
     el.classList.toggle("confirm", S.confirmTile === t.id);
     const m = el.querySelector(".meter");
     if (m && w.meter && eid) {

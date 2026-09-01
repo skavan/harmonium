@@ -114,26 +114,39 @@ ck('number: canonical tile lands on stepper/kind number',
   nshapes.nb.type === 'stepper' && nshapes.nb.kind === 'number');
 ck('number Auto: mode auto + 40 steps ≤ 100 → Slider (track h)',
   nshapes.nb.slider === 'h');
-ck('number: explicit Stepper variant takes the ROW shape (no fat deck)',
-  nshapes.nt.type === 'stepper' && nshapes.nt.slider === false);
-ck('number: Vertical variant carries the vertical track',
-  nshapes.nv.slider === 'v');
-/* THE UNIFIED ROW (2026-08-31 design language): − [track over value] +
-   — Receiver and Bass now share one shape, value in the control */
-const nc = await p.evaluate(() => {
+/* THE CONTROL LANGUAGE (2026-08-31): a track means scrubbable —
+   Stepper is TRACKLESS (value alone at 21px), Compact is the 32px
+   track with the value INSET, flipping to accent ink past ~88% */
+const shapes2 = await p.evaluate(() => {
   renderStates();
-  const q = (s) => document.querySelector('#tile_nc ' + s);
+  const q = (id, s) => document.querySelector('#tile_' + id + ' ' + s);
   return {
+    ntTrackless: !q('nt', '.sldr') && !!q('nt', '.stepval'),
+    ntVal: q('nt', '.stepval') && q('nt', '.stepval').textContent,
+    ncInset: !!q('nc', '.steprow.vol .sldr.inrow .inval'),
+    ncVal: q('nc', '.inval') && q('nc', '.inval').textContent,
+    ncFlip: q('nc', '.inval') && q('nc', '.inval').classList.contains('flip'),
     tile: tileDef('nc'),
-    row: !!q('.steprow.vol .stepmid .sldr.inrow'),
-    val: q('.stepmid .stepval') && q('.stepmid .stepval').textContent,
-    trackShown: q('.sldr.inrow') && !q('.sldr.inrow').classList.contains('hidden'),
   };
 });
-ck('number: Compact takes the unified row shape (track over value)',
-  nc.tile.slider === false && nc.row);
-ck('number: the row shows its value IN the control', nc.val === '-2.5 dB');
-ck('number: the row track draws (bounds resolve from the entity)', nc.trackShown);
+ck('number: explicit Stepper is TRACKLESS, value at the middle',
+  nshapes.nt.slider === false && shapes2.ntTrackless && shapes2.ntVal === '-2.5 dB');
+ck('number: Vertical variant carries the vertical track',
+  nshapes.nv.slider === 'v');
+ck('number: Compact is the 32px track with the value INSET',
+  shapes2.tile.inset === true && shapes2.ncInset && shapes2.ncVal === '-2.5 dB');
+ck('number: at 37% fill the inset value has NOT flipped', shapes2.ncFlip === false);
+const flip = await p.evaluate(() => {
+  const cur = window._STATES['number.bass'];
+  S.states.set('number.bass', { s: '9.8', a: cur.a });   /* 99% fill */
+  renderStates();
+  const iv = document.querySelector('#tile_nc .inval');
+  const out = iv && iv.classList.contains('flip');
+  S.states.set('number.bass', cur);                       /* restore */
+  renderStates();
+  return out;
+});
+ck('number: past ~88% fill the inset value flips to accent ink', flip === true);
 ck('number Auto: mode box → Stepper', nshapes.nbox.slider === false);
 ck('number Auto: 5000 steps > 100 → Stepper', nshapes.nbig.slider === false);
 ck('number Auto: malformed step reads as 1 → 10 steps → Slider',

@@ -127,6 +127,13 @@
       ? (tile.kind === "volume" ? "volume" : "other")  /* v0.83.7 —
            ONE volume entry: a volume stepper reads as Volume control
            with style Stepper (a brightness stepper hides the select) */
+      /* Wave C's first spelling (a density variant on the Launcher)
+         READS as the first-class control; picking any variant or
+         draws-as writes the canonical fan/cover type */
+      : tile.type === "device" &&
+        (tile.variant === "inline" || tile.variant === "compact") &&
+        /^(fan|cover)\./.test(tile.entity || "")
+        ? (tile.entity || "").split(".")[0]
       : tile.type;
   const drawsAsOptions = () =>
     /* the SHARED filter (Phase 0 #3): same list as the activity ⚙ */
@@ -157,11 +164,17 @@
   /* Phase 2: which adapter's variant select this row shows — the
      native adapters get theirs (labeled "Variant", blank = Auto);
      volume keeps its "Volume style" wording */
-  const variantAdapter = () =>
-    tile.type === "number" || tile.type === "select" || tile.type === "sources"
-      ? tile.type
-      : showsVolStyle() ? "volume" : null;
+  const variantAdapter = () => {
+    const t = drawsAsValue();   /* the healed reading — see above */
+    return t === "number" || t === "select" || t === "sources" ||
+      t === "fan" || t === "cover"
+        ? t
+        : showsVolStyle() ? "volume" : null;
+  };
   function setVariant(v) {
+    const a = variantAdapter();
+    /* touching the variant HEALS the Wave C spelling in place */
+    if (a === "fan" || a === "cover") tile.type = a;
     if (v) tile.variant = v; else delete tile.variant;
   }
   /* status line: text (with {tokens}) beats the widget's smart line;
@@ -320,6 +333,9 @@
   ];
 </script>
 
+<svelte:boundary>
+
+
 <div role="listitem" draggable={armed}
   {ondragstart}
   ondragover={(e) => e.preventDefault()}
@@ -401,7 +417,7 @@
            choice (a light row's "light" is not) — Status line is for
            everyone -->
       <PresFields
-        drawsAs={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select"].includes(drawsAsValue())
+        drawsAs={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "switch", "lock", "press"].includes(drawsAsValue())
           ? { value: drawsAsValue(), options: drawsAsOptions(),
               set: (v) => setDrawsAs(v) }
           : null}
@@ -414,10 +430,12 @@
           : variantAdapter()
             ? { value: tile.variant ?? "",
                 hint: VARIANT_HINTS[tile.variant] || "",
-                options: variantOptions(variantAdapter(), "Auto"),
+                options: variantOptions(variantAdapter(),
+                  /^(fan|cover)$/.test(variantAdapter())
+                    ? "Inline — full control" : "Auto"),
                 set: (v) => setVariant(v) }
             : null}
-        cardGroup={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select"].includes(drawsAsValue())
+        cardGroup={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "switch", "lock", "press"].includes(drawsAsValue())
           ? { value: tile.card_group ?? "",
               warn: tile.type === "media" && tile.card_group
                 ? "Now Playing has no row form — this tile renders standalone." : null,
@@ -718,3 +736,12 @@
   </div>
 </CardRow>
 </div>
+
+  {#snippet failed(error, reset)}
+    <div class="my-1 flex items-center gap-2 rounded-[8px] border border-danger/60 bg-danger/10 px-3 py-2 text-xs text-danger">
+      <span class="material-symbols-outlined text-[18px]">error</span>
+      <span class="min-w-0 truncate">This tile row hit an error — the rest of the tab is fine. {String(error?.message || error)}</span>
+      <button class="shrink-0 cursor-pointer rounded border border-danger/50 bg-transparent px-2 py-1 font-[inherit] text-danger" onclick={reset}>Retry</button>
+    </div>
+  {/snippet}
+</svelte:boundary>

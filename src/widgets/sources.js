@@ -20,6 +20,11 @@ WIDGETS.sources = {
     return chipOptions(mp, "source").length ? "Choose input…" : "";
   },
   isOn: () => false,
+  /* the two-line row (2026-09-01 ruling) — value on the status
+     line, never squeezing the name off the title row. V7: the cue
+     is tune (this row opens ITS OWN picker), chevron means leaving. */
+  body: () => `<span class="pickcue material-symbols-outlined">tune</span>`,
+  wire: (el) => el.classList.add("haspickcue"),
   select: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
     if (!mp) { flashBar("No source device wired here"); return; }

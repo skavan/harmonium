@@ -99,7 +99,9 @@ for (const f of uniq) {
     [/[:,(\s]clamp\s*\(/, "clamp() (79)"],
     [/[:,(\s]min\s*\(/, "css min() (79)"],
     [/[:,(\s]max\s*\(/, "css max() (79)"],
-    [/\binset\s*:/, "inset shorthand (87)"],
+    /* \b matches after a hyphen, so --track-inset: false-positived
+       (2026-09-01) — require a non-ident char before the keyword */
+    [/(^|[^-\w])inset\s*:/m, "inset shorthand (87)"],
     [/:is\s*\(/, ":is() (88)"],
     /* NO `gap` RULE: grid gap ships in 57 and is used correctly all
        over these files; only FLEX gap is post-61, and the two are

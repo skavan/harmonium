@@ -87,7 +87,7 @@ function tileSig(sc) {
   return JSON.stringify(tilesOf(sc).map(t =>
     [t.id, t.label, t.icon_image, t.action, t.style, t.np_default, t.h,
      t.image, t.image_opacity, t.label_pos, t.css_vars,
-     t.type, t.kind, t.slider, t.cycle, t.card_group]));
+     t.type, t.kind, t.slider, t.cycle, t.card_group, t.inset, t.density]));
 }
 function tiles() { return tilesOf(screenOf(S.screen) || {}); }
 function tileDef(id) { return tiles().find(t => t.id === id); }
@@ -134,9 +134,13 @@ function entitiesFor(screenId) {
      unresolved token in the list and HA rejects the WHOLE message —
      the page then gets no state updates at all (same failure class
      as 2026-07-26). Whatever slips through the adders above, only
-     real entity ids leave this function: a dot, and no $-token. */
-  return [...set].filter(v =>
-    typeof v === "string" && v.includes(".") && v.indexOf("$") === -1);
+     real entity ids leave this function. Tightened 2026-09-01
+     (found live: a mid-typed "number.sonos_basement_" from a Studio
+     preview push rejected the whole subscribe): full slug shape —
+     lowercase domain.object, neither part starting or ending with
+     an underscore — not just "has a dot, no $-token". */
+  const ENT_RE = /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/;
+  return [...set].filter(v => typeof v === "string" && ENT_RE.test(v));
 }
 
 function subscribeFor(screenId) {

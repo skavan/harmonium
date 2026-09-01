@@ -6,7 +6,6 @@ validator they share with the reseed path. async_setup_entry wires
 them (split out of __init__.py, v0.83.11)."""
 from __future__ import annotations
 
-import copy
 import json
 import logging
 from pathlib import Path
@@ -19,8 +18,8 @@ from homeassistant.core import HomeAssistant
 from .const import DEPLOY_DIR
 from .packaging import STOCK_SUBDIR, USER_SUBDIR
 from .store import HarmoniumStore, engine_fingerprint
+from .icons import frontend_root, list_icons, resolve_icons
 from .catalogs import merge_config, subtract_config
-from .workspaces import unwire_activity_selects
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +49,38 @@ class HarmoniumEngineVersionView(HomeAssistantView):
             {"v": v, "bundled": b, "integration": self.version},
             headers={"Cache-Control": "no-store, must-revalidate"},
         )
+
+
+class HarmoniumIconsView(HomeAssistantView):
+    """GET /api/harmonium/icons?names=phu:a,mdi:b — the Studio's LIVE
+    icon lookup (2026-09-01 ruling: "live preview in the studio and
+    then mint into the deployed artifacts"). Same resolver the deploy
+    minting uses, so preview and remote can never disagree."""
+
+    url = "/api/harmonium/icons"
+    name = "api:harmonium:icons"
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request: web.Request) -> web.Response:
+        www = Path(self.hass.config.path("www"))
+        # ?list=<set>&q=<fragment> — the autocomplete (names + path
+        # data, so every dropdown row previews without a second call)
+        set_ = (request.query.get("list") or "").strip()
+        if set_:
+            lim = 0 if request.query.get("all") else 60
+            rep = await self.hass.async_add_executor_job(
+                list_icons, set_, request.query.get("q") or "",
+                www, frontend_root(), None, lim)
+            return self.json(rep)
+        names = [n.strip() for n in
+                 (request.query.get("names") or "").split(",") if n.strip()]
+        if not names:
+            return self.json({"found": {}, "missing": [], "no_source": []})
+        rep = await self.hass.async_add_executor_job(
+            resolve_icons, names[:200], www, frontend_root())
+        return self.json(rep)
 
 
 # ---- Studio image upload (v0.83.8 — beta-gaps P1 #7: "a stranger
@@ -236,12 +267,7 @@ class HarmoniumConfigView(HomeAssistantView):
         # (the never-write-merged contract). An entry equal to stock
         # lifts out; a missing stock key becomes a tombstone; the
         # deploy below still carries the full effective config.
-        # the Studio was SERVED derived activity_select wiring (get_ws);
-        # strip what still equals the derivation so the store stays
-        # derivation-clean and page renames keep self-healing.
-        data["workspaces"][ws] = subtract_config(
-            self.hstore.stock(),
-            unwire_activity_selects(copy.deepcopy(config), ws))
+        data["workspaces"][ws] = subtract_config(self.hstore.stock(), config)
         data["meta"].setdefault(ws, {"name": "Main" if ws == MAIN else ws})
         if ws not in data["order"]:
             data["order"].append(ws)

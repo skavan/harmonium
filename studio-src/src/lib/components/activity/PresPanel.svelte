@@ -40,7 +40,11 @@
      nothing. */
   const variantFor = (key, isEnt) => {
     const t = a.present[key]?.type;
-    if (t === "number" || t === "select" || t === "sources") return t;
+    /* Fan/Cover control (final 0.87 review): the density is the
+       first-class adapter's own variant — the Launcher is a
+       launcher again and offers no shapes */
+    if (t === "number" || t === "select" || t === "sources" ||
+        t === "fan" || t === "cover") return t;
     const band = isEnt
       ? a.context?.volume === key
       : !!devLib[key]?.roles?.volume;
@@ -68,6 +72,9 @@
     { value: "none", label: "Nothing — a pure readout" },
   ];
 </script>
+
+<svelte:boundary>
+
 
 {#if open && a.present?.[key]}
             <!-- ONE GRID, ONE BASELINE (v0.76.3 — Suresh: "the config
@@ -139,12 +146,15 @@
                      a volume-band row the style governs. Rung 1 of the
                      ladder — canonical `variant`, legacy healed. -->
                 <PresFields only="variant" wrap="min-w-[150px] flex-1"
-                  variantLabel={variantFor(key, isEnt) === "volume" ? "Volume style" : "Variant"}
+                  variantLabel={variantFor(key, isEnt) === "volume" ? "Volume style"
+                    : "Variant"}
                   variant={{
                     value: a.present[key].variant ?? "",
                     hint: VARIANT_HINTS[a.present[key].variant] || "",
                     options: variantOptions(variantFor(key, isEnt),
-                      variantFor(key, isEnt) === "volume" ? "Theme default" : "Auto"),
+                      variantFor(key, isEnt) === "volume" ? "Theme default"
+                        : /^(fan|cover)$/.test(variantFor(key, isEnt))
+                          ? "Inline — full control" : "Auto"),
                     set: (v) => {
                       if (v) a.present[key].variant = v;
                       else delete a.present[key].variant;
@@ -188,3 +198,12 @@
               </div>
             </div>
 {/if}
+
+  {#snippet failed(error, reset)}
+    <div class="my-1 flex items-center gap-2 rounded-[8px] border border-danger/60 bg-danger/10 px-3 py-2 text-xs text-danger">
+      <span class="material-symbols-outlined text-[18px]">error</span>
+      <span class="min-w-0 truncate">This settings panel hit an error — the rest of the tab is fine. {String(error?.message || error)}</span>
+      <button class="shrink-0 cursor-pointer rounded border border-danger/50 bg-transparent px-2 py-1 font-[inherit] text-danger" onclick={reset}>Retry</button>
+    </div>
+  {/snippet}
+</svelte:boundary>

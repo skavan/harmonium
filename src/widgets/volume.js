@@ -102,13 +102,17 @@ WIDGETS.volume = {
        level, and the mini-meter just duplicated it. Compact mode
        (slider:false) keeps the meter: with no track above, it IS the
        level. Row height unchanged either way. */
+    /* COMPACT (the control language, 2026-08-31): the 32px track
+       with the value INSET — continuous but secondary, and
+       scrubbable (a track means scrubbable; the wire below already
+       claims any .sldr present). The old 6px meter is retired. */
     body: t => {
       const sl = t && t.slider !== false;
       return (sl ? `<div class="sldr"><i></i></div>` : "") +
         `<div class="volrow">
       <button class="dpbtn" data-vol="down"><span class="material-symbols-outlined">remove</span></button>
       ${sl ? `<div class="volpct">–</div>`
-        : `<div class="stepmid"><div class="meter"><i></i></div><div class="stepval sm">–</div></div>`}
+        : `<div class="sldr inrow"><i></i><b class="inval">–</b></div>`}
       <button class="dpbtn" data-vol="up"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -157,7 +161,7 @@ WIDGETS.volume = {
         const r = sl.getBoundingClientRect();
         let f = (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        setFill(sl, f);
         /* the drag is optimistic in STATE too (v0.83.1): the "Vol n%"
            title line and any sibling meter follow the finger, not the
            round-trip */
@@ -184,18 +188,20 @@ WIDGETS.volume = {
       const l = volHeld(le, st(le).a.volume_level);
       const m = volMuted(e, t);
       const pc = el.querySelector(".volpct") ||
-        el.querySelector(".stepmid .stepval");   /* compact's readout */
-      /* muted: the center % becomes the mute glyph (v0.83.7) — the
+        el.querySelector(".inval");              /* compact's inset */
+      /* muted: the readout becomes the mute glyph (v0.83.7) — the
          level is still on the track, dimmed, so unmuting is no
          surprise */
       if (pc) pc.innerHTML = m
         ? `<span class="material-symbols-outlined vmute">volume_off</span>`
         : (l != null ? pct(l) : "–");
       const sl = el.querySelector(".sldr");
-      const mt = el.querySelector(".meter");
       if (sl) sl.classList.toggle("muted", m);
-      if (mt) mt.classList.toggle("muted", m);
       if (!sl || sl._drag) return;
-      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      const f = Math.max(0, Math.min(1, l || 0));
+      setFill(sl, f);
+      /* the inset flips to accent ink past ~88% fill (one threshold) */
+      const iv = sl.querySelector(".inval");
+      if (iv) iv.classList.toggle("flip", f >= 0.88);
     }
   };

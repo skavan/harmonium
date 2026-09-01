@@ -99,6 +99,20 @@
     open = false;
     typed = false;
     domFilter = null;
+    /* COMMIT GUARD (2026-09-01 — his "Activity: Music Stop" tile's
+       entity read "lat": every keystroke was written straight into
+       the tile, so an abandoned half-typed FILTER became the saved
+       entity, and a mid-typed id even reached the engine's
+       subscribe). On blur, anything that is neither a known entity,
+       a $context.* token, nor at least a well-formed domain.object
+       id reverts to what the field held when focus began. Complete
+       custom ids still pass — the escape hatch stays. */
+    const v = (value ?? "").trim();
+    const ok = !v ||
+      v.startsWith("$context.") ||
+      list.some((x) => x.entity_id === v) ||
+      /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/.test(v);
+    if (!ok) value = vAtFocus;
     if ((value ?? "") !== vAtFocus) onchange?.({ target: { value } });
   }
   function handleKey(e) {

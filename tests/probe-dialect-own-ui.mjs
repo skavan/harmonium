@@ -41,7 +41,8 @@ await p.waitForTimeout(2000);
 /* open Building Blocks → Apps */
 await p.evaluate(() => {
   const el = [...document.querySelectorAll('#nav .item, #nav button, #nav [role="button"]')]
-    .find(x => x.textContent.includes('Apps') && x.textContent.includes('dialect'));
+    .find(x => x.textContent.includes('Platforms') ||
+      (x.textContent.includes('Apps') && x.textContent.includes('dialect')));
   el?.click();
 });
 await p.waitForTimeout(700);

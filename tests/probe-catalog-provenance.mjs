@@ -48,7 +48,8 @@ await p.waitForTimeout(2000);
 /* open the Apps editor (exact-match the nav item to dodge page names) */
 const hit = await p.evaluate(() => {
   const el = [...document.querySelectorAll('#nav .item')]
-    .find(x => x.textContent.includes('Apps') && x.textContent.includes('dialect'));
+    .find(x => x.textContent.includes('Platforms') ||
+      (x.textContent.includes('Apps') && x.textContent.includes('dialect')));
   if (el) { el.click(); return el.textContent.trim(); }
   return null;
 });
@@ -59,6 +60,14 @@ await p.waitForTimeout(600);
 await p.evaluate(() => {
   const el = [...document.querySelectorAll('button, [role="button"], .cursor-pointer')]
     .find(x => x.textContent.includes('Fire TV'));
+  if (el) el.click();
+});
+await p.waitForTimeout(400);
+/* the launch entries moved behind their own sub-fold (probe healed
+   2026-09-01 — it predated the two-level editor) */
+await p.evaluate(() => {
+  const el = [...document.querySelectorAll('button, [role="button"], .cursor-pointer')]
+    .find(x => /APPS\s*—\s*LAUNCH ENTRIES/i.test(x.textContent));
   if (el) el.click();
 });
 await p.waitForTimeout(400);

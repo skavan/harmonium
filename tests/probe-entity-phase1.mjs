@@ -44,6 +44,12 @@ const lib = await import('../studio-src/src/lib/stocklib.js');
   ck('offers: a media_player gets all six',
     vals('media_player') === 'device,volume,power,media,transport,sources');
   ck('offers: a sensor gets the launcher only', vals('sensor') === 'device');
+  /* final 0.87 review — "Surely it should be Launcher or Fan
+     Control": the density controls are first-class Draws-as */
+  ck('offers: a fan gets launcher + fan control + power',
+    vals('fan') === 'device,fan,power');
+  ck('offers: a cover gets launcher + cover control',
+    vals('cover') === 'device,cover');
 }
 
 /* ---- NORMALIZER: heal legacy, idempotently, preserving unknowns ---- */

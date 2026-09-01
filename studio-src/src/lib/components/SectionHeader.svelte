@@ -11,6 +11,10 @@
   let { title, count = 0, enabled = true, onToggle = null,
     gridSummary = "", settingsOpen = $bindable(false),
     addLabel = "", onAdd = null, add2Label = "", onAdd2 = null,
+    /* actions: extra header-row controls (2026-09-01 — the Import
+       snippet chip sat in its own mostly-empty band above the rows;
+       header placement keeps the section rhythm even) */
+    actions = null,
     collapsed = $bindable(undefined), children } = $props();
   const bodyShown = $derived(!!children && collapsed !== true);
 </script>
@@ -36,6 +40,7 @@
         (settingsOpen ? "border-accent/60 bg-accent-wash text-accent-text"
           : "border-line-strong bg-surface text-ink-2 hover:bg-sunk")}
       onclick={() => (settingsOpen = !settingsOpen)}>Section settings</button>
+    {#if actions}{@render actions()}{/if}
     {#if onAdd2 && add2Label}
       <button class="shrink-0 cursor-pointer rounded-[6px] border border-line-strong bg-surface px-2.5 py-[7px] text-[11px] font-medium text-ink-2 hover:bg-sunk"
         onclick={onAdd2}>{add2Label}</button>

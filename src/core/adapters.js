@@ -22,12 +22,12 @@
    any entity — the Launcher rule). `role`: the device-library claim
    it binds to (null = none needed). `variants`: the legal shapes,
    [] = single shape. `dflt`: the adapter's built-in default shape.
-   Number/Select rows land in Phase 2 — reserving the tokens here
-   would put dead choices in every Draws-as list. */
+   Fan/Cover (final 0.87 review) are the density controls promoted
+   to first-class Draws-as — the Launcher is a launcher again. */
 var ADAPTERS =
 /* @adapter-table-begin v1 */
 {
-  device:    { role: null,            variants: [] },
+  device:    { role: null, variants: [] },
   volume:    { role: "volume",        domains: ["media_player"],
                variants: ["compact", "slider", "stepper"], dflt: "slider" },
   power:     { role: "power",
@@ -46,6 +46,16 @@ var ADAPTERS =
   select:    { role: null, domains: ["select", "input_select"],
                variants: ["auto", "picker", "cycle", "chips"],
                dflt: "auto" },
+  fan:       { role: null, domains: ["fan"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  cover:     { role: null, domains: ["cover"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  switch:    { role: null, domains: ["switch", "input_boolean"],
+               variants: [], dflt: "compact" },
+  lock:      { role: null, domains: ["lock"],
+               variants: [], dflt: "compact" },
+  press:     { role: null, domains: ["button", "input_button", "scene"],
+               variants: [] },
 }
 /* @adapter-table-end */
 ;
@@ -104,6 +114,58 @@ function canonTile(t) {
        carries the matching hash-form ruling. */
     return c;
   }
+  /* FAN / COVER CONTROLS (final 0.87 review — Suresh: "DRAWS AS…
+     Surely it should be Launcher or Fan Control"): the density
+     control is a FIRST-CLASS Draws-as, not a dress on the Launcher.
+     Canonical spelling {type:"fan"|"cover", variant:"inline"|
+     "compact"}; the working shape stays the device widget with a
+     density. A density tile is ITS OWN COMPONENT (the v2 canvas):
+     it pins the card chassis and the 2-wide span, whatever section
+     it lands in — the row chassis and the 223px column were how the
+     shapes broke in his screenshots. Compact takes the .dvc chassis
+     and owns its right edge, so the trailing zone goes. */
+  if (t.type === "fan" || t.type === "cover") {
+    const c = Object.assign({}, t);
+    const v = c.variant === "compact" ? "compact" : "inline";
+    delete c.variant;
+    return densityDress(c, v);
+  }
+  /* SWITCH / LOCK (V7 §9): binary domains on the state-pair chassis.
+     "Fat exists to house a track" — neither has a continuum, so
+     neither has a fat variant: whatever was asked for, the compact
+     tile renders (the density scale doing its job, not a gap).
+     Switch stays 100 (the pair IS the readout — the only discrete
+     domain with no status line); lock rides the 116 two-line block
+     (five states the panel must show). */
+  if (t.type === "switch" || t.type === "lock") {
+    const c = Object.assign({}, t);
+    delete c.variant;
+    return densityDress(c, "compact");
+  }
+  /* PRESS (V7 §9): a momentary press reports nothing back, so there
+     is nothing to lay out — the tile IS the control (84, on the
+     control surface, no tune, no chevron, no detail page). The one
+     tile that works at span 1, so the authored span survives. */
+  if (t.type === "press") {
+    const c = Object.assign({}, t);
+    delete c.variant;
+    c.type = "device";
+    c.brRow = false;
+    if (!c.span) c.span = 2;
+    c.cls = ((c.cls || "") + " prs").replace(/^ /, "");
+    c.trailing = false;
+    return c;
+  }
+  /* the Wave C spelling ({type:"device", variant}) survives as a
+     COMPAT READ — envelopes saved before the fan/cover adapters
+     landed render identically; the Studio heals them on load */
+  if (t.type === "device" && t.variant && t.variant !== "auto") {
+    const c = Object.assign({}, t);
+    const v = c.variant;
+    delete c.variant;
+    if (v === "inline" || v === "compact") return densityDress(c, v);
+    return c;
+  }
   /* THE NUMBER ADAPTER (Phase 2): rides the stepper widget with
      kind "number" (STEP_KINDS.number — the entity's own range).
      Slider/Vertical add the fat track; Auto is DETERMINISTIC and
@@ -119,10 +181,14 @@ function canonTile(t) {
     c.kind = "number";
     if (v === "slider") c.slider = "h";
     else if (v === "vertical") c.slider = "v";
-    /* stepper AND compact: the ROW shape — − [track over value] +
-       (the unified numeric language, 2026-08-31; Compact may later
-       earn a shorter chassis, but the shape is one) */
-    else c.slider = false;
+    else {
+      c.slider = false;
+      /* the control language (2026-08-31): COMPACT = the 32px track
+         with the value inset (scrubbable); STEPPER = trackless, the
+         value alone at 21px — a track means scrubbable, and its
+         absence is what makes the stepper a different control */
+      if (v === "compact") c.inset = true;
+    }
     return c;
   }
   /* THE SELECT ADAPTER (Phase 2): Auto = Picker. Period. (the design
@@ -163,6 +229,19 @@ function canonTile(t) {
     return c;
   }
   return t;
+}
+/* the density working shape, shared by both spellings above and by
+   presApply (gen-cast.js): the device widget + density, card
+   chassis, 2-wide — never the row form, never a 1-wide column */
+function densityDress(c, v) {
+  c.type = "device";
+  c.density = v;
+  c.brRow = false;
+  if (!c.span) c.span = 2;
+  c.cls = ((c.cls || "") + (v === "compact" ? " dvc" : " dvi"))
+    .replace(/^ /, "");
+  if (v === "compact") c.trailing = false;
+  return c;
 }
 /* which adapter a WORKING-shape tile belongs to (the reverse of
    canonTile — used by card grouping's row-form check, Phase 3) */

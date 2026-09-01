@@ -74,6 +74,36 @@ check("user's own dialect passes verbatim",
 check("untouched stock dialects flow", "googletv" in dialects
       and dialects["googletv"] == STOCK["dialects"]["googletv"])
 
+# ---- 1b. DERIVED CLASSES (0.87 — Suresh's Fire TV-SE: "TV Apps
+# screen only shows the one added app not the whole list". The v0.86
+# derive promise — stock keeps flowing underneath — was never
+# implemented in this merge, so a derived dialect rendered ONLY the
+# user's own entries.) ------------------------------------------------
+_dv = {"firetv_se": {"name": "Fire TV-SE", "derived_from": "firetv",
+                     "apps": {"disney": {"source": "Disney+"},
+                              "netflix": None},
+                     "dpad_commands": {"up": {"service": "x.y"}}}}
+_, ddial = C.merge_catalogs(STOCK, None, _dv)
+_se = ddial["firetv_se"]
+check("derived: the stock parent's apps flow underneath",
+      all(a in _se["apps"] for a in ("prime", "hulu", "youtube")))
+check("derived: the user's fork wins per entry",
+      _se["apps"]["disney"] == {"source": "Disney+"})
+check("derived: a tombstone hides a built-in", "netflix" not in _se["apps"])
+check("derived: the user's own fields survive (name, dpad, stamp)",
+      _se["name"] == "Fire TV-SE" and "dpad_commands" in _se
+      and _se["derived_from"] == "firetv")
+_rt = C.subtract_config(
+    {"apps": STOCK["apps"], "dialects": STOCK["dialects"]},
+    {"apps": dict(STOCK["apps"]), "dialects": {"firetv_se": _se}})
+_rl = _rt["dialects"]["firetv_se"]
+check("derived: saving lifts parent-equal entries back out",
+      sorted(k for k, v in _rl.get("apps", {}).items() if v is not None)
+      == ["disney"] and _rl.get("derived_from") == "firetv")
+check("derived: merge(subtract(x)) == x (round trip)",
+      C.merge_catalogs(STOCK, None, {"firetv_se": _rl})[1]["firetv_se"]
+      == _se)
+
 # ---- 2. order -------------------------------------------------------
 order = list(apps.keys())
 stock_order = [k for k in STOCK["apps"] if k in apps]

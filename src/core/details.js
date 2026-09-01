@@ -52,7 +52,9 @@ const STEP_KINDS = {
     fmt: (v, e) => {
       if (v == null) return "–";
       const u = (e && st(e).a.unit_of_measurement) || "";
-      return (Math.round(v * 1000) / 1000) + (u ? " " + u : "");
+      /* % and ° hug the number; worded units get their space */
+      return (Math.round(v * 1000) / 1000) +
+        (u ? ((u === "%" || u === "°") ? "" : " ") + u : "");
     },
     step: 1, stepAttr: "step", minAttr: "min", maxAttr: "max",
     set: (e, v) => callService((e || "").split(".")[0], "set_value",
@@ -124,7 +126,11 @@ function cycleChip(e, t, dir) {
    data-<attr>; default index 1 = the center button (Stop/Play-Pause). */
 function roveBtns(t, attr) {
   const el = document.getElementById("tile_" + t.id);
-  return el ? [el, [...el.querySelectorAll(`[data-${attr}]`)]] : [null, []];
+  /* skip buttons in hidden rows (2026-09-01, found building the lock
+     trio: a cover with no tilt still counted its hidden tilt buttons
+     in the rove ring) — display:none has no offsetParent */
+  return el ? [el, [...el.querySelectorAll(`[data-${attr}]`)]
+    .filter(b => b.offsetParent !== null)] : [null, []];
 }
 function roveMove(t, attr, d) {
   const [el, btns] = roveBtns(t, attr);

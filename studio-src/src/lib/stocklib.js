@@ -2033,6 +2033,14 @@ export const SHOWS_KINDS = [
      value is swept to volume + style: stepper on load. */
   { value: "volume", label: "Volume control", role: "volume",
     hint: "level + − / + — the Volume style select picks its shape" },
+  /* the density controls, first-class (final 0.87 review — Suresh:
+     "DRAWS AS for number.entity offers Launcher or Number… Surely
+     it should be Launcher or Fan Control"): the Variant picks the
+     density — Inline is the full control, Compact shares the row */
+  { value: "fan", label: "Fan control", role: null,
+    hint: "speed track, oscillate when supported" },
+  { value: "cover", label: "Cover control", role: null,
+    hint: "open / stop / close, tilt when supported" },
   { value: "power", label: "Power button", role: "power",
     hint: "toggles the device itself" },
   { value: "media", label: "Now Playing", role: "media_player",
@@ -2048,6 +2056,14 @@ export const SHOWS_KINDS = [
     hint: "the entity's own range — slider or − / + set its value" },
   { value: "select", label: "Select", role: null,
     hint: "one of the entity's own options — picker, cycle, or chips" },
+  /* V7 §9: the stateless & binary domains — no fat variants (no
+     continuum to house), binary state is a two-up state pair */
+  { value: "switch", label: "Switch control", role: null,
+    hint: "Off / On state pair — the pressed side is the state" },
+  { value: "lock", label: "Lock control", role: null,
+    hint: "lock is a press, unlock is a hold; shows all five states" },
+  { value: "press", label: "Button", role: null,
+    hint: "the tile is the button — press fires it, no state" },
 ];
 /* THE ADAPTER REGISTRY (entity-controls Phase 1) — the Studio twin of
    src/core/adapters.js. The region between the markers is BYTE-
@@ -2056,7 +2072,7 @@ export const SHOWS_KINDS = [
 export const ADAPTERS =
 /* @adapter-table-begin v1 */
 {
-  device:    { role: null,            variants: [] },
+  device:    { role: null, variants: [] },
   volume:    { role: "volume",        domains: ["media_player"],
                variants: ["compact", "slider", "stepper"], dflt: "slider" },
   power:     { role: "power",
@@ -2075,6 +2091,16 @@ export const ADAPTERS =
   select:    { role: null, domains: ["select", "input_select"],
                variants: ["auto", "picker", "cycle", "chips"],
                dflt: "auto" },
+  fan:       { role: null, domains: ["fan"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  cover:     { role: null, domains: ["cover"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  switch:    { role: null, domains: ["switch", "input_boolean"],
+               variants: [], dflt: "compact" },
+  lock:      { role: null, domains: ["lock"],
+               variants: [], dflt: "compact" },
+  press:     { role: null, domains: ["button", "input_button", "scene"],
+               variants: [] },
 }
 /* @adapter-table-end */
 ;
@@ -2085,6 +2111,7 @@ export const ADAPTERS =
    as the option's tooltip where the select supports it */
 export const VARIANT_LABELS = {
   auto: "Auto",
+  inline: "Inline — full control",
   compact: "Compact",
   slider: "Slider",
   stepper: "Stepper",
@@ -2095,6 +2122,7 @@ export const VARIANT_LABELS = {
 };
 export const VARIANT_HINTS = {
   auto: "Follows the entity's own hint and range",
+  inline: "The launcher band plus a full control row (fans and covers)",
   compact: "Value on the title line with − / + controls",
   slider: "A full-width drag track",
   stepper: "− / + buttons with the value between them",
@@ -2110,6 +2138,10 @@ export const variantOptions = (adapter, blankLabel) => [
   { value: "", label: blankLabel },
   ...((ADAPTERS[adapter] || {}).variants || [])
     .filter((v) => v !== "auto")
+    /* the blank row IS the default — when a variant's label equals
+       the blank label (fan/cover: "Inline — full control"), listing
+       it again is the same choice twice (2026-09-01 review) */
+    .filter((v) => (VARIANT_LABELS[v] || v) !== blankLabel)
     .map((v) => ({ value: v, label: VARIANT_LABELS[v] || v })),
 ];
 /* PHASE 0 #3 → PHASE 1: ONE Draws-as filter per member shape, shared
@@ -2343,6 +2375,20 @@ export function normalizeVariants(cfg) {
         n++;
       }
       if (p.style) { if (!p.variant) p.variant = p.style; delete p.style; n++; }
+    }
+    /* Wave C's first spelling (a density variant on the Launcher)
+       heals to the first-class Fan/Cover control (final 0.87 review:
+       "Surely it should be Launcher or Fan Control") — keyed by the
+       entity's own domain, so a device-id key stays untouched */
+    for (const [k, p] of Object.entries(a?.present || {})) {
+      if (!p || typeof p !== "object") continue;
+      const dom = k.includes(".") ? k.split(".")[0] : null;
+      if ((dom === "fan" || dom === "cover") &&
+          (!p.type || p.type === "device") &&
+          (p.variant === "inline" || p.variant === "compact")) {
+        p.type = dom;
+        n++;
+      }
     }
     const s = a?.surface;
     if (s && s.volume_style) {

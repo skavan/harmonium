@@ -106,6 +106,14 @@ function presApply(tile, p, ent) {
      walk merges same-group tiles of one section into one card */
   if (typeof p.card_group === "string" && p.card_group)
     tile.card_group = p.card_group;
+  /* COMPAT (Wave C's first spelling): a variant on a device-typed
+     present entry still dresses the launcher into its density —
+     envelopes saved before the fan/cover adapters heal in the
+     Studio, but the engine renders them right meanwhile. The dress
+     pins the card chassis and span like every density tile. */
+  if (tile.type === "device" && !tile.density &&
+      (p.variant === "inline" || p.variant === "compact"))
+    densityDress(tile, p.variant);
   if (p.tap === "none") { tile.tap = "none"; tile.trailing = false; }
   else if (p.tap === "open") {
     if (tile.type === "device") tile.tap = "open";
@@ -191,10 +199,18 @@ function groupChildTile(did, shows, idPrefix, pres) {
 /* a LOOSE entity drawn as a control (v0.76): no device bundle to
    resolve roles from — the entity IS every role it needs */
 function looseShowTile(ent, p, idPrefix) {
+  const dom0 = ent.split(".")[0];
   const base = {
     id: idPrefix + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
     label: st(ent).a.friendly_name || ent.split(".").pop(),
-    icon: "material:devices",
+    /* the domain's own glyph where the domain IS the control (the
+       canvas: identity is the icon and status string only) */
+    icon: dom0 === "fan" ? "material:mode_fan"
+      : dom0 === "cover" ? "material:blinds"
+      : dom0 === "switch" || dom0 === "input_boolean" ? "material:toggle_on"
+      : dom0 === "lock" ? "material:lock"
+      : dom0 === "button" || dom0 === "input_button" ? "material:radio_button_checked"
+      : dom0 === "scene" ? "material:play_circle" : "material:devices",
     span: 2
   };
   const shows = presType(p);
@@ -202,8 +218,12 @@ function looseShowTile(ent, p, idPrefix) {
   let tile;
   if (shows === "volume" || shows === "stepper") {
     /* style decides the shape here too (v0.83.7 unification) */
+    /* the adapter's dflt (slider — v0.83.1 "default should be fat")
+       closes the ladder here too; "compact" was a pre-ruling relic
+       (2026-09-01 review: Onkyo chosen as stepper rendered compact
+       whenever the variant write was lost — the FALLBACK was wrong) */
     const vstyle = shows === "stepper" ? "stepper" :
-      resolveVariant(presVariant(p), globalVariant("volume")) || "compact";
+      resolveVariant(presVariant(p), globalVariant("volume")) || "slider";
     tile = vstyle === "stepper"
       ? Object.assign(base, { type: "stepper", kind: "volume",
           bandGen: 1, entity: ent, level_entity: ent })

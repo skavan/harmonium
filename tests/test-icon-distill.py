@@ -76,7 +76,11 @@ def check(name, cond):
 
 
 from harmonium.icons import (  # noqa: E402
-    distill_icons, iter_icon_refs, _mdi_source, _phu_source)
+    distill_icons, iter_icon_refs, _mdi_source, _phu_source,
+    list_icons,
+    mint_icon_paths,
+    resolve_icons,
+)
 
 # ---- 1. ref scan ----------------------------------------------------
 cfg = {
@@ -160,6 +164,41 @@ with tempfile.TemporaryDirectory() as td:
     # idempotence: a second pass writes nothing
     rep4 = distill_icons(www, cfg, frontend=fe)
     check("a settled pass writes nothing", rep4["written"] == [])
+
+    # ---- 6. THE RESOLVER + MINT (2026-09-01 — Suresh: "live preview
+    # in the studio and then mint into the deployed artifacts") ----
+    rr = resolve_icons(["phu:sonos", "phu:nope", "hue:bulb",
+                        "mdi:sofa", "material:tv", "junk"],
+                       www, frontend=fe)
+    check("resolve: found entries carry viewBox + path",
+          rr["found"]["phu:sonos"] == {"viewBox": "0 0 24 24",
+                                       "path": "M9 9h9v9z"}
+          and rr["found"]["mdi:sofa"]["path"] == "M2 2h2v2z")
+    check("resolve: a pack without the name reports missing",
+          rr["missing"] == ["phu:nope"])
+    check("resolve: an uninstalled set reports no_source",
+          rr["no_source"] == ["hue"])
+    check("resolve: the font and non-refs are ignored",
+          "material:tv" not in rr["found"] and "junk" not in rr["found"])
+    mm = mint_icon_paths(cfg, www, frontend=fe)
+    check("mint: every referenced, resolvable icon is in the map",
+          sorted(mm["found"]) == ["mdi:sofa", "phu:plex_2", "phu:sonos"])
+    check("mint: unresolvable refs report, never raise",
+          mm["no_source"] == ["hue"] and mm["missing"] == [])
+
+    # ---- 7. AUTOCOMPLETE (2026-09-01 — "when I start typing phu: I
+    # get the same dropdown … material:" — names + path data, prefix
+    # matches ranked first) ----
+    ls = list_icons("phu", "s", www, frontend=fe)
+    check("list: the fragment filters the pack",
+          [i["name"] for i in ls["icons"]] == ["sonos"])
+    check("list: every row carries its path data for the preview",
+          ls["icons"][0]["path"] == "M9 9h9v9z"
+          and ls["icons"][0]["viewBox"] == "0 0 24 24")
+    check("list: an uninstalled set says no_source",
+          list_icons("hue", "", www, frontend=fe)["no_source"] is True)
+    check("list: empty fragment lists the pack (capped)",
+          len(list_icons("phu", "", www, frontend=fe)["icons"]) == 2)
 
 print(("\nicon-distill: FAIL " + str(fails)) if fails
       else "\nicon-distill: ALL PASS")

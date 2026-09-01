@@ -1,12 +1,15 @@
 /* CH KEY CONTRACT probe (2026-08-19 redesign — Suresh: "ChUp, ChDn,
    navigate the LCD. Always. Hold+ChUp, Hold+ChDn on music controller
    does RWD/FWD", after one field day with the first hold-CH shape).
-   Under test:
-   · SHORT CH (PageUp/PageDown) unbound = the focus walk — CH▲ moves
-     the highlight UP (the old section-step default read inverted);
-   · HOLD CH (' and /, KeyMapper long-press keys) unbound = the big
-     jumps: section chips / browse categories — CH▲-hold = PREVIOUS
-     (up the page);
+   REFRESHED for v0.85.7 in the 0.87 final review (Suresh: "On a
+   Page like Porch, ChUp and ChDn should jump sections. Since we
+   have them." — this probe's walk-first expectations predated that
+   ruling and had gone quietly stale). Under test:
+   · SHORT CH (PageUp/PageDown) unbound = the SECTION JUMP where the
+     page has jump stops, falling back to the focus walk at the
+     ends (and on pages without sections);
+   · HOLD CH (' and /, KeyMapper long-press keys) unbound = the same
+     big jumps;
    · bindings win BOTH, via the ladder;
    · the D-pad fence: ▲ from the first tile row must NOT land on the
      hero tab row (chips are touch/hold targets, not D-pad stops). */
@@ -71,13 +74,13 @@ const heroAt = () => p.evaluate(() =>
 const r = {};
 r.boot = { screen: await screen(), focus: await focus() };   /* home, t1 */
 
-/* SHORT CH = focus walk, natural direction */
+/* SHORT CH = the section jump (v0.85.7), then the walk at the end */
 await p.keyboard.press('PageDown'); await p.waitForTimeout(120);
-r.shortDown = await focus();                                  /* t2 */
+r.shortDown = await focus();                    /* t3 — jump to Beta */
 await p.keyboard.press('PageDown'); await p.waitForTimeout(120);
-r.shortDown2 = await focus();                                 /* t3 */
+r.shortDown2 = await focus();                   /* t4 — last section: the walk */
 await p.keyboard.press('PageUp'); await p.waitForTimeout(120);
-r.shortUp = await focus();                                    /* t2 — CH▲ goes UP */
+r.shortUp = await focus();                      /* t1 — jump back to Alpha */
 
 /* the D-pad fence: from the FIRST tile, ▲ must not enter the chips */
 await p.keyboard.press('PageUp'); await p.waitForTimeout(120); /* back to t1 */
@@ -105,7 +108,7 @@ r.map = await p.evaluate(() => ({ up: KEYMAP["'"], down: KEYMAP['/'] }));
 
 console.log(JSON.stringify({ ...r,
   ok: r.boot.focus === 't1' &&
-      r.shortDown === 't2' && r.shortDown2 === 't3' && r.shortUp === 't2' &&
+      r.shortDown === 't3' && r.shortDown2 === 't4' && r.shortUp === 't1' &&
       r.fenceDpad === 't1' && r.fenceCh === 't1' &&
       r.holdNext === 1 && r.holdPrev === 0 &&
       JSON.stringify(r.shortBinding) === '["two"]' &&

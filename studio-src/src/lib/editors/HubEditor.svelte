@@ -538,14 +538,15 @@
       bind:settingsOpen={() => secSet.presets ?? false, (v) => (secSet.presets = v)}
       addLabel="＋ Add preset"
       onAdd={() => { if (!roleSection("presets")) addRoleSection("presets", "Presets"); newPresetTile(roleSection("presets").s.tiles); }}
+      actions={presetActions}
       bind:collapsed={() => secFold.presets ?? false, (v) => (secFold.presets = v)}>
       {#if secSet.presets}{@render secSettings(roleSection("presets")?.s)}{/if}
       <!-- ⤵ IMPORT A PRESET SNIPPET (v0.79.1; wording unified v0.79.2
            — the standard grammar): shown only when there is something
            to import. Export lives on any preset row's ⋮ → Export
            snippet; the twin import door is an activity's Presets tab. -->
-      {#if snippetsOf("preset").length}
-        <div class="mb-2 flex items-center justify-end">
+      {#snippet presetActions()}
+        {#if snippetsOf("preset").length}
           <div class="relative flex h-[26px] shrink-0 items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface px-2 text-[11px] font-medium text-ink-2 hover:bg-sunk">
             <svg class="pointer-events-none h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -563,8 +564,8 @@
               {#each snippetsOf("preset") as [sid, sn] (sid)}<option value={sid}>{sn.name}</option>{/each}
             </select>
           </div>
-        </div>
-      {/if}
+        {/if}
+      {/snippet}
       {#if roleSection("presets")}
         {@const rs = roleSection("presets")}
         <div class={"space-y-2 " + (secEnabled(rs.s) ? "" : "opacity-50")}>

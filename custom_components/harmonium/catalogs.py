@@ -220,7 +220,18 @@ def merge_catalogs(stock: dict, user_apps, user_dialects) -> tuple:
             dialects[did] = _merge_dialect(s_dial[did], u_dial[did])
         elif did in u_dial:
             if u_dial[did] is not None:
-                dialects[did] = u_dial[did]    # user's own dialect
+                d = u_dial[did]
+                # DERIVED CLASSES (0.87 fix — the v0.86 Studio promise
+                # "it keeps tracking stock underneath" was never
+                # implemented here, so a derived FireTV rendered ONLY
+                # the user's own apps): derived_from names a stock
+                # parent whose whole shape spreads underneath — the
+                # same two-level merge a stock fork gets.
+                parent = isinstance(d, dict) and d.get("derived_from")
+                if parent in s_dial:
+                    dialects[did] = _merge_dialect(s_dial[parent], d)
+                else:
+                    dialects[did] = d          # user's own dialect
         else:
             dialects[did] = s_dial[did]
     return apps, dialects
@@ -303,6 +314,9 @@ def subtract_config(stock: dict, cfg: dict) -> dict:
     if not isinstance(cfg, dict):
         return cfg
     out = dict(cfg)
+    # icon_paths is a DEPLOY-ONLY artifact (store.py minting) — never
+    # user space, even when a client round-trips a deployed file
+    out.pop("icon_paths", None)
     dial_key = "dialects" if "dialects" in cfg or "app_classes" not in cfg \
         else "app_classes"
     if isinstance(cfg.get("apps"), dict):
@@ -320,6 +334,15 @@ def subtract_config(stock: dict, cfg: dict) -> dict:
                 sub = _subtract_dialect(s_dial[did], d)
                 if sub:
                     dialects[did] = sub
+            elif isinstance(d, dict) and d.get("derived_from") in s_dial:
+                # a DERIVED class subtracts against its stock parent —
+                # the inverse of the merge above, so equal entries lift
+                # out and a hidden built-in becomes a tombstone. The
+                # derived_from stamp itself always survives (it is not
+                # a parent field).
+                sub = _subtract_dialect(s_dial[d["derived_from"]], d)
+                sub["derived_from"] = d["derived_from"]
+                dialects[did] = sub
             else:
                 dialects[did] = d
         for did in s_dial:

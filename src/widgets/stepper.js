@@ -2,23 +2,29 @@
    setpoint, position, percentage, number…); kind picks entity
    attribute + service.
 
-   ONE DESIGN LANGUAGE (2026-08-31 — Suresh, four screenshots deep:
-   "In short we need a design language that is consistent"). Every
-   numeric control is one of exactly TWO shapes, sharing the volume
-   widget's proportions (58×46 buttons, 21px/600 value type):
+   THE CONTROL LANGUAGE (2026-08-31 — docs/design-control-language.md,
+   from the Claude Design canvas; Suresh's ruling). Every numeric
+   control is one of exactly THREE shapes on ONE chassis — the same
+   title row, the same 58×46 ± buttons, the same 12px radius. What
+   sits between the buttons is what tells the user how the control
+   behaves, and A TRACK MEANS SCRUBBABLE — that presence is
+   load-bearing across the app:
 
-     ROW  — − [track over value] + on one line: the volume-stepper
-            classic, now carrying its number beneath the track (his
-            img-4 ruling: "volume stepper is the way to go (but
-            missing the value)"). The default for every kind and for
-            Number's Stepper/Compact variants. A kind whose bounds
-            don't resolve hides the track and centers the value.
-     FAT  — the big drag track above, − value + row below: the
-            Slider/Vertical variants and the detail-page ranges.
+     FAT      — the 44px drag track above, − [value 21px] + row
+                below. The screen's headline value (one per screen
+                as guidance, not law): volume on an activity,
+                temperature on a climate device, detail ranges.
+     COMPACT  — − [32px track, value 14px INSET right] +. Continuous
+                but secondary: scrubbable, carries its own value in
+                the track; the value flips to accent ink past ~88%
+                fill so it stays legible over the fill (t.inset).
+     STEPPER  — − [value 21px] +, NO track. Discrete values only —
+                bass, trim, signed offsets. No track because there
+                is nothing to scrub; that absence is what makes it a
+                different control rather than a smaller slider.
 
-   The 42px display type and the title-line "Vol n%" are RETIRED —
-   the control owns its own number in both shapes; the title line is
-   the name, nothing else. */
+   The title line is the name, nothing else — no shape puts its
+   number there, and no tile shows the same number twice. */
 WIDGETS.stepper = {
     /* v0.58: a stepper for a range the device does not expose is a lie
        that reads 0% forever — only the volume kind has a feature bit
@@ -47,12 +53,11 @@ WIDGETS.stepper = {
       if (cur && cur.a) cur.a.is_volume_muted = next;
       callService("media_player", "volume_mute", { is_volume_muted: next }, e);
     },
-    /* which track the tile wants: the FAT deck only via an explicit
-       tile ask (Slider/Vertical variants) or the kind's detail-page
-       default — the volume kind always takes the row (its fat form
-       is the volume widget) */
+    /* the FAT deck: an explicit tile ask (Slider/Vertical variants)
+       or the kind's detail-page default; volume's fat form is the
+       volume widget, never this one */
     _fat: t => {
-      if (t.kind === "volume") return false;
+      if (t.kind === "volume" || t.inset) return false;
       const k = STEP_KINDS[t.kind] || {};
       return t.slider !== undefined ? t.slider : k.slider;
     },
@@ -64,9 +69,19 @@ WIDGETS.stepper = {
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
-      return `<div class="steprow vol">
+      /* COMPACT: the 32px track with the value inset in it.
+         VOLUME left this branch 2026-09-01 (Suresh's img: "Stepper
+         specified, compact shown") — a stepper is TRACKLESS by the
+         ruled language; kind makes no exception. */
+      if (t.inset) return `<div class="steprow vol">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
-      <div class="stepmid"><div class="sldr inrow"><i></i></div><div class="stepval sm">–</div></div>
+      <div class="sldr inrow"><i></i><b class="inval">–</b></div>
+      <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
+    </div>`;
+      /* STEPPER: no track — the value takes the middle at 21px */
+      return `<div class="steprow">
+      <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
+      <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
     },
@@ -76,19 +91,18 @@ WIDGETS.stepper = {
         t.kind, +d));
       const k = STEP_KINDS[t.kind], sl = el.querySelector(".sldr");
       if (!k || !sl) return;
-      /* orientation: the fat deck says, the row is always horizontal */
+      /* orientation: the fat deck says; the compact track is always
+         horizontal. A track present means scrubbable — wire it. */
       const ori = WIDGETS.stepper._fat(t) || "h";
-      /* drag/tap on the track → proportional set. Optimistic fill;
-         calls throttled, final on release. Bounds via stepBounds:
-         the entity's published min/max win. */
       const apply = (ev, final) => {
         const r = sl.getBoundingClientRect();
         let f = ori === "v"
           ? 1 - (ev.clientY - r.top) / r.height
           : (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style[ori === "v" ? "height" : "width"] =
-          Math.round(f * 100) + "%";
+        if (ori === "v")
+          sl.firstElementChild.style.height = Math.round(f * 100) + "%";
+        else setFill(sl, f);
         const ent = t.kind === "volume"
           ? lvlEnt(resolveEntity(t.entity), t) : resolveEntity(t.entity);
         const b = stepBounds(k, ent);
@@ -105,29 +119,35 @@ WIDGETS.stepper = {
     render(el, e, t) {
       const k = STEP_KINDS[t.kind];
       const le = t.kind === "volume" ? lvlEnt(e, t) : e;
-      /* the value — BOTH shapes own their number now; volume's mute
-         state swaps it for the glyph, matching the volume widget */
-      const sv = el.querySelector(".stepval");
+      const muted = t.kind === "volume" && !!st(e).a.is_volume_muted;
+      const text = k ? k.fmt(k.get(le), le) : "–";
+      /* the value — every shape owns its number: the fat/stepper
+         middle (.stepval) or the compact inset (.inval) */
+      const sv = el.querySelector(".stepval") || el.querySelector(".inval");
       if (sv) {
-        if (t.kind === "volume" && st(e).a.is_volume_muted)
+        if (muted)
           sv.innerHTML = `<span class="material-symbols-outlined vmute">volume_off</span>`;
-        else sv.textContent = k ? k.fmt(k.get(le), le) : "–";
+        else sv.textContent = text;
       }
       const sl = el.querySelector(".sldr");
       if (!sl || !k) return;
-      if (t.kind === "volume")
-        sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
+      if (t.kind === "volume") sl.classList.toggle("muted", muted);
       if (sl._drag) return;              // don't fight the finger
       const b = stepBounds(k, le);
       const has = b.min != null && b.max != null && b.max > b.min;
-      /* a row track with no resolvable range hides — the value
-         centers alone rather than drawing a 0-100 lie */
+      /* a compact track with no resolvable range hides — the value
+         would sit on a 0-100 lie */
       if (sl.classList.contains("inrow"))
         sl.classList.toggle("hidden", !has);
       if (!has) return;
       const f = Math.max(0, Math.min(1,
         ((+k.get(le) || 0) - b.min) / (b.max - b.min)));
-      sl.firstElementChild.style[sl.classList.contains("vert") ? "height" : "width"] =
-        Math.round(f * 100) + "%";
+      if (sl.classList.contains("vert"))
+        sl.firstElementChild.style.height = Math.round(f * 100) + "%";
+      else setFill(sl, f);
+      /* the INSET value flips to accent ink once the fill runs
+         beneath it — a single threshold at ~88%, not a blend */
+      const iv = sl.querySelector(".inval");
+      if (iv) iv.classList.toggle("flip", f >= 0.88);
     }
   };

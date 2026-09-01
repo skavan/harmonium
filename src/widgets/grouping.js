@@ -22,6 +22,27 @@
    master is always volume-linked (its level is the activity's own
    volume band). */
 const GRP_VOL_UNLINKED = new Set();
+/* JOIN/UNJOIN PENDING HOLD (2026-09-01 — Suresh: "Grouping and
+   Ungrouping is laggy and weird… sometimes it ungroups and
+   sometimes it doesn't"): Music Assistant takes seconds to settle,
+   and intermediate HA diffs ECHO the old membership — the
+   optimistic flip was being repainted away mid-flight, which read
+   as "didn't take". A tap now pins the intended membership for 5s;
+   renders honor the pin until the live state agrees or the hold
+   expires (then truth wins visibly). */
+const GRP_PENDING = new Map();   /* member -> { want, until } */
+function grpJoinedLive(e, m) {
+  return ((st(e).a.group_members) || []).indexOf(m) >= 0;
+}
+function grpJoined(e, m) {
+  const p = GRP_PENDING.get(m);
+  if (p) {
+    if (Date.now() > p.until || grpJoinedLive(e, m) === p.want)
+      GRP_PENDING.delete(m);
+    else return p.want;
+  }
+  return grpJoinedLive(e, m);
+}
 /* INLINE ROWS EXPAND ON TAP (v0.83.7 — "On the inline card we don't
    show volume sliders at all... (2) Click to show them"): tapping a
    member's NAME on the inline card reveals its volume row beneath —
@@ -113,25 +134,23 @@ WIDGETS.grouping = {
       const master = () => grpMaster(t);
       const joinedOf = () => {
         const e = master();
-        const g = st(e).a.group_members || [];
-        /* the group, master included — members list order preserved */
-        return [e].concat((t.entities || []).filter(m => m !== e && g.indexOf(m) >= 0));
+        /* the group, master included — members list order preserved;
+           mid-flight taps count via the pending pin */
+        return [e].concat((t.entities || []).filter(m => m !== e && grpJoined(e, m)));
       };
       wireTaps(el, "grp", m => {
         const e = master();
         if (m === e) return;
-        const g = st(e).a.group_members || [];
-        const joined = g.indexOf(m) >= 0;
-        /* OPTIMISTIC (house style): the row flips now; HA's next
-           diff is the truth that keeps or corrects it */
-        const cur = S.states.get(e);
-        if (cur && cur.a) {
-          const gm = (cur.a.group_members || [e]).slice();
-          if (joined) gm.splice(gm.indexOf(m), 1);
-          else gm.push(m);
-          cur.a.group_members = gm;
-          renderStates();
+        /* a member the network can't reach can't join — say so
+           instead of an optimistic flip that always snaps back */
+        if (["unavailable", "unknown"].includes(st(m).s)) {
+          flashBar((st(m).a.friendly_name || m.split(".").pop()) +
+            " is unavailable");
+          return;
         }
+        const joined = grpJoined(e, m);
+        GRP_PENDING.set(m, { want: !joined, until: Date.now() + 5000 });
+        renderStates();
         if (joined) callService("media_player", "unjoin", null, m);
         else callService("media_player", "join", { group_members: [m] }, e);
       });
@@ -150,7 +169,7 @@ WIDGETS.grouping = {
           const r = rs.getBoundingClientRect();
           let f = (ev.clientX - r.left) / r.width;
           f = Math.max(0, Math.min(1, f));
-          rs.firstElementChild.style.width = Math.round(f * 100) + "%";
+          setFill(rs, f);
           if (pcEl) pcEl.textContent = Math.round(f * 100) + "%";
           const cur = S.states.get(m);
           if (cur && cur.a) cur.a.volume_level = Math.round(f * 100) / 100;
@@ -203,7 +222,7 @@ WIDGETS.grouping = {
         const r = sl.getBoundingClientRect();
         let f = (ev.clientX - r.left) / r.width;
         f = Math.max(0, Math.min(1, f));
-        sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+        setFill(sl, f);
         const now = Date.now();
         if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
         sl._t = now; sl._lastF = f;
@@ -269,7 +288,7 @@ WIDGETS.grouping = {
           const jb0 = row.querySelector(".gjoin");
           if (jb0) jb0.style.display = "";
         }
-        const on = g.indexOf(m) >= 0;
+        const on = grpJoined(e, m);   /* the pending pin wins mid-flight */
         if (on) joined.push(m);
         row.classList.toggle("on", on);
         const lv = st(m).a.volume_level;
@@ -310,7 +329,7 @@ WIDGETS.grouping = {
       el.querySelectorAll(".sldr.rowsl").forEach(rs => {
         if (rs._drag) return;
         const l = st(rs.dataset.rsl).a.volume_level;
-        rs.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+        setFill(rs, (l || 0));
         const pc = rs.querySelector(".rslpct");
         if (pc) pc.textContent = l != null ? pct(l) : "–";
       });
@@ -325,7 +344,7 @@ WIDGETS.grouping = {
       const linked = joined.filter(m => m === e || !GRP_VOL_UNLINKED.has(m));
       const lv = linked.map(m => st(m).a.volume_level || 0);
       const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
-      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      setFill(sl, avg);
     }
   };
 /* ================================================================
@@ -431,7 +450,7 @@ WIDGETS.grpmember = {
       const r = sl.getBoundingClientRect();
       let f = (ev.clientX - r.left) / r.width;
       f = Math.max(0, Math.min(1, f));
-      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      setFill(sl, f);
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = Math.round(f * 100) + "%";
       const cur = S.states.get(m);
@@ -458,7 +477,7 @@ WIDGETS.grpmember = {
     const l = volHeld(e, st(e).a.volume_level);
     const sl = el.querySelector(".sldr");
     if (sl && !sl._drag) {
-      sl.firstElementChild.style.width = Math.round((l || 0) * 100) + "%";
+      setFill(sl, (l || 0));
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = l != null ? pct(l) : "–";
       sl.classList.toggle("muted", !!st(e).a.is_volume_muted);
@@ -538,7 +557,7 @@ WIDGETS.grpvol = {
       const r = sl.getBoundingClientRect();
       let f = (ev.clientX - r.left) / r.width;
       f = Math.max(0, Math.min(1, f));
-      sl.firstElementChild.style.width = Math.round(f * 100) + "%";
+      setFill(sl, f);
       const now = Date.now();
       if (!(final || now - (sl._t || 0) > 150) || f === sl._lastF) return;
       sl._t = now; sl._lastF = f;
@@ -572,7 +591,7 @@ WIDGETS.grpvol = {
     const avg = lv.reduce((a, b) => a + b, 0) / (lv.length || 1);
     const sl = el.querySelector(".sldr");
     if (sl && !sl._drag) {
-      sl.firstElementChild.style.width = Math.round(avg * 100) + "%";
+      setFill(sl, avg);
       const pc = sl.querySelector(".rslpct");
       if (pc) pc.textContent = pct(avg);
     }
@@ -587,6 +606,10 @@ WIDGETS.grpvol = {
    trim sliders) lives. Lit when any member is linked to the master. */
 WIDGETS.grouplaunch = {
     hidden: (e, t) => (t.entities || []).length < 2,
+    /* V7 right-side glyph rule: the spkgrp: screen is THIS group's
+       controller — going deeper, not away — so the cue is tune */
+    body: () => `<span class="pickcue material-symbols-outlined">tune</span>`,
+    wire: (el) => el.classList.add("haspickcue"),
     /* counts live on the SUB line (tidy-ups: "put the info in the
        state area, not clipping the title") */
     linkedCount: (e, t) => {

@@ -259,6 +259,63 @@ export function setStatus(msg, cls = "") {
   app.status = { msg, cls };
 }
 
+/* LIVE ICON LOOKUP (2026-09-01 — Suresh: "live preview in the
+   studio and then mint into the deployed artifacts"): one call to
+   /api/harmonium/icons per unseen ref, answered by the SAME resolver
+   the deploy minting uses — preview and remote can never disagree.
+   Cache entries: {viewBox, path} | "missing" | "no_source". */
+const _iconCache = new Map();
+export async function lookupSetIcon(ref) {
+  if (_iconCache.has(ref)) return _iconCache.get(ref);
+  try {
+    const r = await fetch("/api/harmonium/icons?names=" +
+      encodeURIComponent(ref), {
+      headers: { Authorization: "Bearer " + token() },
+    });
+    if (!r.ok) return null;              /* transient — don't cache */
+    const rep = await r.json();
+    const v = rep.found?.[ref] ? rep.found[ref]
+      : rep.no_source?.length ? "no_source" : "missing";
+    _iconCache.set(ref, v);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/* AUTOCOMPLETE for a set prefix ("phu:air…" — the HA picker's
+   feel, made INSTANT 2026-09-01: "so slow its unusable"): the WHOLE
+   pack fetches once per set (the server caches the parsed pack by
+   mtime), then every keystroke filters locally — exactly how the
+   material: list works. Every entry seeds the preview cache. */
+const _setPacks = new Map();       /* set -> [{name,viewBox,path}] | "no_source" | Promise */
+export function setPack(set) {
+  const hit = _setPacks.get(set);
+  if (hit && !(hit instanceof Promise)) return hit;
+  if (!hit) {
+    const pr = (async () => {
+      try {
+        const r = await fetch("/api/harmonium/icons?list=" +
+          encodeURIComponent(set) + "&all=1", {
+          headers: { Authorization: "Bearer " + token() },
+        });
+        if (!r.ok) { _setPacks.delete(set); return null; }
+        const rep = await r.json();
+        const v = rep.no_source ? "no_source" : (rep.icons || []);
+        if (Array.isArray(v))
+          for (const it of v)
+            _iconCache.set(set + ":" + it.name,
+              { viewBox: it.viewBox, path: it.path });
+        _setPacks.set(set, v);
+        return v;
+      } catch { _setPacks.delete(set); return null; }
+    })();
+    _setPacks.set(set, pr);
+    return pr;
+  }
+  return hit;                       /* in-flight promise */
+}
+
 export async function api(method, body, query = "") {
   const r = await fetch(API + query, {
     method,
@@ -915,10 +972,50 @@ export function previewGoto(screen) {
   pvWindow.postMessage({ type: "harmonium_navigate", screen }, location.origin);
 }
 
+/* PREVIEW ICONS (2026-09-01 — Suresh's img: a phu: icon previews in
+   the field but not on the remote): the deployed file gets its
+   icon_paths MINTED server-side, but the preview posts the raw
+   draft — so the engine had nothing to draw. Mint here too, from
+   the same resolver via the icons API: collect the draft's set
+   refs, resolve the ones the cache lacks, attach icon_paths, and
+   re-push when an async answer lands. */
+const ICON_REF = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/;
+function draftIconRefs(node, out) {
+  if (Array.isArray(node)) { node.forEach((v) => draftIconRefs(v, out)); return out; }
+  if (node && typeof node === "object")
+    for (const [k, v] of Object.entries(node)) {
+      if (k === "icon" && typeof v === "string" && ICON_REF.test(v) &&
+          !v.startsWith("material:")) out.add(v);
+      else draftIconRefs(v, out);
+    }
+  return out;
+}
+let _pvIconsInflight = false;
+function previewIconPaths(cfg) {
+  const refs = [...draftIconRefs(cfg, new Set())];
+  if (!refs.length) return null;
+  const out = {};
+  const misses = [];
+  for (const r of refs) {
+    const hit = _iconCache.get(r);
+    if (hit && typeof hit === "object") out[r] = hit;
+    else if (hit === undefined) misses.push(r);
+  }
+  if (misses.length && !_pvIconsInflight) {
+    _pvIconsInflight = true;
+    Promise.all(misses.map((r) => lookupSetIcon(r)))
+      .then(() => { _pvIconsInflight = false; schedulePreview(false); })
+      .catch(() => { _pvIconsInflight = false; });
+  }
+  return Object.keys(out).length ? out : null;
+}
 export function pushPreview() {
   if (!app.pvReady || !app.draft || !pvWindow) return;
+  const config = $state.snapshot(app.draft);
+  const ip = previewIconPaths(config);
+  if (ip) config.icon_paths = ip;
   pvWindow.postMessage(
-    { type: "harmonium_config", config: $state.snapshot(app.draft),
+    { type: "harmonium_config", config,
       device: app.device, workspace: app.workspace },
     location.origin,
   );

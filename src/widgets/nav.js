@@ -78,12 +78,15 @@ WIDGETS.nav = {
     navStyle(t) === "summary" && navTargetEntities(t).some(x => ACTIVE(st(x).s)),
   body: t => navStyle(t) === "image"
     ? `<img class="roomimg" src="${navImage(t)}" alt="">`
-    : `<div class="meter hidden"><i></i></div>`,
+    /* v3 rows: the unboxed chevron is the page cue */
+    : `<div class="meter hidden"><i></i></div>
+       <span class="pickcue material-symbols-outlined">chevron_right</span>`,
   /* style rides in as a class (nav-plain / nav-image / nav-summary)
      so the CSS can shape each without a separate widget type */
   wire: (el, t) => {
     const style = navStyle(t);
     el.classList.add("nav-" + style);
+    if (style !== "image") el.classList.add("haspickcue");
     /* the shared photo-tile dress (v0.85.8): widgets.css styles
        .tile.photo, and preset tiles with an `image` wear the same
        class — one look, two widgets. image_opacity moved to the

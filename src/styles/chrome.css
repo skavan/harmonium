@@ -60,12 +60,12 @@
      newest line first, for diagnosing shell/KeyMapper behavior */
   #dbg {
     flex: 0 0 auto; margin: 0 12px 6px; padding: 6px 10px;
-    background: #151a20; border: 1px solid var(--accent); border-radius: 10px;
+    background: var(--tile, #171e27); border: 1px solid var(--accent); border-radius: 10px;
     font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
     color: var(--text); white-space: pre; overflow: hidden;
   }
   #dot { width: var(--bar-dot, 8px); height: var(--bar-dot, 8px); border-radius: 50%; background: var(--danger); flex: 0 0 auto; }
-  #dot.ok { background: #4caf7d; }
+  #dot.ok { background: var(--ok, #4ade80); }
   /* ⓘ hit zone: ~56×52 finger target (v0.85.7 — Suresh: "really hit
      or miss"; padding grows the tap area, negative margin keeps the
      glyph visually where it was) */
@@ -81,7 +81,7 @@
     padding-bottom: 46px;   /* air between title and the nav strip */
   }
   #banner.notabs { padding-bottom: 0; }   /* no strip: title truly centers */
-  #banner .btitle { font-size: 34px; font-weight: 300; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+  #banner .btitle { font-size: var(--fs-0, 34px); font-weight: var(--fw-0, 300); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
   #banner .btime {
     position: absolute; top: 10px; right: 12px;
     background: rgba(0,0,0,.45); border-radius: 999px;
@@ -94,10 +94,10 @@
     display: flex;
   }
   .hjump {
-    flex: 1; min-height: 52px;
+    flex: 1; min-height: var(--tab-h, 52px);
     display: flex; align-items: flex-end; padding: 0 14px 10px;
     font-size: 13px; font-weight: 700; letter-spacing: .08em;
-    text-transform: uppercase; color: #d4d8dd;
+    text-transform: uppercase; color: var(--text, #f2f5f8);
     text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
   }
   /* WIDE (v0.68): `flex: 1` makes the strip a tab bar spanning the

@@ -29,6 +29,14 @@ WIDGETS.picker = {
     return next ? cur + " ▸ " + deslug(String(next)) : cur;
   },
   isOn: () => false,
+  /* the TWO-LINE row (2026-09-01 ruling, his img: a long value
+     starved the name to "Sou…") — name on top, the current value as
+     the status line. V7 right-side glyph rule: "chevron means you
+     leave, tune means you stay" — this row opens the picker FOR the
+     thing it names, so the cue is tune, not a chevron. */
+  body: t => (t && t.cycle) ? "" :
+    `<span class="pickcue material-symbols-outlined">tune</span>`,
+  wire: (el, t) => { if (!(t && t.cycle)) el.classList.add("haspickcue"); },
   nav: "value",
   keys: {
     left:  (e, t) => void cycleChip(e, t, -1),

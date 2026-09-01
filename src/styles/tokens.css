@@ -1,17 +1,44 @@
 :root {
-    --bg: #0d0f12;
-    --tile: #1a1e24;
-    --tile-hi: #232932;
-    --text: #e8eaed;
-    --dim: #8a919c;
-    --accent: #ffb300;
-    --on: #ffd54f;
-    --wash: rgba(255,179,0,.10);
+    /* THE SKIN TOKENS (v3 canvas, ruled 2026-08-31 — Suresh: "I
+       want those passes"): the inferred hexes are the shipped skin.
+       Themes override any of these per profile as before. */
+    --bg: #0a0b0d;              /* canvas */
+    --tile: #171e27;
+    --tile-hi: #222b36;         /* control surface */
+    /* ---- V4 §0 track/geometry tokens (2026-09-01, pasted as
+       specced — geometry is authorable, the rest derives) ---- */
+    --track-inset: 2px;         /* channel-to-fill gap, all sides */
+    --lead-ratio: 3;            /* aspect for a full leading corner */
+    --fill-min: 4px;            /* floor: small values never vanish */
+    --track-h-1: 44px;          /* fat track */
+    --track-h-2: 32px;          /* compact track */
+    --btn-w: 58px;              /* ± button */
+    --btn-h: 46px;              /* ± buttons, pills, actions */
+    --focus-w: 2px;             /* d-pad focus ring */
+    --focus-offset: 2px;        /* outset; negated on a card */
+    --hold-ms: 500ms;           /* V7 §9: the unlock/open hold */
+    --track-channel: #1a212b;   /* recessed channel */
+    --track-hairline: #2a3340;  /* channel edge */
+    --radius-inner: calc(var(--radius) - var(--track-inset));  /* derived */
+    --ctl-dis: #141a22;         /* disabled surface */
+    --text: #f2f5f8;
+    --dim: #98a2ae;             /* text · secondary */
+    --faint: #5b6674;           /* text · disabled */
+    --accent: #ffb020;
+    --accent-ink: #14181d;      /* ink on an accent fill */
+    --on: #ffb020;              /* accent means active — one colour rule */
+    --ok: #4ade80;              /* status · online */
+    --wash: rgba(255,176,32,.10);
     --danger: #e05252;
+    --warn: #d9a13b;            /* caution — amber, not an error */
+    --logo-chip: #e8eaed;       /* light ground behind dark wordmarks */
     --radius: 12px;
     /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
     --tile-h: 84px;
     --font-1: system-ui, Roboto, sans-serif;   /* primary: labels/titles */
+    --fs-0: 34px;               /* display step (V5 §8) — hero title */
+    --fw-0: 300;
+    --tab-h: 52px;              /* tab strips, beside --btn-h */
     --fs-1: 15px;
     --fw-1: 600;
     --font-2: var(--font-1);                   /* secondary: subs/hints */

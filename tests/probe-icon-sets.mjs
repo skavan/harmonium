@@ -21,8 +21,17 @@ const CONFIG = {
       { id: 'bad', type: 'device', entity: 'switch.a', icon: 'phu:nope', label: 'Nope', span: 2 },
       { id: 'mat', type: 'device', entity: 'switch.a', icon: 'material:tv', label: 'TV', span: 2 },
       { id: 'txt', type: 'device', entity: 'switch.a', icon: '🎵', label: 'Emoji', span: 2 },
+      /* MINTED icons (2026-09-01 — "mint into the deployed
+         artifacts"): path data baked into the deployed config wins
+         over the file machinery entirely */
+      { id: 'mint', type: 'device', entity: 'switch.a', icon: 'phu:plex_2', label: 'Minted', span: 2 },
+      { id: 'mint2', type: 'device', entity: 'switch.a', icon: 'mdi:sofa', label: 'Minted2', span: 2 },
     ] }] } },
   controllers: {},
+  icon_paths: {
+    'phu:plex_2': { viewBox: '0 0 50 50', path: 'M9 9h1v1z' },
+    'mdi:sofa': { viewBox: '0 0 24 24', path: 'M2 2h2v2z' },
+  },
 };
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1 2h3v4z"/></svg>';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -51,11 +60,18 @@ await p.waitForTimeout(900);
 const got = await p.evaluate(() => {
   const q = (id, sel) => document.querySelector('#tile_' + id + ' ' + sel);
   const mask = q('ok', '.icmask');
+  const minted = q('mint', '.icsvg svg path');
+  const minted2 = q('mint', '.icsvg svg');
+  const minted3 = q('mint2', '.icsvg svg path');
   const cs = mask && getComputedStyle(mask);
   return {
     maskUrl: mask && (mask.style.webkitMaskImage || mask.style.maskImage),
     bg: cs && cs.backgroundColor,
     probeHidden: mask && getComputedStyle(q('ok', '.mprobe')).display,
+    mintedPath: minted && minted.getAttribute('d'),
+    mintedVb: minted2 && minted2.getAttribute('viewBox'),
+    mintedNoMask: !q('mint', '.icmask'),
+    minted2Path: minted3 && minted3.getAttribute('d'),
     badIsGlyph: !q('bad', '.icmask') &&
       q('bad', '.ic') && q('bad', '.ic').textContent === '•',
     mat: q('mat', '.ic.material-symbols-outlined') &&
@@ -85,6 +101,11 @@ const after = await p.evaluate(() => {
 });
 ck('a rebuilt tile renders the fallback with no re-request',
   after.glyph && nopeRequests === before);
+
+ck('minted: path data from CONFIG.icon_paths renders inline (no mask, no file)',
+  got.mintedPath === 'M9 9h1v1z' && got.mintedNoMask === true);
+ck('minted: viewBox survives verbatim', got.mintedVb === '0 0 50 50');
+ck('minted: mdi rides the same rail', got.minted2Path === 'M2 2h2v2z');
 
 console.log(JSON.stringify({ ok: errs.length === 0, errs }, null, 1));
 await b.close();

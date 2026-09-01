@@ -56,7 +56,7 @@
   .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
   .npimg {
     width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
-    flex: 0 0 auto; background: #2c333d;
+    flex: 0 0 auto; background: var(--tile-hi, #222b36);
   }
   .npmeta { min-width: 0; flex: 1; }
   /* v0.52.1: the hero RIDES the theme (was 17px/600 + 14px + 12px
@@ -128,8 +128,10 @@
   .tile.wgt-media.hero .npimg {
     position: absolute; top: 0; right: 0; height: 100%; width: 58%;
     object-fit: cover; opacity: .95;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
-    mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+    /* a mask gradient is an ALPHA ramp — black is the keyword, not a
+       skin colour (V5 §1 no-hex sweep, 2026-09-01) */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 42%);
+    mask-image: linear-gradient(to right, transparent 0%, black 42%);
   }
   .tile.wgt-media.hero .top, .tile.wgt-media.hero .npwrap,
   .tile.wgt-media.hero .npprog, .tile.wgt-media.hero .nptimes,
@@ -265,7 +267,7 @@
   .tile.wgt-media.poster .trail .ic.material-symbols-outlined,
   .tile.wgt-media.hero .trail .ic.material-symbols-outlined { font-size: 24px; color: var(--accent); }
   .tile.wgt-media.poster .trail:active,
-  .tile.wgt-media.hero .trail:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.hero .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-media.poster .trail:active .ic.material-symbols-outlined,
   .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
   .tile.wgt-media.poster .trail.focused,
@@ -312,7 +314,7 @@
   .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
   .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
-  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: #1a1400; }
+  .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: var(--accent-ink, #14181d); }
   .trow .trbig:active { background: var(--on); }
   .trow .trbig .material-symbols-outlined { font-size: 38px; }
   .tile.wgt-transport .top, .tile.wgt-transport .sub, .tile.wgt-transport .hint { display: none; }
@@ -339,7 +341,7 @@
   .pwrow { display: flex; justify-content: center; padding: 6px 0 2px; }
   .pwbtn { width: 64px; height: 64px; border-radius: 50%; }
   .pwbtn .material-symbols-outlined { font-size: 30px; }
-  .tile.wgt-power.on .pwbtn { background: var(--accent); color: #1a1400; }
+  .tile.wgt-power.on .pwbtn { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-power .sub, .tile.wgt-power .top { display: none; }
   .tile.wgt-power { min-height: 0; background: transparent; }
   /* ONE NUMERIC LANGUAGE (2026-08-31 — Suresh: "we need a design
@@ -347,21 +349,23 @@
      VOLUME proportions — 58×46 buttons, the 21px/600 value type —
      whether it's a volume band, a Number tile, or a detail page.
      The 42px display type is retired. */
-  .steprow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 2px 0; }
-  .steprow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
-  .steprow.vol { padding-top: 6px; }
-  /* the ROW shape's middle: track over value (img-4) — together they
-     stand the height of the buttons, so rows of mixed kinds align */
-  .stepmid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .stepmid .sldr.inrow { flex: none; min-width: 0; margin: 0; height: 30px; border-radius: 9px; }
-  .stepmid .stepval,
-  .stepval.sm { font-size: 14px; font-weight: 600; line-height: 1; }
-  /* volume Compact's mini meter, in the language: a visible 12px
-     bar over the value (the 6px whisper vanished in the column).
-     The .volrow .stepmid qualifier outranks controls.css's
-     .volrow .meter rules — controls.css loads last. */
-  .volrow .stepmid .meter,
-  .stepmid .meter { flex: none; margin-top: 8px; height: 12px; border-radius: 6px; }
+  .steprow { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; padding: 0; }
+  .steprow .dpbtn { width: var(--btn-w, 58px); height: var(--btn-h, 46px); border-radius: var(--radius, 12px); flex: 0 0 auto; }
+  /* a row under a FAT track opens 10px, not the title's 8 (v3:
+     156 = 12 + 22 + 10 + 44 + 10 + 46 + 12) */
+  .sldr + .steprow { margin-top: 10px; }
+  /* COMPACT's middle (the control language): the 32px track with
+     the value INSET, right-aligned — the track carries its number.
+     Past ~88% fill the value flips to accent ink (render toggles
+     .flip) so it stays legible over the fill. */
+  .sldr.inrow { flex: 1; min-width: 0; margin: 0; }
+  .sldr .inval {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; font-weight: 600; font-style: normal;
+    font-variant-numeric: tabular-nums; color: var(--text); z-index: 1;
+  }
+  .sldr .inval.flip { color: var(--accent-ink, #14181d); }
+  .sldr .inval .vmute { font-size: 16px; color: var(--accent); vertical-align: -3px; }
   .stepval {
     flex: 1; text-align: center;
     font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums;
@@ -372,31 +376,54 @@
   /* the numeric shapes own their number — the block-level sub is
      never part of them */
   .tile.wgt-stepper .sub:not(.subin), .tile.wgt-chips .sub { display: none; }
-  /* stepper slider: fat touch track, fill = value; −/+ row stays below */
+  /* THE TRACK (V4 §2, 2026-09-01 — fully tokenised; supersedes the
+     v3 flat leading edge). Channel: recessed, hairline inside the
+     radius. Fill: inset --track-inset, trailing corners inner,
+     LEADING corner read from the fill's own aspect — square at 1:1,
+     full at --lead-ratio (default 3:1). SYNTAX FLOOR (Chromium 61,
+     the stock Astrion webview — probe-syntax-floor): CSS min()/
+     clamp()/inset need 79+/87+, so the V4 derivations run in
+     registry.js setFill, which reads the SAME theme tokens and
+     writes px — the formula and the knobs are unchanged, only where
+     the arithmetic happens. The clamp min(--radius, h/2) is
+     identity at every shipped height (engages below 24px only). */
   .sldr {
-    position: relative; height: 44px; border-radius: 12px;
-    background: #2c333d; overflow: hidden; margin: 6px 0 10px;
+    position: relative; height: var(--track-h-1, 44px);
+    border-radius: var(--radius, 12px);
+    background: var(--track-channel, #1a212b);
+    box-shadow: inset 0 0 0 1px var(--track-hairline, #2a3340);
+    overflow: hidden; margin: 10px 0 0;
     /* pan-y, not none (v0.83.11): a vertical swipe that starts on the
        track belongs to the PAGE — wireSlider only claims committed
        horizontal drags (vertical tracks get pan-x inline) */
     touch-action: pan-y; cursor: pointer;
   }
   .sldr i {
-    display: block; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+    display: block; position: absolute;
+    left: var(--track-inset, 2px); top: var(--track-inset, 2px);
+    bottom: var(--track-inset, 2px);
+    width: 0; border-radius: 10px;   /* setFill writes both per fill */
     background: var(--accent); transition: none;
   }
+  .sldr.inrow { height: var(--track-h-2, 32px); }
   .sldr.vert { height: 300px; width: 92px; margin: 6px auto 10px; }
-  .sldr.vert i { top: auto; right: 0; bottom: 0; left: 0; width: 100%; height: 0%; }
+  .sldr.vert i { top: auto; left: var(--track-inset, 2px);
+    right: var(--track-inset, 2px); bottom: var(--track-inset, 2px);
+    width: auto; height: 0%; max-height: calc(100% - 4px);
+    border-radius: 10px; }
   .tile.wgt-stepper .top .ic, .tile.wgt-chips .top .ic { color: var(--dim); }
   .tile .lbl:empty { display: none; }
-  /* option buttons: preset-tile sized, 3-up grid */
-  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 0 2px; }
+  /* option buttons: 3 columns ALWAYS (v3 — a four-item set leaves
+     the last cell empty rather than reflowing to 2-up), 10px gaps */
+  .chiprow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 0 0; }
+  /* pills ride the 46px button height and the ONE 12px radius
+     (Wave B — the control language) */
   .chip {
-    border: 0; font: inherit; font-size: 15px; color: var(--text);
-    background: var(--tile-hi); border-radius: 14px; min-height: 56px;
+    border: 0; font: inherit; font-size: 15px; font-weight: 600; color: var(--text);
+    background: var(--tile-hi); border-radius: var(--radius, 12px); min-height: var(--btn-h, 46px);
     padding: 8px 6px; cursor: pointer;
   }
-  .chip.on { background: var(--accent); color: #1a1400; font-weight: 700; }
+  .chip.on { background: var(--accent); color: var(--accent-ink, #14181d); font-weight: 600; }
   /* OPTIONS-MODE ROVING (2026-08-20 nav modes): ◀▶ walk this
      highlight through the pills; OK commits it. Distinct from .on
      (the committed value) — an outline, not a fill. */

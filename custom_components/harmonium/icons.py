@@ -1,12 +1,18 @@
-"""Icon-set distiller (0.87 — docs/design-icon-sets.md).
+"""Icon-set resolver (0.87 — docs/design-icon-sets.md).
 
-Suresh's ruling (2026-08-31): support ANYTHING HA has installed —
-detect which icon-pack sources exist on this box and pull the
-SPECIFIC icons the deployed config references into
-www/harmonium/icons/<set>/<name>.svg. The engine knows none of this:
-an icon is a file, mask-rendered and theme-tinted; this module only
-fills the folder. Harmonium never redistributes a set — everything
-distilled comes from an artifact the user installed themselves.
+Suresh's rulings: support ANYTHING HA has installed (2026-08-31),
+and the icon flow is "live preview in the Studio, then mint into the
+deployed artifacts" (2026-09-01). One resolver serves both: the
+Studio's /api/harmonium/icons lookup answers as the user types, and
+every deploy MINTS the referenced icons' path data straight into the
+deployed config (config.icon_paths) — the remote renders inline SVG
+and depends on no pack, no file, no network at runtime. Harmonium
+never redistributes a set — everything resolved comes from an
+artifact the user installed themselves.
+
+The v1 file distiller (www/harmonium/icons/<set>/<name>.svg,
+mask-rendered) survives below as the HAND-DROPPED escape hatch: a
+user's own SVG in that folder still renders on the remote.
 
 Sources v1:
   phu:  Custom Brand Icons — the installed HACS Lovelace module at
@@ -103,6 +109,42 @@ def _mdi_source(_www: Path, frontend: Path | None):
 
 SOURCES = {"phu": _phu_source, "mdi": _mdi_source}
 
+# ---- source cache (2026-09-01 — "the icon drop-down is so slow its
+# unusable"): parsing a pack (regex over the HACS module, a several-
+# thousand-entry JSON) per request made every keystroke a re-parse.
+# One load per (set, source mtimes); a pack update invalidates. ----
+_SRC_CACHE: dict = {}
+
+
+def _src_key(set_: str, www: Path, frontend: Path | None):
+    try:
+        if set_ == "phu":
+            root = www / "community" / "custom-brand-icons"
+            return tuple(sorted((str(f), f.stat().st_mtime_ns)
+                                for f in root.glob("*.js")))
+        if set_ == "mdi" and frontend:
+            mdi = frontend / "static" / "mdi"
+            return tuple(sorted((str(f), f.stat().st_mtime_ns)
+                                for f in mdi.glob("*.json")))
+    except OSError:
+        pass
+    return None
+
+
+def _load_source(set_: str, www: Path, frontend: Path | None,
+                 srcs: dict):
+    if set_ not in srcs:
+        return None
+    key = _src_key(set_, www, frontend)
+    if key is not None:
+        hit = _SRC_CACHE.get(set_)
+        if hit and hit[0] == key:
+            return hit[1]
+    table = srcs[set_](www, frontend)
+    if key is not None:
+        _SRC_CACHE[set_] = (key, table)
+    return table
+
 
 def frontend_root() -> Path | None:
     """Where hass_frontend lives on this install (None outside HA)."""
@@ -169,3 +211,74 @@ def distill_icons(www: Path, config, frontend: Path | None = None,
         if wrote:
             write_stamps(dest, stamps, ICON_STAMP_FILE)
     return report
+
+
+# ---- the resolver (2026-09-01 — one lookup for preview AND mint) ----
+
+def resolve_icons(names, www: Path, frontend: Path | None = None,
+                  sources: dict | None = None) -> dict:
+    """{'found': {'<set>:<name>': {'viewBox': vb, 'path': d}},
+        'missing': [refs the installed pack lacks],
+        'no_source': [sets with no installed pack]}"""
+    srcs = SOURCES if sources is None else sources
+    found: dict = {}
+    missing: list = []
+    no_source: list = []
+    loaded: dict = {}
+    for ref in names:
+        m = ICON_REF_RE.match(ref or "")
+        if not m or m.group(1) == "material":
+            continue
+        st, nm = m.group(1), m.group(2)
+        if st not in loaded:
+            loaded[st] = _load_source(st, www, frontend, srcs)
+        table = loaded[st]
+        if table is None:
+            if st not in no_source:
+                no_source.append(st)
+            continue
+        if nm in table:
+            vb, d = table[nm]
+            found[ref] = {"viewBox": vb, "path": d}
+        else:
+            missing.append(ref)
+    return {"found": found, "missing": missing, "no_source": no_source}
+
+
+def list_icons(set_: str, query: str, www: Path,
+               frontend: Path | None = None, sources: dict | None = None,
+               limit: int = 60) -> dict:
+    """Autocomplete for the Studio's icon box (2026-09-01 — Suresh:
+    "when I start typing phu: I get the same dropdown I get when we
+    type material:"): the installed pack's names filtered by the
+    typed fragment, WITH their path data so every row previews and
+    the pick needs no second lookup. {'icons': [{name, viewBox,
+    path}], 'no_source': bool}"""
+    srcs = SOURCES if sources is None else sources
+    table = _load_source(set_, www, frontend, srcs)
+    if table is None:
+        return {"icons": [], "no_source": True}
+    q = (query or "").lower()
+    names = sorted(n for n in table if q in n.lower()) if q \
+        else sorted(table)
+    # prefix matches first — the HA picker's feel
+    names.sort(key=lambda n: (0 if n.lower().startswith(q) else 1, n))
+    if limit > 0:
+        names = names[:min(limit, 500)]
+    # limit 0 = the WHOLE pack, one call — the Studio caches it and
+    # filters locally, so typing costs nothing after the first fetch
+    out = []
+    for n in names:
+        vb, d = table[n]
+        out.append({"name": n, "viewBox": vb, "path": d})
+    return {"icons": out, "no_source": False}
+
+
+def mint_icon_paths(config, www: Path, frontend: Path | None = None,
+                    sources: dict | None = None) -> dict:
+    """Everything a config references, resolved for baking into the
+    deployed artifact as config['icon_paths'] — same report shape as
+    resolve_icons. Deploy-only: the stored user layer never carries
+    icon_paths (store.py adds it after the write boundary)."""
+    refs = sorted({s + ":" + n for s, n in iter_icon_refs(config)})
+    return resolve_icons(refs, www, frontend, sources)

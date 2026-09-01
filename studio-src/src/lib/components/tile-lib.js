@@ -26,7 +26,14 @@ export const RAW_TYPES = ["light", "switch", "climate", "cover", "fan", "media",
 export const ENTITY_TYPES = new Set(["light", "switch", "climate", "cover", "fan", "media",
     "volume", "transport", "mediabtns", "script", "scene", "presets_from",
     "sources",     /* sources (v0.35): ONE tile that opens the input picker */
-    "power", "stepper"]);  /* v0.79.2: Draws-as round trips need them here */
+    "power", "stepper",
+    /* 2026-09-01 (Suresh's img: "chose number as What it Shows and
+       entire Tab contents disappeared"): every adapter token the
+       Draws-as select can WRITE must round-trip back into this
+       branch, or picking it vaporises the very fields that chose it */
+    "number", "select",
+    /* V7 §9: the stateless & binary adapters */
+    "lock", "press"]);
 
 export const DOM_ICON = {
     media_player: (r) => (r?.device_class === "tv" ? "material:tv" : "material:speaker"),

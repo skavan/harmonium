@@ -10,7 +10,7 @@
   .trail > * { pointer-events: none; }
   .trail .ic { width: auto; }
   .trail .ic.material-symbols-outlined { font-size: 26px; }
-  .trail:active { background: var(--accent); color: #1a1400; }
+  .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .trail.focused {
     border-color: var(--accent); color: var(--text);
     background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
@@ -55,7 +55,7 @@
   .tile.wgt-media.art .trail .ic.material-symbols-outlined,
   .tile.wgt-media.art .trail.tracc .ic.material-symbols-outlined { font-size: 30px; }
   .tile.wgt-media.art .trail:active,
-  .tile.wgt-media.art .trail.tracc:active { background: var(--accent); color: #1a1400; }
+  .tile.wgt-media.art .trail.tracc:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .tile.wgt-media.art .trail.focused,
   .tile.wgt-media.art .trail.tracc.focused {
     /* borderless — the focus ring is an inset shadow instead */
@@ -63,8 +63,27 @@
     background: linear-gradient(to right,
       rgba(13, 15, 18, .15), rgba(13, 15, 18, .7) 45%, rgba(13, 15, 18, .92));
   }
-  .meter { height: 4px; border-radius: 2px; background: #2c333d; margin-top: 8px; overflow: hidden; }
-  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .15s; }
+  /* the read-only METER rides the track rules (2026-09-01):
+     12 tall, radius 6, channel + hairline, fill inset 2 at radius 4
+     with the same 4px floor */
+  .meter { height: 12px; border-radius: 6px;
+    background: var(--track-channel, #1a212b);
+    box-shadow: inset 0 0 0 1px var(--track-hairline, #2a3340);
+    margin-top: 8px; overflow: hidden; position: relative; }
+  .meter i { display: block; position: absolute;
+    left: 2px; top: 2px; bottom: 2px;
+    max-width: calc(100% - 4px); min-width: 4px; border-radius: 4px;
+    background: var(--accent); transition: width .15s; }
+  .meter i.nil, .meter i[style*="width: 0%"] { min-width: 0; }
+  /* the Now Playing PROGRESS is the scoped exception: those card
+     heights are LOCKED (v0.85 — "size locked and not jumping
+     around"), designed around the slim bar — the 12px system meter
+     would grow every hero. Channel colour, no hairline (a 1px line
+     inside 4px degenerates). */
+  .meter.npprog { height: 4px; border-radius: 2px; box-shadow: none;
+    margin-top: 8px; }
+  .meter.npprog i { left: 0; top: 0; bottom: 0; border-radius: 2px;
+    min-width: 0; max-width: 100%; }
 
   /* touch buttons (dpad + volume) */
   .dpbtn {
@@ -72,7 +91,7 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; font: inherit; padding: 0;
   }
-  .dpbtn:active { background: var(--accent); color: #1a1400; }
+  .dpbtn:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .dpbtn > * { pointer-events: none; }
   .dpbtn { overflow: hidden; }
   .dp-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 4px; }
@@ -84,7 +103,7 @@
   .dp-corners .dpbtn { width: 46px; height: 46px; border-radius: 50%; }
   .dp-pad {
     position: relative; width: 212px; height: 212px;
-    border-radius: 50%; background: #2a313b;
+    border-radius: 50%; background: var(--tile-hi, #222b36);
     box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
   }
   .dp-pad .dpbtn {
@@ -99,13 +118,17 @@
   .dp-pad .ok {
     top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 76px; height: 76px;
-    background: var(--accent); color: #1a1400; font-weight: 800;
+    background: var(--accent); color: var(--accent-ink, #14181d); font-weight: 800;
   }
   .dp-pad .ok:active { background: var(--on); }
   .tile.wgt-dpad { min-height: 412px; }
-  .volrow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-  .volrow .dpbtn { width: 58px; height: 46px; border-radius: 12px; flex: 0 0 auto; }
-  .volrow .meter { flex: 1; margin-top: 0; height: 6px; }
+  /* geometry consistent with the stepper rows (control language,
+     2026-08-31): 8px under the title, 2px under a fat track — the
+     volume and number decks measure identical */
+  .volrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .sldr + .volrow { margin-top: 10px; }
+  .volrow .dpbtn { width: var(--btn-w, 58px); height: var(--btn-h, 46px); border-radius: var(--radius, 12px); flex: 0 0 auto; }
+  .volrow .meter { flex: 1; margin-top: 0; }
   /* slider mode's center readout (v0.83.3) — same row height as the
      meter it replaced; sized to the 46px button row, not the
      stepper's 42px display type */
@@ -119,6 +142,94 @@
      unmuting lands where you expect */
   .volrow .volpct .vmute { font-size: 24px; color: var(--accent); vertical-align: -3px; }
   .sldr.muted i, .meter.muted i { opacity: .3; }
+  /* ---- DEVICE-TILE DENSITIES (v3 canvas — ONE chassis: "a device
+     tile is the numeric card". Fat (.dvi, h156) is the fat slider
+     unmodified: title row, 44px track, one 46px action row —
+     continuous domains put the value at 21px between the ± buttons,
+     discrete domains fill the row with three stretched buttons and
+     the value moves INTO the track. Compact (.dvc, h100) is the
+     compact card: continuous = − [32px track, value inset] +,
+     discrete = the trio fills the row and the value sits top-right
+     in the title row. The v2 fixed side cluster is retired — it
+     starved every name at the panel's real 349px. ---- */
+  .devrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .devrow .dpbtn { flex: 1; width: auto; height: var(--btn-h, 46px); border-radius: var(--radius, 12px); }
+  .sldr + .devrow { margin-top: 10px; }
+  .devrow + .devrow { margin-top: 10px; }
+  /* a disabled action keeps its BOX (disabled surface + glyph) so
+     the trio never shifts */
+  .dpbtn.dis { background: var(--ctl-dis, #141a22);
+    color: var(--faint, #5b6674); pointer-events: none; }
+  /* fat's detail route: the 24px UNBOXED tune glyph in the title
+     row (a 58×46 button would force the tile to 180) — hit area
+     padded to 44×44, glyph right edge on the content edge */
+  .tile.dvi .trail {
+    top: 1px; right: 4px; bottom: auto; width: 44px; height: 44px;
+    background: transparent; color: var(--dim);
+  }
+  .tile.dvi .trail .ic.material-symbols-outlined { font-size: 24px; }
+  .tile.dvi .trail:active { background: transparent; color: var(--accent); }
+  .tile.dvi.has-trail { padding-right: var(--tile-pad-x, 14px); }
+  .tile.dvi.has-trail .top { padding-right: 34px; }
+  /* the value INSIDE a fat track (discrete readout) rides at 21px */
+  .sldr:not(.inrow) .inval { font-size: 21px; right: 14px; }
+  /* V5 §4C — DISCRETE compact (.dv3, h116 = 12+20+2+15+9+46+12):
+     the value moves to a STATUS LINE beneath the name ("a long
+     value competes with the name and wins" — the Sou… lesson,
+     generalised); the tile is the launcher's two-line block plus
+     the trio row, not a new shape. Continuous compact stays 100. */
+  .tile.dvc.dv3 { position: relative; }
+  .tile.dvc.dv3 .top { height: 20px; padding-left: 38px; }
+  .tile.dvc.dv3 .top .ic, .tile.dvc.dv3 .top > img {
+    /* the glyph centres on the two-line block (V7 reference: y19 in
+       the 116 card), not on the 20px title row */
+    position: absolute; left: 12px; top: 17px; margin-top: 0;
+  }
+  .tile.dvc.dv3 .sub {
+    margin: 2px 0 0 38px; height: 15px; min-height: 15px; line-height: 15px;
+  }
+  .tile.dvc.dv3 .devrow { margin-top: 9px; }
+  /* V7 §9 — the STATE PAIR (switch, lock): two explicit labelled
+     targets, 1fr 1fr at 46 with the 10px gap. Segment states:
+     raised (--tile-hi, the action available to you), accent
+     (--on: engaged — on, locked), recessed (--ctl-dis with a
+     --text label: current but not running). Recessed-current and
+     disabled share the fill and are told apart by the label. */
+  .devrow.statepair { display: flex; gap: 10px; }
+  .devrow.statepair .spseg {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 8px; position: relative; overflow: hidden; min-width: 0;
+  }
+  .spseg b, .spseg .sglbl { font-size: 15px; font-weight: 600; }
+  .spseg.cur-acc { background: var(--on, #ffb020); color: var(--accent-ink, #14181d); }
+  .spseg.cur-rec { background: var(--ctl-dis, #141a22); color: var(--text, #f2f5f8); }
+  .lkrow .sgbase { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  /* the unlock/open HOLD: an accent fill grows for --hold-ms, and a
+     clipped accent-ink duplicate of the row inverts each glyph the
+     instant the edge crosses it (the 96% track's flip rule, applied
+     to a moving edge). JS drives the widths in px — Chromium 61. */
+  .lkrow .hfill {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--accent, #ffb020);
+  }
+  .lkrow .sgdup {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    overflow: hidden;
+  }
+  .lkrow .sgdup .sgin {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; color: var(--accent-ink, #14181d);
+  }
+  /* holding is not :active-accent — the growing fill IS the
+     feedback, the surface stays put under it */
+  .lkrow .lkhold:active { background: var(--tile-hi, #222b36); }
+  .lkrow .lkhold.cur-rec:active { background: var(--ctl-dis, #141a22); }
+  /* latch trio — 92px cells, icon only (three labels don't fit and
+     the status line already names the state) */
+  .lkrow.lktrio .sglbl { display: none; }
+  /* jammed — the first real use of --danger in the system */
+  .tile.dv3.jam .sub { color: var(--danger, #e05252); }
   /* SPEAKER-GROUP TILES (2026-08-20 nav modes — the spkgrp: page is
      real tiles now): member/group-volume rows reuse the volume-row
      chassis; the % rides inside the fat track; link toggles keep
@@ -148,7 +259,7 @@
     width: 52px; height: 40px; border-radius: 12px;
   }
   .tile.wgt-grpmember .gjoin.on {
-    background: var(--accent); color: #1a1400;
+    background: var(--accent); color: var(--accent-ink, #14181d);
   }
   .tile.wgt-grpmember .rslpct, .tile.wgt-grpvol .rslpct {
     position: absolute; top: 0; right: 0; bottom: 0; left: 0;
@@ -205,15 +316,20 @@
   /* list-row variant (grid.columns = 1) — height rides the global
      tile-height knob (6px slimmer than grid tiles, matching the 84/78
      defaults); --tile-row-h overrides independently (Code tab) */
+  .tile.wgt-device:not(.dvi) .trail {
+    top: 50%; transform: translateY(-50%); bottom: auto;
+    width: 58px; height: 46px; right: 14px;
+  }
+  /* ONE list height (v3): rows are 84 like every tile, status or not */
   .tile.row {
     display: flex; flex-direction: row; align-items: center; gap: var(--tile-gap);
-    min-height: var(--tile-row-h, calc(var(--tile-h) - 6px));
+    min-height: var(--tile-row-h, var(--tile-h));
     padding: var(--tile-pad-y, 12px) var(--tile-pad-x, 16px);
   }
   .tile.row .icwrap {
     flex: 0 0 auto; width: var(--icon-zone); height: var(--icon-zone);
     border-radius: var(--icon-radius);
-    background: #262c35; display: flex; align-items: center; justify-content: center;
+    background: var(--tile-hi, #222b36); display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
   .tile.row .icwrap .material-symbols-outlined { font-size: calc(var(--icon-zone) * .52); }
@@ -222,3 +338,45 @@
   .tile.row .txt { flex: 1; min-width: 0; }
   .tile.row .lbl { font-size: calc(var(--fs-1) + 2px); }   /* rides Primary (15→17 default) */
   .tile.row .sub { margin-top: 3px; }
+  /* ---- V7 §5 CONTROL ROWS (2026-09-01, his imgs: rule book vs
+     build) — a control-language row IS the canvas row: a bare 24px
+     glyph in a 28px slot at x14 (no disc), name 15/600 and status
+     13/400 at x52, and the right-side glyph UNBOXED in the same
+     28px slot the chevron uses, at the same x. The icon disc and
+     the +2 label bump stay the library/browse/queue language
+     (.brw, .wgt-qrow); activity rows keep their ruled accent
+     circle (.tacc). ---- */
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) {
+    gap: 10px; padding: var(--tile-pad-y, 12px) 12px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap {
+    width: 28px; height: 28px; background: transparent; border-radius: 0;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap .material-symbols-outlined {
+    font-size: 24px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap .ic {
+    font-size: 22px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .lbl {
+    font-size: var(--fs-1);
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .sub {
+    margin-top: 2px; min-height: 15px; line-height: 15px;
+  }
+  /* the row-form device tune: unboxed, --dim, aligned to the
+     chevron's slot ("the chevron perfectly aligns with the tuning
+     icon" — the boxed 58×46 button is the GRID launcher's form) */
+  .tile.row.wgt-device .trail {
+    top: 50%; transform: translateY(-50%); bottom: auto;
+    width: 28px; height: 28px; right: 12px;
+    background: transparent; color: var(--dim); border-radius: 0;
+  }
+  .tile.row.wgt-device .trail .ic.material-symbols-outlined { font-size: 24px; }
+  .tile.row.wgt-device .trail:active { background: transparent; color: var(--accent); }
+  /* the :not chain above outguns a plain .has-trail — match it; a
+     cue-carrying row clears its glyph slot the same way */
+  .tile.row.wgt-device.has-trail:not(.brw):not(.wgt-qrow):not(.tacc),
+  .tile.row.haspickcue:not(.brw):not(.wgt-qrow):not(.tacc) {
+    padding-right: 50px;
+  }

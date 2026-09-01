@@ -52,8 +52,14 @@ await p.waitForTimeout(900);
 await p.evaluate(() => { window._calls = []; const o = callService;
   window.callService = (d, s, data, t) => { window._calls.push({ s, data, t }); }; });
 const calls = () => p.evaluate(() => window._calls.splice(0));
-const fill = () => p.evaluate(() =>
-  document.querySelector('.sldr').firstElementChild.style.width);
+/* setFill writes px (V4 on the 61 floor) — read the FRACTION back
+   from the rects so the fence stays about behavior, not encoding */
+const fill = () => p.evaluate(() => {
+  const sl = document.querySelector('.sldr');
+  const f = sl.firstElementChild.getBoundingClientRect().width /
+    Math.max(1, sl.getBoundingClientRect().width);
+  return Math.round(f * 100) + '%';
+});
 
 const sl = await p.locator('.sldr').boundingBox();
 const cx = sl.x + sl.width / 2, cy = sl.y + sl.height / 2;
@@ -92,8 +98,8 @@ r.tapCalls = tc.map(c => c.s);
 r.tapLevel = tc.length ? tc[0].data.volume_level : null;      /* ≈0.25 */
 
 console.log(JSON.stringify({ ...r,
-  ok: r.tAction === 'pan-y' && r.fill0 === '50%' &&
-      r.vertCalls.length === 0 && r.vertFill === '50%' &&
+  ok: r.tAction === 'pan-y' && Math.abs(parseFloat(r.fill0) - 50) <= 2 &&
+      r.vertCalls.length === 0 && Math.abs(parseFloat(r.vertFill) - 50) <= 2 &&
       r.dragCalls.length >= 1 && r.dragCalls.every(s => s === 'volume_set') &&
       r.dragFinal != null && Math.abs(r.dragFinal - 0.9) < 0.06 &&
       r.tapCalls.length === 1 && r.tapCalls[0] === 'volume_set' &&
