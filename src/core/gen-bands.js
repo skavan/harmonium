@@ -195,8 +195,12 @@ function genActPresetTiles(t) {
 
        In the defaults, not forced, so a preset may still name a
        different activity than the one it is listed under. */
+    /* accent palette (identity-palette V1): the band tile's style
+       is the children's default — a preset may override it, and its
+       own `accent` slot rides the spread like every other key */
     return list.map((p, i) => Object.assign(
-      { type: "preset", span: 2, activity: aid }, p,
+      { type: "preset", span: 2, activity: aid,
+        accent_style: t.accent_style || t.identity_style }, p,
       { id: t.id + "_" + (p.id || i) }));
 }
 

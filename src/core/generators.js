@@ -44,6 +44,13 @@ function genActivityTiles(t) {
         type: "activity", activity: id, id: t.id + "_" + id,
         label: a.name || id, icon: a.icon || "material:play_circle",
         color: a.color,          /* ACCENT tints the tile's ON state */
+        /* accent palette (identity-palette V1): the activity's slot
+           rides its tile; the style ladder is the activity's own
+           choice, then the band tile's (which the section dresses),
+           then silence. identity* = first-cut compat spelling. */
+        accent: a.accent != null ? a.accent : a.identity,
+        accent_style: a.accent_style || a.identity_style ||
+          t.accent_style || t.identity_style,
       }));
 }
 
@@ -113,6 +120,11 @@ function genAppTiles(t) {
         icon: ov.icon || meta.icon || "material:apps",
         image,
         label: ov.name || meta.name || aid,
+        /* V2 brand tier (palette canvas §7): an app row may name its
+           brand slot — the glyph tints, NO wash (apps default to
+           icon-basic: sixteen brand washes cluster into one blue and
+           one red and imply a distinction they cannot deliver) */
+        ...(ov.accent || meta.accent ? { accent: ov.accent || meta.accent } : {}),
         action,
       };
     }).filter(Boolean);
@@ -272,7 +284,9 @@ function genPresetsFrom(t) {
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
   return list.slice(0, t.limit || 48).map((item, i) => {
-    const g = Object.assign({ type: "preset" }, substItem(t.item || {}, item));
+    const g = Object.assign({ type: "preset",
+      accent_style: t.accent_style || t.identity_style },
+      substItem(t.item || {}, item));
     g.id = t.id + "_" + i;
     if (t.action) g.action = substItem(t.action, item);
     if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon

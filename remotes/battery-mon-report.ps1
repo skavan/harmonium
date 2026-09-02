@@ -36,10 +36,25 @@ if (-not (Test-Path $runDirectory -PathType Container)) {
 }
 
 $adb = Get-Adb
-$selector = @($state.selector)
-if ($selector.Count -eq 0) { $selector = @('-d') }
+$recordedSelector = @($state.selector)
+if ($recordedSelector.Count -eq 0) { $recordedSelector = @('-d') }
+$transport = Get-BatteryMonTransportKind -RecordedTransport "$($state.transport)" -Selector $recordedSelector
+$selector = @($recordedSelector)
 
-if ($selector.Count -ge 2 -and $selector[0] -eq '-s' -and "$($selector[1])" -match ':') {
+if ($transport -eq 'usb') {
+    $usbTransport = Find-ConnectedAdbDeviceByHardwareSerial -Adb $adb -HardwareSerial "$($state.serial)" -UsbOnly
+    if ($usbTransport) {
+        $selector = @('-s', $usbTransport)
+        Write-Host "== found the monitored remote on USB: $usbTransport"
+    } else {
+        # Compatibility for schema-1 runs without a recorded hardware serial.
+        $recordedState = @(& $adb @recordedSelector get-state 2>$null)
+        if ($LASTEXITCODE -ne 0 -or "$($recordedState | Select-Object -First 1)".Trim() -ne 'device') {
+            $serialNote = if ($state.serial) { " (hardware serial $($state.serial))" } else { '' }
+            throw "This run started over USB. Reconnect the same remote$serialNote by USB, approve the debugging prompt if shown, then rerun."
+        }
+    }
+} elseif ($selector.Count -ge 2 -and $selector[0] -eq '-s' -and "$($selector[1])" -match ':') {
     Write-Host "== reconnecting wireless ADB to $($selector[1])"
     $connectOutput = @(& $adb connect $selector[1] 2>&1)
     $connectExit = $LASTEXITCODE
@@ -51,7 +66,10 @@ if ($selector.Count -ge 2 -and $selector[0] -eq '-s' -and "$($selector[1])" -mat
 
 $stateCheck = @(& $adb @selector get-state 2>&1)
 if ($LASTEXITCODE -ne 0 -or "$($stateCheck | Select-Object -First 1)".Trim() -ne 'device') {
-    throw "The monitored remote is not answering. Enable wireless ADB (on Astrion, press Blue), or reconnect the recorded USB device, then rerun."
+    if ($transport -eq 'usb') {
+        throw "The monitored remote is not answering over USB. Reconnect it and approve the debugging prompt if shown, then rerun."
+    }
+    throw "The monitored remote is not answering. Enable wireless ADB (on Astrion, press Blue), then rerun."
 }
 
 Write-Host "== collecting final battery and process diagnostics from $($state.label)"
@@ -59,6 +77,7 @@ $batteryResult = Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command
 $battery = ConvertFrom-BatteryMonDump $batteryResult.Lines
 if (-not $battery.ContainsKey('level')) { throw "Android did not report an ending battery level." }
 $endLevel = [int]$battery['level']
+$endedAt = [DateTimeOffset]::Now
 
 Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command @('shell', 'dumpsys', 'power') -Path (Join-Path $runDirectory 'end-power.txt') | Out-Null
 Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command @('shell', 'dumpsys', 'cpuinfo') -Path (Join-Path $runDirectory 'end-cpuinfo.txt') | Out-Null
@@ -66,7 +85,6 @@ Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command @('shell', 'pm',
 Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command @('shell', 'dumpsys', 'batterystats') -Path (Join-Path $runDirectory 'batterystats.txt') | Out-Null
 Save-BatteryMonAdbOutput -Adb $adb -Selector $selector -Command @('shell', 'dumpsys', 'batterystats', '--checkin') -Path (Join-Path $runDirectory 'batterystats-checkin.csv') | Out-Null
 
-$endedAt = [DateTimeOffset]::Now
 $bugreportName = 'bugreport.zip'
 $bugreportPath = Join-Path $runDirectory $bugreportName
 if (Test-Path $bugreportPath) {

@@ -36,6 +36,9 @@ function connect() {
     }
     else if (m.type === "auth_ok") {
       S.connected = true; dot(true); subscribeFor(S.screen);
+      /* fleet hello (design-remote-fleet): every connect/reconnect
+         announces this unit — the cheap moment, the socket is warm */
+      if (typeof fleetHello === "function") fleetHello();
       /* flush the pre-auth queue (v0.85.7) — see send() below */
       const q = S.sendQ; S.sendQ = [];
       q.forEach(it => send(it[0], it[1]));
@@ -60,6 +63,9 @@ setInterval(() => {
   if (!S.connected || !S.ws) return;
   if (Date.now() - (S.lastMsg || 0) > 60000) { try { S.ws.close(); } catch (e) {} return; }
   send({ type: "ping" });
+  /* the fleet heartbeat PIGGYBACKS here — every 12th tick, visible
+     only (design-remote-fleet: zero new timers, zero new wakes) */
+  if (typeof fleetTick === "function") fleetTick();
 }, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && S.connected) subscribeFor(S.screen);

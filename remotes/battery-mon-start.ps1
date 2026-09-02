@@ -29,17 +29,18 @@ if (Test-Path $activeStatePath) {
     }
 }
 
-$conn = Resolve-AdbTarget -Target $Target
+$conn = Resolve-AdbTarget -Target $Target -PreferUsb
 $adb = $conn.Adb
 $selector = @($conn.Target)
 if ($selector.Count -eq 0) { $selector = @('-d') }
+$transport = Get-BatteryMonTransportKind -RecordedTransport "$($conn.Transport)" -Selector $selector
 
 $label = if ($conn.Unit -and $conn.Unit.name) { "$($conn.Unit.name)" } else { "$($conn.Label)" }
 if (-not $label) { $label = 'remote' }
 $safeLabel = ($label -replace '[^A-Za-z0-9._-]+', '-').Trim('-')
 if (-not $safeLabel) { $safeLabel = 'remote' }
-$startedAt = [DateTimeOffset]::Now
-$runDirectory = Join-Path $runsRoot (($startedAt.ToString('yyyy-MM-dd_HHmmss')) + '-' + $safeLabel)
+$preparedAt = [DateTimeOffset]::Now
+$runDirectory = Join-Path $runsRoot (($preparedAt.ToString('yyyy-MM-dd_HHmmss')) + '-' + $safeLabel)
 New-Item -ItemType Directory -Path $runDirectory | Out-Null
 
 Write-Host "== checking battery state on $label"
@@ -49,13 +50,15 @@ if (-not $battery.ContainsKey('level')) {
     throw "Android did not report a battery level - see $runDirectory\start-battery.txt"
 }
 
-$powered = ($battery['AC powered'] -eq 'true') -or
-           ($battery['USB powered'] -eq 'true') -or
-           ($battery['Wireless powered'] -eq 'true')
-if ($powered) {
+$acPowered = ($battery['AC powered'] -eq 'true')
+$usbPowered = ($battery['USB powered'] -eq 'true')
+$wirelessPowered = ($battery['Wireless powered'] -eq 'true')
+if ($acPowered -or $wirelessPowered -or ($usbPowered -and $transport -ne 'usb')) {
     throw "The remote still reports external power. Remove it from the cradle/unplug it, then rerun."
 }
-if ("$($battery['status'])" -ne '3') {
+if ($usbPowered -and $transport -eq 'usb') {
+    Write-Warning "The remote is powered through the USB data connection. This is allowed for setup; the script will ask you to disconnect it after the baseline is ready."
+} elseif ("$($battery['status'])" -ne '3') {
     Write-Warning "Battery status is '$($battery['status'])', not Android's usual discharging code (3). The run will continue because vendor firmware can report this differently."
 }
 $startLevel = [int]$battery['level']
@@ -75,14 +78,28 @@ if ($wakeHistory.ExitCode -ne 0) {
     Write-Warning "This Android build did not accept full-wake-history. Normal batterystats collection is still active."
 }
 
+if ($transport -eq 'usb') {
+    Write-Host ""
+    Write-Host "USB BASELINE READY"
+    Write-Host "Disconnect the USB cable now. Waiting for $label to disconnect ..."
+    do {
+        Start-Sleep -Milliseconds 250
+        $usbState = @(& $adb @selector get-state 2>$null)
+        $usbStillConnected = ($LASTEXITCODE -eq 0 -and "$($usbState | Select-Object -First 1)".Trim() -eq 'device')
+    } while ($usbStillConnected)
+    Write-Host "== USB disconnected; the discharge clock starts now"
+}
+$startedAt = [DateTimeOffset]::Now
+
 $state = [pscustomobject]@{
-    schema = 1
+    schema = 2
     status = 'running'
     startedAt = $startedAt.ToString('o')
     runDirectory = $runDirectory
     label = $label
     serial = "$($conn.Serial)"
     selector = @($selector)
+    transport = $transport
     startLevel = $startLevel
 }
 Write-BatteryMonState -State $state -RunDirectory $runDirectory -ActiveStatePath $activeStatePath
@@ -93,7 +110,14 @@ Write-Host "   device: $label"
 Write-Host "   level:  $startLevel%"
 Write-Host "   output: $runDirectory"
 Write-Host ""
-Write-Host "For an honest standby measurement: turn wireless ADB off (on Astrion, long-press Blue),"
-Write-Host "do not use scrcpy, do not charge/reboot, and use the remote normally."
-Write-Host "After 24-48 hours, press Blue to restore wireless ADB and run:"
-Write-Host "   battery-mon-report.bat"
+if ($transport -eq 'usb') {
+    Write-Host "USB is disconnected. Do not charge/reboot, and use the remote normally."
+    Write-Host "After 24-48 hours, reconnect this same remote by USB and run:"
+    Write-Host "   battery-mon-report.bat"
+    Write-Host "Wireless ADB can remain off for the entire run."
+} else {
+    Write-Host "For an honest standby measurement: turn wireless ADB off (on Astrion, long-press Blue),"
+    Write-Host "do not use scrcpy, do not charge/reboot, and use the remote normally."
+    Write-Host "After 24-48 hours, press Blue to restore wireless ADB and run:"
+    Write-Host "   battery-mon-report.bat"
+}

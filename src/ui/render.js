@@ -447,8 +447,16 @@ function navigate(screenId, isBack) {
        (h / css_vars / label_pos / style) reach every tile that stays
        silent — this render walk AND rawTilesOf both dress, so the
        DOM build and the renderStates re-derivation agree. */
+    /* round 8 (Suresh: "editing the css in css variables window
+       doesn't seem to impact the preview"): the section dressed the
+       GENERATOR tile, but its generated children were born after the
+       dressing and inherited nothing — so a band section's css_vars
+       (and h / label_pos / image_opacity) never reached a generated
+       tile. Dress each child with its DRESSED parent: same merge
+       rules, per-tile still wins, plain tiles are a no-op. */
     const vis = surfOrderTiles(secTiles.map(t => sectionDressTile(t, sec)))
-      .reduce((a, t) => a.concat(expandTile(t)), [])   /* no flatMap: floor 61 */
+      .reduce((a, t) => a.concat(   /* no flatMap: floor 61 */
+        expandTile(t).map(c => sectionDressTile(c, t))), [])
       .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its

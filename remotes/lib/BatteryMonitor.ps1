@@ -16,6 +16,14 @@ function ConvertFrom-BatteryMonDump {
     return $values
 }
 
+function Get-BatteryMonTransportKind {
+    param([string]$RecordedTransport, [string[]]$Selector)
+
+    if ($RecordedTransport -eq 'usb' -or $RecordedTransport -eq 'wifi') { return $RecordedTransport }
+    if ($Selector.Count -ge 2 -and $Selector[0] -eq '-s' -and "$($Selector[1])" -match ':') { return 'wifi' }
+    return 'usb'
+}
+
 function Save-BatteryMonAdbOutput {
     param(
         [string]$Adb,

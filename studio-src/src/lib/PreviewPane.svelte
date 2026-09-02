@@ -472,7 +472,7 @@
   <div class="mb-2.5 flex w-full max-w-[352px] items-center gap-1.5">
     <span class="shrink-0 text-xs text-dim">Showing</span>
     <div class="relative min-w-0 flex-1">
-      <select value="" onchange={(e) => { if (e.target.value) previewGoto(e.target.value); e.target.value = ""; }}
+      <select value="" onchange={(e) => { if (e.target.value) previewGoto(e.target.value, true); e.target.value = ""; }}
         title="Jump the preview to any page or controller"
         class="w-full cursor-pointer truncate rounded-[8px] border-0 bg-tile-hi px-2.5 py-1.5 font-[inherit] text-xs text-ink outline-none">
         <option value="">{(() => {
@@ -507,6 +507,28 @@
          refresh icon next to the camera icon"): reloads the ENGINE
          iframe only — the one-tap cure for a stretched first paint,
          without losing the Studio session. -->
+    <!-- 🔒 (round 9 — Suresh: "I'd like a lock icon, so the preview
+         doesn't keep jumping around, when I'm playing with colors"):
+         locked = context steering (page selection, open cards, ⋯
+         Preview it) leaves the preview alone; the Showing select
+         above is explicit intent and still jumps. -->
+    <button id="pvLock" title={app.pvLock
+        ? "Preview locked — it stays on this page while you edit. Click to follow your editing again."
+        : "Lock the preview to this page (stops it following what you edit)"}
+      onclick={() => (app.pvLock = !app.pvLock)}
+      class={"flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-0 " +
+        (app.pvLock ? "bg-accent/20 text-accent-text" : "bg-tile-hi text-dim hover:text-ink")}>
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        {#if app.pvLock}
+          <rect x="4" y="11" width="16" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        {:else}
+          <rect x="4" y="11" width="16" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 7.9-.9"/>
+        {/if}
+      </svg>
+    </button>
     <button id="pvReload" title="Reload the preview engine (cures a stretched first paint)"
       onclick={() => { try { iframe?.contentWindow?.location.reload(); } catch { if (iframe) iframe.src = iframe.src; } }}
       class="flex h-[30px] w-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border-0 bg-tile-hi text-dim hover:text-ink">

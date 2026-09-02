@@ -32,6 +32,137 @@
     --danger: #e05252;
     --warn: #d9a13b;            /* caution — amber, not an error */
     --logo-chip: #e8eaed;       /* light ground behind dark wordmarks */
+    /* ---- IDENTITY PALETTE (identity-palette V1, 2026-09-01) ----
+       Seven hues + Slate, one SLOT each; badge oklch(0.68 0.15 H),
+       wash oklch(0.55 0.14 H) — resolved to sRGB at build time
+       because the panel is Chromium 61 (tools/gen-identity-palette
+       .mjs regenerates this block; probe-identity-palette re-derives
+       and compares, so the values can never drift from the formula).
+       Reserved arcs — never add a slot inside them: 40°–110° (the
+       focus ring's amber) and 170°–240° (sRGB clips chroma 0.14
+       through the cyans). -w values are r,g,b TRIPLETS consumed as
+       rgba(var(--id-x-w), var(--wash-a)). */
+    /* @identity-palette-begin */
+    --id-coral-b: #e66d71;   /* oklch(.68 0.15 20) */
+    --id-coral-w: 181, 73, 78;
+    --id-coral-i: var(--accent-ink);
+    --id-fern-b: #7fa834;   /* oklch(.68 0.15 127) */
+    --id-fern-w: 91, 127, 5;
+    --id-fern-i: var(--accent-ink);
+    --id-jade-b: #54b05a;   /* oklch(.68 0.15 145) */
+    --id-jade-w: 48, 134, 57;
+    --id-jade-i: var(--accent-ink);
+    --id-indigo-b: #7990f4;   /* oklch(.68 0.15 272) */
+    --id-indigo-w: 86, 105, 194;
+    --id-indigo-i: var(--accent-ink);
+    --id-violet-b: #a681e7;   /* oklch(.68 0.15 299) */
+    --id-violet-w: 126, 92, 183;
+    --id-violet-i: var(--accent-ink);
+    --id-orchid-b: #c775c9;   /* oklch(.68 0.15 326) */
+    --id-orchid-w: 154, 80, 157;
+    --id-orchid-i: var(--accent-ink);
+    --id-rose-b: #dd6da0;   /* oklch(.68 0.15 353) */
+    --id-rose-w: 173, 73, 121;
+    --id-rose-i: var(--accent-ink);
+    --id-slate-b: #989898;   /* oklch(.68 0 0) */
+    --id-slate-w: 113, 113, 113;
+    --id-slate-i: var(--accent-ink);
+    --id-firetv-b: #ff9900;   /* brand #ff9900 exact */
+    --id-firetv-w: 162, 95, 0;
+    --id-firetv-i: var(--accent-ink);
+    --id-appletv-b: #ffffff;   /* brand #ffffff exact */
+    --id-appletv-w: 113, 113, 113;
+    --id-appletv-i: var(--accent-ink);
+    --id-googletv-b: #4285f4;   /* brand #4285f4 exact */
+    --id-googletv-w: 61, 111, 194;
+    --id-googletv-i: var(--accent-ink);
+    --id-samsung-b: #2848c0;   /* brand #2848c0 exact */
+    --id-samsung-w: 76, 108, 195;
+    --id-samsung-i: #ffffff;
+    --id-lg-b: #a50234;   /* brand #a50134 clamped */
+    --id-lg-w: 180, 73, 86;
+    --id-lg-i: #ffffff;
+    --id-sony-b: #000000;   /* brand #000000 exact */
+    --id-sony-w: 113, 113, 113;
+    --id-sony-i: #ffffff;
+    --id-sonos-b: #d8a158;   /* brand #d8a158 exact */
+    --id-sonos-w: 155, 100, 0;
+    --id-sonos-i: var(--accent-ink);
+    --id-netflix-b: #e50914;   /* brand #e50914 exact */
+    --id-netflix-w: 181, 75, 65;
+    --id-netflix-i: #ffffff;
+    --id-spotify-b: #1db954;   /* brand #1db954 exact */
+    --id-spotify-w: 34, 135, 64;
+    --id-spotify-i: var(--accent-ink);
+    --id-plex-b: #e5a00d;   /* brand #e5a00d exact */
+    --id-plex-w: 150, 103, 0;
+    --id-plex-i: var(--accent-ink);
+    --id-roku-b: #7321b6;   /* brand #7321b6 exact */
+    --id-roku-w: 131, 90, 179;
+    --id-roku-i: #ffffff;
+    --id-shield-b: #76b900;   /* brand #76b900 exact */
+    --id-shield-w: 84, 129, 22;
+    --id-shield-i: var(--accent-ink);
+    --id-disney-b: #1541d4;   /* brand #1541d4 exact */
+    --id-disney-w: 72, 109, 195;
+    --id-disney-i: #ffffff;
+    --id-youtube-b: #ff0001;   /* brand #ff0001 exact */
+    --id-youtube-w: 181, 75, 63;
+    --id-youtube-i: var(--accent-ink);
+    --id-prime-b: #00a8e1;   /* brand #00a8e1 exact */
+    --id-prime-w: 0, 124, 167;
+    --id-prime-i: var(--accent-ink);
+    --id-peacock-b: #000000;   /* brand #000000 exact */
+    --id-peacock-w: 113, 113, 113;
+    --id-peacock-i: #ffffff;
+    --id-paramount-b: #0064ff;   /* brand #0064ff exact */
+    --id-paramount-w: 64, 111, 194;
+    --id-paramount-i: #ffffff;
+    --id-max-b: #0231ec;   /* brand #0231ec exact */
+    --id-max-w: 71, 109, 195;
+    --id-max-i: #ffffff;
+    --id-hulu-b: #1de783;   /* brand #1de783 exact */
+    --id-hulu-w: 0, 136, 73;
+    --id-hulu-i: var(--accent-ink);
+    --id-fubo-b: #fa4616;   /* brand #fa4616 exact */
+    --id-fubo-w: 180, 77, 53;
+    --id-fubo-i: var(--accent-ink);
+    --id-espn-b: #d2001f;   /* brand #d2001f exact */
+    --id-espn-w: 181, 74, 69;
+    --id-espn-i: #ffffff;
+    --id-britbox-b: #3545c0;   /* brand #3545c0 exact */
+    --id-britbox-w: 84, 106, 195;
+    --id-britbox-i: #ffffff;
+    --id-pbs-b: #2b41cd;   /* brand #2b41cd exact */
+    --id-pbs-w: 80, 107, 195;
+    --id-pbs-i: #ffffff;
+    /* @identity-palette-end */
+    --wash-a: 0.5;              /* preset pools (always the -on value) */
+    --wash-a-on: 0.75;
+    /* ACTIVITY bloom alphas — split from the preset pair in round 8
+       (Suresh tuned 0.3/0.4 on the real panel: "quite subdued on the
+       computer screen … quite bright on the remote"; presets keep
+       0.75, judged separately). His remote-measured values ARE the
+       defaults. */
+    --awash-a: 0.3;             /* resting */
+    --awash-a-on: 0.4;          /* running lift */
+    /* the FLAT tint gets its own softer pair (2026-09-01 review —
+       Suresh: "The tint version is too strong"): a wash that covers
+       the whole tile needs less alpha than a bloom that fades out */
+    --wash-a-tint: 0.15;    /* round 6: "still too strong" at .25 */
+    --wash-a-tint-on: 0.25;
+    /* BLOOM GEOMETRY KNOBS (round 6 — "educate me on where can I
+       play"): the activity bloom's ellipse and fade, and the preset
+       pool's (fractions of the cell). Live in devtools, in a
+       section's CSS variables box, or a theme. */
+    --bloom-w: 180px;           /* activity bloom ellipse (round 8 —
+                                   Suresh's panel-tuned geometry) */
+    --bloom-h: 100px;
+    --bloom-x: 64px;            /* anchored under the badge circle */
+    --bloom-fade: 72%;          /* where the fade reaches zero */
+    --pbloom-w: 88%;            /* preset pool ellipse (of the cell) */
+    --pbloom-h: 117%;
+    --pbloom-fade: 78%;
     --radius: 12px;
     /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
     --tile-h: 84px;

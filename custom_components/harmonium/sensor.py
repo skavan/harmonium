@@ -111,13 +111,54 @@ async def async_setup_entry(
         await coordinator.async_request_refresh()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started)
+    # THE COMMAND BUS (docs/design-remote-fleet.md): one sensor whose
+    # state is a sequence number and whose attributes are the command
+    # payload — remotes hear it on their existing filtered
+    # subscription, so reload/identify cost no new channel. push()
+    # lands in hass.data for the command view.
+    bus = HarmoniumCommandBus()
+    hass.data.setdefault(DOMAIN, {}).setdefault(entry.entry_id, {})["bus_push"] = bus.push
     async_add_entities(
-        HarmoniumMusicSensor(coordinator, cat) for cat in CATEGORIES
+        [bus] + [HarmoniumMusicSensor(coordinator, cat) for cat in CATEGORIES]
     )
     _LOGGER.info(
         "Harmonium music sensors up: %s",
         ", ".join(f"{c}={len((coordinator.data or {}).get(c) or [])}" for c in CATEGORIES),
     )
+
+
+class HarmoniumCommandBus(SensorEntity):
+    """The fleet's DOWN channel — state = seq, attributes = payload.
+
+    Not recorded (the payload is ephemeral by design — a remote that
+    was offline must NOT learn old commands from history; the engine
+    additionally baselines on first sight and checks ts freshness)."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:remote-tv"
+    _attr_name = "Harmonium command bus"
+    _attr_unique_id = "harmonium_command_bus"
+    _attr_entity_registry_visible_default = False
+    _unrecorded_attributes = frozenset({"verb", "target", "workspace", "ts"})
+
+    def __init__(self) -> None:
+        self._seq = 0
+        self._payload: dict = {}
+
+    @property
+    def native_value(self) -> int:
+        return self._seq
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return dict(self._payload)
+
+    def push(self, payload: dict) -> int:
+        self._seq += 1
+        self._payload = dict(payload, seq=self._seq)
+        if self.hass:
+            self.async_write_ha_state()
+        return self._seq
 
 
 class HarmoniumMusicSensor(CoordinatorEntity, SensorEntity):

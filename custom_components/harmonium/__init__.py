@@ -35,6 +35,10 @@ from .catalogs import (
     stock_catalogs,
 )
 from .api import (
+    HarmoniumCommandView,
+    HarmoniumFleetUnitView,
+    HarmoniumFleetView,
+    HarmoniumHelloView,
     HarmoniumConfigView,
     HarmoniumEngineVersionView,
     HarmoniumIconsView,
@@ -58,6 +62,7 @@ from .packaging import (
     should_deploy,
     write_stamp,
 )
+from .fleet import FleetBook
 from .pairing import register_pairing
 from .services import register_services, remove_services
 from .store import (
@@ -338,6 +343,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if add:
             await add(ws, config)
     register_services(hass, hstore, entry_data, mint)
+
+    # THE FLEET (docs/design-remote-fleet.md, 2026-09-02): the units
+    # ledger — engines hello in over channels they already pay for;
+    # the Studio reads it and drops commands on the bus sensor.
+    # Persistence is DEBOUNCED (a heartbeat touches memory always,
+    # disk at most every 5 minutes; identity changes write soon).
+    from homeassistant.helpers.event import async_call_later
+    from homeassistant.helpers.storage import Store
+
+    fleet = FleetBook()
+    fleet_store: Store = Store(hass, 1, f"{DOMAIN}.fleet")
+    fleet.seed(await fleet_store.async_load() or {})
+    fleet_state = {"handle": None, "dirty": False}
+
+    def _fleet_persist(urgent: bool) -> None:
+        fleet_state["dirty"] = True
+        if fleet_state["handle"] is not None and not urgent:
+            return
+        if fleet_state["handle"] is not None:
+            fleet_state["handle"]()          # cancel the slow timer
+        delay = 1 if urgent else 300
+
+        async def _save(_now) -> None:
+            fleet_state["handle"] = None
+            if fleet_state["dirty"]:
+                fleet_state["dirty"] = False
+                await fleet_store.async_save(fleet.dump())
+        fleet_state["handle"] = async_call_later(hass, delay, _save)
+
+    def _bus_push(payload):
+        push = entry_data.get("bus_push")
+        return push(payload) if push else None
+
+    hass.http.register_view(HarmoniumHelloView(fleet, _fleet_persist))
+    hass.http.register_view(HarmoniumFleetView(hass, fleet, hstore))
+    hass.http.register_view(HarmoniumFleetUnitView(fleet, _fleet_persist))
+    hass.http.register_view(HarmoniumCommandView(fleet, _bus_push))
 
     hass.http.register_view(HarmoniumConfigView(hass, hstore, mint))
     hass.http.register_view(HarmoniumWorkspacesView(hass, hstore, mint))

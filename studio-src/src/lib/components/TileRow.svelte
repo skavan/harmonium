@@ -10,6 +10,7 @@
   import PresFields from "./PresFields.svelte";
   import Field from "./Field.svelte";
   import IconPicker from "./IconPicker.svelte";
+  import IdentityPicker from "./IdentityPicker.svelte";
   import Input from "./Input.svelte";
   import Select from "./Select.svelte";
   import Segmented from "./Segmented.svelte";
@@ -353,8 +354,13 @@
   ondelete={removeTile}
 >
   <div class="space-y-3">
-    <!-- IDENTITY STRIP (grammar): present on every tab -->
-    <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1">
+    <!-- IDENTITY STRIP (grammar): present on every tab. Round 7
+         (Suresh: "Having ID span the entire row is the wrong one
+         expand. Lets move icon, Accent and Style to their own row.
+         Same in Activities and Presets"): presets read as TWO rows —
+         name + id up top, then Icon · Accent · Style as the look
+         row, mirroring the ActivityCard split. -->
+    {#snippet nameField()}
       <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
         {#if tile.type === "nav"}
           <!-- THE RENAME-COUPLING BUG (v0.85.7 — Suresh: "I duplicated
@@ -380,16 +386,60 @@
           <Input bind:value={tile.label} />
         {/if}
       </Field></div>
-      <div class="w-[230px] min-w-[180px] flex-1"><Field label="Icon" hint="">
-        <IconPicker value={tile.icon_image || tile.icon || ""}
-          placeholder="search icons — or an image path (/local/…)"
-          onchange={(e) => setIcon(e.target.value)} />
-      </Field></div>
+    {/snippet}
+    {#snippet idField()}
       <div class="w-[150px] min-w-[120px] flex-1"><Field label="Id" hint="">
         <div class="flex h-[38px] items-center truncate rounded-[4px] bg-sunk px-[11px] font-mono text-[12px] text-dim"
           title="The tile's config key — editable under Advanced">{tile.id || "—"}</div>
       </Field></div>
-    </div>
+    {/snippet}
+    {#snippet iconField(cls)}
+      <div class={cls}><Field label="Icon" hint="">
+        <IconPicker value={tile.icon_image || tile.icon || ""}
+          placeholder="search icons — or an image path (/local/…)"
+          onchange={(e) => setIcon(e.target.value)} />
+      </Field></div>
+    {/snippet}
+    {#if tile.type === "preset"}
+      <div class="space-y-2 rounded-[8px] bg-surface/60 p-1">
+        <div class="flex flex-wrap items-end gap-3">
+          {@render nameField()}
+          {@render idField()}
+        </div>
+        <!-- row 2 — the LOOK: Icon · Accent · Style, just like an
+             activity's (round 5: "It should be just like activities,
+             not in a tab"). Style labels lead with what the TILE
+             leads with (round 7: "The prefix is what the tile leads
+             with") — Icon basic / Icon tint / Icon bloom, then the
+             Title trio; the config values stay basic/tint/bloom. -->
+        <div class="flex flex-wrap items-end gap-3">
+          {@render iconField("w-[280px] min-w-[200px]")}
+          <div class="w-[340px] min-w-[220px]"><Field label="Accent" hint="">
+            <IdentityPicker bind:accent={tile.accent} bind:color={tile.color} />
+          </Field></div>
+          <div class="w-[150px] min-w-[135px]"><Field label="Style" hint="">
+            <select value={tile.accent_style ?? ""}
+              title="this preset's own look — blank inherits the section's Accent style"
+              onchange={(e) => { if (e.target.value) tile.accent_style = e.target.value; else delete tile.accent_style; }}
+              class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-2 text-[12.5px] text-ink outline-none focus:border-accent">
+              <option value="">Inherit (section)</option>
+              <option value="basic">Icon basic</option>
+              <option value="tint">Icon tint</option>
+              <option value="bloom">Icon bloom</option>
+              <option value="title">Title</option>
+              <option value="title-tint">Title + tint</option>
+              <option value="title-bloom">Title + bloom</option>
+            </select>
+          </Field></div>
+        </div>
+      </div>
+    {:else}
+      <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1">
+        {@render nameField()}
+        {@render iconField("w-[230px] min-w-[180px] flex-1")}
+        {@render idField()}
+      </div>
+    {/if}
 
     <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->
     <div class="flex items-end gap-1 border-b border-line px-1">

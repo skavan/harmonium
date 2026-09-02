@@ -434,8 +434,94 @@
   .tile.wgt-preset .top { display: block; }
   .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
   .tile.wgt-preset .top img { width: var(--app-art); height: var(--app-art); border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
-  .tile.wgt-preset .lbl { font-size: 11px; display: block; }
+  /* --preset-lbl (round 8 — "what's the variable to adjust font
+     size in Icon presets?": it was a hard 11px, unreachable by any
+     knob). Weight rides the global --fw-1, which a section's
+     css_vars box already scopes. */
+  .tile.wgt-preset .lbl { font-size: var(--preset-lbl, 11px); display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+  /* TEXT PRESETS (identity-palette V1 §B; round 4): the ids-text
+     LAYOUT class carries the type-led cell — name 14/600, two
+     lines, bottom-aligned — and composes with either wash
+     (text-tint = ids-text + ids-tint, text-bloom = ids-text +
+     ids-pbloom). NO height override (round-4 review: "the two text
+     versions shrink the tiles … a mistake") — a text cell keeps
+     whatever height its band gives every other preset. */
+  /* V2 RECUT (palette canvas V2 §6 — supersedes the bottom-aligned
+     baseline): the MARK GETS ITS OWN ROW. A 102px cell cannot hold
+     an 18px corner mark AND a full two-line label — absolute
+     positioning reserved nothing ("Concentration Mix" ran its first
+     line under the mark) and a right float costs a line once the
+     first word passes six characters. Cell divides 6px pad, 18px
+     mark row (right-aligned), top-aligned label. The cost is the
+     shared baseline; in exchange both label lines are full width
+     and the caption is true by construction. */
+  .tile.wgt-preset.ids-text {
+    padding: 6px 10px; text-align: left; display: block;
+  }
+  /* the chassis keeps the label INSIDE .top (a span beside the
+     icon), so the mark row and label are .top's own column */
+  .tile.wgt-preset.ids-text .top {
+    min-width: 0; width: 100%; display: flex;
+    flex-direction: column; align-items: stretch;
+  }
+  .tile.wgt-preset.ids-text .top .ic {
+    position: static; width: auto; display: block; align-self: flex-end;
+    margin: 0 0 2px;
+    color: var(--tacc, var(--dim, #98a2ae));
+    /* one size for every icon kind (set icons are em-scaled, round
+       7); --title-mark (round 8) resizes every mark at once */
+    font-size: var(--title-mark, 18px); line-height: 1;
+    height: var(--title-mark, 18px); overflow: hidden;
+  }
+  .tile.wgt-preset.ids-text .top img { display: none; }
+  .tile.wgt-preset.ids-text .lbl {
+    width: 100%;
+    font-size: 14px; font-weight: 600; line-height: 1.2;
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+    /* clamp handles VERTICAL overflow only — a single word wider
+       than the 82px content box ("Concentration" is 90px at 14/600)
+       was cut horizontally with no ellipsis. A visibly broken word
+       is honest where a silently shortened one is not. */
+    word-wrap: break-word;
+  }
+  /* the preset BLOOM — the canvas's own proportions (round 6:
+     "horizontally smaller than the reference"): the 90×70 ellipse
+     of the 102×60 cell as fractions (88% × 117% at 20% 100%), fade
+     at 78%. Round 4 shrank this to kill edge rims that turned out
+     to be the background-repeat wrap — with the wrap dead the true
+     size is safe: visible extent 88.6% of the width, and the ramp's
+     last percent of alpha near the top edge is invisible. Presets
+     have no running state: always the lifted alpha. ids-bloom on a
+     preset takes the same pool — the activity form's badge-anchored
+     ellipse assumes a left badge a preset lacks. */
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* THE EDGE-RIM BUG, killed at the root (round 5 — his two reports,
+     one property): background layers sit on the PADDING box but
+     paint across the 2px transparent border, and the default
+     background-repeat WRAPS the gradient there — so the border
+     strip showed the bloom's opposite edge (left-anchored activity
+     bloom → right rim; bottom-anchored preset pool → top + right
+     rims). Found by pixel-sampling x=323 of an unfocused tile:
+     full-strength wash. One declaration, all wash layers, focused
+     variants included (a later standalone property beats every
+     shorthand's implicit repeat). */
+  .tile.ids-tint, .tile.ids-bloom, .tile.ids-pbloom,
+  .tile.ids-tint.focused, .tile.ids-bloom.focused,
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom,
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background-repeat: no-repeat;
+  }
   /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
      is right for an app logo, where the image is a LABEL; it is wrong
      for a playlist, where the cover IS the thing you are picking.

@@ -57,6 +57,19 @@ function activityStateOn(a) {
   }
   return null;
 }
+/* the activity has been ROUTED (round 9 live find — "Activity didn't
+   start" on every music preset): a declared-state activity's ON
+   evidence can BE the playback the preset is about to create (the
+   Sonos plays only after the preset fires), so a warm-start polling
+   device truth deadlocks by construction. The select flipping is the
+   proof the start ran; device truth follows the music. */
+function activityRouted(id) {
+  const a = (CONFIG.activities || {})[id];
+  if (!a) return false;
+  const own = a.room_view && rawScreen(a.room_view);
+  const sel = (own && own.activity_select) || CONFIG.global.activity_select;
+  return !!(sel && st(sel).s === (a.state_value || id));
+}
 function isActivityActive(id) {
   const a = (CONFIG.activities || {})[id];
   if (!a) return false;
@@ -223,9 +236,11 @@ function firePreset(t) {
   };
   if (t.activity && !isActivityActive(t.activity)) {
     if (!startActivity(t.activity)) return false;   // switch-confirm pending
-    let n = 0;                                  // poll the activity select
-    const iv = setInterval(() => {              // (~12s budget) before firing
-      if (isActivityActive(t.activity)) { clearInterval(iv); run(); }
+    let n = 0;                                  // poll until STARTED —
+    const iv = setInterval(() => {              // active OR routed (~12s)
+      if (isActivityActive(t.activity) || activityRouted(t.activity)) {
+        clearInterval(iv); run();
+      }
       else if (++n > 40) { clearInterval(iv); flashBar("Activity didn't start"); }
     }, TIMING.presetPoll);
   } else run();

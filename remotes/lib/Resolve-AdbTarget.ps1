@@ -55,6 +55,29 @@ function Get-ConnectedDevices {
     return $devs
 }
 
+function Get-AdbHardwareSerial {
+    param($Adb, [string]$TransportSerial)
+
+    if (-not $TransportSerial) { return '' }
+    try {
+        return ("$((& $Adb -s $TransportSerial shell getprop ro.serialno 2>$null | Select-Object -First 1))").Trim()
+    } catch {
+        return ''
+    }
+}
+
+function Find-ConnectedAdbDeviceByHardwareSerial {
+    param($Adb, [string]$HardwareSerial, [switch]$UsbOnly)
+
+    if (-not $HardwareSerial) { return $null }
+    foreach ($transportSerial in @(Get-ConnectedDevices $Adb)) {
+        if ($UsbOnly -and $transportSerial -match ':') { continue }
+        $serial = Get-AdbHardwareSerial -Adb $Adb -TransportSerial $transportSerial
+        if ($serial -and $serial -eq $HardwareSerial) { return $transportSerial }
+    }
+    return $null
+}
+
 function ConvertTo-Spec {
     param([string]$Target, $Units)
     if (-not $Target) { return @{ Kind = 'usb'; Serial = $null; Label = 'USB device' } }
@@ -114,7 +137,7 @@ function Invoke-Picker {
 }
 
 function Resolve-AdbTarget {
-    param([string]$Target)
+    param([string]$Target, [switch]$PreferUsb)
     $adb   = Get-Adb
     $units = Get-Units
     $repo  = Get-RepoRoot
@@ -132,6 +155,29 @@ function Resolve-AdbTarget {
     }
 
     $spec = ConvertTo-Spec -Target $Target -Units $units
+
+    # A named unit normally resolves to its configured Wi-Fi address. Some
+    # workflows (notably battery monitoring) need an attached USB transport
+    # to win instead, without changing the behavior of the other callers.
+    if ($PreferUsb -and $spec.Kind -eq 'wifi') {
+        $requestedUnit = $units | Where-Object {
+            ($_.name -and "$($_.name)" -ieq "$Target") -or
+            ($_.ip -and "$($_.ip)" -eq "$($spec.HostName)")
+        } | Select-Object -First 1
+        if ($requestedUnit -and $requestedUnit.serial) {
+            $usbTransport = Find-ConnectedAdbDeviceByHardwareSerial -Adb $adb -HardwareSerial "$($requestedUnit.serial)" -UsbOnly
+            if ($usbTransport) {
+                Write-Host "== $($requestedUnit.name) is connected by USB; using USB instead of wireless ADB"
+                $spec = @{ Kind = 'usb'; Serial = $usbTransport; Label = "$($requestedUnit.name) over USB" }
+            }
+        }
+    }
+    elseif ($PreferUsb -and $spec.Kind -eq 'usb' -and $spec.Serial) {
+        # The stable ro.serialno and adb's USB transport id are usually the
+        # same, but do not require that vendor-specific assumption.
+        $usbTransport = Find-ConnectedAdbDeviceByHardwareSerial -Adb $adb -HardwareSerial "$($spec.Serial)" -UsbOnly
+        if ($usbTransport) { $spec.Serial = $usbTransport }
+    }
 
     if ($spec.Kind -eq 'wifi') {
         $hostport = "$($spec.HostName):$($spec.Port)"
@@ -173,5 +219,6 @@ function Resolve-AdbTarget {
     if ($unit) { Write-Host "== using: $($unit.name)$idnote  [type=$($unit.type) keymap=$($unit.keymap)]" }
     else       { Write-Host "== using: $($spec.Label)$idnote  (no units.json match)" }
 
-    return [pscustomobject]@{ Adb = $adb; Target = $targetArgs; Label = $spec.Label; Serial = $serial; Unit = $unit }
+    $transportId = if ($targetArgs.Count -ge 2) { "$($targetArgs[1])" } else { 'usb' }
+    return [pscustomobject]@{ Adb = $adb; Target = $targetArgs; Label = $spec.Label; Serial = $serial; Unit = $unit; Transport = $spec.Kind; TransportId = $transportId }
 }

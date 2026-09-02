@@ -430,6 +430,7 @@
 
     {#snippet secSettings(sec)}
       {#if sec}
+        {@const srole = roleOf(sec)}
         <div class="grid grid-cols-3 items-start gap-3 rounded-[9px] border border-line bg-surface p-3">
           <Field label="Heading" hint="shown on the page above this section; blank = none">
             <Input value={sec.title ?? ""} onchange={(e) => { if (e.target.value.trim()) sec.title = e.target.value.trim(); else delete sec.title; }} />
@@ -453,6 +454,26 @@
               onchange={(e) => { const v = String(e.target.value).trim();
                 if (v) sec.h = /^\d+$/.test(v) ? +v : v; else delete sec.h; edit(); }} />
           </Field>
+          <!-- IDENTITY STYLE (identity-palette V1, 2026-09-01):
+               additive, like a variant — Icon basic is today's tile
+               untouched. Tint/bloom suit activities; Text and
+               Text + bloom re-cut presets to the type-led cell. -->
+          <Field label="Accent style (all tiles here)"
+            hint={srole === "activities" ? "a tile's own setting overrides" : "Title forms are the name-led cells — a tile's own setting overrides"}>
+            <Select value={sec.accent_style ?? ""}
+              onchange={(e) => { if (e.target.value) sec.accent_style = e.target.value; else delete sec.accent_style; edit(); }}
+              options={srole === "activities"
+                ? [{ value: "", label: "Basic (default)" },
+                  { value: "tint", label: "Tint" },
+                  { value: "bloom", label: "Bloom" }]
+                : [{ value: "", label: "Icon basic (default)" },
+                  { value: "tint", label: "Icon tint" },
+                  { value: "bloom", label: "Icon bloom" },
+                  { value: "title", label: "Title" },
+                  { value: "title-tint", label: "Title + tint" },
+                  { value: "title-bloom", label: "Title + bloom" }]} />
+          </Field>
+          {#if srole !== "activities" && srole !== "presets"}
           <Field label="Label position (all cards here)"
             hint="photo cards only — a card's own setting overrides">
             <Select value={sec.label_pos ?? ""}
@@ -471,6 +492,7 @@
                 else sec.image_opacity = Math.max(0, Math.min(1, +v));
                 edit(); }} />
           </Field>
+          {/if}
           <!-- FULL ROW (v0.85.7 — Suresh's annotated screenshot: the
                example hint wrapped cramped under the one-column box
                while two empty columns sat beside it — "we can have

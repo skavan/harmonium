@@ -95,19 +95,19 @@
        page line-height and spilled out of the 38px chip toward the
        top; pinned to the box, clipped, centred. -->
   {#if setIcon && setLook && typeof setLook === "object"}
-    <span class="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-ink"
+    <span class="grid h-[38px] w-[38px] shrink-0 place-items-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-ink"
       title={value}>
       <svg class="h-[22px] w-[22px]" viewBox={setLook.viewBox || "0 0 24 24"}
         aria-hidden="true"><path d={setLook.path} fill="currentColor"/></svg>
     </span>
   {:else if setIcon && (setLook === "missing" || setLook === "no_source")}
-    <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-danger/50 bg-tile text-[20px] leading-none text-danger"
+    <span class="material-symbols-outlined grid h-[38px] w-[38px] shrink-0 place-items-center self-center overflow-hidden rounded-[8px] border border-danger/50 bg-tile text-[20px] leading-none text-danger"
       title={setWarnTitle}>warning</span>
   {:else if setIcon}
-    <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[20px] leading-none text-faint"
+    <span class="material-symbols-outlined grid h-[38px] w-[38px] shrink-0 place-items-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[20px] leading-none text-faint"
       title="looking up {value}…">hourglass_empty</span>
   {:else}
-    <span class="material-symbols-outlined flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[22px] leading-none text-ink"
+    <span class="material-symbols-outlined grid h-[38px] w-[38px] shrink-0 place-items-center self-center overflow-hidden rounded-[8px] border border-line bg-tile text-[22px] leading-none text-ink"
       title={value || "no icon"}>{cur || "•"}</span>
   {/if}
   <input bind:value bind:this={inputEl} spellcheck="false" {placeholder}

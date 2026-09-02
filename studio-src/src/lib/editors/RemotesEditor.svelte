@@ -35,6 +35,122 @@
 
   const remotes = $derived(app.draft?.remotes || {});
 
+  /* ---- THE FLEET (design-remote-fleet, 2026-09-02 — Suresh: "I now
+     have 4 remotes registered with Harmonium... Surely I should see
+     the remotes? And be able to manage them") — the units ledger the
+     integration keeps from engine hellos. Profiles are outfits;
+     these rows are the physical remotes wearing them. ---- */
+  let units = $state([]);
+  let fullyDevs = $state([]);
+  let blueprint = $state(null);
+  let fleetState = $state("loading"); /* loading | ready | none | error */
+  let fleetNote = $state({});
+  let openUnit = $state(null);        /* which row's detail panel is open */
+  async function loadFleet() {
+    if (fleetState !== "ready") fleetState = "loading";
+    try {
+      const r = await fetch("/api/harmonium/fleet",
+        { headers: { Authorization: "Bearer " + token() } });
+      if (!r.ok) throw new Error("fleet " + r.status);
+      const body = await r.json();
+      units = body.units || [];
+      fullyDevs = body.fully || [];
+      blueprint = body.blueprint || null;
+      fleetState = units.length ? "ready" : "none";
+    } catch {
+      fleetState = "error";
+    }
+  }
+  loadFleet();
+  /* what a row is CALLED, in priority: your name → Fully's → the profile */
+  const unitLabel = (u) => u.friendly || u.fully_name || u.name || u.unit;
+  /* fleet v2 — the Fully link: server-owned fields, empty clears */
+  async function linkUnit(u, patch) {
+    try {
+      const r = await fetch("/api/harmonium/fleet/" + encodeURIComponent(u.unit), {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error();
+      await loadFleet();
+    } catch {
+      fleetNote[u.unit + "link"] = "link failed";
+      setTimeout(() => (fleetNote[u.unit + "link"] = null), 4000);
+    }
+  }
+  /* an alert already watches this unit's battery sensor? */
+  const alertFor = (u) =>
+    u.fully?.battery_sensor && bats.find((b) => b.sensor === u.fully.battery_sensor);
+  /* CREATE (his pick: create + link out — one click makes the
+     automation pre-wired to the linked device with the blueprint's
+     standard tiers; the numbers are tuned in HA via Edit levels) */
+  async function createAlert(u) {
+    if (!blueprint || !u.fully?.battery_sensor) return;
+    fleetNote[u.unit + "alert"] = "creating…";
+    const input = { battery_sensor: u.fully.battery_sensor };
+    if (u.fully.plugged_sensor) input.plugged_sensor = u.fully.plugged_sensor;
+    if (u.fully.tts_notify) input.tts_notify = u.fully.tts_notify;
+    if (u.fully.overlay_notify) input.overlay_notify = u.fully.overlay_notify;
+    try {
+      const r = await fetch("/api/config/automation/config/" + Date.now(), {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alias: "Harmonium: " + unitLabel(u) + " battery alerts",
+          description: "Tiered low-battery nags for " + unitLabel(u) +
+            " — created from the Studio's Remotes page (Harmonium battery-alerts blueprint).",
+          use_blueprint: { path: blueprint, input },
+        }),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      fleetNote[u.unit + "alert"] = "created — tune the levels below";
+      await loadBattery();
+    } catch (e) {
+      fleetNote[u.unit + "alert"] = "create failed: " + e.message;
+    }
+    setTimeout(() => (fleetNote[u.unit + "alert"] = null), 6000);
+  }
+  const agoText = (u) =>
+    u.age < 90 ? "just now"
+    : u.age < 3600 ? Math.round(u.age / 60) + " min ago"
+    : u.age < 172800 ? Math.round(u.age / 3600) + " h ago"
+    : Math.round(u.age / 86400) + " d ago";
+  async function fleetCmd(verb, target) {
+    const key = (target || "all") + verb;
+    fleetNote[key] = "…";
+    try {
+      const body = { verb, workspace: app.workspace };
+      if (target) body.target = target;
+      if (verb === "identify" && target) {
+        const u = units.find((x) => x.unit === target);
+        if (u) body.label = unitLabel(u);
+      }
+      const r = await fetch("/api/harmonium/command", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error();
+      const b = await r.json();
+      fleetNote[key] = verb === "reload"
+        ? (b.online ? "reloading " + b.online : "none online")
+        : (b.online ? "look for the flashing remote" : "not online");
+    } catch {
+      fleetNote[key] = "failed";
+    }
+    setTimeout(() => (fleetNote[key] = null), 5000);
+  }
+  async function removeUnit(u) {
+    try {
+      const r = await fetch("/api/harmonium/fleet/" + encodeURIComponent(u.unit), {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token() },
+      });
+      if (r.ok) units = units.filter((x) => x.unit !== u.unit);
+    } catch { /* leave the row */ }
+  }
+
   /* ---- battery-alert automations, discovered live ---- */
   let bats = $state([]);
   let batState = $state("loading"); /* loading | ready | none | error */
@@ -141,6 +257,109 @@
 </script>
 
 <div class="space-y-5">
+  <!-- ---- the fleet: the physical remotes (design-remote-fleet) ---- -->
+  <div>
+    <div class="mb-2 flex items-center gap-3">
+      <span class="text-[11px] font-semibold tracking-wide text-dim uppercase">Your remotes</span>
+      <span class="flex-1"></span>
+      {#if fleetNote["allreload"]}<span class="text-[11px] text-dim">{fleetNote["allreload"]}</span>{/if}
+      <button class="cursor-pointer rounded-[6px] border border-line bg-glass px-2.5 py-1 text-xs text-ink hover:border-accent/60"
+        onclick={() => fleetCmd("reload")}>⟳ Reload all</button>
+      <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-ink"
+        onclick={loadFleet} title="refresh the list">refresh</button>
+    </div>
+    {#if fleetState === "loading"}
+      <p class="text-sm text-dim">Looking for your remotes…</p>
+    {:else if fleetState === "error"}
+      <p class="text-sm text-dim">Couldn't read the fleet — is the integration up to date? (Remotes announce themselves once they run the new engine.)</p>
+    {:else if fleetState === "none"}
+      <p class="text-sm text-dim">No remotes have announced themselves yet. Each remote appears here the first time it connects running the new engine — nothing to set up.</p>
+    {:else}
+      <div class="space-y-1.5">
+        {#each units as u (u.unit)}
+          <div class="rounded-[9px] border border-line bg-glass">
+          <div class="flex items-center gap-3 px-3 py-2">
+            <button class="cursor-pointer border-0 bg-transparent p-0 text-xs text-dim hover:text-ink"
+              title="link to Fully, name it, battery alert"
+              onclick={() => (openUnit = openUnit === u.unit ? null : u.unit)}>{openUnit === u.unit ? "▾" : "▸"}</button>
+            <span class={"h-[9px] w-[9px] shrink-0 rounded-full " +
+              (u.liveness === "online" ? "bg-ok" : u.liveness === "asleep" ? "bg-dim/60" : "bg-danger/70")}
+              title={u.liveness}></span>
+            <span class="min-w-0 truncate text-sm font-semibold text-ink">{unitLabel(u)}</span>
+            <span class="font-mono text-[11px] text-dim">{u.unit}</span>
+            <span class="text-[11px] text-dim">wears <b class="text-ink-2">{u.profile || "default"}</b>{u.workspace && u.workspace !== "main" ? " · " + u.workspace : ""}</span>
+            {#if u.version}<span class="text-[11px] text-dim">v{u.version}</span>{/if}
+            {#if u.battery != null}<span class={"text-[11px] " + (u.battery <= 20 ? "text-danger" : "text-dim")}
+              title={u.fully_device ? "from its Fully device — fresh even while the remote sleeps" : "the remote's own last report"}>🔋{u.battery}%{u.charging ? "⚡" : ""}</span>{/if}
+            <span class="flex-1"></span>
+            <span class="text-[11px] text-dim">{u.liveness === "online" ? "online" : "seen " + agoText(u)}</span>
+            {#if fleetNote[u.unit + "identify"]}<span class="text-[11px] text-dim">{fleetNote[u.unit + "identify"]}</span>{/if}
+            {#if fleetNote[u.unit + "reload"]}<span class="text-[11px] text-dim">{fleetNote[u.unit + "reload"]}</span>{/if}
+            <button class="cursor-pointer rounded-[6px] border border-line bg-transparent px-2 py-1 text-[11px] text-dim hover:border-accent/60 hover:text-ink"
+              title="flash this unit's name on its screen" onclick={() => fleetCmd("identify", u.unit)}>Identify</button>
+            <button class="cursor-pointer rounded-[6px] border border-line bg-transparent px-2 py-1 text-[11px] text-dim hover:border-accent/60 hover:text-ink"
+              title="reload this remote now" onclick={() => fleetCmd("reload", u.unit)}>Reload</button>
+            {#if u.liveness === "stale"}
+              <button class="cursor-pointer border-0 bg-transparent p-0 text-sm text-dim hover:text-danger"
+                title="remove this row — a wiped or retired unit stays gone" onclick={() => removeUnit(u)}>✕</button>
+            {/if}
+          </div>
+          {#if openUnit === u.unit}
+            <!-- fleet v2 (Suresh: "link it to a Fully Kiosk profile,
+                 which will pull in a default name, a start url, a
+                 battery level… refresh that… add my own friendly
+                 name… This is also where I would Create a battery
+                 alert") -->
+            <div class="flex flex-wrap items-end gap-3 border-t border-line px-3 py-2.5">
+              <div class="w-[240px]"><Field label="Fully Kiosk device" hint="">
+                <select value={u.fully_device ?? ""}
+                  onchange={(e) => linkUnit(u, { fully_device: e.target.value })}
+                  class="h-[34px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-2 text-[12px] text-ink outline-none focus:border-accent">
+                  <option value="">— not linked —</option>
+                  {#each fullyDevs as d (d.id)}
+                    <option value={d.id}>{d.name}{d.id === u.fully_suggest ? " (suggested — same address)" : ""}</option>
+                  {/each}
+                </select>
+              </Field></div>
+              <div class="w-[220px]"><Field label="Friendly name" hint="">
+                <input value={u.friendly ?? ""} placeholder={u.fully_name || u.name || ""}
+                  onchange={(e) => linkUnit(u, { friendly: e.target.value })}
+                  class="h-[34px] w-full rounded-[4px] border border-line-strong bg-field px-2 text-[12px] text-ink outline-none placeholder:text-faint focus:border-accent" />
+              </Field></div>
+              <button class="mb-[3px] cursor-pointer rounded-[6px] border border-line bg-transparent px-2 py-1 text-[11px] text-dim hover:border-accent/60 hover:text-ink"
+                title="re-pull the name, battery and URL from Fully" onclick={loadFleet}>⟳ Refresh</button>
+              {#if u.fully_device}
+                {#if alertFor(u)}
+                  <span class="mb-[6px] text-[11px] text-dim">Battery alert ✓ — tune it below</span>
+                {:else if blueprint && u.fully?.battery_sensor}
+                  <button class="mb-[3px] cursor-pointer rounded-[6px] border border-line bg-glass px-2.5 py-1 text-[11px] text-ink hover:border-accent/60"
+                    title="creates the blueprint automation pre-wired to this device (standard tiers — Edit levels below to tune)"
+                    onclick={() => createAlert(u)}>＋ Create battery alert</button>
+                {:else if !blueprint}
+                  <span class="mb-[6px] text-[11px] text-dim">battery-alerts blueprint not installed — import it first (README)</span>
+                {/if}
+              {/if}
+              {#if fleetNote[u.unit + "alert"]}<span class="mb-[6px] text-[11px] text-dim">{fleetNote[u.unit + "alert"]}</span>{/if}
+              {#if fleetNote[u.unit + "link"]}<span class="mb-[6px] text-[11px] text-danger">{fleetNote[u.unit + "link"]}</span>{/if}
+              {#if u.fully_missing}
+                <span class="mb-[6px] text-[11px] text-danger">the linked Fully device is gone from HA — pick again</span>
+              {/if}
+              {#if u.url}
+                <div class="w-full truncate font-mono text-[11px] text-dim" title="the page Fully reports right now">
+                  showing: {u.url}
+                </div>
+              {/if}
+            </div>
+          {/if}
+          </div>
+        {/each}
+      </div>
+      <p class="mt-1.5 mb-0 text-[11px] text-dim">
+        A row is one physical remote (its token is named in your HA profile — revoking it there un-registers the unit instantly). Save &amp; Deploy reloads every online unit in this workspace automatically.
+      </p>
+    {/if}
+  </div>
+
   <!-- ---- profiles ---- -->
   <div>
     <div class="mb-2 text-[11px] font-semibold tracking-wide text-dim uppercase">Remote profiles</div>

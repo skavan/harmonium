@@ -50,6 +50,46 @@ await ctx.route('**/api/harmonium/engine_version', route =>
   route.fulfill({ json: { v: '0.84.1', bundled: '0.84.1', integration: '0.84.1' } }));
 await ctx.route('**/api/harmonium/pair_admin', route =>
   route.fulfill({ json: { pending: [] } }));
+/* THE FLEET (design-remote-fleet v2): a linked unit (Fully joined,
+   no alert yet — sensor differs from the battery fixture's) and a
+   stale unlinked one with a suggested match */
+const cmdCalls = [], linkCalls = [], createCalls = [];
+await ctx.route('**/api/harmonium/fleet', route =>
+  route.fulfill({ json: {
+    blueprint: '127.0.0.1/battery_alerts.yaml',
+    fully: [ { id: 'devA', name: 'Astrion2', host: '192.168.9.9' },
+             { id: 'devB', name: 'Kitchen RS90', host: '192.168.9.10' } ],
+    units: [
+      { unit: 'uk3m7p', name: 'astrion', profile: 'astrion', workspace: 'main',
+        version: '0.87.0', age: 40, liveness: 'online',
+        fully_device: 'devA', fully_name: 'Astrion2', friendly: 'Porch remote',
+        battery: 64, charging: false, url: 'http://ha.local:8123/local/harmonium/main/index.html',
+        fully: { battery_sensor: 'sensor.astrion2_battery',
+          plugged_sensor: 'binary_sensor.astrion2_plugged_in',
+          tts_notify: 'notify.astrion2_text_to_speech',
+          overlay_notify: 'notify.astrion2_overlay_message' } },
+      { unit: 'uw9r2t', name: 'rs90', profile: 'rs90', workspace: 'main',
+        version: '0.86.0', battery: 12, age: 400000, liveness: 'stale',
+        fully_suggest: 'devB' },
+    ] } }));
+await ctx.route('**/api/harmonium/fleet/*', route => {
+  linkCalls.push({ url: route.request().url().split('/').pop(),
+    body: route.request().postDataJSON() });
+  route.fulfill({ json: { ok: true, changed: true } });
+});
+await ctx.route('**/api/harmonium/command', route => {
+  cmdCalls.push(route.request().postDataJSON());
+  route.fulfill({ json: { ok: true, seq: 5, online: 1 } });
+});
+/* alert CREATE lands as a POST on a fresh automation id; GETs of the
+   battery fixtures keep their own routes (registered above = lower
+   priority, so fall through for them) */
+await ctx.route('**/api/config/automation/config/*', route => {
+  if (route.request().method() !== 'POST') return route.fallback();
+  createCalls.push({ id: route.request().url().split('/').pop(),
+    body: route.request().postDataJSON() });
+  route.fulfill({ json: { result: 'ok' } });
+});
 await ctx.route('**/api/states', route => route.fulfill({ json: STATES }));
 await ctx.route(`**/api/config/automation/config/${AUTO_ID}`, route =>
   route.fulfill({ json: AUTO_CFG }));
@@ -101,6 +141,71 @@ r.row = await p.evaluate(() => {
     onlyOne: !t.includes('Some other battery automation'),
   };
 });
+r.fleet = await p.evaluate(() => {
+  const t = document.body.textContent;
+  return {
+    header: t.includes('Your remotes'),
+    unitRow: t.includes('uk3m7p') && t.includes('wears'),
+    friendlyShown: t.includes('Porch remote'),   /* friendly beats profile */
+    battery: t.includes('64%'),
+    staleX: [...document.querySelectorAll('button')].some(b =>
+      b.textContent.trim() === '\u2715'),
+    reloadBtns: [...document.querySelectorAll('button')]
+      .filter(b => b.textContent.trim() === 'Reload').length,
+  };
+});
+/* open the linked unit's panel: Fully select, friendly name, URL,
+   suggested match on the other row, and Create battery alert */
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === '\u25b8')?.click(); });
+await p.waitForTimeout(300);
+r.panel = await p.evaluate(() => {
+  const t = document.body.textContent;
+  const sel = [...document.querySelectorAll('select')].find(s =>
+    [...s.options].some(o => /not linked/.test(o.label)));
+  return {
+    fullySelected: sel && sel.value === 'devA',
+    url: t.includes('showing: http://ha.local:8123/local/harmonium/main/index.html'),
+    createBtn: t.includes('Create battery alert'),
+  };
+});
+/* friendly rename posts a link */
+await p.evaluate(() => {
+  const inp = [...document.querySelectorAll('input')].find(i =>
+    i.placeholder === 'Astrion2' || i.value === 'Porch remote');
+  inp.value = 'Veranda';
+  inp.dispatchEvent(new Event('change', { bubbles: true })); });
+await p.waitForTimeout(300);
+r.link = linkCalls[0] || null;
+/* Create battery alert posts the pre-wired blueprint automation */
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .find(b => /Create battery alert/.test(b.textContent))?.click(); });
+await p.waitForTimeout(400);
+r.created = createCalls[0] || null;
+/* identify from the row carries the friendly label */
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === 'Identify')?.click(); });
+await p.waitForTimeout(300);
+r.identifyLabel = (cmdCalls.find(c => c && c.verb === 'identify') || {}).label;
+/* the preview LOCK (round 9): toggles, shows the locked style */
+r.pvLock = { present: await p.evaluate(() => !!document.getElementById('pvLock')) };
+const lockedBefore = await p.evaluate(() =>
+  document.getElementById('pvLock')?.className.includes('bg-accent'));
+await p.evaluate(() => document.getElementById('pvLock')?.click());
+await p.waitForTimeout(150);   /* Svelte flushes async */
+r.pvLock.toggles = !lockedBefore && await p.evaluate(() =>
+  document.getElementById('pvLock')?.className.includes('bg-accent'));
+await p.evaluate(() => document.getElementById('pvLock')?.click());
+await p.waitForTimeout(150);   /* leave unlocked for the rest */
+/* Reload all posts the workspace-addressed command */
+await p.evaluate(() => {
+  [...document.querySelectorAll('button')]
+    .find(b => /Reload all/.test(b.textContent))?.click(); });
+await p.waitForTimeout(400);
+r.fleetCmd = cmdCalls.find(c => c && c.verb === 'reload') || null;
 r.editHref = await p.evaluate(() =>
   [...document.querySelectorAll('a')]
     .find(a => /Edit levels/.test(a.textContent))?.getAttribute('href'));
@@ -133,6 +238,17 @@ console.log(JSON.stringify({ ...r,
       r.row.alias && r.row.level && r.row.tiers && r.row.window &&
       r.row.channels && r.row.onlyOne &&
       r.editHref === '/config/automation/edit/' + '1787191977360' &&
+      r.fleet.header && r.fleet.unitRow && r.fleet.battery &&
+      r.fleet.friendlyShown && r.fleet.staleX && r.fleet.reloadBtns === 2 &&
+      r.panel.fullySelected && r.panel.url && r.panel.createBtn &&
+      r.link && r.link.url === 'uk3m7p' && r.link.body.friendly === 'Veranda' &&
+      r.created && /battery_alerts\.yaml$/.test(r.created.body.use_blueprint.path) &&
+      r.created.body.use_blueprint.input.battery_sensor === 'sensor.astrion2_battery' &&
+      r.created.body.use_blueprint.input.overlay_notify === 'notify.astrion2_overlay_message' &&
+      /Porch remote|Veranda/.test(r.created.body.alias) &&
+      r.identifyLabel === 'Porch remote' &&
+      r.pvLock.present && r.pvLock.toggles &&
+      r.fleetCmd && r.fleetCmd.verb === 'reload' && r.fleetCmd.workspace === 'main' &&
       r.toggle.calls.length === 1 && r.toggle.calls[0].url === 'turn_off' &&
       r.toggle.calls[0].body.entity_id === 'automation.harmonium_astrion1_battery_alerts' &&
       r.toggle.nowOff &&

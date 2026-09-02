@@ -6,9 +6,11 @@
      context object below (v0.83.11 split; behavior unchanged). */
   import { app, actDirty, showUndo, previewActivity, previewGoto, recompileContext, schedulePreview, isCastGroup } from "../state.svelte.js";
   import { ROLES } from "./activity/lib.js";
+  import { accentHexOf } from "../stocklib.js";
   import Field from "./Field.svelte";
   import Input from "./Input.svelte";
   import IconPicker from "./IconPicker.svelte";
+  import IdentityPicker from "./IdentityPicker.svelte";
   import JsonArea from "./JsonArea.svelte";
   import Button from "./Button.svelte";
   import CardRow from "./CardRow.svelte";
@@ -291,7 +293,7 @@
 
 
 {#if a}
-  <CardRow title={a.name || id} subtitle={id} accent={a.color || "#666"} bind:open
+  <CardRow title={a.name || id} subtitle={id} accent={accentHexOf(a) || "#666"} bind:open
     edited={actDirty(id, a)}
     {onup} {ondown} ondelete={requestDelete}>
     <div class="space-y-4">
@@ -313,28 +315,47 @@
           </div>
         </div>
       {/if}
-      <!-- IDENTITY STRIP (grammar): present on every tab -->
-      <div class="flex flex-wrap items-end gap-3 rounded-[8px] bg-surface/60 p-1 *:min-w-0">
-        <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
-          <Input value={a.name} title="Tiles showing this activity follow along"
-            onfocus={() => (autoBefore = idIsAuto())}
-            oninput={(e) => { syncTiles("label", a.name, e.target.value); a.name = e.target.value; }}
-            onchange={() => { if (autoBefore) renameActivity(id, autoIdFor(a.name)); }} />
-        </Field>
-        </div><div class="w-[230px] min-w-[180px] flex-1"><Field label="Icon" hint="">
-          <IconPicker value={a.icon}
-            onchange={(e) => { syncTiles("icon", a.icon, e.target.value); a.icon = e.target.value; }} />
-        </Field></div>
-        <div class="w-[44px] shrink-0"><Field label="Accent" hint="">
-          <input type="color" bind:value={a.color}
-            class="h-[38px] w-[44px] cursor-pointer rounded-[4px] border border-line-strong bg-transparent p-1" />
-        </Field>
-        </div><div class="w-[170px] min-w-[130px] flex-1"><Field label="Activity id" hint="">
-          <input value={id} spellcheck="false"
-            title={idIsAuto() ? "Auto-fills from the name — edit to pin it" : "Renames the key everywhere in this config"}
-            onchange={(e) => renameActivity(id, e.target.value)}
-            class="h-[38px] w-full rounded-[4px] border border-line-strong bg-field px-[11px] font-mono text-[12px] text-ink outline-none focus:border-accent" />
-        </Field></div>
+      <!-- IDENTITY STRIP (grammar; two rows since round 7 — "move
+           icon, Accent and Style to their own row"): name + id, then
+           the face — icon, accent, style. -->
+      <div class="space-y-2 rounded-[8px] bg-surface/60 p-1">
+        <div class="flex flex-wrap items-end gap-3 *:min-w-0">
+          <div class="min-w-[200px] flex-[2]"><Field label="Display name" hint="">
+            <Input value={a.name} title="Tiles showing this activity follow along"
+              onfocus={() => (autoBefore = idIsAuto())}
+              oninput={(e) => { syncTiles("label", a.name, e.target.value); a.name = e.target.value; }}
+              onchange={() => { if (autoBefore) renameActivity(id, autoIdFor(a.name)); }} />
+          </Field>
+          </div><div class="w-[240px] min-w-[170px] flex-1"><Field label="Activity id" hint="">
+            <input value={id} spellcheck="false"
+              title={idIsAuto() ? "Auto-fills from the name — edit to pin it" : "Renames the key everywhere in this config"}
+              onchange={(e) => renameActivity(id, e.target.value)}
+              class="h-[38px] w-full rounded-[4px] border border-line-strong bg-field px-[11px] font-mono text-[12px] text-ink outline-none focus:border-accent" />
+          </Field></div>
+        </div>
+        <div class="flex flex-wrap items-end gap-3 *:min-w-0">
+          <!-- round 8: the look row does NOT stretch — the icon was
+               eating the width ("Way too much width for the icon
+               name"); Accent doubled so ✎ Custom — #hex reads whole -->
+          <div class="w-[280px] min-w-[200px]"><Field label="Icon" hint="">
+            <IconPicker value={a.icon}
+              onchange={(e) => { syncTiles("icon", a.icon, e.target.value); a.icon = e.target.value; }} />
+          </Field>
+          </div><div class="w-[340px] min-w-[220px]"><Field label="Accent" hint="">
+            <IdentityPicker bind:accent={a.accent} bind:color={a.color} />
+          </Field>
+          </div><div class="w-[150px] min-w-[130px]"><Field label="Style" hint="">
+            <select value={a.accent_style ?? ""}
+              title="how the accent shows on this activity's tiles — blank inherits the section's Accent style"
+              onchange={(e) => { if (e.target.value) a.accent_style = e.target.value; else delete a.accent_style; }}
+              class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-2 text-[12.5px] text-ink outline-none focus:border-accent">
+              <option value="">Inherit (section)</option>
+              <option value="basic">Basic</option>
+              <option value="tint">Tint</option>
+              <option value="bloom">Bloom</option>
+            </select>
+          </Field></div>
+        </div>
       </div>
 
       <!-- TAB BAR (grammar): Advanced last, right-aligned, glass -->

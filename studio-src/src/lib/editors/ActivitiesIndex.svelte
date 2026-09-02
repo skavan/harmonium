@@ -1,4 +1,5 @@
 <script>
+  import { accentHexOf } from "../stocklib.js";
   /* All activities — a read-mostly INDEX grouped by owner room.
      Editing happens in the owning room; orphans surface here so
      nothing can float invisibly. */
@@ -36,7 +37,7 @@
                 (i ? "border-t border-line " : "")}
               onclick={() => selectSlice(hubKey(r))}
             >
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background:{a.color || '#666'}"></span>
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background:{accentHexOf(a) || '#666'}"></span>
               <span class="font-semibold">{a.name || id}</span>
               <span class="font-mono text-[11.5px] text-dim">{id}</span>
               <span class="flex-1"></span>
@@ -57,7 +58,7 @@
           {#each unassignedActivities() as id, i (id)}
             {@const a = d.activities[id]}
             <div class={"flex items-center gap-3 bg-tile px-3 py-2.5 " + (i ? "border-t border-line " : "")}>
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background:{a.color || '#666'}"></span>
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background:{accentHexOf(a) || '#666'}"></span>
               <span class="font-semibold">{a.name || id}</span>
               <span class="font-mono text-[11.5px] text-dim">{id}</span>
               <span class="flex-1"></span>

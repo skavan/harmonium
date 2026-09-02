@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 
 from aiohttp import web
@@ -23,6 +24,251 @@ from .catalogs import merge_config, subtract_config
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class HarmoniumHelloView(HomeAssistantView):
+    """POST /api/harmonium/hello — a running remote announces itself.
+
+    The fleet's UP channel (docs/design-remote-fleet.md): fired on
+    every websocket auth_ok and piggybacked on the engine's existing
+    25s watchdog every ~5 visible minutes, so it costs the battery
+    nothing the watchdog wasn't already spending. Authenticated but
+    NOT admin — remote tokens must never need admin."""
+
+    url = "/api/harmonium/hello"
+    name = "api:harmonium:hello"
+    requires_auth = True
+
+    def __init__(self, fleet, persist) -> None:
+        self.fleet = fleet
+        self.persist = persist      # persist(urgent: bool) — debounced store
+
+    async def post(self, request: web.Request) -> web.Response:
+        try:
+            body = await request.json()
+        except ValueError:
+            return self.json_message("body is not valid JSON", status_code=400)
+        if not isinstance(body, dict):
+            return self.json_message("body must be an object", status_code=400)
+        info = dict(body)
+        info["ip"] = request.remote or ""
+        changed = self.fleet.hello(str(body.get("unit") or ""), info)
+        self.persist(changed)
+        return self.json({"ok": True})
+
+
+# the Fully Kiosk entities a linked unit borrows, keyed by the tail of
+# their entity ids (stable across renames — HA keeps the object_id)
+_FULLY_TAILS = {
+    "battery_sensor": "_battery",
+    "plugged_sensor": "_plugged_in",
+    "page_sensor": "_current_page",
+    "reload_button": "_load_start_url",
+    "cache_button": "_clear_browser_cache",
+    "overlay_notify": "_overlay_message",
+    "tts_notify": "_text_to_speech",
+    "beep_player": None,   # the device's media_player (no suffix)
+}
+
+
+class HarmoniumFleetView(HomeAssistantView):
+    """GET /api/harmonium/fleet — the units ledger for the Studio's
+    "Your remotes" section, ENRICHED (fleet v2 — Suresh: "link it to
+    a Fully Kiosk profile, which will pull in a default name, a start
+    url, a battery level"): a linked unit borrows its Fully device's
+    name, battery/charging truth (fresh even while the remote
+    sleeps), current URL, and the entity ids the battery-alert
+    blueprint wants. The response also carries the pickable Fully
+    devices (with an ip-matched suggestion per unit) and the
+    installed battery-alerts blueprint path, so Create needs no
+    second round-trip. Refresh in the Studio = just GET again."""
+
+    url = "/api/harmonium/fleet"
+    name = "api:harmonium:fleet"
+    requires_auth = True
+
+    def __init__(self, hass: HomeAssistant, fleet, hstore: HarmoniumStore) -> None:
+        self.hass = hass
+        self.fleet = fleet
+        self.hstore = hstore
+        self._bp: str | None = None    # discovered blueprint path, cached
+
+    def _fully_devices(self) -> list[dict]:
+        from homeassistant.helpers import device_registry as dr
+        out = []
+        for dev in dr.async_get(self.hass).devices.values():
+            if not any(i[0] == "fully_kiosk" for i in (dev.identifiers or ())):
+                continue
+            host = ""
+            for eid in dev.config_entries:
+                entry = self.hass.config_entries.async_get_entry(eid)
+                if entry and entry.data.get("host"):
+                    host = str(entry.data["host"])
+            out.append({"id": dev.id, "name": dev.name_by_user or dev.name or dev.id,
+                        "host": host})
+        out.sort(key=lambda d: d["name"].lower())
+        return out
+
+    def _device_join(self, device_id: str) -> dict:
+        """The linked device's name + borrowed entity ids + live reads."""
+        from homeassistant.helpers import device_registry as dr
+        from homeassistant.helpers import entity_registry as er
+        dev = dr.async_get(self.hass).devices.get(device_id)
+        if dev is None:
+            return {"fully_missing": True}
+        ents = er.async_entries_for_device(er.async_get(self.hass), device_id)
+        picked: dict = {}
+        for e in ents:
+            obj = e.entity_id.split(".", 1)[1]
+            for key, tail in _FULLY_TAILS.items():
+                if tail is None:
+                    if e.entity_id.startswith("media_player."):
+                        picked[key] = e.entity_id
+                elif obj.endswith(tail):
+                    picked[key] = e.entity_id
+        out = {"fully_name": dev.name_by_user or dev.name or "", "fully": picked}
+        batt = self.hass.states.get(picked.get("battery_sensor", ""))
+        if batt is not None:
+            try:
+                out["battery"] = int(float(batt.state))
+            except (TypeError, ValueError):
+                pass
+        plug = self.hass.states.get(picked.get("plugged_sensor", ""))
+        if plug is not None:
+            out["charging"] = plug.state == "on"
+        page = self.hass.states.get(picked.get("page_sensor", ""))
+        if page is not None and page.state not in ("unknown", "unavailable"):
+            out["url"] = page.state
+        return out
+
+    async def _blueprint_path(self) -> str | None:
+        """The installed battery-alerts blueprint, found on disk once —
+        import sources name their folder unpredictably, so we glob."""
+        if self._bp is not None:
+            return self._bp or None
+
+        def _find() -> str:
+            root = Path(self.hass.config.path("blueprints", "automation"))
+            try:
+                hit = next(root.glob("*/battery_alerts.yaml"), None)
+            except OSError:
+                return ""
+            return f"{hit.parent.name}/{hit.name}" if hit else ""
+        self._bp = await self.hass.async_add_executor_job(_find)
+        return self._bp or None
+
+    async def get(self, request: web.Request) -> web.Response:
+        units = self.fleet.list()
+        fully = self._fully_devices()
+        by_host = {d["host"]: d["id"] for d in fully if d["host"]}
+        cfgs: dict = {}
+        for row in units:
+            if row.get("fully_device"):
+                row.update(self._device_join(row["fully_device"]))
+            elif row.get("ip") and by_host.get(row["ip"]):
+                # unlinked, but a Fully device lives at this unit's ip
+                row["fully_suggest"] = by_host[row["ip"]]
+            if row.get("battery") is not None:
+                continue
+            # legacy fallback: the PROFILE's wired battery sensor
+            ws = row.get("workspace") or MAIN
+            if ws not in cfgs:
+                cfgs[ws] = await self.hstore.get_ws(ws) or {}
+            prof = ((cfgs[ws].get("remotes") or {}).get(row.get("profile")) or {})
+            sensor = prof.get("battery_sensor")
+            st = self.hass.states.get(sensor) if sensor else None
+            if st is not None:
+                try:
+                    row["battery"] = int(float(st.state))
+                except (TypeError, ValueError):
+                    pass
+        return self.json({"units": units, "fully": fully,
+                          "blueprint": await self._blueprint_path()})
+
+
+class HarmoniumFleetUnitView(HomeAssistantView):
+    """DELETE /api/harmonium/fleet/{unit} — remove a stale row (a
+    wiped device mints a fresh unit id; the old row is just history)."""
+
+    url = "/api/harmonium/fleet/{unit}"
+    name = "api:harmonium:fleet:unit"
+    requires_auth = True
+
+    def __init__(self, fleet, persist) -> None:
+        self.fleet = fleet
+        self.persist = persist
+
+    async def delete(self, request: web.Request, unit: str) -> web.Response:
+        ok = self.fleet.remove(unit)
+        if ok:
+            self.persist(True)
+        return self.json({"ok": ok})
+
+    async def post(self, request: web.Request, unit: str) -> web.Response:
+        """The LINK (fleet v2): {friendly?, fully_device?} — Studio-owned
+        fields; empty string clears. A hello can never touch these."""
+        try:
+            body = await request.json()
+        except ValueError:
+            return self.json_message("body is not valid JSON", status_code=400)
+        if not isinstance(body, dict):
+            return self.json_message("body must be an object", status_code=400)
+        changed = self.fleet.link(unit, body)
+        if changed:
+            self.persist(True)
+        return self.json({"ok": True, "changed": changed})
+
+
+class HarmoniumCommandView(HomeAssistantView):
+    """POST /api/harmonium/command {verb, target?, workspace?} — bump
+    the command bus. The DOWN channel: the bus is one sensor riding
+    every remote's existing filtered subscription (custom-event
+    subscriptions are admin-gated in HA; state diffs are not, and a
+    second subscription would be a second thing to keep alive).
+    Verbs v1: reload · identify. Returns how many ledger rows are
+    currently online AND addressed, for the Studio's toast."""
+
+    url = "/api/harmonium/command"
+    name = "api:harmonium:command"
+    requires_auth = True
+
+    VERBS = ("reload", "identify")
+
+    def __init__(self, fleet, bus_push) -> None:
+        self.fleet = fleet
+        self.bus_push = bus_push    # callable(payload) → seq, or None if platform not up
+
+    async def post(self, request: web.Request) -> web.Response:
+        try:
+            body = await request.json()
+        except ValueError:
+            return self.json_message("body is not valid JSON", status_code=400)
+        verb = (body or {}).get("verb")
+        if verb not in self.VERBS:
+            return self.json_message(f"verb must be one of {self.VERBS}", status_code=400)
+        # CONSTANT SHAPE, always every key ("" = unaddressed): state
+        # diffs MERGE attributes, so an omitted key would let a stale
+        # value from the previous command linger and mis-address this
+        # one (found by probe-remote-fleet before it could ship)
+        target = (body.get("target") or "").strip()
+        workspace = (body.get("workspace") or "").strip()
+        label = str(body.get("label") or "").strip()[:60]
+        payload = {"verb": verb, "target": target, "workspace": workspace,
+                   "label": label, "ts": time.time()}
+        seq = self.bus_push(payload) if self.bus_push else None
+        if seq is None:
+            return self.json_message("command bus not ready (sensor platform still starting)",
+                                     status_code=503)
+        n = 0
+        for row in self.fleet.list():
+            if row["liveness"] != "online":
+                continue
+            if workspace and (row.get("workspace") or MAIN) != workspace:
+                continue
+            if target and target not in ("all", row.get("unit"), row.get("profile")):
+                continue
+            n += 1
+        return self.json({"ok": True, "seq": seq, "online": n})
 
 
 class HarmoniumEngineVersionView(HomeAssistantView):

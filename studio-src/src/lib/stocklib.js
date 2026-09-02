@@ -1434,27 +1434,53 @@ export const STOCK_DIALECTS = {
    provenance badges classify a config's app identities against this
    (it is the stocklib twin of starter-config's `apps`; probe-stock-sync
    guards the twinning). */
+/* V2 (palette canvas §7): every stock app carries its BRAND slot —
+   the glyph tints, no wash (apps default to icon-basic). YouTube TV
+   references `youtube` (same brand colour by definition; the glyph
+   separates them). tv_gen was never a Material Symbols name (the
+   canvas's config nit) — corrected to tv. Pluto/Tubi/Philo have no
+   slot yet; they ride uncoloured until the table grows. */
 export const STOCK_APP_IDENTITIES = {
-  netflix: { name: "Netflix", icon: "material:movie" },
-  prime:   { name: "Prime Video", icon: "material:play_circle" },
-  youtube: { name: "YouTube", icon: "material:smart_display" },
-  youtubetv: { name: "YouTube TV", icon: "material:live_tv" },
-  peacock: { name: "Peacock", icon: "material:theaters" },
-  paramount: { name: "Paramount+", icon: "material:star" },
-  max:     { name: "Max", icon: "material:local_movies" },
-  appletv: { name: "Apple TV", icon: "material:tv_gen" },
-  hulu:    { name: "Hulu", icon: "material:video_library" },
-  disney:  { name: "Disney+", icon: "material:castle" },
-  fubo:    { name: "Fubo TV", icon: "material:sports_football" },
-  espn:    { name: "ESPN", icon: "material:sports_basketball" },
-  britbox: { name: "BritBox", icon: "material:tv_gen" },
-  spotify: { name: "Spotify", icon: "material:equalizer" },
-  plex:    { name: "Plex", icon: "material:play_circle" },
+  netflix: { name: "Netflix", icon: "material:movie", accent: "netflix" },
+  prime:   { name: "Prime Video", icon: "material:play_circle", accent: "prime" },
+  youtube: { name: "YouTube", icon: "material:smart_display", accent: "youtube" },
+  youtubetv: { name: "YouTube TV", icon: "material:live_tv", accent: "youtube" },
+  peacock: { name: "Peacock", icon: "material:theaters", accent: "peacock" },
+  paramount: { name: "Paramount+", icon: "material:star", accent: "paramount" },
+  max:     { name: "Max", icon: "material:local_movies", accent: "max" },
+  appletv: { name: "Apple TV", icon: "material:tv", accent: "appletv" },
+  hulu:    { name: "Hulu", icon: "material:video_library", accent: "hulu" },
+  disney:  { name: "Disney+", icon: "material:castle", accent: "disney" },
+  fubo:    { name: "Fubo TV", icon: "material:sports_football", accent: "fubo" },
+  espn:    { name: "ESPN", icon: "material:sports_basketball", accent: "espn" },
+  britbox: { name: "BritBox", icon: "material:tv", accent: "britbox" },
+  spotify: { name: "Spotify", icon: "material:equalizer", accent: "spotify" },
+  plex:    { name: "Plex", icon: "material:play_circle", accent: "plex" },
   plutotv: { name: "Pluto TV", icon: "material:live_tv" },
   tubi:    { name: "Tubi", icon: "material:smart_display" },
-  pbs:     { name: "PBS", icon: "material:account_balance" },
+  pbs:     { name: "PBS", icon: "material:account_balance", accent: "pbs" },
   philo:   { name: "Philo", icon: "material:connected_tv" },
 };
+
+/* the V2 load-heal: a config app row that still matches the PRE-V2
+   stock shape (same row minus accent, or with the old tv_gen glyph)
+   picks up the new stock fields — it stays "stock", never "edited".
+   A row the user touched is left alone. */
+export function healStockAppAccents(cfg) {
+  const apps = cfg && cfg.apps;
+  if (!apps) return;
+  for (const id in STOCK_APP_IDENTITIES) {
+    const row = apps[id], stock = STOCK_APP_IDENTITIES[id];
+    if (!row || typeof row !== "object") continue;
+    const legacy = { ...stock };
+    delete legacy.accent;
+    const legacyTvGen = { ...legacy,
+      icon: legacy.icon === "material:tv" ? "material:tv_gen" : legacy.icon };
+    const fp = unitFp(row);
+    if (fp === unitFp(legacy) || fp === unitFp(legacyTvGen))
+      apps[id] = JSON.parse(JSON.stringify(stock));
+  }
+}
 
 export function healStockDialects(cfg) {
   if (!cfg) return cfg;
@@ -1806,6 +1832,7 @@ export function ensureStockControllers(cfg) {
   healStockGen(cfg);
   healStockSkins(cfg);
   healStockDialects(cfg);
+  healStockAppAccents(cfg);   /* V2 brand accents reach untouched stock rows */
   healStockRemotes(cfg);
   healInputPolicy(cfg);
   return cfg;
@@ -2022,6 +2049,41 @@ export const isCastGroup = (m) => !!m && typeof m === "object" && !!m.group;
    controller (Suresh: "we'd want the parent tile that launched its
    child controller"). Role column = the claim the child binds to;
    null = none needed. Mirrors SHOWS_ROLE in core/context.js. */
+
+
+/* the accent palette's picker swatches (identity-palette V1) — the
+   panel theme owns the real colours; these mirror
+   tools/gen-identity-palette.mjs badge output for Studio chrome
+   (dots, pickers). accentHexOf answers "what colour represents this
+   activity/preset" the same way the engine does: slot wins, then
+   the held custom hex. */
+export const ACCENT_HEX = {
+  coral: "#e66d71", fern: "#7fa834", jade: "#54b05a", indigo: "#7990f4",
+  violet: "#a681e7", orchid: "#c775c9", rose: "#dd6da0", slate: "#989898",
+};
+/* V2 BRAND TIER (palette canvas V2 §3/§7): resolved badge hexes,
+   mirroring tools/gen-identity-palette.mjs output for dots and
+   pickers only — the panel theme owns the real colours. Labels are
+   the picker's Brands optgroup. */
+export const BRAND_HEX = {
+  firetv: "#ff9900", appletv: "#ffffff", googletv: "#4285f4", samsung: "#2848c0",
+  lg: "#a50234", sony: "#000000", sonos: "#d8a158", netflix: "#e50914",
+  spotify: "#1db954", plex: "#e5a00d", roku: "#7321b6", shield: "#76b900",
+  disney: "#1541d4", youtube: "#ff0001", prime: "#00a8e1", peacock: "#000000",
+  paramount: "#0064ff", max: "#0231ec", hulu: "#1de783", fubo: "#fa4616",
+  espn: "#d2001f", britbox: "#3545c0", pbs: "#2b41cd",
+};
+export const BRAND_LABEL = {
+  firetv: "Fire TV", appletv: "Apple TV", googletv: "Google TV", samsung: "Samsung",
+  lg: "LG", sony: "Sony", sonos: "Sonos", netflix: "Netflix",
+  spotify: "Spotify", plex: "Plex", roku: "Roku", shield: "Shield",
+  disney: "Disney+", youtube: "YouTube", prime: "Prime Video", peacock: "Peacock",
+  paramount: "Paramount+", max: "Max", hulu: "Hulu", fubo: "Fubo TV",
+  espn: "ESPN", britbox: "BritBox", pbs: "PBS",
+};
+export const accentHexOf = (o) =>
+  (o && (ACCENT_HEX[o.accent] || BRAND_HEX[o.accent])) ||
+  (o && (o.color || ACCENT_HEX[o.identity])) || null;
 
 export const SHOWS_KINDS = [
   { value: "device", label: "Launcher tile", role: null,
@@ -2397,6 +2459,40 @@ export function normalizeVariants(cfg) {
       n++;
     }
   }
+  /* ACCENT rename (identity-palette V1 round 4 — "IDENTITY is an odd
+     word … Isn't it ACCENT?"): the first cut spelled the slot
+     `identity`/`identity_style`; the word is accent everywhere now.
+     Heal every carrier — activities (and their presets lists),
+     sections and their tiles. The engine keeps a compat read, so an
+     unhealed config still renders. */
+  const ACC_STYLE_HEAL = { "icon-basic": "basic", "icon-tint": "tint",
+    "icon-bloom": "bloom", text: "title", "text-tint": "title-tint",
+    "text-bloom": "title-bloom" };
+  const accHeal = (o) => {
+    if (!o || typeof o !== "object") return;
+    if (o.identity !== undefined) {
+      if (o.accent === undefined) o.accent = o.identity;
+      delete o.identity; n++;
+    }
+    if (o.identity_style !== undefined) {
+      if (o.accent_style === undefined) o.accent_style = o.identity_style;
+      delete o.identity_style; n++;
+    }
+    /* round-5 style names (Basic/Tint/Bloom · Title …): the first-cut
+       icon-/text- spellings heal to the real words */
+    if (ACC_STYLE_HEAL[o.accent_style]) {
+      o.accent_style = ACC_STYLE_HEAL[o.accent_style]; n++;
+    }
+  };
+  for (const a of Object.values(cfg?.activities || {})) {
+    accHeal(a);
+    for (const p of a?.presets || []) accHeal(p);
+  }
+  for (const scr of Object.values(cfg?.screens || {}))
+    for (const sec of scr?.sections || []) {
+      accHeal(sec);
+      for (const t of sec?.tiles || []) accHeal(t);
+    }
   NORMALIZE_REPORT.variants = n;
   return cfg;
 }

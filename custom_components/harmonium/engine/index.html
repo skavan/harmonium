@@ -24,6 +24,7 @@
     --btn-h: 46px;              /* ± buttons, pills, actions */
     --focus-w: 2px;             /* d-pad focus ring */
     --focus-offset: 2px;        /* outset; negated on a card */
+    --hold-ms: 500ms;           /* V7 §9: the unlock/open hold */
     --track-channel: #1a212b;   /* recessed channel */
     --track-hairline: #2a3340;  /* channel edge */
     --radius-inner: calc(var(--radius) - var(--track-inset));  /* derived */
@@ -37,10 +38,69 @@
     --ok: #4ade80;              /* status · online */
     --wash: rgba(255,176,32,.10);
     --danger: #e05252;
+    --warn: #d9a13b;            /* caution — amber, not an error */
+    --logo-chip: #e8eaed;       /* light ground behind dark wordmarks */
+    /* ---- IDENTITY PALETTE (identity-palette V1, 2026-09-01) ----
+       Seven hues + Slate, one SLOT each; badge oklch(0.68 0.15 H),
+       wash oklch(0.55 0.14 H) — resolved to sRGB at build time
+       because the panel is Chromium 61 (tools/gen-identity-palette
+       .mjs regenerates this block; probe-identity-palette re-derives
+       and compares, so the values can never drift from the formula).
+       Reserved arcs — never add a slot inside them: 40°–110° (the
+       focus ring's amber) and 170°–240° (sRGB clips chroma 0.14
+       through the cyans). -w values are r,g,b TRIPLETS consumed as
+       rgba(var(--id-x-w), var(--wash-a)). */
+    /* @identity-palette-begin */
+    --id-coral-b: #e66d71;
+    --id-coral-w: 181, 73, 78;
+    --id-fern-b: #7fa834;
+    --id-fern-w: 91, 127, 5;
+    --id-jade-b: #54b05a;
+    --id-jade-w: 48, 134, 57;
+    --id-indigo-b: #7990f4;
+    --id-indigo-w: 86, 105, 194;
+    --id-violet-b: #a681e7;
+    --id-violet-w: 126, 92, 183;
+    --id-orchid-b: #c775c9;
+    --id-orchid-w: 154, 80, 157;
+    --id-rose-b: #dd6da0;
+    --id-rose-w: 173, 73, 121;
+    --id-slate-b: #989898;
+    --id-slate-w: 113, 113, 113;
+    /* @identity-palette-end */
+    --wash-a: 0.5;              /* preset pools (always the -on value) */
+    --wash-a-on: 0.75;
+    /* ACTIVITY bloom alphas — split from the preset pair in round 8
+       (Suresh tuned 0.3/0.4 on the real panel: "quite subdued on the
+       computer screen … quite bright on the remote"; presets keep
+       0.75, judged separately). His remote-measured values ARE the
+       defaults. */
+    --awash-a: 0.3;             /* resting */
+    --awash-a-on: 0.4;          /* running lift */
+    /* the FLAT tint gets its own softer pair (2026-09-01 review —
+       Suresh: "The tint version is too strong"): a wash that covers
+       the whole tile needs less alpha than a bloom that fades out */
+    --wash-a-tint: 0.15;    /* round 6: "still too strong" at .25 */
+    --wash-a-tint-on: 0.25;
+    /* BLOOM GEOMETRY KNOBS (round 6 — "educate me on where can I
+       play"): the activity bloom's ellipse and fade, and the preset
+       pool's (fractions of the cell). Live in devtools, in a
+       section's CSS variables box, or a theme. */
+    --bloom-w: 180px;           /* activity bloom ellipse (round 8 —
+                                   Suresh's panel-tuned geometry) */
+    --bloom-h: 100px;
+    --bloom-x: 64px;            /* anchored under the badge circle */
+    --bloom-fade: 72%;          /* where the fade reaches zero */
+    --pbloom-w: 88%;            /* preset pool ellipse (of the cell) */
+    --pbloom-h: 117%;
+    --pbloom-fade: 78%;
     --radius: 12px;
     /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
     --tile-h: 84px;
     --font-1: system-ui, Roboto, sans-serif;   /* primary: labels/titles */
+    --fs-0: 34px;               /* display step (V5 §8) — hero title */
+    --fw-0: 300;
+    --tab-h: 52px;              /* tab strips, beside --btn-h */
     --fs-1: 15px;
     --fw-1: 600;
     --font-2: var(--font-1);                   /* secondary: subs/hints */
@@ -168,7 +228,7 @@
      newest line first, for diagnosing shell/KeyMapper behavior */
   #dbg {
     flex: 0 0 auto; margin: 0 12px 6px; padding: 6px 10px;
-    background: #151a20; border: 1px solid var(--accent); border-radius: 10px;
+    background: var(--tile, #171e27); border: 1px solid var(--accent); border-radius: 10px;
     font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
     color: var(--text); white-space: pre; overflow: hidden;
   }
@@ -189,7 +249,7 @@
     padding-bottom: 46px;   /* air between title and the nav strip */
   }
   #banner.notabs { padding-bottom: 0; }   /* no strip: title truly centers */
-  #banner .btitle { font-size: 34px; font-weight: 300; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+  #banner .btitle { font-size: var(--fs-0, 34px); font-weight: var(--fw-0, 300); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
   #banner .btime {
     position: absolute; top: 10px; right: 12px;
     background: rgba(0,0,0,.45); border-radius: 999px;
@@ -202,10 +262,10 @@
     display: flex;
   }
   .hjump {
-    flex: 1; min-height: 52px;
+    flex: 1; min-height: var(--tab-h, 52px);
     display: flex; align-items: flex-end; padding: 0 14px 10px;
     font-size: 13px; font-weight: 700; letter-spacing: .08em;
-    text-transform: uppercase; color: #d4d8dd;
+    text-transform: uppercase; color: var(--text, #f2f5f8);
     text-shadow: 0 1px 6px rgba(0,0,0,.75); cursor: pointer;
   }
   /* WIDE (v0.68): `flex: 1` makes the strip a tab bar spanning the
@@ -407,7 +467,7 @@
   .npwrap { display: flex; gap: 12px; align-items: center; padding: 4px 0 8px; min-width: 0; }
   .npimg {
     width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
-    flex: 0 0 auto; background: #2c333d;
+    flex: 0 0 auto; background: var(--tile-hi, #222b36);
   }
   .npmeta { min-width: 0; flex: 1; }
   /* v0.52.1: the hero RIDES the theme (was 17px/600 + 14px + 12px
@@ -479,8 +539,10 @@
   .tile.wgt-media.hero .npimg {
     position: absolute; top: 0; right: 0; height: 100%; width: 58%;
     object-fit: cover; opacity: .95;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
-    mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+    /* a mask gradient is an ALPHA ramp — black is the keyword, not a
+       skin colour (V5 §1 no-hex sweep, 2026-09-01) */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 42%);
+    mask-image: linear-gradient(to right, transparent 0%, black 42%);
   }
   .tile.wgt-media.hero .top, .tile.wgt-media.hero .npwrap,
   .tile.wgt-media.hero .npprog, .tile.wgt-media.hero .nptimes,
@@ -783,8 +845,79 @@
   .tile.wgt-preset .top { display: block; }
   .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
   .tile.wgt-preset .top img { width: var(--app-art); height: var(--app-art); border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
-  .tile.wgt-preset .lbl { font-size: 11px; display: block; }
+  /* --preset-lbl (round 8 — "what's the variable to adjust font
+     size in Icon presets?": it was a hard 11px, unreachable by any
+     knob). Weight rides the global --fw-1, which a section's
+     css_vars box already scopes. */
+  .tile.wgt-preset .lbl { font-size: var(--preset-lbl, 11px); display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+  /* TEXT PRESETS (identity-palette V1 §B; round 4): the ids-text
+     LAYOUT class carries the type-led cell — name 14/600, two
+     lines, bottom-aligned — and composes with either wash
+     (text-tint = ids-text + ids-tint, text-bloom = ids-text +
+     ids-pbloom). NO height override (round-4 review: "the two text
+     versions shrink the tiles … a mistake") — a text cell keeps
+     whatever height its band gives every other preset. */
+  .tile.wgt-preset.ids-text {
+    padding: 10px; text-align: left;
+    display: flex; align-items: flex-end; position: relative;
+  }
+  /* the SMALL MARK ("the loss of the icon is not so nice - but I
+     wouldn't want to make them bigger"): an 18px glyph, top-right,
+     in the slot colour — quiet identity in the corner the label
+     never reaches, while the name keeps the cell */
+  .tile.wgt-preset.ids-text .top .ic {
+    position: absolute; top: 10px; right: 10px; margin: 0;
+    color: var(--tacc, var(--dim, #98a2ae));
+    /* one size for every icon kind (set icons are em-scaled, round
+       7); --title-mark (round 8: "a knob to impact ALL the preset
+       icon sizes in Title Mode") resizes every mark at once — a
+       section's css_vars box or a theme */
+    font-size: var(--title-mark, 18px);
+  }
+  .tile.wgt-preset.ids-text .top img { display: none; }
+  .tile.wgt-preset.ids-text .top { min-width: 0; width: 100%; }
+  .tile.wgt-preset.ids-text .lbl {
+    font-size: 14px; font-weight: 600; line-height: 1.2;
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  /* the preset BLOOM — the canvas's own proportions (round 6:
+     "horizontally smaller than the reference"): the 90×70 ellipse
+     of the 102×60 cell as fractions (88% × 117% at 20% 100%), fade
+     at 78%. Round 4 shrank this to kill edge rims that turned out
+     to be the background-repeat wrap — with the wrap dead the true
+     size is safe: visible extent 88.6% of the width, and the ramp's
+     last percent of alpha near the top edge is invisible. Presets
+     have no running state: always the lifted alpha. ids-bloom on a
+     preset takes the same pool — the activity form's badge-anchored
+     ellipse assumes a left badge a preset lacks. */
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* THE EDGE-RIM BUG, killed at the root (round 5 — his two reports,
+     one property): background layers sit on the PADDING box but
+     paint across the 2px transparent border, and the default
+     background-repeat WRAPS the gradient there — so the border
+     strip showed the bloom's opposite edge (left-anchored activity
+     bloom → right rim; bottom-anchored preset pool → top + right
+     rims). Found by pixel-sampling x=323 of an unfocused tile:
+     full-strength wash. One declaration, all wash layers, focused
+     variants included (a later standalone property beats every
+     shorthand's implicit repeat). */
+  .tile.ids-tint, .tile.ids-bloom, .tile.ids-pbloom,
+  .tile.ids-tint.focused, .tile.ids-bloom.focused,
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom,
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background-repeat: no-repeat;
+  }
   /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
      is right for an app logo, where the image is a LABEL; it is wrong
      for a playlist, where the cover IS the thing you are picking.
@@ -1001,15 +1134,52 @@
   }
   .tile .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .tile.wgt-volume .top, .tile.wgt-stepper .top, .tile.wgt-chips .top,
-  .tile.dvi .top, .tile.dvc .top, .tile.wgt-picker .top { height: 22px; }
+  .tile.dvi .top, .tile.dvc .top { height: 22px; }
   /* launcher cards centre their identity block in the 84px chassis */
   .tile.wgt-device:not(.row):not(.dvi):not(.dvc) {
     display: flex; flex-direction: column; justify-content: center;
+    position: relative;
   }
+  /* V7 (his img: the battery launcher's status hugged the tile edge,
+     the reference has it under the NAME): a two-line card block is
+     the LAUNCHER'S block — name and status both at x52, the glyph
+     centred against the pair. The icon leaves the flow so an empty
+     status line still centres the name. */
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) .top { padding-left: 38px; }
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) .top .ic,
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) .top > img {
+    position: absolute; left: 12px; top: 50%; margin-top: -12px;
+  }
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) .top > img { margin-top: -14px; }
+  .tile.wgt-device:not(.row):not(.dvi):not(.dvc) .sub {
+    margin: 2px 0 0 38px; min-height: 15px; line-height: 15px;
+  }
+  /* the 58×46 trail owns the right edge — text stops 10px short of it */
+  .tile.wgt-device.has-trail:not(.row):not(.dvi):not(.dvc) .top,
+  .tile.wgt-device.has-trail:not(.row):not(.dvi):not(.dvc) .sub {
+    padding-right: 68px;
+  }
+  /* V7 §9 — PRESS tiles (button, input_button, scene): the tile IS
+     the button, so it sits on the control surface — the same
+     surface as every other pressable thing, which is the whole
+     signal. Press fills with accent and the status line says Sent
+     for ~1.2s (optimistic by design — noted in §9 so nobody "fixes"
+     it). No tune, no chevron, no detail page. */
+  .tile.prs { background: var(--tile-hi, #222b36); }
+  .tile.prs.sent { background: var(--accent, #ffb020); }
+  .tile.prs.sent .lbl, .tile.prs.sent .sub,
+  .tile.prs.sent .ic { color: var(--accent-ink, #14181d); }
+  /* the one tile that works at span 1 — icon above name at 157px */
+  .tile.prs:not(.span2) .top {
+    padding-left: 0; flex-direction: column; gap: 6px; text-align: center;
+  }
+  .tile.prs:not(.span2) .top .ic,
+  .tile.prs:not(.span2) .top > img { position: static; margin-top: 0; }
+  .tile.prs:not(.span2) .sub { margin-left: 0; text-align: center; }
   /* browse thumbnails that are brand WORDMARKS (v0.49.1: "SONOS"
      was center-cropping to "N") — contain on a light chip */
   .tile .top > img.contain, .tile.row .icwrap img.contain {
-    object-fit: contain; background: #e8eaed; padding: 2px;
+    object-fit: contain; background: var(--logo-chip, #e8eaed); padding: 2px;
   }
   .tile .top > img {
     width: 28px; height: 28px; object-fit: cover;
@@ -1026,7 +1196,12 @@
      theme (and .on/.tacc tints) exactly like font glyphs. The probe
      img inside only detects missing files — never shown. */
   .ic.icmask {
-    display: inline-block; width: 24px; height: 24px;
+    /* EM-SIZED (round 7 — his phu Spotify: undersized beside the
+       30px material notes in a preset square, oversized as the 18px
+       title mark; the fixed 24px never followed the context's glyph
+       size). Each context's .ic font-size now drives every icon
+       kind; 24px here is the base, matching the material default. */
+    display: inline-block; width: 1em; height: 1em; font-size: 24px;
     vertical-align: -5px;
     background: currentColor;
     -webkit-mask-size: contain; mask-size: contain;
@@ -1036,9 +1211,17 @@
   .ic.icmask .mprobe { display: none; }
   /* minted set icons: inline SVG, painted with currentColor (the
      2026-09-01 ruling — path data rides the deployed config) */
-  .ic.icsvg { display: inline-block; width: 24px; height: 24px;
+  .ic.icsvg { display: inline-block; width: 1em; height: 1em; font-size: 24px;
     vertical-align: -5px; }
-  .ic.icsvg svg { display: block; width: 100%; height: 100%; }
+  /* overflow visible: a wide mark's ink-fit viewBox is narrower than
+     the mark (see tiles.js fitSetIcons) — the overflow IS the fix */
+  .ic.icsvg svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  /* THE one icon knob (round 8 — "I don't want 1000 knobs"): set
+     icons only, a bare multiplier on top of the auto ink-fit.
+     css_vars on a tile or its section (bands inherit), or a theme:
+     { "--ic-scale": "1.15" }. Material glyphs don't read it — they
+     are the reference the auto already matches. */
+  .ic.icsvg, .ic.icmask { transform: scale(var(--ic-scale, 1)); }
   .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
     font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
@@ -1046,7 +1229,10 @@
      rule): a control that owns its number drops the line entirely —
      the card heights (fat 156, compact 100) sum WITHOUT it. Rows
      keep their slot: one list height whether a status exists. */
-  .tile:not(.row) .sub:empty { display: none; }
+  /* an empty status line leaves NO hole anywhere (V7: "Single Line
+     Tile is not presented as a two line tile with a blank row") —
+     rows keep their 84 through min-height, so nothing reflows */
+  .tile .sub:empty { display: none; }
   /* inline sub: value on the title line, right-aligned — the v3
      title-row value slot, 14/600 tabular */
   .tile .sub.subin {
@@ -1054,24 +1240,97 @@
     font-size: 14px; font-weight: 400;
     font-variant-numeric: tabular-nums; padding-left: 8px;
   }
-  /* a STATE in the value slot (cover compact) reads 14/600; a picked
-     option (source rows) stays 14/400 secondary */
-  .tile.wgt-device .sub.subin { font-weight: 600; }
   /* v3 rows: the 24px unboxed chevron page cue, name+value clear it */
   .tile .pickcue {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
     font-size: 24px; color: var(--dim); pointer-events: none;
   }
   .tile.haspickcue { position: relative; }
-  .tile.haspickcue .top { padding-right: 32px; }
   .tile.wgt-picker:not(.row), .tile.wgt-sources:not(.row),
   .tile.wgt-nav.nav-plain:not(.row), .tile.wgt-nav.nav-summary:not(.row),
   .tile.wgt-grouplaunch:not(.row) {
     display: flex; flex-direction: column; justify-content: center;
   }
-  .tile.wgt-sources:not(.row) .top { height: 22px; }
+  /* V7 (his row screenshots): EVERY cue-carrying row is the canvas
+     row — the two-line block at x52 with the glyph at x14 centred
+     on it, and the cue clearing text by the same 38 the icon slot
+     spends. Applies to picker, sources, nav and group rows alike. */
+  .tile.haspickcue .top { padding-left: 38px; padding-right: 38px; }
+  .tile.haspickcue .top .ic, .tile.haspickcue .top > img {
+    position: absolute; left: 12px; top: 50%; margin-top: -12px;
+  }
+  .tile.haspickcue .top > img { margin-top: -14px; }
+  .tile.haspickcue .sub {
+    margin: 2px 38px 0 38px; min-height: 15px; line-height: 15px;
+  }
+
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
+  /* ---- IDENTITY PALETTE (identity-palette V1, 2026-09-01 — the
+     companion canvas). Eight SLOTS; each maps the tile's badge
+     (--tacc, the ruled icon-circle mechanism) and wash triplet
+     (--idw) to theme tokens, so config never carries a colour — a
+     custom hex stays honored second-class via the legacy `color`
+     key (tiles.js sets --tacc/--idw inline for it). Styles are
+     ADDITIVE, like variants: icon-basic is today's tile untouched;
+     icon-tint is the flat wash (A1); icon-bloom the badge-anchored
+     bloom (A2, the canvas's pick). Running lifts one knob (--wa)
+     from --wash-a to --wash-a-on; the accent status line — already
+     the .on rule above — does the real state work. ---- */
+  .tile.id-coral { --tacc: var(--id-coral-b); --idw: var(--id-coral-w); }
+  .tile.id-fern { --tacc: var(--id-fern-b); --idw: var(--id-fern-w); }
+  .tile.id-jade { --tacc: var(--id-jade-b); --idw: var(--id-jade-w); }
+  .tile.id-indigo { --tacc: var(--id-indigo-b); --idw: var(--id-indigo-w); }
+  .tile.id-violet { --tacc: var(--id-violet-b); --idw: var(--id-violet-w); }
+  .tile.id-orchid { --tacc: var(--id-orchid-b); --idw: var(--id-orchid-w); }
+  .tile.id-rose { --tacc: var(--id-rose-b); --idw: var(--id-rose-w); }
+  .tile.id-slate { --tacc: var(--id-slate-b); --idw: var(--id-slate-w); }
+  /* a slot identity tints the card glyph — the badge is the source
+     of the tile's colour, and it does NOT change with state (the
+     canvas: "resting is already full colour"). Legacy hex cards
+     keep today's look; rows keep their ruled icon circle. */
+  .tile.idt:not(.row) .top .ic { color: var(--tacc); }
+  .tile.ids-bloom { --wa: var(--awash-a, 0.3); }
+  .tile.ids-bloom.on { --wa: var(--awash-a-on, 0.4); }
+  /* the flat tint covers the whole tile, so it runs a softer pair
+     (2026-09-01 review: "too strong") */
+  .tile.ids-tint { --wa: var(--wash-a-tint, 0.25); }
+  .tile.ids-tint.on { --wa: var(--wash-a-tint-on, 0.4); }
+  /* border-box on every wash layer (round 8, pixel-diagnosed: "extra
+     dark border ... only on the left. Its something to do with the
+     bloom!"): gradients default to the PADDING box, so the 2px
+     transparent border strip showed bare --tile -- a dark rim wherever
+     the wash was strong. border-box sizes and positions the layer on
+     the full tile; no-repeat stays as the wrap guard (round 5). */
+  .tile.ids-tint {
+    background: linear-gradient(0deg,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), var(--wa))) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* A1 carries a rule A2 does not need: a flat wash sits behind the
+     text and drops --dim below AA at 13px — the status line rides
+     --text (and still goes accent when running) */
+  .tile.ids-tint .sub { color: var(--text, #f2f5f8); }
+  .tile.ids-tint.on .sub { color: var(--accent, #ffb020); }
+  .tile.ids-bloom {
+    background: radial-gradient(var(--bloom-w, 180px) var(--bloom-h, 100px) at var(--bloom-x, 64px) 50%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--bloom-fade, 72%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* focus on a WASHED tile is the ring alone (round-4 review — the
+     tile-hi ground lift read as an edge highlight where the wash
+     didn't cover: "It shouldn't be there!"). Revert = swap the
+     final layer back to var(--tile-hi). */
+  .tile.ids-tint.focused {
+    background: linear-gradient(0deg,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), var(--wa))) no-repeat border-box, var(--tile, #171e27);
+  }
+  .tile.ids-bloom.focused {
+    background: radial-gradient(var(--bloom-w, 180px) var(--bloom-h, 100px) at var(--bloom-x, 64px) 50%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--bloom-fade, 72%)) no-repeat border-box, var(--tile, #171e27);
+  }
   /* per-tile accent (v0.48.3 — Suresh: "simply color the icon circle
      background and leave it at that"): an activity's ACCENT paints
      its icon circle — identity, not state; icon flips to bg ink for
@@ -1121,7 +1380,7 @@
   }
   .brroot img {
     width: 34px; height: 34px; border-radius: 7px;
-    object-fit: contain; background: #e8eaed; padding: 2px;
+    object-fit: contain; background: var(--logo-chip, #e8eaed); padding: 2px;
   }
   .brroot .material-symbols-outlined {
     font-size: 26px; height: 34px; display: flex; align-items: center;
@@ -1418,7 +1677,7 @@
   .tile .mrk {
     position: absolute; bottom: 5px; left: 5px;
     font-size: 13px; line-height: 1; padding: 3px;
-    border-radius: 7px; background: var(--tile-hi); color: #d9a13b;
+    border-radius: 7px; background: var(--tile-hi); color: var(--warn, #d9a13b);
     pointer-events: none;
   }
   /* PROVENANCE BADGES (v0.71.2, split in v0.73.2): the corners each
@@ -1609,7 +1868,7 @@
   .dp-corners .dpbtn { width: 46px; height: 46px; border-radius: 50%; }
   .dp-pad {
     position: relative; width: 212px; height: 212px;
-    border-radius: 50%; background: #2a313b;
+    border-radius: 50%; background: var(--tile-hi, #222b36);
     box-shadow: inset 0 2px 10px rgba(0,0,0,.35);
   }
   .dp-pad .dpbtn {
@@ -1679,6 +1938,63 @@
   .tile.dvi.has-trail .top { padding-right: 34px; }
   /* the value INSIDE a fat track (discrete readout) rides at 21px */
   .sldr:not(.inrow) .inval { font-size: 21px; right: 14px; }
+  /* V5 §4C — DISCRETE compact (.dv3, h116 = 12+20+2+15+9+46+12):
+     the value moves to a STATUS LINE beneath the name ("a long
+     value competes with the name and wins" — the Sou… lesson,
+     generalised); the tile is the launcher's two-line block plus
+     the trio row, not a new shape. Continuous compact stays 100. */
+  .tile.dvc.dv3 { position: relative; }
+  .tile.dvc.dv3 .top { height: 20px; padding-left: 38px; }
+  .tile.dvc.dv3 .top .ic, .tile.dvc.dv3 .top > img {
+    /* the glyph centres on the two-line block (V7 reference: y19 in
+       the 116 card), not on the 20px title row */
+    position: absolute; left: 12px; top: 17px; margin-top: 0;
+  }
+  .tile.dvc.dv3 .sub {
+    margin: 2px 0 0 38px; height: 15px; min-height: 15px; line-height: 15px;
+  }
+  .tile.dvc.dv3 .devrow { margin-top: 9px; }
+  /* V7 §9 — the STATE PAIR (switch, lock): two explicit labelled
+     targets, 1fr 1fr at 46 with the 10px gap. Segment states:
+     raised (--tile-hi, the action available to you), accent
+     (--on: engaged — on, locked), recessed (--ctl-dis with a
+     --text label: current but not running). Recessed-current and
+     disabled share the fill and are told apart by the label. */
+  .devrow.statepair { display: flex; gap: 10px; }
+  .devrow.statepair .spseg {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 8px; position: relative; overflow: hidden; min-width: 0;
+  }
+  .spseg b, .spseg .sglbl { font-size: 15px; font-weight: 600; }
+  .spseg.cur-acc { background: var(--on, #ffb020); color: var(--accent-ink, #14181d); }
+  .spseg.cur-rec { background: var(--ctl-dis, #141a22); color: var(--text, #f2f5f8); }
+  .lkrow .sgbase { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  /* the unlock/open HOLD: an accent fill grows for --hold-ms, and a
+     clipped accent-ink duplicate of the row inverts each glyph the
+     instant the edge crosses it (the 96% track's flip rule, applied
+     to a moving edge). JS drives the widths in px — Chromium 61. */
+  .lkrow .hfill {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--accent, #ffb020);
+  }
+  .lkrow .sgdup {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    overflow: hidden;
+  }
+  .lkrow .sgdup .sgin {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; color: var(--accent-ink, #14181d);
+  }
+  /* holding is not :active-accent — the growing fill IS the
+     feedback, the surface stays put under it */
+  .lkrow .lkhold:active { background: var(--tile-hi, #222b36); }
+  .lkrow .lkhold.cur-rec:active { background: var(--ctl-dis, #141a22); }
+  /* latch trio — 92px cells, icon only (three labels don't fit and
+     the status line already names the state) */
+  .lkrow.lktrio .sglbl { display: none; }
+  /* jammed — the first real use of --danger in the system */
+  .tile.dv3.jam .sub { color: var(--danger, #e05252); }
   /* SPEAKER-GROUP TILES (2026-08-20 nav modes — the spkgrp: page is
      real tiles now): member/group-volume rows reuse the volume-row
      chassis; the % rides inside the fat track; link toggles keep
@@ -1778,15 +2094,62 @@
   .tile.row .icwrap {
     flex: 0 0 auto; width: var(--icon-zone); height: var(--icon-zone);
     border-radius: var(--icon-radius);
-    background: #262c35; display: flex; align-items: center; justify-content: center;
+    background: var(--tile-hi, #222b36); display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
   .tile.row .icwrap .material-symbols-outlined { font-size: calc(var(--icon-zone) * .52); }
   .tile.row .icwrap .ic { width: auto; font-size: calc(var(--icon-zone) * .48); }
+  /* set icons in the disc keep their box and follow the disc's
+     glyph size (width:auto would collapse an svg box — round 7) */
+  .tile.row .icwrap .ic.icsvg, .tile.row .icwrap .ic.icmask {
+    width: 1em; height: 1em; font-size: calc(var(--icon-zone) * .52);
+  }
   .tile.row .icwrap img { width: 100%; height: 100%; object-fit: cover; }
   .tile.row .txt { flex: 1; min-width: 0; }
   .tile.row .lbl { font-size: calc(var(--fs-1) + 2px); }   /* rides Primary (15→17 default) */
   .tile.row .sub { margin-top: 3px; }
+  /* ---- V7 §5 CONTROL ROWS (2026-09-01, his imgs: rule book vs
+     build) — a control-language row IS the canvas row: a bare 24px
+     glyph in a 28px slot at x14 (no disc), name 15/600 and status
+     13/400 at x52, and the right-side glyph UNBOXED in the same
+     28px slot the chevron uses, at the same x. The icon disc and
+     the +2 label bump stay the library/browse/queue language
+     (.brw, .wgt-qrow); activity rows keep their ruled accent
+     circle (.tacc). ---- */
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) {
+    gap: 10px; padding: var(--tile-pad-y, 12px) 12px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap {
+    width: 28px; height: 28px; background: transparent; border-radius: 0;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap .material-symbols-outlined {
+    font-size: 24px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .icwrap .ic {
+    font-size: 22px;
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .lbl {
+    font-size: var(--fs-1);
+  }
+  .tile.row:not(.brw):not(.wgt-qrow):not(.tacc) .sub {
+    margin-top: 2px; min-height: 15px; line-height: 15px;
+  }
+  /* the row-form device tune: unboxed, --dim, aligned to the
+     chevron's slot ("the chevron perfectly aligns with the tuning
+     icon" — the boxed 58×46 button is the GRID launcher's form) */
+  .tile.row.wgt-device .trail {
+    top: 50%; transform: translateY(-50%); bottom: auto;
+    width: 28px; height: 28px; right: 12px;
+    background: transparent; color: var(--dim); border-radius: 0;
+  }
+  .tile.row.wgt-device .trail .ic.material-symbols-outlined { font-size: 24px; }
+  .tile.row.wgt-device .trail:active { background: transparent; color: var(--accent); }
+  /* the :not chain above outguns a plain .has-trail — match it; a
+     cue-carrying row clears its glyph slot the same way */
+  .tile.row.wgt-device.has-trail:not(.brw):not(.wgt-qrow):not(.tacc),
+  .tile.row.haspickcue:not(.brw):not(.wgt-qrow):not(.tacc) {
+    padding-right: 50px;
+  }
 
 /* auth overlay */
   #auth {
@@ -1798,11 +2161,11 @@
   #auth p { color: var(--dim); margin: 0 0 10px; font-size: 14px; }
   #auth input {
     background: var(--tile); color: var(--text);
-    border: 1px solid #2c333d; border-radius: 10px;
+    border: 1px solid var(--track-hairline, #2a3340); border-radius: 10px;
     padding: 12px; font-size: 14px; width: 100%;
   }
   #auth button {
-    background: var(--accent); color: #1a1400; font-weight: 700;
+    background: var(--accent); color: var(--accent-ink, #14181d); font-weight: 700;
     border: 0; border-radius: 10px; padding: 12px; font-size: 15px;
   }
   #auth .err { color: var(--danger); font-size: 13px; min-height: 17px; }
@@ -1811,7 +2174,7 @@
   #authForm, #pairWait { display: flex; flex-direction: column; gap: 12px; }
   #auth button.quiet {
     background: var(--tile); color: var(--dim); font-weight: 600;
-    border: 1px solid #2c333d;
+    border: 1px solid var(--track-hairline, #2a3340);
   }
   #pairCode {
     font-size: 56px; font-weight: 750; letter-spacing: .06em;
@@ -2066,6 +2429,9 @@ function connect() {
     }
     else if (m.type === "auth_ok") {
       S.connected = true; dot(true); subscribeFor(S.screen);
+      /* fleet hello (design-remote-fleet): every connect/reconnect
+         announces this unit — the cheap moment, the socket is warm */
+      if (typeof fleetHello === "function") fleetHello();
       /* flush the pre-auth queue (v0.85.7) — see send() below */
       const q = S.sendQ; S.sendQ = [];
       q.forEach(it => send(it[0], it[1]));
@@ -2090,6 +2456,9 @@ setInterval(() => {
   if (!S.connected || !S.ws) return;
   if (Date.now() - (S.lastMsg || 0) > 60000) { try { S.ws.close(); } catch (e) {} return; }
   send({ type: "ping" });
+  /* the fleet heartbeat PIGGYBACKS here — every 12th tick, visible
+     only (design-remote-fleet: zero new timers, zero new wakes) */
+  if (typeof fleetTick === "function") fleetTick();
 }, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && S.connected) subscribeFor(S.screen);
@@ -2693,6 +3062,12 @@ var ADAPTERS =
                variants: ["inline", "compact"], dflt: "inline" },
   cover:     { role: null, domains: ["cover"],
                variants: ["inline", "compact"], dflt: "inline" },
+  switch:    { role: null, domains: ["switch", "input_boolean"],
+               variants: [], dflt: "compact" },
+  lock:      { role: null, domains: ["lock"],
+               variants: [], dflt: "compact" },
+  press:     { role: null, domains: ["button", "input_button", "scene"],
+               variants: [] },
 }
 /* @adapter-table-end */
 ;
@@ -2766,6 +3141,32 @@ function canonTile(t) {
     const v = c.variant === "compact" ? "compact" : "inline";
     delete c.variant;
     return densityDress(c, v);
+  }
+  /* SWITCH / LOCK (V7 §9): binary domains on the state-pair chassis.
+     "Fat exists to house a track" — neither has a continuum, so
+     neither has a fat variant: whatever was asked for, the compact
+     tile renders (the density scale doing its job, not a gap).
+     Switch stays 100 (the pair IS the readout — the only discrete
+     domain with no status line); lock rides the 116 two-line block
+     (five states the panel must show). */
+  if (t.type === "switch" || t.type === "lock") {
+    const c = Object.assign({}, t);
+    delete c.variant;
+    return densityDress(c, "compact");
+  }
+  /* PRESS (V7 §9): a momentary press reports nothing back, so there
+     is nothing to lay out — the tile IS the control (84, on the
+     control surface, no tune, no chevron, no detail page). The one
+     tile that works at span 1, so the authored span survives. */
+  if (t.type === "press") {
+    const c = Object.assign({}, t);
+    delete c.variant;
+    c.type = "device";
+    c.brRow = false;
+    if (!c.span) c.span = 2;
+    c.cls = ((c.cls || "") + " prs").replace(/^ /, "");
+    c.trailing = false;
+    return c;
   }
   /* the Wave C spelling ({type:"device", variant}) survives as a
      COMPAT READ — envelopes saved before the fan/cover adapters
@@ -3097,7 +3498,11 @@ function looseShowTile(ent, p, idPrefix) {
     /* the domain's own glyph where the domain IS the control (the
        canvas: identity is the icon and status string only) */
     icon: dom0 === "fan" ? "material:mode_fan"
-      : dom0 === "cover" ? "material:blinds" : "material:devices",
+      : dom0 === "cover" ? "material:blinds"
+      : dom0 === "switch" || dom0 === "input_boolean" ? "material:toggle_on"
+      : dom0 === "lock" ? "material:lock"
+      : dom0 === "button" || dom0 === "input_button" ? "material:radio_button_checked"
+      : dom0 === "scene" ? "material:play_circle" : "material:devices",
     span: 2
   };
   const shows = presType(p);
@@ -3182,6 +3587,13 @@ function genActivityTiles(t) {
         type: "activity", activity: id, id: t.id + "_" + id,
         label: a.name || id, icon: a.icon || "material:play_circle",
         color: a.color,          /* ACCENT tints the tile's ON state */
+        /* accent palette (identity-palette V1): the activity's slot
+           rides its tile; the style ladder is the activity's own
+           choice, then the band tile's (which the section dresses),
+           then silence. identity* = first-cut compat spelling. */
+        accent: a.accent != null ? a.accent : a.identity,
+        accent_style: a.accent_style || a.identity_style ||
+          t.accent_style || t.identity_style,
       }));
 }
 
@@ -3410,7 +3822,9 @@ function genPresetsFrom(t) {
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
   return list.slice(0, t.limit || 48).map((item, i) => {
-    const g = Object.assign({ type: "preset" }, substItem(t.item || {}, item));
+    const g = Object.assign({ type: "preset",
+      accent_style: t.accent_style || t.identity_style },
+      substItem(t.item || {}, item));
     g.id = t.id + "_" + i;
     if (t.action) g.action = substItem(t.action, item);
     if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon
@@ -3615,8 +4029,12 @@ function genActPresetTiles(t) {
 
        In the defaults, not forced, so a preset may still name a
        different activity than the one it is listed under. */
+    /* accent palette (identity-palette V1): the band tile's style
+       is the children's default — a preset may override it, and its
+       own `accent` slot rides the spread like every other key */
     return list.map((p, i) => Object.assign(
-      { type: "preset", span: 2, activity: aid }, p,
+      { type: "preset", span: 2, activity: aid,
+        accent_style: t.accent_style || t.identity_style }, p,
       { id: t.id + "_" + (p.id || i) }));
 }
 
@@ -4532,6 +4950,14 @@ function sectionDressTile(t, sec) {
     (patch = patch || {}).image_opacity = sec.image_opacity;
   if (sec.style && t.type === "nav" && !t.style)
     (patch = patch || {}).style = sec.style;
+  /* accent palette (identity-palette V1): the section's accent
+     style (icon|text × basic|tint|bloom) reaches every tile that
+     stays silent — generators pass it on to their children, so one
+     section knob dresses a whole band. identity_style = the
+     first-cut compat spelling. */
+  var secAS = sec.accent_style || sec.identity_style;
+  if (secAS && !t.accent_style && !t.identity_style)
+    (patch = patch || {}).accent_style = secAS;
   if (sec.css_vars && typeof sec.css_vars === "object") {
     var merged = {}, k;
     for (k in sec.css_vars) merged[k] = sec.css_vars[k];
@@ -4549,7 +4975,10 @@ function tilesOf(sc) {
      np_style must dress EVERY derivation — makeTile builds from the
      render pipeline, but renderStates re-derives through here, and an
      undressed twin would feed sub()/render() the wrong tile */
-  return rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), [])
+  return rawTilesOf(sc).reduce((a, t) => a.concat(
+      /* round 8: generated children inherit the dressed parent's
+         section defaults — mirrors the render.js walk exactly */
+      expandTile(t).map(c => sectionDressTile(c, t))), [])
     .map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
@@ -4620,9 +5049,17 @@ function entitiesFor(screenId) {
      unresolved token in the list and HA rejects the WHOLE message —
      the page then gets no state updates at all (same failure class
      as 2026-07-26). Whatever slips through the adders above, only
-     real entity ids leave this function: a dot, and no $-token. */
-  return [...set].filter(v =>
-    typeof v === "string" && v.includes(".") && v.indexOf("$") === -1);
+     real entity ids leave this function. Tightened 2026-09-01
+     (found live: a mid-typed "number.sonos_basement_" from a Studio
+     preview push rejected the whole subscribe): full slug shape —
+     lowercase domain.object, neither part starting or ending with
+     an underscore — not just "has a dot, no $-token". */
+  const ENT_RE = /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/;
+  /* the COMMAND BUS rides every subscription (design-remote-fleet):
+     one integration-owned entity, so reload/identify reach this unit
+     as ordinary diffs on the socket that is already open */
+  set.add("sensor.harmonium_command_bus");
+  return [...set].filter(v => typeof v === "string" && ENT_RE.test(v));
 }
 
 function subscribeFor(screenId) {
@@ -4646,6 +5083,9 @@ function applyDiff(ev) {
   }
   if (ev.r) ev.r.forEach(eid => S.states.delete(eid));
 
+  /* command bus (design-remote-fleet): baseline-guarded, then act */
+  if (typeof fleetCheck === "function") fleetCheck();
+
   /* activity changed → context may rebind: resubscribe current screen */
   const aid = renderActivityId();
   if (aid !== S.lastAct) { S.lastAct = aid; if (S.connected) subscribeFor(S.screen); }
@@ -4658,6 +5098,133 @@ function applyDiff(ev) {
   }
 }
 
+
+/* ================================================================
+   THE FLEET — this unit's half (docs/design-remote-fleet.md, 2026-09-02).
+
+   Two channels, both riding traffic the engine already pays for —
+   the battery constraint (Suresh: a loaded remote burns ~80%/day
+   against ~22% stripped) is this file's first law:
+
+   · UP — hello: one small POST on every auth_ok, then piggybacked
+     on the EXISTING 25s staleness watchdog every 12th tick (~5 min),
+     only while the page is visible. No new timers, no new sockets;
+     a sleeping remote sends nothing and its fleet row reads so.
+   · DOWN — the command bus: sensor.harmonium_command_bus rides the
+     normal filtered subscription (subscribe_entities is open to any
+     token, unlike custom-event subscriptions, which HA gates to
+     admins). Commands arrive as ordinary state diffs; fleetCheck()
+     runs from applyDiff.
+
+   Replay safety is BASELINE-first, clock-second: the first bus state
+   a session sees is never acted on (a remote booting hours later
+   must not replay the last reload), later seq changes still require
+   a fresh server timestamp (60s, generous to clock skew).
+   ================================================================ */
+const BUS_ENTITY = "sensor.harmonium_command_bus";
+
+/* the persistent unit id — a PROFILE is an outfit, a unit is the
+   physical remote; two units may wear one profile */
+function unitId() {
+  let u = null;
+  try { u = localStorage.getItem("hakr_unit"); } catch (e) {}
+  if (u) return u;
+  u = "u";
+  const abc = "abcdefghjkmnprtuvwxy346790";
+  for (let i = 0; i < 5; i++) u += abc[Math.floor(Math.random() * abc.length)];
+  try { localStorage.setItem("hakr_unit", u); } catch (e) {}
+  return u;
+}
+
+/* ---- UP: hello -------------------------------------------------- */
+let helloTicks = 0;
+let helloBatt = null;   /* {battery, charging} — refreshed lazily */
+
+function fleetHello() {
+  if (typeof PREVIEW !== "undefined" && PREVIEW) return;
+  const token = localStorage.getItem("hakr_token");
+  if (!token) return;
+  const body = {
+    unit: unitId(),
+    name: S.deviceName || "default",
+    profile: S.deviceName || "default",
+    workspace: (typeof WS !== "undefined" && WS) || "main",
+    version: (typeof BOOT_V !== "undefined" && BOOT_V) || "",
+    page: S.screen || "",
+  };
+  if (helloBatt) {
+    body.battery = helloBatt.battery;
+    body.charging = helloBatt.charging;
+  }
+  try {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/api/harmonium/hello", true);
+    x.timeout = 5000;
+    x.setRequestHeader("Content-Type", "application/json");
+    x.setRequestHeader("Authorization", "Bearer " + token);
+    x.send(JSON.stringify(body));
+  } catch (e) {}
+  /* refresh the battery reading for the NEXT hello — Battery Status
+     API where the webview still offers it on this origin; absent =
+     the fleet view falls back to the profile's battery_sensor */
+  try {
+    if (navigator.getBattery) navigator.getBattery().then(b => {
+      helloBatt = { battery: Math.round(b.level * 100), charging: !!b.charging };
+    }, () => {});
+  } catch (e) {}
+}
+
+/* called from the socket watchdog (25s cadence) — every 12th tick
+   while visible ≈ one hello per 5 visible minutes */
+function fleetTick() {
+  if (document.hidden) return;
+  helloTicks++;
+  if (helloTicks >= 12) { helloTicks = 0; fleetHello(); }
+}
+
+/* ---- DOWN: the command bus -------------------------------------- */
+let busSeq = null;          /* baseline: first sight is never acted on */
+let lastInputTs = 0;
+document.addEventListener("pointerdown", () => { lastInputTs = Date.now(); }, true);
+document.addEventListener("keydown", () => { lastInputTs = Date.now(); }, true);
+
+function fleetCheck() {
+  const st = S.states.get(BUS_ENTITY);
+  if (!st) return;
+  const a = st.a || {};
+  const seq = +st.s;
+  if (!isFinite(seq)) return;
+  if (busSeq === null) { busSeq = seq; return; }   /* baseline */
+  if (seq === busSeq) return;
+  busSeq = seq;
+  /* fresh? the server stamps epoch seconds; 60s tolerates skew */
+  const ts = +a.ts;
+  if (!isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 60) return;
+  /* addressed to this unit? target = all | unit id | profile;
+     workspace, when present, must match too */
+  const ws = (typeof WS !== "undefined" && WS) || "main";
+  if (a.workspace && a.workspace !== ws) return;
+  const t = a.target || "all";
+  if (t !== "all" && t !== unitId() && t !== (S.deviceName || "default")) return;
+  if (a.verb === "identify") {
+    /* fleet v2: the Studio sends the FRIENDLY name along, so the
+       flash matches the row the person just clicked */
+    const label = "This is “" + (a.label || (S.deviceName || "default") + " · " + unitId()) + "”";
+    flashBar(label, "ok", 1400);
+    setTimeout(() => flashBar(label, "ok", 1400), 1800);
+    setTimeout(() => flashBar(label, "ok", 1400), 3600);
+  } else if (a.verb === "reload") {
+    fleetReload();
+  }
+}
+
+/* reload waits for 10s of QUIET — never yank a remote mid-press */
+function fleetReload() {
+  const idleFor = Date.now() - lastInputTs;
+  if (idleFor < 10000) { setTimeout(fleetReload, 10000 - idleFor + 250); return; }
+  try { sessionStorage.removeItem("hakr_upg"); } catch (e) {}
+  location.reload();
+}
 
 /* ================================================================
    Activities: select = start (off) / open (running); hold or
@@ -6984,7 +7551,11 @@ function cycleChip(e, t, dir) {
    data-<attr>; default index 1 = the center button (Stop/Play-Pause). */
 function roveBtns(t, attr) {
   const el = document.getElementById("tile_" + t.id);
-  return el ? [el, [...el.querySelectorAll(`[data-${attr}]`)]] : [null, []];
+  /* skip buttons in hidden rows (2026-09-01, found building the lock
+     trio: a cover with no tilt still counted its hidden tilt buttons
+     in the rove ring) — display:none has no offsetParent */
+  return el ? [el, [...el.querySelectorAll(`[data-${attr}]`)]
+    .filter(b => b.offsetParent !== null)] : [null, []];
 }
 function roveMove(t, attr, d) {
   const [el, btns] = roveBtns(t, attr);
@@ -8484,6 +9055,27 @@ WIDGETS.volume = {
    master is always volume-linked (its level is the activity's own
    volume band). */
 const GRP_VOL_UNLINKED = new Set();
+/* JOIN/UNJOIN PENDING HOLD (2026-09-01 — Suresh: "Grouping and
+   Ungrouping is laggy and weird… sometimes it ungroups and
+   sometimes it doesn't"): Music Assistant takes seconds to settle,
+   and intermediate HA diffs ECHO the old membership — the
+   optimistic flip was being repainted away mid-flight, which read
+   as "didn't take". A tap now pins the intended membership for 5s;
+   renders honor the pin until the live state agrees or the hold
+   expires (then truth wins visibly). */
+const GRP_PENDING = new Map();   /* member -> { want, until } */
+function grpJoinedLive(e, m) {
+  return ((st(e).a.group_members) || []).indexOf(m) >= 0;
+}
+function grpJoined(e, m) {
+  const p = GRP_PENDING.get(m);
+  if (p) {
+    if (Date.now() > p.until || grpJoinedLive(e, m) === p.want)
+      GRP_PENDING.delete(m);
+    else return p.want;
+  }
+  return grpJoinedLive(e, m);
+}
 /* INLINE ROWS EXPAND ON TAP (v0.83.7 — "On the inline card we don't
    show volume sliders at all... (2) Click to show them"): tapping a
    member's NAME on the inline card reveals its volume row beneath —
@@ -8575,25 +9167,23 @@ WIDGETS.grouping = {
       const master = () => grpMaster(t);
       const joinedOf = () => {
         const e = master();
-        const g = st(e).a.group_members || [];
-        /* the group, master included — members list order preserved */
-        return [e].concat((t.entities || []).filter(m => m !== e && g.indexOf(m) >= 0));
+        /* the group, master included — members list order preserved;
+           mid-flight taps count via the pending pin */
+        return [e].concat((t.entities || []).filter(m => m !== e && grpJoined(e, m)));
       };
       wireTaps(el, "grp", m => {
         const e = master();
         if (m === e) return;
-        const g = st(e).a.group_members || [];
-        const joined = g.indexOf(m) >= 0;
-        /* OPTIMISTIC (house style): the row flips now; HA's next
-           diff is the truth that keeps or corrects it */
-        const cur = S.states.get(e);
-        if (cur && cur.a) {
-          const gm = (cur.a.group_members || [e]).slice();
-          if (joined) gm.splice(gm.indexOf(m), 1);
-          else gm.push(m);
-          cur.a.group_members = gm;
-          renderStates();
+        /* a member the network can't reach can't join — say so
+           instead of an optimistic flip that always snaps back */
+        if (["unavailable", "unknown"].includes(st(m).s)) {
+          flashBar((st(m).a.friendly_name || m.split(".").pop()) +
+            " is unavailable");
+          return;
         }
+        const joined = grpJoined(e, m);
+        GRP_PENDING.set(m, { want: !joined, until: Date.now() + 5000 });
+        renderStates();
         if (joined) callService("media_player", "unjoin", null, m);
         else callService("media_player", "join", { group_members: [m] }, e);
       });
@@ -8731,7 +9321,7 @@ WIDGETS.grouping = {
           const jb0 = row.querySelector(".gjoin");
           if (jb0) jb0.style.display = "";
         }
-        const on = g.indexOf(m) >= 0;
+        const on = grpJoined(e, m);   /* the pending pin wins mid-flight */
         if (on) joined.push(m);
         row.classList.toggle("on", on);
         const lv = st(m).a.volume_level;
@@ -9049,8 +9639,9 @@ WIDGETS.grpvol = {
    trim sliders) lives. Lit when any member is linked to the master. */
 WIDGETS.grouplaunch = {
     hidden: (e, t) => (t.entities || []).length < 2,
-    /* v3 rows: the unboxed chevron page cue */
-    body: () => `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+    /* V7 right-side glyph rule: the spkgrp: screen is THIS group's
+       controller — going deeper, not away — so the cue is tune */
+    body: () => `<span class="pickcue material-symbols-outlined">tune</span>`,
     wire: (el) => el.classList.add("haspickcue"),
     /* counts live on the SUB line (tidy-ups: "put the info in the
        state area, not clipping the title") */
@@ -9200,8 +9791,11 @@ WIDGETS.stepper = {
       <div class="stepval">–</div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
     </div>`;
-      /* COMPACT: the 32px track with the value inset in it */
-      if (t.inset || t.kind === "volume") return `<div class="steprow vol">
+      /* COMPACT: the 32px track with the value inset in it.
+         VOLUME left this branch 2026-09-01 (Suresh's img: "Stepper
+         specified, compact shown") — a stepper is TRACKLESS by the
+         ruled language; kind makes no exception. */
+      if (t.inset) return `<div class="steprow vol">
       <button class="dpbtn" data-st="-1"><span class="material-symbols-outlined">remove</span></button>
       <div class="sldr inrow"><i></i><b class="inval">–</b></div>
       <button class="dpbtn" data-st="1"><span class="material-symbols-outlined">add</span></button>
@@ -9418,12 +10012,34 @@ WIDGETS.dpad = {
      Porch TV tile knows about the tv screen because Watch Smart TV
      declared it. tile.target overrides.
    - tile.tap overrides the verb: "toggle" | "play_pause" | "open". */
+/* the speed a percentage-only fan last ran at (session memory, so a
+   toggle-off → toggle-on returns to the speed you had) */
+const FAN_RESUME = {};
 const DEVICE_VERB = {
   media_player: e => ["playing", "paused", "buffering"].includes(st(e).s)
     ? () => callService("media_player", "media_play_pause", null, e) : null,
   light: e => () => callService("light", "toggle", null, e),
   switch: e => () => callService("switch", "toggle", null, e),
-  fan: e => () => callService("fan", "toggle", null, e),
+  /* fan.toggle needs FanEntityFeature TURN_ON/TURN_OFF (32|16) —
+     fansync-class fans expose speed only (features 5) and HA
+     rejects the call outright ("does not support action
+     fan.toggle", live 2026-09-01, Dining Fan). Those fans toggle
+     through the percentage instead: off = 0, on = the speed it
+     last ran at this session (seeded on every render), else 100. */
+  fan: e => () => {
+    const a = st(e).a || {};
+    const f = a.supported_features || 0;
+    if (f & 48) return void callService("fan", "toggle", null, e);
+    if (f & 1) {
+      if (ACTIVE(st(e).s) && (a.percentage || 0) > 0) {
+        FAN_RESUME[e] = a.percentage;
+        return void callService("fan", "set_percentage", { percentage: 0 }, e);
+      }
+      return void callService("fan", "set_percentage",
+        { percentage: FAN_RESUME[e] || 100 }, e);
+    }
+    callService("homeassistant", "toggle", null, e);
+  },
   input_boolean: e => () => callService("input_boolean", "toggle", null, e),
   /* v0.78.1 (review: "I added a button… Pressing does nothing"):
      the verb table had never met the press-shaped domains, so their
@@ -9467,16 +10083,114 @@ function deviceTarget(t) {
    Exactly two control fillings, ever; domain identity is the icon
    and status string only. Domains without a density mapping ignore
    the field and stay launchers. */
-const DENSITY_DOMS = { fan: 1, cover: 1 };
+const DENSITY_DOMS = { fan: 1, cover: 1, switch: 1, input_boolean: 1, lock: 1 };
+/* §9: no continuum, no fat — a switch or lock asked for inline
+   renders its compact tile (the density scale doing its job) */
+const FLAT_DOMS = { switch: 1, input_boolean: 1, lock: 1 };
 const CVF = { OPEN_TILT: 16, CLOSE_TILT: 32, STOP_TILT: 64 };
-const devDensity = t =>
-  t && t.density && DENSITY_DOMS[(resolveEntity(t.entity) || t.entity || "").split(".")[0]]
-    ? t.density : null;
+/* COVER INVERT (V7 round — Suresh: "2% open, becomes 98% closed"):
+   "invert": true on a cover tile flips the DISPLAY space — readout,
+   state word, fill and scrub all live in the flipped axis, for
+   covers whose HA position reads backwards on the wall (projector
+   screens). The trio keeps its physical directions and the
+   end-stop disable logic stays in HA's own space. */
+const covShow = (t, p) => p == null ? null : (t && t.invert ? 100 - p : p);
+const covWord = (t, s) => {
+  if (!(t && t.invert)) return cap(s);
+  const m = { open: "Closed", closed: "Open",
+    opening: "Closing", closing: "Opening" };
+  return m[s] || cap(s);
+};
+/* ---- V7 §9: stateless & binary domains ---- */
+const PRESS_DOMS = { button: 1, input_button: 1, scene: 1 };
+const BINARY_DOMS = { switch: 1, input_boolean: 1 };
+/* the optimistic Sent flash (§9: "fires on press and does not wait
+   for acknowledgement — that flash is the only feedback available,
+   so it must not be skippable"). Keyed BY TILE ID, not on the tile
+   object — canonTile hands out copies, so a def property would miss
+   the copy the next render reads. Same for the lock's hold line. */
+const SENT_UNTIL = {};
+const HOLD_MSG = {};
+function pressFlash(t) {
+  if (!t || !t.id) return;
+  SENT_UNTIL[t.id] = Date.now() + 1200;
+  const el = document.getElementById("tile_" + t.id);
+  if (el) {
+    el.classList.add("sent");
+    const sub = el.querySelector(".sub");
+    if (sub) sub.textContent = "Sent";
+  }
+  setTimeout(() => {
+    if (SENT_UNTIL[t.id] <= Date.now()) {
+      delete SENT_UNTIL[t.id];
+      if (el) el.classList.remove("sent");
+      renderStates();
+    }
+  }, 1250);
+}
+/* the unlock/open HOLD (§9, settled at 500ms — --hold-ms in the
+   theme): fires on completion, letting go before that undoes it.
+   The fill and the accent-ink duplicate label are driven in JS px
+   (the Chromium-61 floor again — clip-path animation is not owed to
+   us there), same tokens, same look. */
+function holdMs() {
+  const v = parseFloat(getComputedStyle(document.documentElement)
+    .getPropertyValue("--hold-ms"));
+  return isFinite(v) && v > 0 ? v : 500;
+}
+function wireHoldSeg(b, t, fire, msg) {
+  const stop = () => {
+    if (b._raf) cancelAnimationFrame(b._raf);
+    b._raf = null; b._t0 = 0;
+    b.classList.remove("holding");
+    const f = b.querySelector(".hfill"), d = b.querySelector(".sgdup");
+    if (f) f.style.width = "0px";
+    if (d) d.style.width = "0px";
+    if (HOLD_MSG[t.id]) { delete HOLD_MSG[t.id]; renderStates(); }
+  };
+  b.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); });
+  b.addEventListener("pointerdown", ev => {
+    ev.stopPropagation();
+    if (b.classList.contains("dis")) return;
+    const w = b.offsetWidth, ms = holdMs();
+    const f = b.querySelector(".hfill"), d = b.querySelector(".sgdup");
+    const inner = d && d.firstElementChild;
+    if (inner) inner.style.width = w + "px";
+    b.classList.add("holding");
+    HOLD_MSG[t.id] = msg;
+    const sub = b.closest(".tile") && b.closest(".tile").querySelector(".sub");
+    if (sub) sub.textContent = msg;
+    b._t0 = Date.now();
+    const step = () => {
+      if (!b._t0) return;
+      const p = Math.min(1, (Date.now() - b._t0) / ms);
+      const px = Math.round(w * p) + "px";
+      if (f) f.style.width = px;
+      if (d) d.style.width = px;
+      if (p >= 1) { stop(); fire(); return; }
+      b._raf = requestAnimationFrame(step);
+    };
+    step();
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(x =>
+    b.addEventListener(x, stop));
+}
+const devDensity = t => {
+  const dom = (resolveEntity(t && t.entity) || (t && t.entity) || "").split(".")[0];
+  if (!(t && t.density && DENSITY_DOMS[dom])) return null;
+  return FLAT_DOMS[dom] ? "compact" : t.density;
+};
 
 WIDGETS.device = {
   sub: (e, t) => {
     const s = st(e), dom = (e || "").split(".")[0];
     const den = devDensity(t);
+    /* the pre-state placeholder ("…") is an internal sentinel — it
+       must NEVER render as a status line (2026-09-01, his Studio
+       preview: a tile with a bad entity read "…" under its name; a
+       single-line tile then centres per V7 instead of carrying a
+       blank-looking row) */
+    if (s.s === "…") return "";
     /* advanced: show a specific attribute instead of the smart summary */
     if (t.attr) {
       const v = s.a[t.attr];
@@ -9494,11 +10208,25 @@ WIDGETS.device = {
       return cap(s.s) + (p == null || !ACTIVE(s.s) ? "" : " · " + p + "%");
     }
     if (dom === "cover") {
-      const p = s.a.current_position;
-      /* fat: the value lives IN the track — no line. Compact: the
-         title-row value slot (inlineSub). Launcher: the full line. */
+      const p = covShow(t, s.a.current_position);
+      /* fat: the value lives IN the track — no line. Compact (V5
+         §4C) and the launcher: the full status line. */
       if (den === "inline") return "";
-      return cap(s.s) + (p != null ? " · " + p + "%" : "");
+      return covWord(t, s.s) + (p != null ? " · " + p + "%" : "");
+    }
+    /* §9 switch: the pair IS the readout — compact carries no status
+       line at all (the only discrete domain that stays at 100) */
+    if (BINARY_DOMS[dom] && den) return "";
+    /* §9 lock: five states, all of which the panel must show */
+    if (dom === "lock" && den) {
+      if (t && HOLD_MSG[t.id]) return HOLD_MSG[t.id];
+      const ls = s.s;
+      if (ls === "locked")
+        return sfHas(e, 1) ? "Locked · hold to unlock or open" : "Locked";
+      if (ls === "locking") return "Locking…";
+      if (ls === "unlocking") return "Unlocking…";
+      if (ls === "jammed") return "Jammed — check the bolt";
+      return cap(ls);
     }
     if (dom === "media_player") {
       const detail = s.a.media_title || s.a.source;
@@ -9511,21 +10239,27 @@ WIDGETS.device = {
       return (s.a.current_temperature != null ? s.a.current_temperature + "° · " : "") + cap(s.s);
     /* press-shaped domains: the state is a timestamp — say when, not
        what (v0.78.1: the tile read "2026-08-12T14:52:59.942357+00:00") */
-    if (dom === "button" || dom === "input_button") {
-      const ago = agoStr(s.s);
-      return ago ? "Pressed " + ago : "Press";
-    }
-    if (dom === "scene") {
-      const ago = agoStr(s.s);
-      return ago ? "Ran " + ago : "Run";
+    if (PRESS_DOMS[dom]) {
+      /* §9: the tile is the button — a single centred line at rest,
+         "Sent" for ~1.2s after a press. (The old "Pressed 12 min
+         ago" line retired with the V7 canvas.) */
+      return (t && SENT_UNTIL[t.id] > Date.now()) ? "Sent" : "";
     }
     return cap(s.s);
   },
-  isOn: e => ACTIVE(st(e).s),
-  /* v3: the discrete compact keeps its state in the TITLE-ROW value
-     slot — the trio below shows nothing */
-  inlineSub: t => devDensity(t) === "compact" &&
-    (resolveEntity(t.entity) || t.entity || "").split(".")[0] === "cover",
+  /* §9 accent discipline: orange only on a device that is RUNNING.
+     A press tile has no state; an unlocked door is not doing
+     anything (recessed, not lit); locked = engaged. */
+  isOn: e => {
+    const dom = (e || "").split(".")[0];
+    if (PRESS_DOMS[dom]) return false;
+    if (dom === "lock") return st(e).s === "locked";
+    return ACTIVE(st(e).s);
+  },
+  /* V5 §4C: a discrete compact carries its value on a STATUS LINE
+     beneath the name (never beside it — "a long value competes with
+     the name and wins") and grows to 116 — the launcher's two-line
+     block plus the trio row, not a new shape */
   detailable: true,   /* auto ⚙ trail → the generated detail screen */
   select: (e, t) => {
     const dom = (e || "").split(".")[0];
@@ -9546,14 +10280,47 @@ WIDGETS.device = {
       const tilt = svc.indexOf("tilt:") === 0;
       return void callService("cover", tilt ? svc.slice(5) : svc, null, e);
     }
+    /* §9 switch pair: OK commits the roved side; before any rove the
+       default is the side that CHANGES the state (stateless targets:
+       either is safe to hit without reading first) */
+    if (devDensity(t) && BINARY_DOMS[dom]) {
+      const el2 = t.id && document.getElementById("tile_" + t.id);
+      const roved = el2 && el2._ci != null ? rovePick(t, "sw") : null;
+      const svc = roved || (ACTIVE(st(e).s) ? "turn_off" : "turn_on");
+      return void callService(dom, svc, null, e);
+    }
+    /* §9 lock: lock is one press (a stray OK harmlessly locks a
+       door); unlock and open NEVER fire from a tap — the hold is
+       the gesture, on glass and on the pad alike */
+    if (devDensity(t) && dom === "lock") {
+      const el2 = t.id && document.getElementById("tile_" + t.id);
+      const roved = el2 && el2._ci != null ? rovePick(t, "lk") : null;
+      const svc = roved || "lock";
+      if (svc === "lock")
+        return void callService("lock", "lock", null, e);
+      return void flashBar("Hold OK to " + (svc === "open" ? "open" : "unlock"));
+    }
     const verb =
       t.tap === "toggle" ? () => callService("homeassistant", "toggle", null, e)
       : t.tap === "play_pause" ? () => callService("media_player", "media_play_pause", null, e)
       : DEVICE_VERB[dom] && DEVICE_VERB[dom](e);
-    if (verb) return verb();
+    if (verb) {
+      verb();
+      if (PRESS_DOMS[dom]) pressFlash(t);   /* §9: the Sent flash */
+      return;
+    }
     open(); /* no verb → the compound page */
   },
   hold: (e, t) => {
+    /* §9 lock on the d-pad: holding OK with a hold target roved IS
+       the hold gesture — the chassis hold timer (keydown-anchored)
+       clears the same deliberate-press bar as the 500ms touch hold */
+    if (devDensity(t) && (e || "").split(".")[0] === "lock") {
+      const el2 = t.id && document.getElementById("tile_" + t.id);
+      const roved = el2 && el2._ci != null ? rovePick(t, "lk") : null;
+      if (roved === "unlock" || roved === "open")
+        return void callService("lock", roved, null, e);
+    }
     const tgt = deviceTarget(t) || (e ? "detail:" + e : null);
     if (tgt) navigate(tgt);
   },
@@ -9583,6 +10350,34 @@ WIDGETS.device = {
         <button class="dpbtn" data-dvn="1"><span class="material-symbols-outlined">add</span></button>
       </div>`;
     }
+    /* §9 switch: the two-up STATE PAIR — two explicit labelled
+       targets, never a sliding toggle ("a toggle asks what will
+       this do; a pair is stateless") */
+    if (BINARY_DOMS[dom])
+      return `<div class="devrow statepair">
+        <button class="dpbtn spseg" data-sw="turn_off"><span class="material-symbols-outlined">power_settings_new</span><b>Off</b></button>
+        <button class="dpbtn spseg" data-sw="turn_on"><span class="material-symbols-outlined">bolt</span><b>On</b></button>
+      </div>`;
+    /* §9 lock: pair (lock / hold-to-unlock), growing to the covers'
+       92px icon-only trio when the entity supports open. The hold
+       segments carry the fill layer and the accent-ink duplicate
+       row that inverts as the edge passes. */
+    if (dom === "lock") {
+      const seg = (svc, glyph, lbl) => `
+        <button class="dpbtn spseg${svc === "lock" ? "" : " lkhold"}" data-lk="${svc}">${
+          svc === "lock" ? "" : '<i class="hfill"></i>'}
+          <span class="sgbase"><span class="material-symbols-outlined">${glyph}</span>${
+            lbl ? `<b class="sglbl">${lbl}</b>` : ""}</span>${
+          svc === "lock" ? "" : `<span class="sgdup"><span class="sgin"><span class="material-symbols-outlined">${glyph}</span>${
+            lbl ? `<b class="sglbl">${lbl}</b>` : ""}</span></span>`}
+        </button>`;
+      /* ONE row: the open segment unhides (and the labels drop —
+         92px cells are icon-only) when render sees OPEN support */
+      return `<div class="devrow statepair lkrow">${
+        seg("lock", "lock", "Lock") + seg("unlock", "lock_open", "Hold") +
+        seg("open", "door_open", "").replace('class="dpbtn spseg lkhold"',
+          'class="dpbtn spseg lkhold hidden"')}</div>`;
+    }
     /* discrete: the trio fills the action row. Fat adds the position
        track above it (scrubbable — a track means scrubbable — and it
        doubles as the readout, value inset at 21px). Tilt stays a
@@ -9595,10 +10390,14 @@ WIDGETS.device = {
       <div class="devrow tiltrow hidden">${trio("tilt:")}</div>`;
   },
   wire: (el, t) => {
-    const den = devDensity(t);
-    if (!den) return;
     const ent = () => resolveEntity(t.entity);
     const dom = (resolveEntity(t.entity) || t.entity || "").split(".")[0];
+    /* §9 press tiles: the tile IS the control — mark the chassis so
+       it rides the control surface; the chassis select fires the
+       press and pressFlash paints the Sent window */
+    if (PRESS_DOMS[dom] && t.tap !== "none") el.classList.add("prs");
+    const den = devDensity(t);
+    if (!den) return;
     /* cover buttons — tilt spellings carry a prefix the tap strips */
     wireTaps(el, "cv", v => {
       const tilt = v.indexOf("tilt:") === 0;
@@ -9606,8 +10405,25 @@ WIDGETS.device = {
     });
     /* fan ± — the shared numeric step (entity metadata decides) */
     wireTaps(el, "dvn", d => { nudgeStep(ent(), "percentage", +d); renderStates(); });
+    /* §9 switch pair — stateless targets, always both live */
+    wireTaps(el, "sw", v => callService(dom, v, null, ent()));
+    /* §9 lock: lock is a single press; unlock and open are 500ms
+       holds (wireHoldSeg — never a click) */
+    if (dom === "lock") {
+      el.querySelectorAll('[data-lk="lock"]').forEach(b =>
+        b.addEventListener("click", ev => { ev.stopPropagation();
+          callService("lock", "lock", null, ent()); }));
+      el.querySelectorAll(".lkhold").forEach(b => {
+        const svc = b.dataset.lk;
+        wireHoldSeg(b, t,
+          () => callService("lock", svc, null, ent()),
+          "Hold to " + (svc === "open" ? "open" : "unlock") + "…");
+      });
+    }
     /* v3 detail route in compact: the icon-plus-name zone opens the
        device's page — there is no room for a tune affordance */
+    if (den === "compact" && (dom === "cover" || dom === "lock"))
+      el.classList.add("dv3");    /* the 116 two-line discrete chassis */
     if (den === "compact") {
       const top = el.querySelector(".top");
       if (top) top.addEventListener("click", ev => {
@@ -9629,7 +10445,8 @@ WIDGETS.device = {
       if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
         sl._t = now; sl._lastV = v;
         if (dom === "cover")
-          callService("cover", "set_cover_position", { position: v }, ent());
+          callService("cover", "set_cover_position",
+            { position: t.invert ? 100 - v : v }, ent());
         else callService("fan", "set_percentage", { percentage: v }, ent());
       }
     };
@@ -9642,16 +10459,18 @@ WIDGETS.device = {
     left: (e, t) => {
       const den = devDensity(t);
       if (!den) return false;
-      if ((e || "").split(".")[0] === "fan")
-        return void nudgeStep(e, "percentage", -1);
-      return void roveMove(t, "cv", -1);
+      const dom = (e || "").split(".")[0];
+      if (dom === "fan") return void nudgeStep(e, "percentage", -1);
+      return void roveMove(t,
+        BINARY_DOMS[dom] ? "sw" : dom === "lock" ? "lk" : "cv", -1);
     },
     right: (e, t) => {
       const den = devDensity(t);
       if (!den) return false;
-      if ((e || "").split(".")[0] === "fan")
-        return void nudgeStep(e, "percentage", +1);
-      return void roveMove(t, "cv", +1);
+      const dom = (e || "").split(".")[0];
+      if (dom === "fan") return void nudgeStep(e, "percentage", +1);
+      return void roveMove(t,
+        BINARY_DOMS[dom] ? "sw" : dom === "lock" ? "lk" : "cv", +1);
     },
   },
   render: (el, e, t) => {
@@ -9667,6 +10486,7 @@ WIDGETS.device = {
     };
     if (dom === "fan") {
       const p = st(e).a.percentage;
+      if (p > 0) FAN_RESUME[e] = p;   /* seed the toggle-back speed */
       const f = fillTo(p);
       const iv = el.querySelector(".inval");
       const sv = el.querySelector(".stepval");
@@ -9675,15 +10495,71 @@ WIDGETS.device = {
       if (sv) sv.textContent = p != null ? p + "%" : "–";
       return;
     }
+    /* §9 switch: three segment states — the side that is not current
+       stands proud (--tile-hi), the current side is accent when the
+       device is ENGAGED and recessed when it is not; unavailable
+       raises both (a toggle must invent a third position, a pair
+       simply raises both sides) */
+    if (BINARY_DOMS[dom]) {
+      const s2 = st(e).s;
+      const on = s2 === "on";
+      const unav = s2 === "unavailable" || s2 === "unknown";
+      el.querySelectorAll("[data-sw]").forEach(b => {
+        const seg = b.dataset.sw === "turn_on";
+        b.classList.toggle("cur-acc", !unav && on && seg);
+        b.classList.toggle("cur-rec", !unav && !on && !seg);
+      });
+      return;
+    }
+    /* §9 lock: five states the panel must show; transit disables
+       both sides; jammed is the first real use of --danger */
+    if (dom === "lock") {
+      const s2 = st(e).s;
+      const openable = !!sfHas(e, 1);
+      const row = el.querySelector(".lkrow");
+      if (row) row.classList.toggle("lktrio", openable);
+      const openSeg = el.querySelector('[data-lk="open"]');
+      if (openSeg) openSeg.classList.toggle("hidden", !openable);
+      const transit = s2 === "locking" || s2 === "unlocking" || s2 === "opening";
+      const lockSeg = el.querySelector('[data-lk="lock"]');
+      const unlk = el.querySelector('[data-lk="unlock"]');
+      const lbl = (b, txt) => b && b.querySelectorAll(".sglbl")
+        .forEach(x => { x.textContent = txt; });
+      lbl(lockSeg, s2 === "locked" ? "Locked" : s2 === "locking" ? "Locking"
+        : s2 === "jammed" ? "Retry" : "Lock");
+      lbl(unlk, s2 === "unlocked" ? "Unlocked"
+        : s2 === "unlocking" ? "Unlocking" : s2 === "open" ? "Open" : "Hold");
+      if (lockSeg) lockSeg.classList.toggle("cur-acc", s2 === "locked");
+      if (unlk) unlk.classList.toggle("cur-rec",
+        s2 === "unlocked" || (s2 === "open" && !openable));
+      if (openSeg) openSeg.classList.toggle("cur-rec", s2 === "open");
+      el.querySelectorAll("[data-lk]").forEach(b =>
+        b.classList.toggle("dis", transit));
+      /* the state glyph (an authored icon outside the lock family
+         stays; the defaults — a bare tile included — cycle with the
+         state) */
+      const ic = el.querySelector(".top .ic");
+      if (ic && !ic.classList.contains("icsvg") &&
+          !ic.classList.contains("icmask") && (!t.icon ||
+          /^material:(lock|lock_open|lock_clock|door_open|error)$/.test(t.icon))) {
+        ic.classList.add("material-symbols-outlined");
+        ic.textContent =
+          s2 === "jammed" ? "error" : transit ? "lock_clock"
+          : s2 === "locked" ? "lock" : s2 === "open" ? "door_open" : "lock_open";
+      }
+      el.classList.toggle("jam", s2 === "jammed");
+      return;
+    }
     /* cover: the fat track doubles as the position readout — the
        inset value reads the % (or the bare state when the device
        reports none: Unknown lives in the track, not a status line);
        tilt row appears with the feature; end-stop actions take the
        disabled surface but KEEP their box, so the trio never shifts */
-    const p = st(e).a.current_position;
-    const f = fillTo(p);
+    const p = st(e).a.current_position;      /* HA's own axis */
+    const dp = covShow(t, p);                /* the displayed axis */
+    const f = fillTo(dp);
     const iv = el.querySelector(".inval");
-    if (iv) { iv.textContent = p != null ? p + "%" : cap(st(e).s);
+    if (iv) { iv.textContent = dp != null ? dp + "%" : covWord(t, st(e).s);
       if (f != null) iv.classList.toggle("flip", f >= 0.88); }
     const tr = el.querySelector(".tiltrow");
     if (tr) tr.classList.toggle("hidden",
@@ -9719,9 +10595,10 @@ WIDGETS.sources = {
     return chipOptions(mp, "source").length ? "Choose input…" : "";
   },
   isOn: () => false,
-  /* v3 row shape — value in the title-row slot, chevron cue */
-  inlineSub: true,
-  body: () => `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+  /* the two-line row (2026-09-01 ruling) — value on the status
+     line, never squeezing the name off the title row. V7: the cue
+     is tune (this row opens ITS OWN picker), chevron means leaving. */
+  body: () => `<span class="pickcue material-symbols-outlined">tune</span>`,
   wire: (el) => el.classList.add("haspickcue"),
   select: (e, t) => {
     const mp = e || resolveEntity(t.entity || "$context.source_select");
@@ -9762,12 +10639,13 @@ WIDGETS.picker = {
     return next ? cur + " ▸ " + deslug(String(next)) : cur;
   },
   isOn: () => false,
-  /* v3 "Rows & navigation": ONE 84px row — name left, the current
-     value right in the title-row slot (14/400 secondary), a 24px
-     unboxed chevron as the page cue (Cycle has no page, no cue) */
-  inlineSub: true,
+  /* the TWO-LINE row (2026-09-01 ruling, his img: a long value
+     starved the name to "Sou…") — name on top, the current value as
+     the status line. V7 right-side glyph rule: "chevron means you
+     leave, tune means you stay" — this row opens the picker FOR the
+     thing it names, so the cue is tune, not a chevron. */
   body: t => (t && t.cycle) ? "" :
-    `<span class="pickcue material-symbols-outlined">chevron_right</span>`,
+    `<span class="pickcue material-symbols-outlined">tune</span>`,
   wire: (el, t) => { if (!(t && t.cycle)) el.classList.add("haspickcue"); },
   nav: "value",
   keys: {
@@ -9984,6 +10862,35 @@ function nudgeClimate(e, delta) {
    per-domain widget adapters (widgets/*.js) fill the slots; nothing
    in here knows what a light or a Sonos is.
    ================================================================ */
+/* the ACCENT palette's eight slots (identity-palette V1; the word is
+   ACCENT everywhere people see it — round-4 ruling, matching the
+   v0.48.3 activity accent) and the additive style vocabulary. A
+   slot is a NAME; hues live in the theme (tokens.css
+   @identity-palette block). The style axes compose: icon|text ×
+   basic|tint|bloom. `identity`/`identity_style` stay as compat
+   reads for drafts saved in the first cut. */
+const ID_SLOTS = { coral: 1, fern: 1, jade: 1, indigo: 1,
+  violet: 1, orchid: 1, rose: 1, slate: 1 };
+/* round-5 naming ("every style has both text and icon, so these
+   style names are not great"): Basic / Tint / Bloom, plus the
+   preset TITLE layout (the name leads the cell) composing with the
+   same washes. Every earlier spelling stays a synonym. */
+const ID_STYLES = {
+  basic: null, "icon-basic": null,   /* the silent default, sayable */
+  tint: "ids-tint", "icon-tint": "ids-tint",
+  bloom: "ids-bloom", "icon-bloom": "ids-bloom",
+  title: "ids-text", text: "ids-text",
+  "title-tint": "ids-text ids-tint", "text-tint": "ids-text ids-tint",
+  "title-bloom": "ids-text ids-pbloom", "text-bloom": "ids-text ids-pbloom",
+};
+/* "#rrggbb" / "#rgb" → "r, g, b" for rgba(var(--idw), a) */
+function hexTriplet(hx) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hx || "").trim());
+  if (!m) return null;
+  let h = m[1];
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ");
+}
 function iconHtml(t, row) {
   let inner;
   if (t.icon_image) {
@@ -10023,8 +10930,27 @@ function iconHtml(t, row) {
     if (ip && ip.path) {
       const vb = String(ip.viewBox || "0 0 24 24").replace(/[^0-9 .-]/g, "");
       const d = String(ip.path).replace(/["<>&]/g, "");
-      inner = `<span class="ic icsvg"><svg viewBox="${vb}" aria-hidden="true">` +
+      /* INK FIT (round 8 — Suresh: "the phu icons still seem small at
+         1 rem. do they have an inheritantly different scale?" — yes:
+         every pack pads its grid differently, and brand marks carry
+         safe margins, while Material Symbols ink nearly fills its em.
+         So the pack's viewBox is replaced with the PATH'S OWN ink
+         box, measured once per icon (getBBox after mount), padded to
+         the material live-area ratio — every set icon then sits at
+         the same optical size as its material sisters). */
+      const fvb = FIT_VB[t.icon];
+      /* a re-render builds from the cache, so the wide-mark span
+         width must be emitted here too, not only in the fit pass */
+      let wst = "";
+      if (fvb) {
+        const q = fvb.split(" ");
+        const a = parseFloat(q[2]) / parseFloat(q[3]);
+        if (a > 1.01) wst = ` style="width:${a.toFixed(3)}em"`;
+      }
+      inner = `<span class="ic icsvg"${wst}><svg viewBox="${fvb || vb}"` +
+        (fvb ? "" : ` data-fit="${t.icon}"`) + ` aria-hidden="true">` +
         `<path d="${d}" fill="currentColor"/></svg></span>`;
+      if (!fvb) queueIconFit();
     } else {
       const url = "/local/harmonium/icons/" +
         t.icon.replace(":", "/") + ".svg";
@@ -10040,6 +10966,52 @@ function iconHtml(t, row) {
 /* one set-icon spelling: set and name are file-name-safe tokens
    (material: is the font and never reaches this test first) */
 const ICON_SET_RE = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/;
+/* ink-fitted viewBoxes, measured once per icon ref. The pass runs a
+   tick after render (getBBox needs mounted, laid-out SVG); a hidden
+   icon measures 0×0 and keeps its data-fit for a later render. Ink is
+   padded to ~83% of the box — Material's 20-in-24 live area. */
+const FIT_VB = {};
+let fitQueued = false;
+function queueIconFit() {
+  if (fitQueued) return;
+  fitQueued = true;
+  setTimeout(fitSetIcons, 0);
+}
+function fitSetIcons() {
+  fitQueued = false;
+  const svgs = document.querySelectorAll("svg[data-fit]");
+  for (let i = 0; i < svgs.length; i++) {
+    const sv = svgs[i], ref = sv.getAttribute("data-fit");
+    let vb = FIT_VB[ref];
+    if (!vb) {
+      let b;
+      try { b = sv.getBBox(); } catch (e) { continue; }
+      if (!b || !b.width || !b.height) continue;
+      /* square icons fit by their long side; a WIDE mark (a wordmark
+         logo) fits by the geometric mean instead — otherwise
+         square-fitting a 3:1 mark leaves a sliver of ink (round 8:
+         "in activities, the PHU icon (firetv) is teeny"). The
+         viewBox keeps the ink's TRUE aspect and the host span is
+         widened to match (width in em), so layout knows the real
+         width — a right-anchored Title mark sits flush instead of
+         its overflow crowding the tile edge (round 8 tweak: "the
+         sonos icon is too tight to the right of the tile"). */
+      const side = Math.max(b.height, Math.sqrt(b.width * b.height));
+      const pad = side * 0.08;
+      const vh = side + pad * 2, vw = Math.max(b.width, side) + pad * 2;
+      const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+      vb = (cx - vw / 2).toFixed(2) + " " + (cy - vh / 2).toFixed(2) +
+        " " + vw.toFixed(2) + " " + vh.toFixed(2);
+      FIT_VB[ref] = vb;
+    }
+    sv.setAttribute("viewBox", vb);
+    sv.removeAttribute("data-fit");
+    /* the span's width follows the fitted aspect (1em when square) */
+    var p4 = vb.split(" ");
+    var asp = parseFloat(p4[2]) / parseFloat(p4[3]);
+    if (asp > 1.01) sv.parentNode.style.width = asp.toFixed(3) + "em";
+  }
+}
 /* photo URLs that failed to load this session — consulted by the
    preset widget so a rebuilt tile skips a known-dead image */
 const IMG_DEAD = new Set();
@@ -10125,8 +11097,20 @@ function spanOf(t, declaredCols, actualCols) {
 function makeTile(t, row, spanCols) {
   const el = document.createElement("div");
   const sp = spanCols || 1;
+  /* IDENTITY (identity-palette V1, 2026-09-01): `identity` names a
+     SLOT — the colour lives in the theme, never the config. A
+     legacy/custom hex (`color`) stays honored, second-class: its
+     badge is the hex and its wash derives from the hex. The style
+     is additive, like a variant: icon-basic (silent default),
+     icon-tint, icon-bloom for activities; text, text-bloom for
+     presets. */
+  const acc0 = t.accent != null ? t.accent : t.identity;
+  const idt = typeof acc0 === "string" && ID_SLOTS[acc0] ? acc0 : null;
+  const as0 = t.accent_style != null ? t.accent_style : t.identity_style;
+  const ids = typeof as0 === "string" ? ID_STYLES[as0] : null;
   el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && sp === 2 ? " span2" : "") +
-    (t.color ? " tacc" : "") + (t.brw ? " brw" : "") +
+    (idt || t.color ? " tacc" : "") + (idt ? " idt id-" + idt : "") +
+    (ids ? " " + ids : "") + (t.brw ? " brw" : "") +
     /* chassis-level class passthrough (v0.68.1): a generator that needs
        one specific look — the search "Searching…" line — says so once
        instead of earning a widget type */
@@ -10156,8 +11140,15 @@ function makeTile(t, row, spanCols) {
   }
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
-     circle — see grid.css .tacc */
-  if (t.color) el.style.setProperty("--tacc", t.color);
+     circle — see grid.css .tacc. A slot resolves through CSS
+     (.id-<slot> maps --tacc/--idw to the theme tokens); only the
+     second-class custom hex is set inline, its wash triplet parsed
+     here so rgba(var(--idw), a) still composes. */
+  if (!idt && t.color) {
+    el.style.setProperty("--tacc", t.color);
+    const tri = hexTriplet(t.color);
+    if (tri) el.style.setProperty("--idw", tri);
+  }
   /* PER-TILE CSS VARIABLES (v0.85.7 — Suresh: "In advanced (JSON) how
      would I change font size and weight? And is it possible to use
      drop shadows?"). t.css_vars is a plain map of custom properties
@@ -10747,8 +11738,16 @@ function navigate(screenId, isBack) {
        (h / css_vars / label_pos / style) reach every tile that stays
        silent — this render walk AND rawTilesOf both dress, so the
        DOM build and the renderStates re-derivation agree. */
+    /* round 8 (Suresh: "editing the css in css variables window
+       doesn't seem to impact the preview"): the section dressed the
+       GENERATOR tile, but its generated children were born after the
+       dressing and inherited nothing — so a band section's css_vars
+       (and h / label_pos / image_opacity) never reached a generated
+       tile. Dress each child with its DRESSED parent: same merge
+       rules, per-tile still wins, plain tiles are a no-op. */
     const vis = surfOrderTiles(secTiles.map(t => sectionDressTile(t, sec)))
-      .reduce((a, t) => a.concat(expandTile(t)), [])   /* no flatMap: floor 61 */
+      .reduce((a, t) => a.concat(   /* no flatMap: floor 61 */
+        expandTile(t).map(c => sectionDressTile(c, t))), [])
       .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its
@@ -10975,9 +11974,14 @@ function renderStates() {
        not in this case"): a tile-level sub_text beats the widget's
        smart summary — "" included, which means "no status line".
        Presentation (presApply) is the setter today. */
-    el.querySelector(".sub").textContent =
+    /* the pre-state placeholder ("…") is an internal sentinel and
+       must never reach a status line (2026-09-01, his preview: a
+       tile with a bad entity read "…" under its name) — a bare "…"
+       collapses to no line at all, whatever widget produced it */
+    const subT =
       typeof t.sub_text === "string" ? subTextOf(t.sub_text, eid)
         : typeof w.sub === "function" ? w.sub(eid, t) : "";
+    el.querySelector(".sub").textContent = subT === "…" ? "" : subT;
     el.classList.toggle("on", !!(w.isOn && w.isOn(eid, t)));
     /* Wave B (the control language): CAPABILITY hides, STATE greys —
        an unavailable device keeps its full chassis, greyed, actions

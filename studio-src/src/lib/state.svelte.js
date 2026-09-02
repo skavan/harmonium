@@ -55,6 +55,9 @@ export const app = $state({
   pvHide: localStorage.getItem("hakr_studio_pv_hide") === "1",
   pvPulse: 0,       // bumps on every preview push (sync indicator)
   pvScreen: "",     // the screen the preview is showing (engine-reported)
+  pvLock: false,    // 🔒 (round 9 — "so the preview doesn't keep jumping
+                    // around, when I'm playing with colors"): context
+                    // steering ignored; the Showing select still jumps
   entities: [],       // live HA states for pickers: {entity_id, name, state}
   registry: {},       // entity_id → integration platform (WS entity registry)
   services: [],       // HA service catalog for pickers: {id, name}
@@ -965,10 +968,15 @@ export function bindPreview(win) { pvWindow = win; }
    its apps — instead of whatever the live select holds. */
 export function previewActivity(id) {
   if (!pvWindow) return;
+  if (app.pvLock) return;   /* the lock freezes impersonation too */
   pvWindow.postMessage({ type: "harmonium_preview_activity", activity: id || null }, location.origin);
 }
-export function previewGoto(screen) {
+export function previewGoto(screen, force) {
   if (!pvWindow || !screen) return;
+  /* the LOCK (round 9): while locked, only an EXPLICIT jump — the
+     Showing select — moves the preview; context steering (selecting
+     a page, opening a card, ⋯ Preview it) is ignored */
+  if (app.pvLock && !force) return;
   pvWindow.postMessage({ type: "harmonium_navigate", screen }, location.origin);
 }
 
@@ -1133,6 +1141,27 @@ export async function save() {
 
 export async function saveAndReload() {
   if (!(await save())) return;
+  /* FAN-OUT FIRST (design-remote-fleet, 2026-09-02 — Suresh: reload
+     ALL of a workspace's wired remotes, not one): one `reload` on
+     the command bus reaches every ONLINE unit in this workspace over
+     the subscription it already holds. The Fully-button path below
+     survives as the fallback for engines older than the bus (they
+     have never helloed, so `online` counts none of them). */
+  try {
+    const r = await fetch("/api/harmonium/command", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ verb: "reload", workspace: app.workspace }),
+    });
+    if (r.ok) {
+      const b = await r.json();
+      if (b.online > 0) {
+        setStatus("saved, deployed — reloading " + b.online + " remote" +
+          (b.online === 1 ? "" : "s"), "ok");
+        return;
+      }
+    }
+  } catch { /* integration predates the bus — the button path answers */ }
   /* WHICH BUTTONS (v0.86 — beta report: the hardcoded astrion1 names
      made this silently do nothing on any remote named differently,
      and nothing said so). Resolution ladder: the workspace's own

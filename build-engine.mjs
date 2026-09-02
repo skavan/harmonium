@@ -45,6 +45,7 @@ const SCRIPTS = [
   "core/gen-browse-amalgam.js",
   "core/gen-browse-search.js",
   "core/subscribe.js",
+  "core/fleet.js",
   "core/activities.js",
   "core/routing.js",
   "core/browse.js",

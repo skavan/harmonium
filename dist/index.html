@@ -40,6 +40,137 @@
     --danger: #e05252;
     --warn: #d9a13b;            /* caution — amber, not an error */
     --logo-chip: #e8eaed;       /* light ground behind dark wordmarks */
+    /* ---- IDENTITY PALETTE (identity-palette V1, 2026-09-01) ----
+       Seven hues + Slate, one SLOT each; badge oklch(0.68 0.15 H),
+       wash oklch(0.55 0.14 H) — resolved to sRGB at build time
+       because the panel is Chromium 61 (tools/gen-identity-palette
+       .mjs regenerates this block; probe-identity-palette re-derives
+       and compares, so the values can never drift from the formula).
+       Reserved arcs — never add a slot inside them: 40°–110° (the
+       focus ring's amber) and 170°–240° (sRGB clips chroma 0.14
+       through the cyans). -w values are r,g,b TRIPLETS consumed as
+       rgba(var(--id-x-w), var(--wash-a)). */
+    /* @identity-palette-begin */
+    --id-coral-b: #e66d71;   /* oklch(.68 0.15 20) */
+    --id-coral-w: 181, 73, 78;
+    --id-coral-i: var(--accent-ink);
+    --id-fern-b: #7fa834;   /* oklch(.68 0.15 127) */
+    --id-fern-w: 91, 127, 5;
+    --id-fern-i: var(--accent-ink);
+    --id-jade-b: #54b05a;   /* oklch(.68 0.15 145) */
+    --id-jade-w: 48, 134, 57;
+    --id-jade-i: var(--accent-ink);
+    --id-indigo-b: #7990f4;   /* oklch(.68 0.15 272) */
+    --id-indigo-w: 86, 105, 194;
+    --id-indigo-i: var(--accent-ink);
+    --id-violet-b: #a681e7;   /* oklch(.68 0.15 299) */
+    --id-violet-w: 126, 92, 183;
+    --id-violet-i: var(--accent-ink);
+    --id-orchid-b: #c775c9;   /* oklch(.68 0.15 326) */
+    --id-orchid-w: 154, 80, 157;
+    --id-orchid-i: var(--accent-ink);
+    --id-rose-b: #dd6da0;   /* oklch(.68 0.15 353) */
+    --id-rose-w: 173, 73, 121;
+    --id-rose-i: var(--accent-ink);
+    --id-slate-b: #989898;   /* oklch(.68 0 0) */
+    --id-slate-w: 113, 113, 113;
+    --id-slate-i: var(--accent-ink);
+    --id-firetv-b: #ff9900;   /* brand #ff9900 exact */
+    --id-firetv-w: 162, 95, 0;
+    --id-firetv-i: var(--accent-ink);
+    --id-appletv-b: #ffffff;   /* brand #ffffff exact */
+    --id-appletv-w: 113, 113, 113;
+    --id-appletv-i: var(--accent-ink);
+    --id-googletv-b: #4285f4;   /* brand #4285f4 exact */
+    --id-googletv-w: 61, 111, 194;
+    --id-googletv-i: var(--accent-ink);
+    --id-samsung-b: #2848c0;   /* brand #2848c0 exact */
+    --id-samsung-w: 76, 108, 195;
+    --id-samsung-i: #ffffff;
+    --id-lg-b: #a50234;   /* brand #a50134 clamped */
+    --id-lg-w: 180, 73, 86;
+    --id-lg-i: #ffffff;
+    --id-sony-b: #000000;   /* brand #000000 exact */
+    --id-sony-w: 113, 113, 113;
+    --id-sony-i: #ffffff;
+    --id-sonos-b: #d8a158;   /* brand #d8a158 exact */
+    --id-sonos-w: 155, 100, 0;
+    --id-sonos-i: var(--accent-ink);
+    --id-netflix-b: #e50914;   /* brand #e50914 exact */
+    --id-netflix-w: 181, 75, 65;
+    --id-netflix-i: #ffffff;
+    --id-spotify-b: #1db954;   /* brand #1db954 exact */
+    --id-spotify-w: 34, 135, 64;
+    --id-spotify-i: var(--accent-ink);
+    --id-plex-b: #e5a00d;   /* brand #e5a00d exact */
+    --id-plex-w: 150, 103, 0;
+    --id-plex-i: var(--accent-ink);
+    --id-roku-b: #7321b6;   /* brand #7321b6 exact */
+    --id-roku-w: 131, 90, 179;
+    --id-roku-i: #ffffff;
+    --id-shield-b: #76b900;   /* brand #76b900 exact */
+    --id-shield-w: 84, 129, 22;
+    --id-shield-i: var(--accent-ink);
+    --id-disney-b: #1541d4;   /* brand #1541d4 exact */
+    --id-disney-w: 72, 109, 195;
+    --id-disney-i: #ffffff;
+    --id-youtube-b: #ff0001;   /* brand #ff0001 exact */
+    --id-youtube-w: 181, 75, 63;
+    --id-youtube-i: var(--accent-ink);
+    --id-prime-b: #00a8e1;   /* brand #00a8e1 exact */
+    --id-prime-w: 0, 124, 167;
+    --id-prime-i: var(--accent-ink);
+    --id-peacock-b: #000000;   /* brand #000000 exact */
+    --id-peacock-w: 113, 113, 113;
+    --id-peacock-i: #ffffff;
+    --id-paramount-b: #0064ff;   /* brand #0064ff exact */
+    --id-paramount-w: 64, 111, 194;
+    --id-paramount-i: #ffffff;
+    --id-max-b: #0231ec;   /* brand #0231ec exact */
+    --id-max-w: 71, 109, 195;
+    --id-max-i: #ffffff;
+    --id-hulu-b: #1de783;   /* brand #1de783 exact */
+    --id-hulu-w: 0, 136, 73;
+    --id-hulu-i: var(--accent-ink);
+    --id-fubo-b: #fa4616;   /* brand #fa4616 exact */
+    --id-fubo-w: 180, 77, 53;
+    --id-fubo-i: var(--accent-ink);
+    --id-espn-b: #d2001f;   /* brand #d2001f exact */
+    --id-espn-w: 181, 74, 69;
+    --id-espn-i: #ffffff;
+    --id-britbox-b: #3545c0;   /* brand #3545c0 exact */
+    --id-britbox-w: 84, 106, 195;
+    --id-britbox-i: #ffffff;
+    --id-pbs-b: #2b41cd;   /* brand #2b41cd exact */
+    --id-pbs-w: 80, 107, 195;
+    --id-pbs-i: #ffffff;
+    /* @identity-palette-end */
+    --wash-a: 0.5;              /* preset pools (always the -on value) */
+    --wash-a-on: 0.75;
+    /* ACTIVITY bloom alphas — split from the preset pair in round 8
+       (Suresh tuned 0.3/0.4 on the real panel: "quite subdued on the
+       computer screen … quite bright on the remote"; presets keep
+       0.75, judged separately). His remote-measured values ARE the
+       defaults. */
+    --awash-a: 0.3;             /* resting */
+    --awash-a-on: 0.4;          /* running lift */
+    /* the FLAT tint gets its own softer pair (2026-09-01 review —
+       Suresh: "The tint version is too strong"): a wash that covers
+       the whole tile needs less alpha than a bloom that fades out */
+    --wash-a-tint: 0.15;    /* round 6: "still too strong" at .25 */
+    --wash-a-tint-on: 0.25;
+    /* BLOOM GEOMETRY KNOBS (round 6 — "educate me on where can I
+       play"): the activity bloom's ellipse and fade, and the preset
+       pool's (fractions of the cell). Live in devtools, in a
+       section's CSS variables box, or a theme. */
+    --bloom-w: 180px;           /* activity bloom ellipse (round 8 —
+                                   Suresh's panel-tuned geometry) */
+    --bloom-h: 100px;
+    --bloom-x: 64px;            /* anchored under the badge circle */
+    --bloom-fade: 72%;          /* where the fade reaches zero */
+    --pbloom-w: 88%;            /* preset pool ellipse (of the cell) */
+    --pbloom-h: 117%;
+    --pbloom-fade: 78%;
     --radius: 12px;
     /* LAYOUT & TYPE (v0.27) — theme-tunable; per-page overrides later */
     --tile-h: 84px;
@@ -791,8 +922,94 @@
   .tile.wgt-preset .top { display: block; }
   .tile.wgt-preset .top .ic { width: auto; font-size: 30px; display: block; margin: 0 auto 4px; }
   .tile.wgt-preset .top img { width: var(--app-art); height: var(--app-art); border-radius: 10px; display: block; margin: 0 auto 4px; object-fit: cover; }
-  .tile.wgt-preset .lbl { font-size: 11px; display: block; }
+  /* --preset-lbl (round 8 — "what's the variable to adjust font
+     size in Icon presets?": it was a hard 11px, unreachable by any
+     knob). Weight rides the global --fw-1, which a section's
+     css_vars box already scopes. */
+  .tile.wgt-preset .lbl { font-size: var(--preset-lbl, 11px); display: block; }
   .tile.wgt-preset .sub, .tile.wgt-preset .hint { display: none; }
+  /* TEXT PRESETS (identity-palette V1 §B; round 4): the ids-text
+     LAYOUT class carries the type-led cell — name 14/600, two
+     lines, bottom-aligned — and composes with either wash
+     (text-tint = ids-text + ids-tint, text-bloom = ids-text +
+     ids-pbloom). NO height override (round-4 review: "the two text
+     versions shrink the tiles … a mistake") — a text cell keeps
+     whatever height its band gives every other preset. */
+  /* V2 RECUT (palette canvas V2 §6 — supersedes the bottom-aligned
+     baseline): the MARK GETS ITS OWN ROW. A 102px cell cannot hold
+     an 18px corner mark AND a full two-line label — absolute
+     positioning reserved nothing ("Concentration Mix" ran its first
+     line under the mark) and a right float costs a line once the
+     first word passes six characters. Cell divides 6px pad, 18px
+     mark row (right-aligned), top-aligned label. The cost is the
+     shared baseline; in exchange both label lines are full width
+     and the caption is true by construction. */
+  .tile.wgt-preset.ids-text {
+    padding: 6px 10px; text-align: left; display: block;
+  }
+  /* the chassis keeps the label INSIDE .top (a span beside the
+     icon), so the mark row and label are .top's own column */
+  .tile.wgt-preset.ids-text .top {
+    min-width: 0; width: 100%; display: flex;
+    flex-direction: column; align-items: stretch;
+  }
+  .tile.wgt-preset.ids-text .top .ic {
+    position: static; width: auto; display: block; align-self: flex-end;
+    margin: 0 0 2px;
+    color: var(--tacc, var(--dim, #98a2ae));
+    /* one size for every icon kind (set icons are em-scaled, round
+       7); --title-mark (round 8) resizes every mark at once */
+    font-size: var(--title-mark, 18px); line-height: 1;
+    height: var(--title-mark, 18px); overflow: hidden;
+  }
+  .tile.wgt-preset.ids-text .top img { display: none; }
+  .tile.wgt-preset.ids-text .lbl {
+    width: 100%;
+    font-size: 14px; font-weight: 600; line-height: 1.2;
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+    /* clamp handles VERTICAL overflow only — a single word wider
+       than the 82px content box ("Concentration" is 90px at 14/600)
+       was cut horizontally with no ellipsis. A visibly broken word
+       is honest where a silently shortened one is not. */
+    word-wrap: break-word;
+  }
+  /* the preset BLOOM — the canvas's own proportions (round 6:
+     "horizontally smaller than the reference"): the 90×70 ellipse
+     of the 102×60 cell as fractions (88% × 117% at 20% 100%), fade
+     at 78%. Round 4 shrank this to kill edge rims that turned out
+     to be the background-repeat wrap — with the wrap dead the true
+     size is safe: visible extent 88.6% of the width, and the ramp's
+     last percent of alpha near the top edge is invisible. Presets
+     have no running state: always the lifted alpha. ids-bloom on a
+     preset takes the same pool — the activity form's badge-anchored
+     ellipse assumes a left badge a preset lacks. */
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background: radial-gradient(var(--pbloom-w, 88%) var(--pbloom-h, 117%) at 20% 100%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wash-a-on, 0.75)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--pbloom-fade, 78%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* THE EDGE-RIM BUG, killed at the root (round 5 — his two reports,
+     one property): background layers sit on the PADDING box but
+     paint across the 2px transparent border, and the default
+     background-repeat WRAPS the gradient there — so the border
+     strip showed the bloom's opposite edge (left-anchored activity
+     bloom → right rim; bottom-anchored preset pool → top + right
+     rims). Found by pixel-sampling x=323 of an unfocused tile:
+     full-strength wash. One declaration, all wash layers, focused
+     variants included (a later standalone property beats every
+     shorthand's implicit repeat). */
+  .tile.ids-tint, .tile.ids-bloom, .tile.ids-pbloom,
+  .tile.ids-tint.focused, .tile.ids-bloom.focused,
+  .tile.wgt-preset.ids-pbloom, .tile.wgt-preset.ids-bloom,
+  .tile.wgt-preset.ids-pbloom.focused, .tile.wgt-preset.ids-bloom.focused {
+    background-repeat: no-repeat;
+  }
   /* ART-FORWARD PRESET (v0.68.7 — the Bar playlist row). A 42px stamp
      is right for an app logo, where the image is a LABEL; it is wrong
      for a playlist, where the cover IS the thing you are picking.
@@ -1071,7 +1288,12 @@
      theme (and .on/.tacc tints) exactly like font glyphs. The probe
      img inside only detects missing files — never shown. */
   .ic.icmask {
-    display: inline-block; width: 24px; height: 24px;
+    /* EM-SIZED (round 7 — his phu Spotify: undersized beside the
+       30px material notes in a preset square, oversized as the 18px
+       title mark; the fixed 24px never followed the context's glyph
+       size). Each context's .ic font-size now drives every icon
+       kind; 24px here is the base, matching the material default. */
+    display: inline-block; width: 1em; height: 1em; font-size: 24px;
     vertical-align: -5px;
     background: currentColor;
     -webkit-mask-size: contain; mask-size: contain;
@@ -1081,9 +1303,17 @@
   .ic.icmask .mprobe { display: none; }
   /* minted set icons: inline SVG, painted with currentColor (the
      2026-09-01 ruling — path data rides the deployed config) */
-  .ic.icsvg { display: inline-block; width: 24px; height: 24px;
+  .ic.icsvg { display: inline-block; width: 1em; height: 1em; font-size: 24px;
     vertical-align: -5px; }
-  .ic.icsvg svg { display: block; width: 100%; height: 100%; }
+  /* overflow visible: a wide mark's ink-fit viewBox is narrower than
+     the mark (see tiles.js fitSetIcons) — the overflow IS the fix */
+  .ic.icsvg svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  /* THE one icon knob (round 8 — "I don't want 1000 knobs"): set
+     icons only, a bare multiplier on top of the auto ink-fit.
+     css_vars on a tile or its section (bands inherit), or a theme:
+     { "--ic-scale": "1.15" }. Material glyphs don't read it — they
+     are the reference the auto already matches. */
+  .ic.icsvg, .ic.icmask { transform: scale(var(--ic-scale, 1)); }
   .tile .lbl { font-size: var(--fs-1); /* stated here (not just inherited from body) so a per-tile css_vars override of --fs-1 reaches the label */
     font-weight: var(--fw-1); text-shadow: var(--lbl-shadow, none); }
   .tile .sub { color: var(--dim); font-family: var(--font-2); font-size: var(--fs-2); font-weight: var(--fw-2); margin-top: 6px; min-height: 17px; }
@@ -1128,13 +1358,106 @@
 
   .tile.on .ic, .tile.on .icwrap .material-symbols-outlined { color: var(--on); }
   .tile.on .sub { color: var(--accent); }
+  /* ---- IDENTITY PALETTE (identity-palette V1, 2026-09-01 — the
+     companion canvas). Eight SLOTS; each maps the tile's badge
+     (--tacc, the ruled icon-circle mechanism) and wash triplet
+     (--idw) to theme tokens, so config never carries a colour — a
+     custom hex stays honored second-class via the legacy `color`
+     key (tiles.js sets --tacc/--idw inline for it). Styles are
+     ADDITIVE, like variants: icon-basic is today's tile untouched;
+     icon-tint is the flat wash (A1); icon-bloom the badge-anchored
+     bloom (A2, the canvas's pick). Running lifts one knob (--wa)
+     from --wash-a to --wash-a-on; the accent status line — already
+     the .on rule above — does the real state work. ---- */
+  /* @identity-classes-begin (generated by tools/gen-identity-palette.mjs — do not edit) */
+  .tile.id-coral { --tacc: var(--id-coral-b); --idw: var(--id-coral-w); --tink: var(--id-coral-i); }
+  .tile.id-fern { --tacc: var(--id-fern-b); --idw: var(--id-fern-w); --tink: var(--id-fern-i); }
+  .tile.id-jade { --tacc: var(--id-jade-b); --idw: var(--id-jade-w); --tink: var(--id-jade-i); }
+  .tile.id-indigo { --tacc: var(--id-indigo-b); --idw: var(--id-indigo-w); --tink: var(--id-indigo-i); }
+  .tile.id-violet { --tacc: var(--id-violet-b); --idw: var(--id-violet-w); --tink: var(--id-violet-i); }
+  .tile.id-orchid { --tacc: var(--id-orchid-b); --idw: var(--id-orchid-w); --tink: var(--id-orchid-i); }
+  .tile.id-rose { --tacc: var(--id-rose-b); --idw: var(--id-rose-w); --tink: var(--id-rose-i); }
+  .tile.id-slate { --tacc: var(--id-slate-b); --idw: var(--id-slate-w); --tink: var(--id-slate-i); }
+  .tile.id-firetv { --tacc: var(--id-firetv-b); --idw: var(--id-firetv-w); --tink: var(--id-firetv-i); }
+  .tile.id-appletv { --tacc: var(--id-appletv-b); --idw: var(--id-appletv-w); --tink: var(--id-appletv-i); }
+  .tile.id-googletv { --tacc: var(--id-googletv-b); --idw: var(--id-googletv-w); --tink: var(--id-googletv-i); }
+  .tile.id-samsung { --tacc: var(--id-samsung-b); --idw: var(--id-samsung-w); --tink: var(--id-samsung-i); }
+  .tile.id-lg { --tacc: var(--id-lg-b); --idw: var(--id-lg-w); --tink: var(--id-lg-i); }
+  .tile.id-sony { --tacc: var(--id-sony-b); --idw: var(--id-sony-w); --tink: var(--id-sony-i); }
+  .tile.id-sonos { --tacc: var(--id-sonos-b); --idw: var(--id-sonos-w); --tink: var(--id-sonos-i); }
+  .tile.id-netflix { --tacc: var(--id-netflix-b); --idw: var(--id-netflix-w); --tink: var(--id-netflix-i); }
+  .tile.id-spotify { --tacc: var(--id-spotify-b); --idw: var(--id-spotify-w); --tink: var(--id-spotify-i); }
+  .tile.id-plex { --tacc: var(--id-plex-b); --idw: var(--id-plex-w); --tink: var(--id-plex-i); }
+  .tile.id-roku { --tacc: var(--id-roku-b); --idw: var(--id-roku-w); --tink: var(--id-roku-i); }
+  .tile.id-shield { --tacc: var(--id-shield-b); --idw: var(--id-shield-w); --tink: var(--id-shield-i); }
+  .tile.id-disney { --tacc: var(--id-disney-b); --idw: var(--id-disney-w); --tink: var(--id-disney-i); }
+  .tile.id-youtube { --tacc: var(--id-youtube-b); --idw: var(--id-youtube-w); --tink: var(--id-youtube-i); }
+  .tile.id-prime { --tacc: var(--id-prime-b); --idw: var(--id-prime-w); --tink: var(--id-prime-i); }
+  .tile.id-peacock { --tacc: var(--id-peacock-b); --idw: var(--id-peacock-w); --tink: var(--id-peacock-i); }
+  .tile.id-paramount { --tacc: var(--id-paramount-b); --idw: var(--id-paramount-w); --tink: var(--id-paramount-i); }
+  .tile.id-max { --tacc: var(--id-max-b); --idw: var(--id-max-w); --tink: var(--id-max-i); }
+  .tile.id-hulu { --tacc: var(--id-hulu-b); --idw: var(--id-hulu-w); --tink: var(--id-hulu-i); }
+  .tile.id-fubo { --tacc: var(--id-fubo-b); --idw: var(--id-fubo-w); --tink: var(--id-fubo-i); }
+  .tile.id-espn { --tacc: var(--id-espn-b); --idw: var(--id-espn-w); --tink: var(--id-espn-i); }
+  .tile.id-britbox { --tacc: var(--id-britbox-b); --idw: var(--id-britbox-w); --tink: var(--id-britbox-i); }
+  .tile.id-pbs { --tacc: var(--id-pbs-b); --idw: var(--id-pbs-w); --tink: var(--id-pbs-i); }
+  /* @identity-classes-end */
+  /* a slot identity tints the card glyph — the badge is the source
+     of the tile's colour, and it does NOT change with state (the
+     canvas: "resting is already full colour"). Legacy hex cards
+     keep today's look; rows keep their ruled icon circle. */
+  .tile.idt:not(.row) .top .ic { color: var(--tacc); }
+  .tile.ids-bloom { --wa: var(--awash-a, 0.3); }
+  .tile.ids-bloom.on { --wa: var(--awash-a-on, 0.4); }
+  /* the flat tint covers the whole tile, so it runs a softer pair
+     (2026-09-01 review: "too strong") */
+  .tile.ids-tint { --wa: var(--wash-a-tint, 0.25); }
+  .tile.ids-tint.on { --wa: var(--wash-a-tint-on, 0.4); }
+  /* border-box on every wash layer (round 8, pixel-diagnosed: "extra
+     dark border ... only on the left. Its something to do with the
+     bloom!"): gradients default to the PADDING box, so the 2px
+     transparent border strip showed bare --tile -- a dark rim wherever
+     the wash was strong. border-box sizes and positions the layer on
+     the full tile; no-repeat stays as the wrap guard (round 5). */
+  .tile.ids-tint {
+    background: linear-gradient(0deg,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), var(--wa))) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* A1 carries a rule A2 does not need: a flat wash sits behind the
+     text and drops --dim below AA at 13px — the status line rides
+     --text (and still goes accent when running) */
+  .tile.ids-tint .sub { color: var(--text, #f2f5f8); }
+  .tile.ids-tint.on .sub { color: var(--accent, #ffb020); }
+  .tile.ids-bloom {
+    background: radial-gradient(var(--bloom-w, 180px) var(--bloom-h, 100px) at var(--bloom-x, 64px) 50%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--bloom-fade, 72%)) no-repeat border-box, var(--tile, #171e27);
+  }
+  /* focus on a WASHED tile is the ring alone (round-4 review — the
+     tile-hi ground lift read as an edge highlight where the wash
+     didn't cover: "It shouldn't be there!"). Revert = swap the
+     final layer back to var(--tile-hi). */
+  .tile.ids-tint.focused {
+    background: linear-gradient(0deg,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), var(--wa))) no-repeat border-box, var(--tile, #171e27);
+  }
+  .tile.ids-bloom.focused {
+    background: radial-gradient(var(--bloom-w, 180px) var(--bloom-h, 100px) at var(--bloom-x, 64px) 50%,
+      rgba(var(--idw, var(--id-slate-w)), var(--wa)),
+      rgba(var(--idw, var(--id-slate-w)), 0) var(--bloom-fade, 72%)) no-repeat border-box, var(--tile, #171e27);
+  }
   /* per-tile accent (v0.48.3 — Suresh: "simply color the icon circle
      background and leave it at that"): an activity's ACCENT paints
      its icon circle — identity, not state; icon flips to bg ink for
      contrast on any accent shade */
   .tile.tacc.row .icwrap { background: var(--tacc); }   /* beats controls.css default */
+  /* V2: the badge glyph rides the DERIVED ink token — dark ink on
+     light badges, white on dark brands (Samsung, Netflix, Sony…).
+     A measurement baked by the generator, never authored. */
   .tile.tacc .icwrap .ic,
-  .tile.tacc .icwrap .material-symbols-outlined { color: var(--bg); }
+  .tile.tacc .icwrap .material-symbols-outlined { color: var(--tink, var(--bg)); }
   /* the capture-hint line is RETIRED from view (2026-08-20 — Suresh,
      of "▲▼ volume · select mutes · back releases": "Not even sure
      what it means. Kill it."): the amber capture ring is the mode
@@ -1896,6 +2219,11 @@
   }
   .tile.row .icwrap .material-symbols-outlined { font-size: calc(var(--icon-zone) * .52); }
   .tile.row .icwrap .ic { width: auto; font-size: calc(var(--icon-zone) * .48); }
+  /* set icons in the disc keep their box and follow the disc's
+     glyph size (width:auto would collapse an svg box — round 7) */
+  .tile.row .icwrap .ic.icsvg, .tile.row .icwrap .ic.icmask {
+    width: 1em; height: 1em; font-size: calc(var(--icon-zone) * .52);
+  }
   .tile.row .icwrap img { width: 100%; height: 100%; object-fit: cover; }
   .tile.row .txt { flex: 1; min-width: 0; }
   .tile.row .lbl { font-size: calc(var(--fs-1) + 2px); }   /* rides Primary (15→17 default) */
@@ -2221,6 +2549,9 @@ function connect() {
     }
     else if (m.type === "auth_ok") {
       S.connected = true; dot(true); subscribeFor(S.screen);
+      /* fleet hello (design-remote-fleet): every connect/reconnect
+         announces this unit — the cheap moment, the socket is warm */
+      if (typeof fleetHello === "function") fleetHello();
       /* flush the pre-auth queue (v0.85.7) — see send() below */
       const q = S.sendQ; S.sendQ = [];
       q.forEach(it => send(it[0], it[1]));
@@ -2245,6 +2576,9 @@ setInterval(() => {
   if (!S.connected || !S.ws) return;
   if (Date.now() - (S.lastMsg || 0) > 60000) { try { S.ws.close(); } catch (e) {} return; }
   send({ type: "ping" });
+  /* the fleet heartbeat PIGGYBACKS here — every 12th tick, visible
+     only (design-remote-fleet: zero new timers, zero new wakes) */
+  if (typeof fleetTick === "function") fleetTick();
 }, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && S.connected) subscribeFor(S.screen);
@@ -3373,6 +3707,13 @@ function genActivityTiles(t) {
         type: "activity", activity: id, id: t.id + "_" + id,
         label: a.name || id, icon: a.icon || "material:play_circle",
         color: a.color,          /* ACCENT tints the tile's ON state */
+        /* accent palette (identity-palette V1): the activity's slot
+           rides its tile; the style ladder is the activity's own
+           choice, then the band tile's (which the section dresses),
+           then silence. identity* = first-cut compat spelling. */
+        accent: a.accent != null ? a.accent : a.identity,
+        accent_style: a.accent_style || a.identity_style ||
+          t.accent_style || t.identity_style,
       }));
 }
 
@@ -3442,6 +3783,11 @@ function genAppTiles(t) {
         icon: ov.icon || meta.icon || "material:apps",
         image,
         label: ov.name || meta.name || aid,
+        /* V2 brand tier (palette canvas §7): an app row may name its
+           brand slot — the glyph tints, NO wash (apps default to
+           icon-basic: sixteen brand washes cluster into one blue and
+           one red and imply a distinction they cannot deliver) */
+        ...(ov.accent || meta.accent ? { accent: ov.accent || meta.accent } : {}),
         action,
       };
     }).filter(Boolean);
@@ -3601,7 +3947,9 @@ function genPresetsFrom(t) {
   const list = st(resolveEntity(t.entity)).a[t.attribute || "items"];
   if (!Array.isArray(list)) return [];
   return list.slice(0, t.limit || 48).map((item, i) => {
-    const g = Object.assign({ type: "preset" }, substItem(t.item || {}, item));
+    const g = Object.assign({ type: "preset",
+      accent_style: t.accent_style || t.identity_style },
+      substItem(t.item || {}, item));
     g.id = t.id + "_" + i;
     if (t.action) g.action = substItem(t.action, item);
     if (g.icon_image == null) delete g.icon_image;   // fall back to g.icon
@@ -3806,8 +4154,12 @@ function genActPresetTiles(t) {
 
        In the defaults, not forced, so a preset may still name a
        different activity than the one it is listed under. */
+    /* accent palette (identity-palette V1): the band tile's style
+       is the children's default — a preset may override it, and its
+       own `accent` slot rides the spread like every other key */
     return list.map((p, i) => Object.assign(
-      { type: "preset", span: 2, activity: aid }, p,
+      { type: "preset", span: 2, activity: aid,
+        accent_style: t.accent_style || t.identity_style }, p,
       { id: t.id + "_" + (p.id || i) }));
 }
 
@@ -4723,6 +5075,14 @@ function sectionDressTile(t, sec) {
     (patch = patch || {}).image_opacity = sec.image_opacity;
   if (sec.style && t.type === "nav" && !t.style)
     (patch = patch || {}).style = sec.style;
+  /* accent palette (identity-palette V1): the section's accent
+     style (icon|text × basic|tint|bloom) reaches every tile that
+     stays silent — generators pass it on to their children, so one
+     section knob dresses a whole band. identity_style = the
+     first-cut compat spelling. */
+  var secAS = sec.accent_style || sec.identity_style;
+  if (secAS && !t.accent_style && !t.identity_style)
+    (patch = patch || {}).accent_style = secAS;
   if (sec.css_vars && typeof sec.css_vars === "object") {
     var merged = {}, k;
     for (k in sec.css_vars) merged[k] = sec.css_vars[k];
@@ -4740,7 +5100,10 @@ function tilesOf(sc) {
      np_style must dress EVERY derivation — makeTile builds from the
      render pipeline, but renderStates re-derives through here, and an
      undressed twin would feed sub()/render() the wrong tile */
-  return rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), [])
+  return rawTilesOf(sc).reduce((a, t) => a.concat(
+      /* round 8: generated children inherit the dressed parent's
+         section defaults — mirrors the render.js walk exactly */
+      expandTile(t).map(c => sectionDressTile(c, t))), [])
     .map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
@@ -4817,6 +5180,10 @@ function entitiesFor(screenId) {
      lowercase domain.object, neither part starting or ending with
      an underscore — not just "has a dot, no $-token". */
   const ENT_RE = /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/;
+  /* the COMMAND BUS rides every subscription (design-remote-fleet):
+     one integration-owned entity, so reload/identify reach this unit
+     as ordinary diffs on the socket that is already open */
+  set.add("sensor.harmonium_command_bus");
   return [...set].filter(v => typeof v === "string" && ENT_RE.test(v));
 }
 
@@ -4841,6 +5208,9 @@ function applyDiff(ev) {
   }
   if (ev.r) ev.r.forEach(eid => S.states.delete(eid));
 
+  /* command bus (design-remote-fleet): baseline-guarded, then act */
+  if (typeof fleetCheck === "function") fleetCheck();
+
   /* activity changed → context may rebind: resubscribe current screen */
   const aid = renderActivityId();
   if (aid !== S.lastAct) { S.lastAct = aid; if (S.connected) subscribeFor(S.screen); }
@@ -4853,6 +5223,132 @@ function applyDiff(ev) {
   }
 }
 
+
+/* ================================================================
+   THE FLEET — this unit's half (docs/design-remote-fleet.md, 2026-09-02).
+
+   Two channels, both riding traffic the engine already pays for —
+   the battery constraint (Suresh: a loaded remote burns ~80%/day
+   against ~22% stripped) is this file's first law:
+
+   · UP — hello: one small POST on every auth_ok, then piggybacked
+     on the EXISTING 25s staleness watchdog every 12th tick (~5 min),
+     only while the page is visible. No new timers, no new sockets;
+     a sleeping remote sends nothing and its fleet row reads so.
+   · DOWN — the command bus: sensor.harmonium_command_bus rides the
+     normal filtered subscription (subscribe_entities is open to any
+     token, unlike custom-event subscriptions, which HA gates to
+     admins). Commands arrive as ordinary state diffs; fleetCheck()
+     runs from applyDiff.
+
+   Replay safety is BASELINE-first, clock-second: the first bus state
+   a session sees is never acted on (a remote booting hours later
+   must not replay the last reload), later seq changes still require
+   a fresh server timestamp (60s, generous to clock skew).
+   ================================================================ */
+const BUS_ENTITY = "sensor.harmonium_command_bus";
+
+/* the persistent unit id — a PROFILE is an outfit, a unit is the
+   physical remote; two units may wear one profile */
+function unitId() {
+  let u = null;
+  try { u = localStorage.getItem("hakr_unit"); } catch (e) {}
+  if (u) return u;
+  u = "u";
+  const abc = "abcdefghjkmnprtuvwxy346790";
+  for (let i = 0; i < 5; i++) u += abc[Math.floor(Math.random() * abc.length)];
+  try { localStorage.setItem("hakr_unit", u); } catch (e) {}
+  return u;
+}
+
+/* ---- UP: hello -------------------------------------------------- */
+let helloTicks = 0;
+let helloBatt = null;   /* {battery, charging} — refreshed lazily */
+
+function fleetHello() {
+  if (typeof PREVIEW !== "undefined" && PREVIEW) return;
+  const token = localStorage.getItem("hakr_token");
+  if (!token) return;
+  const body = {
+    unit: unitId(),
+    name: S.deviceName || "default",
+    profile: S.deviceName || "default",
+    workspace: (typeof WS !== "undefined" && WS) || "main",
+    version: (typeof BOOT_V !== "undefined" && BOOT_V) || "",
+    page: S.screen || "",
+  };
+  if (helloBatt) {
+    body.battery = helloBatt.battery;
+    body.charging = helloBatt.charging;
+  }
+  try {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/api/harmonium/hello", true);
+    x.timeout = 5000;
+    x.setRequestHeader("Content-Type", "application/json");
+    x.setRequestHeader("Authorization", "Bearer " + token);
+    x.send(JSON.stringify(body));
+  } catch (e) {}
+  /* refresh the battery reading for the NEXT hello — Battery Status
+     API where the webview still offers it on this origin; absent =
+     the fleet view falls back to the profile's battery_sensor */
+  try {
+    if (navigator.getBattery) navigator.getBattery().then(b => {
+      helloBatt = { battery: Math.round(b.level * 100), charging: !!b.charging };
+    }, () => {});
+  } catch (e) {}
+}
+
+/* called from the socket watchdog (25s cadence) — every 12th tick
+   while visible ≈ one hello per 5 visible minutes */
+function fleetTick() {
+  if (document.hidden) return;
+  helloTicks++;
+  if (helloTicks >= 12) { helloTicks = 0; fleetHello(); }
+}
+
+/* ---- DOWN: the command bus -------------------------------------- */
+let busSeq = null;          /* baseline: first sight is never acted on */
+
+function fleetCheck() {
+  const st = S.states.get(BUS_ENTITY);
+  if (!st) return;
+  const a = st.a || {};
+  const seq = +st.s;
+  if (!isFinite(seq)) return;
+  if (busSeq === null) { busSeq = seq; return; }   /* baseline */
+  if (seq === busSeq) return;
+  busSeq = seq;
+  /* fresh? the server stamps epoch seconds; 60s tolerates skew */
+  const ts = +a.ts;
+  if (!isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 60) return;
+  /* addressed to this unit? target = all | unit id | profile;
+     workspace, when present, must match too */
+  const ws = (typeof WS !== "undefined" && WS) || "main";
+  if (a.workspace && a.workspace !== ws) return;
+  const t = a.target || "all";
+  if (t !== "all" && t !== unitId() && t !== (S.deviceName || "default")) return;
+  if (a.verb === "identify") {
+    /* fleet v2: the Studio sends the FRIENDLY name along, so the
+       flash matches the row the person just clicked */
+    const label = "This is “" + (a.label || (S.deviceName || "default") + " · " + unitId()) + "”";
+    flashBar(label, "ok", 1400);
+    setTimeout(() => flashBar(label, "ok", 1400), 1800);
+    setTimeout(() => flashBar(label, "ok", 1400), 3600);
+  } else if (a.verb === "reload") {
+    fleetReload();
+  }
+}
+
+/* IMMEDIATE (round 9 ruling: "I don't think we need 10s of quiet") —
+   you pressed the button; the remote obeys now. No cache clearing
+   needed by design: config.json is fetched no-store and the engine
+   rides a version-stamped URL, so a plain reload always boots the
+   freshly deployed pair. */
+function fleetReload() {
+  try { sessionStorage.removeItem("hakr_upg"); } catch (e) {}
+  location.reload();
+}
 
 /* ================================================================
    Activities: select = start (off) / open (running); hold or
@@ -4912,6 +5408,19 @@ function activityStateOn(a) {
     return prim ? on.any_state.includes(st(prim).s) : null;
   }
   return null;
+}
+/* the activity has been ROUTED (round 9 live find — "Activity didn't
+   start" on every music preset): a declared-state activity's ON
+   evidence can BE the playback the preset is about to create (the
+   Sonos plays only after the preset fires), so a warm-start polling
+   device truth deadlocks by construction. The select flipping is the
+   proof the start ran; device truth follows the music. */
+function activityRouted(id) {
+  const a = (CONFIG.activities || {})[id];
+  if (!a) return false;
+  const own = a.room_view && rawScreen(a.room_view);
+  const sel = (own && own.activity_select) || CONFIG.global.activity_select;
+  return !!(sel && st(sel).s === (a.state_value || id));
 }
 function isActivityActive(id) {
   const a = (CONFIG.activities || {})[id];
@@ -5079,9 +5588,11 @@ function firePreset(t) {
   };
   if (t.activity && !isActivityActive(t.activity)) {
     if (!startActivity(t.activity)) return false;   // switch-confirm pending
-    let n = 0;                                  // poll the activity select
-    const iv = setInterval(() => {              // (~12s budget) before firing
-      if (isActivityActive(t.activity)) { clearInterval(iv); run(); }
+    let n = 0;                                  // poll until STARTED —
+    const iv = setInterval(() => {              // active OR routed (~12s)
+      if (isActivityActive(t.activity) || activityRouted(t.activity)) {
+        clearInterval(iv); run();
+      }
       else if (++n > 40) { clearInterval(iv); flashBar("Activity didn't start"); }
     }, TIMING.presetPoll);
   } else run();
@@ -10490,6 +11001,56 @@ function nudgeClimate(e, delta) {
    per-domain widget adapters (widgets/*.js) fill the slots; nothing
    in here knows what a light or a Sonos is.
    ================================================================ */
+/* the ACCENT palette's eight slots (identity-palette V1; the word is
+   ACCENT everywhere people see it — round-4 ruling, matching the
+   v0.48.3 activity accent) and the additive style vocabulary. A
+   slot is a NAME; hues live in the theme (tokens.css
+   @identity-palette block). The style axes compose: icon|text ×
+   basic|tint|bloom. `identity`/`identity_style` stay as compat
+   reads for drafts saved in the first cut. */
+/* @identity-slots-begin (generated by tools/gen-identity-palette.mjs) */
+const ID_SLOTS = { coral: 1, fern: 1, jade: 1, indigo: 1, violet: 1, orchid: 1, rose: 1, slate: 1, firetv: 1, appletv: 1, googletv: 1, samsung: 1, lg: 1, sony: 1, sonos: 1, netflix: 1, spotify: 1, plex: 1, roku: 1, shield: 1, disney: 1, youtube: 1, prime: 1, peacock: 1, paramount: 1, max: 1, hulu: 1, fubo: 1, espn: 1, britbox: 1, pbs: 1 };
+/* @identity-slots-end */
+/* round-5 naming ("every style has both text and icon, so these
+   style names are not great"): Basic / Tint / Bloom, plus the
+   preset TITLE layout (the name leads the cell) composing with the
+   same washes. Every earlier spelling stays a synonym. */
+const ID_STYLES = {
+  basic: null, "icon-basic": null,   /* the silent default, sayable */
+  tint: "ids-tint", "icon-tint": "ids-tint",
+  bloom: "ids-bloom", "icon-bloom": "ids-bloom",
+  title: "ids-text", text: "ids-text",
+  "title-tint": "ids-text ids-tint", "text-tint": "ids-text ids-tint",
+  "title-bloom": "ids-text ids-pbloom", "text-bloom": "ids-text ids-pbloom",
+};
+/* "#rrggbb" / "#rgb" → "r, g, b" for rgba(var(--idw), a) */
+/* V2 (palette canvas): which ink survives on this badge — dark
+   --accent-ink or white, by WCAG contrast. Mirrors the generator's
+   pickInk so a custom hex behaves exactly like a baked slot. */
+function pickInk(hexColor) {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(String(hexColor || ""));
+  if (!m) return null;
+  const lum = function (r, g, b) {
+    const f = function (v) {
+      v /= 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const n = parseInt(m[1], 16);
+  const lb = lum((n >> 16) & 255, (n >> 8) & 255, n & 255);
+  const lDark = lum(20, 24, 29);          /* --accent-ink #14181d */
+  const rDark = (Math.max(lb, lDark) + 0.05) / (Math.min(lb, lDark) + 0.05);
+  const rWhite = (1.05) / (lb + 0.05);
+  return rDark >= rWhite ? "var(--accent-ink)" : "#ffffff";
+}
+function hexTriplet(hx) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hx || "").trim());
+  if (!m) return null;
+  let h = m[1];
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ");
+}
 function iconHtml(t, row) {
   let inner;
   if (t.icon_image) {
@@ -10529,8 +11090,27 @@ function iconHtml(t, row) {
     if (ip && ip.path) {
       const vb = String(ip.viewBox || "0 0 24 24").replace(/[^0-9 .-]/g, "");
       const d = String(ip.path).replace(/["<>&]/g, "");
-      inner = `<span class="ic icsvg"><svg viewBox="${vb}" aria-hidden="true">` +
+      /* INK FIT (round 8 — Suresh: "the phu icons still seem small at
+         1 rem. do they have an inheritantly different scale?" — yes:
+         every pack pads its grid differently, and brand marks carry
+         safe margins, while Material Symbols ink nearly fills its em.
+         So the pack's viewBox is replaced with the PATH'S OWN ink
+         box, measured once per icon (getBBox after mount), padded to
+         the material live-area ratio — every set icon then sits at
+         the same optical size as its material sisters). */
+      const fvb = FIT_VB[t.icon];
+      /* a re-render builds from the cache, so the wide-mark span
+         width must be emitted here too, not only in the fit pass */
+      let wst = "";
+      if (fvb) {
+        const q = fvb.split(" ");
+        const a = parseFloat(q[2]) / parseFloat(q[3]);
+        if (a > 1.01) wst = ` style="width:${a.toFixed(3)}em"`;
+      }
+      inner = `<span class="ic icsvg"${wst}><svg viewBox="${fvb || vb}"` +
+        (fvb ? "" : ` data-fit="${t.icon}"`) + ` aria-hidden="true">` +
         `<path d="${d}" fill="currentColor"/></svg></span>`;
+      if (!fvb) queueIconFit();
     } else {
       const url = "/local/harmonium/icons/" +
         t.icon.replace(":", "/") + ".svg";
@@ -10546,6 +11126,52 @@ function iconHtml(t, row) {
 /* one set-icon spelling: set and name are file-name-safe tokens
    (material: is the font and never reaches this test first) */
 const ICON_SET_RE = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/;
+/* ink-fitted viewBoxes, measured once per icon ref. The pass runs a
+   tick after render (getBBox needs mounted, laid-out SVG); a hidden
+   icon measures 0×0 and keeps its data-fit for a later render. Ink is
+   padded to ~83% of the box — Material's 20-in-24 live area. */
+const FIT_VB = {};
+let fitQueued = false;
+function queueIconFit() {
+  if (fitQueued) return;
+  fitQueued = true;
+  setTimeout(fitSetIcons, 0);
+}
+function fitSetIcons() {
+  fitQueued = false;
+  const svgs = document.querySelectorAll("svg[data-fit]");
+  for (let i = 0; i < svgs.length; i++) {
+    const sv = svgs[i], ref = sv.getAttribute("data-fit");
+    let vb = FIT_VB[ref];
+    if (!vb) {
+      let b;
+      try { b = sv.getBBox(); } catch (e) { continue; }
+      if (!b || !b.width || !b.height) continue;
+      /* square icons fit by their long side; a WIDE mark (a wordmark
+         logo) fits by the geometric mean instead — otherwise
+         square-fitting a 3:1 mark leaves a sliver of ink (round 8:
+         "in activities, the PHU icon (firetv) is teeny"). The
+         viewBox keeps the ink's TRUE aspect and the host span is
+         widened to match (width in em), so layout knows the real
+         width — a right-anchored Title mark sits flush instead of
+         its overflow crowding the tile edge (round 8 tweak: "the
+         sonos icon is too tight to the right of the tile"). */
+      const side = Math.max(b.height, Math.sqrt(b.width * b.height));
+      const pad = side * 0.08;
+      const vh = side + pad * 2, vw = Math.max(b.width, side) + pad * 2;
+      const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+      vb = (cx - vw / 2).toFixed(2) + " " + (cy - vh / 2).toFixed(2) +
+        " " + vw.toFixed(2) + " " + vh.toFixed(2);
+      FIT_VB[ref] = vb;
+    }
+    sv.setAttribute("viewBox", vb);
+    sv.removeAttribute("data-fit");
+    /* the span's width follows the fitted aspect (1em when square) */
+    var p4 = vb.split(" ");
+    var asp = parseFloat(p4[2]) / parseFloat(p4[3]);
+    if (asp > 1.01) sv.parentNode.style.width = asp.toFixed(3) + "em";
+  }
+}
 /* photo URLs that failed to load this session — consulted by the
    preset widget so a rebuilt tile skips a known-dead image */
 const IMG_DEAD = new Set();
@@ -10631,8 +11257,20 @@ function spanOf(t, declaredCols, actualCols) {
 function makeTile(t, row, spanCols) {
   const el = document.createElement("div");
   const sp = spanCols || 1;
+  /* IDENTITY (identity-palette V1, 2026-09-01): `identity` names a
+     SLOT — the colour lives in the theme, never the config. A
+     legacy/custom hex (`color`) stays honored, second-class: its
+     badge is the hex and its wash derives from the hex. The style
+     is additive, like a variant: icon-basic (silent default),
+     icon-tint, icon-bloom for activities; text, text-bloom for
+     presets. */
+  const acc0 = t.accent != null ? t.accent : t.identity;
+  const idt = typeof acc0 === "string" && ID_SLOTS[acc0] ? acc0 : null;
+  const as0 = t.accent_style != null ? t.accent_style : t.identity_style;
+  const ids = typeof as0 === "string" ? ID_STYLES[as0] : null;
   el.className = "tile wgt-" + t.type + (row ? " row" : "") + (!row && sp === 2 ? " span2" : "") +
-    (t.color ? " tacc" : "") + (t.brw ? " brw" : "") +
+    (idt || t.color ? " tacc" : "") + (idt ? " idt id-" + idt : "") +
+    (ids ? " " + ids : "") + (t.brw ? " brw" : "") +
     /* chassis-level class passthrough (v0.68.1): a generator that needs
        one specific look — the search "Searching…" line — says so once
        instead of earning a widget type */
@@ -10662,8 +11300,19 @@ function makeTile(t, row, spanCols) {
   }
   el.id = "tile_" + t.id;
   /* per-tile accent (v0.48.3): the activity's ACCENT paints its icon
-     circle — see grid.css .tacc */
-  if (t.color) el.style.setProperty("--tacc", t.color);
+     circle — see grid.css .tacc. A slot resolves through CSS
+     (.id-<slot> maps --tacc/--idw to the theme tokens); only the
+     second-class custom hex is set inline, its wash triplet parsed
+     here so rgba(var(--idw), a) still composes. */
+  if (!idt && t.color) {
+    el.style.setProperty("--tacc", t.color);
+    const tri = hexTriplet(t.color);
+    if (tri) el.style.setProperty("--idw", tri);
+    /* V2 ink: the same WCAG measurement the generator bakes for
+       slots, run here for the second-class custom hex */
+    const ink = pickInk(t.color);
+    if (ink) el.style.setProperty("--tink", ink);
+  }
   /* PER-TILE CSS VARIABLES (v0.85.7 — Suresh: "In advanced (JSON) how
      would I change font size and weight? And is it possible to use
      drop shadows?"). t.css_vars is a plain map of custom properties
@@ -11253,8 +11902,16 @@ function navigate(screenId, isBack) {
        (h / css_vars / label_pos / style) reach every tile that stays
        silent — this render walk AND rawTilesOf both dress, so the
        DOM build and the renderStates re-derivation agree. */
+    /* round 8 (Suresh: "editing the css in css variables window
+       doesn't seem to impact the preview"): the section dressed the
+       GENERATOR tile, but its generated children were born after the
+       dressing and inherited nothing — so a band section's css_vars
+       (and h / label_pos / image_opacity) never reached a generated
+       tile. Dress each child with its DRESSED parent: same merge
+       rules, per-tile still wins, plain tiles are a no-op. */
     const vis = surfOrderTiles(secTiles.map(t => sectionDressTile(t, sec)))
-      .reduce((a, t) => a.concat(expandTile(t)), [])   /* no flatMap: floor 61 */
+      .reduce((a, t) => a.concat(   /* no flatMap: floor 61 */
+        expandTile(t).map(c => sectionDressTile(c, t))), [])
       .map(surfDressTile).filter(visibleTile);
     if (!vis.length) return;
     /* BROWSE LIST VIEW (v0.71): a generator may stamp `brRow` on its

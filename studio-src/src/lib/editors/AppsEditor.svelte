@@ -12,6 +12,7 @@
   import { unitFp } from "../ownership.js";
   import Field from "../components/Field.svelte";
   import IconPicker from "../components/IconPicker.svelte";
+  import IdentityPicker from "../components/IdentityPicker.svelte";
   import Input from "../components/Input.svelte";
   import Select from "../components/Select.svelte";
   import CardRow from "../components/CardRow.svelte";
@@ -529,7 +530,7 @@
             open={id === lastAdded}
             ondelete={carriedBy(id).length
               ? () => {} : () => delApp(id)}>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-4 gap-3">
               <Field label="Name"><Input bind:value={a.name} onchange={edit} /></Field>
               <Field label="App id" hint="renames refs in classes & drawers">
                 <input value={id} spellcheck="false"
@@ -543,6 +544,13 @@
               <Field label="Icon" hint="fallback icon when no logo exists · an image path (/local/…) replaces the stock logo card">
                 <IconPicker value={a.image || a.icon || ""}
                   onchange={(e) => { setAppIcon(a, e.target.value); edit(); }} />
+              </Field>
+              <!-- V2 brand tier: the app's slot tints its glyph on
+                   every launcher it appears in — no wash (apps are
+                   icon-basic by design: §7, sixteen brand washes
+                   cluster into one blue and one red) -->
+              <Field label="Accent" hint="tints the glyph wherever this app appears">
+                <IdentityPicker bind:accent={a.accent} bind:color={a.color} onchange={edit} />
               </Field>
             </div>
             {#if STOCK_APP_IDENTITIES[id] && idProv(id, a) === "edited"}

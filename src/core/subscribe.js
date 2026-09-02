@@ -46,6 +46,14 @@ function sectionDressTile(t, sec) {
     (patch = patch || {}).image_opacity = sec.image_opacity;
   if (sec.style && t.type === "nav" && !t.style)
     (patch = patch || {}).style = sec.style;
+  /* accent palette (identity-palette V1): the section's accent
+     style (icon|text × basic|tint|bloom) reaches every tile that
+     stays silent — generators pass it on to their children, so one
+     section knob dresses a whole band. identity_style = the
+     first-cut compat spelling. */
+  var secAS = sec.accent_style || sec.identity_style;
+  if (secAS && !t.accent_style && !t.identity_style)
+    (patch = patch || {}).accent_style = secAS;
   if (sec.css_vars && typeof sec.css_vars === "object") {
     var merged = {}, k;
     for (k in sec.css_vars) merged[k] = sec.css_vars[k];
@@ -63,7 +71,10 @@ function tilesOf(sc) {
      np_style must dress EVERY derivation — makeTile builds from the
      render pipeline, but renderStates re-derives through here, and an
      undressed twin would feed sub()/render() the wrong tile */
-  return rawTilesOf(sc).reduce((a, t) => a.concat(expandTile(t)), [])
+  return rawTilesOf(sc).reduce((a, t) => a.concat(
+      /* round 8: generated children inherit the dressed parent's
+         section defaults — mirrors the render.js walk exactly */
+      expandTile(t).map(c => sectionDressTile(c, t))), [])
     .map(surfDressTile).filter(visibleTile);
 }
 /* structural signature: generated tiles change when their source
@@ -140,6 +151,10 @@ function entitiesFor(screenId) {
      lowercase domain.object, neither part starting or ending with
      an underscore — not just "has a dot, no $-token". */
   const ENT_RE = /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/;
+  /* the COMMAND BUS rides every subscription (design-remote-fleet):
+     one integration-owned entity, so reload/identify reach this unit
+     as ordinary diffs on the socket that is already open */
+  set.add("sensor.harmonium_command_bus");
   return [...set].filter(v => typeof v === "string" && ENT_RE.test(v));
 }
 
@@ -163,6 +178,9 @@ function applyDiff(ev) {
     S.states.set(eid, cur);
   }
   if (ev.r) ev.r.forEach(eid => S.states.delete(eid));
+
+  /* command bus (design-remote-fleet): baseline-guarded, then act */
+  if (typeof fleetCheck === "function") fleetCheck();
 
   /* activity changed → context may rebind: resubscribe current screen */
   const aid = renderActivityId();
