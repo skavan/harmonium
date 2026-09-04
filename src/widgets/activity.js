@@ -19,7 +19,7 @@ WIDGETS.activity = {
       if (isActActive(t)) {
         /* v2 self-heal: device truth says ON but the select is stale —
            silently repair the routing cache while opening the screen */
-        const sel = CONFIG.global.activity_select;
+        const sel = roomActivitySelect();
         if (sel && activityStateOn(a) === true &&
             st(sel).s !== (a.state_value || t.activity))
           callService(sel.split(".")[0], "select_option",
