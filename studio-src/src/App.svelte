@@ -8,6 +8,7 @@
   import CenterPane from "./lib/CenterPane.svelte";
   import PreviewPane from "./lib/PreviewPane.svelte";
   import ImportDialog from "./lib/components/ImportDialog.svelte";
+  import UpgradeAudit from "./lib/components/UpgradeAudit.svelte";
 
   let tok = $state("");
 
@@ -175,6 +176,10 @@
       {/if}
     </div>
   </header>
+
+  <!-- THE UPGRADE AUDIT (2026-09-06, design-upgrade-audit.md): one
+       quiet line after an upgrade with findings; nothing otherwise -->
+  <UpgradeAudit />
 
   <!-- PAIRING BANNER (v0.81 — beta-gaps §1): a remote is showing this
        code on its screen RIGHT NOW. Compare, then approve — Approve

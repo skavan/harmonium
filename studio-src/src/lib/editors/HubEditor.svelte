@@ -7,7 +7,9 @@
      be turned on). Apps is a hub too — a drawer whose content is the
      generated registry grid. */
   import { app, ownedActivities, roomIds, schedulePreview, renameScreen, deleteScreen, setStatus, subordinateScreens, isControllerScreen, confirmPageDraft, discardPageDraft, stampHost, snippetsOf, presetSnippetTile } from "../state.svelte.js";
+  import { fillControlTargetDefaults, tunerOn, setTuner } from "../stocklib.js";
   import Field from "../components/Field.svelte";
+  import InfoPop from "../components/InfoPop.svelte";
   import JsonArea from "../components/JsonArea.svelte";
   import NoteStrip from "../components/NoteStrip.svelte";
   import Input from "../components/Input.svelte";
@@ -458,20 +460,29 @@
                additive, like a variant — Icon basic is today's tile
                untouched. Tint/bloom suit activities; Text and
                Text + bloom re-cut presets to the type-led cell. -->
+          <!-- Title cells are a PRESET design — only preset sections
+               offer them (2026-09-03: "im still seeing all 6 options
+               on page>devices"); devices get the icon trio, like
+               activities, and the engine degrades a stray Title
+               style to its wash half anyway -->
           <Field label="Accent style (all tiles here)"
-            hint={srole === "activities" ? "a tile's own setting overrides" : "Title forms are the name-led cells — a tile's own setting overrides"}>
+            hint={srole === "presets" ? "Title forms are the name-led cells — a tile's own setting overrides" : "a tile's own setting overrides"}>
             <Select value={sec.accent_style ?? ""}
               onchange={(e) => { if (e.target.value) sec.accent_style = e.target.value; else delete sec.accent_style; edit(); }}
               options={srole === "activities"
                 ? [{ value: "", label: "Basic (default)" },
                   { value: "tint", label: "Tint" },
                   { value: "bloom", label: "Bloom" }]
-                : [{ value: "", label: "Icon basic (default)" },
+                : srole === "presets"
+                ? [{ value: "", label: "Icon basic (default)" },
                   { value: "tint", label: "Icon tint" },
                   { value: "bloom", label: "Icon bloom" },
                   { value: "title", label: "Title" },
                   { value: "title-tint", label: "Title + tint" },
-                  { value: "title-bloom", label: "Title + bloom" }]} />
+                  { value: "title-bloom", label: "Title + bloom" }]
+                : [{ value: "", label: "Icon basic (default)" },
+                  { value: "tint", label: "Icon tint" },
+                  { value: "bloom", label: "Icon bloom" }]} />
           </Field>
           {#if srole !== "activities" && srole !== "presets"}
           <Field label="Label position (all cards here)"
@@ -674,18 +685,48 @@
     <!-- CONTROL TARGET (drawers pass keys through, e.g. Apps' power) -->
     <SectionFold label="Control target" badge={scr.control_target ? "keys pass to a device here" : "off — keys drive the app"} bind:open={ctOpen}>
       {#if scr.control_target}
+        <!-- twin of ViewEditor's block (2026-09-04): placeholders say
+             what BLANK does — a token placeholder read as a set value -->
+        <InfoPop title="Control target"
+          text="Which entity the physical keys drive while standing on this view, and which keys pass through to it. Blank fields keep today's behavior: a blank Navigation means the pad walks the app's tiles; blank Power keeps the power key's normal meaning; blank Volume rides the activity's wiring. $context.* refs resolve from whatever activity or device supplies the page."
+          examples={[
+            { label: "a TV surface — full passthrough",
+              json: { label: "$activity.name", navigation: "$context.dpad",
+                power: "$context.power", volume: "$context.volume",
+                pass_through: ["up", "down", "left", "right", "select", "back", "home", "power"] } },
+            { label: "power-only (a drawer that must never steal the pad)",
+              json: { label: "$activity.name", power: "$context.power",
+                volume: "$context.volume", pass_through: ["power"] } },
+          ]} />
         <div class="grid grid-cols-2 gap-3">
-          <Field label="Label"><Input bind:value={scr.control_target.label} class="font-mono text-[12.5px]" /></Field>
-          <Field label="Navigation (D-pad)"><Input bind:value={scr.control_target.navigation} placeholder="$context.dpad" class="font-mono text-[12.5px]" /></Field>
-          <Field label="Power"><Input bind:value={scr.control_target.power} placeholder="$context.power" class="font-mono text-[12.5px]" /></Field>
-          <Field label="Volume"><Input bind:value={scr.control_target.volume} placeholder="$context.volume" class="font-mono text-[12.5px]" /></Field>
+          <Field label="Label" hint="the name the BACK/HOME strip shows while keys are passed — $activity.name = the running activity">
+            <Input bind:value={scr.control_target.label} class="font-mono text-[12.5px]" /></Field>
+          <Field label="Navigation (D-pad)" hint="e.g. $context.dpad — where passed-through arrows/OK go">
+            <Input bind:value={scr.control_target.navigation} placeholder="blank — the pad walks the app" class="font-mono text-[12.5px]" /></Field>
+          <Field label="Power" hint="e.g. $context.power">
+            <Input bind:value={scr.control_target.power} placeholder="blank — power keeps its normal meaning" class="font-mono text-[12.5px]" /></Field>
+          <Field label="Volume" hint="e.g. $context.volume">
+            <Input bind:value={scr.control_target.volume} placeholder="blank — rides the activity's wiring" class="font-mono text-[12.5px]" /></Field>
         </div>
-        <Field label="Keys passed to the device" hint="everything else stays with the app">
+        <Field label="Additional physical keys passed to the device" hint="everything else stays with the app">
           <Chips suggestions={KEYS} placeholder="add key…"
             bind:items={() => scr.control_target.pass_through ?? [],
               (v) => (scr.control_target.pass_through = v)} />
         </Field>
-        <Button size="sm" variant="danger" onclick={() => delete scr.control_target}>Remove control target</Button>
+        <!-- THE TUNER, OUT LOUD (the 2026-09-05 forum promise) — the
+             ViewEditor twin; same field, same words -->
+        <div class="mt-2">
+          <Switch
+            checked={tunerOn(scr.control_target)}
+            label="TV tuner — channel up/down go to the device (adds ch_up / ch_down to the keys above)"
+            onCheckedChange={(v) => setTuner(scr.control_target, v)}
+          />
+        </div>
+        <span class="flex items-center gap-2">
+          <Button size="sm" onclick={() => fillControlTargetDefaults(scr.control_target)}
+            title="Blank fields take the $ tokens; up / down / left / right / select / back / home / power join the passed keys. Anything already set is kept.">Fill in defaults</Button>
+          <Button size="sm" variant="danger" onclick={() => delete scr.control_target}>Remove control target</Button>
+        </span>
       {:else}
         <Button size="sm" onclick={() => (scr.control_target = { label: "$activity.name", navigation: "$context.dpad", power: "$context.power", volume: "$context.volume", pass_through: [] })}>Add control target</Button>
       {/if}

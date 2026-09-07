@@ -53,6 +53,13 @@ function volHeld(le, l) {
 WIDGETS.volume = {
     /* commands go to `entity`; the meter reads `level_entity` when set
        (e.g. TV receives ARC volume keys, soundbar reports the level) */
+    /* NO feature gate here, on purpose (2026-09-05, feedback-3 #4
+       weighed it when the stock's volume row became this widget): an
+       IR-driven TV publishes supported_features 0 and still has real
+       volume — the keys ride the control target — so gating this
+       widget on MPF bits would hide working rows (probe-entity-phase1
+       encodes that case). The stepper keeps its gate; this widget
+       stays ungated, as it has been since v0.58. */
     /* ONE LANGUAGE (2026-08-31 — Suresh: "we need a design language
        that is consistent"): the control owns its number in BOTH
        modes now — slider's center readout as always, and compact's

@@ -108,17 +108,22 @@
      without ever running the adoption — same erasure, other door). */
   function adoptWired(newDevId) {
     const covered = new Set();
-    for (const c of newDevId ? [...cast, newDevId] : cast)
-      for (const e of Object.values(devLib[c]?.roles || {})) covered.add(e);
+    for (const c of newDevId ? [...cast, newDevId] : cast) {
+      if (devLib[c])
+        for (const e of Object.values(devLib[c].roles || {})) covered.add(e);
+      /* a loose ENTITY cast member covers itself (one ordered cast —
+         feedback-3 round 3) */
+      else if (typeof c === "string" && c.includes(".")) covered.add(c);
+    }
     const ctxRaw = [];
     for (const r of ROLES) {
       const v = a.context?.[r];
       if (typeof v === "string" && v.includes(".")) ctxRaw.push(v);
     }
     for (const ent of [...(Array.isArray(a.devices) ? a.devices : []), ...ctxRaw])
-      if (!covered.has(ent) && !(a.extra_devices || []).includes(ent)) {
-        if (!a.extra_devices) a.extra_devices = [];
-        a.extra_devices.push(ent);
+      if (!covered.has(ent) && !(a.cast || []).includes(ent)) {
+        if (!a.cast) a.cast = [];
+        a.cast.push(ent);
       }
   }
   function addCast(devId) {
@@ -184,8 +189,11 @@
     if (!a.cast) a.cast = [];
     let gid = "group", n = 2;
     while (groups.some((g) => g.group === gid)) gid = "group_" + n++;
+    /* no `shows` seed (feedback-3 round 2 — the Members-draw-as
+       select is retired): each member's own ⚙ decides; a legacy
+       g.shows is still honored as the members' default */
     a.cast.push({ group: gid, name: "Group", icon: "material:widgets",
-      shows: "device", members: [] });
+      members: [] });
     openGroup = gid;
     recompile();
   }
@@ -227,7 +235,67 @@
     if (!role) return null;
     return devLib[devId]?.roles?.[role] ? null : role;
   }
+  /* THE DRAWS-AS TAG (2026-09-05, his alternate ruling on feedback-3
+     #1: "honoring the existing settings of each device. So it draws
+     the same way if its inside or outside a group… We could put a
+     little tag in the Group rows"). The engine has always resolved a
+     group member's render as: its own ⚙ pick first, the group's
+     Members-draw-as second, launcher last — so nothing moves; the
+     tag just SAYS the resolved answer, with the variant when one is
+     set. */
+  function drawsTag(key, g) {
+    const p = a.present?.[key];
+    const t = p?.type || p?.shows || g?.shows || "device";
+    const kind = SHOWS_KINDS.find((k) => k.value === t);
+    const label = t === "device" ? "launcher" : (kind?.label || t);
+    const v = p?.variant || p?.style;
+    return v ? label + " · " + v : label;
+  }
+  /* ORDER ARROWS INSIDE A GROUP (feedback-3 #3: "the rows in the
+     group need arrows") — g.members order IS the group page's order */
+  function moveMember(g, mid, dir) {
+    const l = g.members || [];
+    const i = l.indexOf(mid);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= l.length) return;
+    [l[i], l[j]] = [l[j], l[i]];
+    recompile();
+  }
   let openGroup = $state(null);   /* group row expanded for editing */
+  /* SAY WHY THE CARD ISN'T DRAWING (2026-09-05 groups round — Suresh:
+     "If I add a Group - but Controller Group is not available,
+     nothing, obviously, happens. I should have some indicator - so I
+     go and turn it on"). Two silent ways a group has nowhere to
+     draw: the Controller tab's Cast-group cards band is switched
+     off, or the activity's Navigate-to page simply has no groups
+     band. Both get an honest line on the group card. */
+  const groupsBandOff = $derived(a?.surface?.groups === false);
+  function turnGroupsBandOn() {
+    if (a.surface) {
+      delete a.surface.groups;
+      if (!Object.keys(a.surface).length) delete a.surface;
+    }
+    schedulePreview();
+  }
+  const targetHasGroupsBand = (g) => {
+    const ref = a?.screen || "";
+    let tiles = null;
+    if (ref.startsWith("controller:")) {
+      const c = app.draft?.controllers?.[ref.slice(11)];
+      if (c) tiles = [...(c.tiles || []),
+        ...(c.sections || []).flatMap((s) => s.tiles || [])];
+    } else if (ref && app.draft?.screens?.[ref]) {
+      const sc = app.draft.screens[ref];
+      tiles = [...(sc.tiles || []),
+        ...(sc.sections || []).flatMap((s) => s.tiles || [])];
+    }
+    if (!tiles) return true;   /* no target yet — nothing to warn about */
+    /* a demoted card (where: "devices") draws through the devices
+       generator; the default draws through the groups band */
+    return (g?.where === "devices")
+      ? tiles.some((t) => t?.type === "devices")
+      : tiles.some((t) => t?.type === "groups");
+  };
 
   /* THE RETURN TRIP (v0.61 — Suresh: "We need a *prominent* return to
      Bar>Activity Name … then it will feel like a shortcut. Hopefully
@@ -285,45 +353,33 @@
     ent = (ent || "").trim();
     if (!ent) return;
     adoptWired(null);          /* v0.75.3: this door erases too — see above */
-    if (!a.extra_devices) a.extra_devices = [];
-    if (a.extra_devices.includes(ent)) {
+    if (!a.cast) a.cast = [];
+    if (a.cast.includes(ent)) {
       setStatus("'" + ent + "' is already in the cast — one row per "
         + "member. For a second control of the same entity, add a tile "
         + "to the page (its Draws-as is independent).", "err");
       return;
     }
-    a.extra_devices.push(ent);
+    /* one ordered cast (feedback-3 round 3): a loose entity is a
+       first-class member — it lands where it lands and moves with
+       the same arrows as everything else */
+    a.cast.push(ent);
     guessRoles(ent);           /* v0.78: unwired roles fill from the domain */
     regenDevices();
     recompile();
   }
   function removeExtraEnt(ent) {
+    a.cast = (a.cast || []).filter((x) => x !== ent);
     a.extra_devices = (a.extra_devices || []).filter((x) => x !== ent);
+    if (!a.extra_devices.length) delete a.extra_devices;
+    /* leave no dangling member (2026-09-05 groups round — the same
+       sweep removeCast has always done: a loose entity removed here
+       used to STAY in g.members, and re-adding it later met a stale
+       membership that made the group ticks lie) */
+    for (const g of groups)
+      if ((g.members || []).includes(ent))
+        g.members = g.members.filter((m) => m !== ent);
     dropPres(ent);
-    regenDevices();
-    recompile();
-  }
-  /* CAST ORDER (2026-08-31 — Suresh: "We need to be able to order
-     the elements in the cast"): swap within the owning array, then
-     regenDevices — a.devices (the generated band's order) rebuilds
-     from cast order, so the move is immediately real. Devices and
-     groups move in a.cast; loose entities within extra_devices
-     (they render after the cast — the two lists don't interleave,
-     which is existing structure). */
-  function moveCastMember(devId, dir) {
-    const i = (a.cast || []).indexOf(devId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= a.cast.length) return;
-    [a.cast[i], a.cast[j]] = [a.cast[j], a.cast[i]];
-    regenDevices();
-    recompile();
-  }
-  function moveExtra(ent, dir) {
-    const l = a.extra_devices || [];
-    const i = l.indexOf(ent);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= l.length) return;
-    [l[i], l[j]] = [l[j], l[i]];
     regenDevices();
     recompile();
   }
@@ -355,8 +411,17 @@
     let id = stem, n = 2;
     while (lib[id]) id = stem + "_" + n++;
     lib[id] = dev;
+    /* the minted device takes the entity's SLOT in the one ordered
+       cast (feedback-3 round 3) — the row keeps its place */
+    const i = (a.cast || []).indexOf(ent);
+    a.cast = (a.cast || []).filter((x) => x !== ent);
     a.extra_devices = (a.extra_devices || []).filter((x) => x !== ent);
+    if (!a.extra_devices.length) delete a.extra_devices;
     addCast(id);
+    if (i >= 0 && a.cast.includes(id)) {
+      a.cast = a.cast.filter((x) => x !== id);
+      a.cast.splice(i, 0, id);
+    }
     setStatus("⊞ " + (dev.name || id) + " pre-wired and cast — " + ent +
       " now rides its bundle", "ok");
   }
@@ -376,18 +441,20 @@
   function importSetup(sid) {
     const sn = snippetsOf("setup").find(([k]) => k === sid)?.[1];
     if (!sn) return;
-    /* legacy snippets carried {devices, roles} — translate on the fly */
+    /* legacy snippets carried {devices, roles} or extra_devices —
+       both translate into the ONE ordered cast on the fly */
     if (sn.data.cast || sn.data.wiring) {
       a.cast = JSON.parse(JSON.stringify(sn.data.cast || []));
       a.wiring = JSON.parse(JSON.stringify(sn.data.wiring || {}));
-      if (sn.data.extra_devices) a.extra_devices = [...sn.data.extra_devices];
+      for (const ent of sn.data.extra_devices || [])
+        if (!a.cast.includes(ent)) a.cast.push(ent);
       if (sn.data.present) a.present = JSON.parse(JSON.stringify(sn.data.present));
       else delete a.present;
     } else {
-      a.extra_devices = JSON.parse(JSON.stringify(sn.data.devices || []));
+      a.cast = JSON.parse(JSON.stringify(sn.data.devices || []));
       a.wiring = JSON.parse(JSON.stringify(sn.data.roles || {}));
-      a.cast = [];
     }
+    delete a.extra_devices;
     if (sn.data.device_options)
       a.device_options = JSON.parse(JSON.stringify(sn.data.device_options));
     regenDevices();
@@ -574,6 +641,9 @@
           what; checkboxes curate the controller's Devices list.
           A <b>group</b> tucks some of them behind one nav card on the
           controller — where they're drawn, never what they are.
+          The panel's stacking — Now Playing, Volume, the group
+          cards… — is the <b>Controller</b> tab's ↑↓ order; inside a
+          group, member rows set the group page's order.
         </p>
         <!-- ONE ROW SHAPE, two homes (v0.60): a cast device renders the
              same whether it stands on the controller or sits inside a
@@ -596,6 +666,20 @@
               {#each Object.entries(wiring).filter(([, t]) => t === devId) as [role] (role)}
                 <span class="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
               {/each}
+              <!-- the device's VOICE, worn on the row (2026-09-04 —
+                   Suresh: "We could show the selected dialect on the
+                   tile"): quiet chip, only where a dialect is set -->
+              {#if d?.dialect}
+                <span class="rounded-full border border-line bg-sunk px-2 py-0.5 text-[10px] text-dim"
+                  title="this device's dialect — set in its ⚙ or the Devices editor">{app.draft?.dialects?.[d.dialect]?.name || d.dialect}</span>
+              {/if}
+              {#if g}
+                <!-- the draws-as TAG (feedback-3 alternate ruling):
+                     grouped rows SAY what they draw — settings honored
+                     from the row's own ⚙, nothing moves -->
+                <span class="shrink-0 rounded-full bg-raised px-2 py-0.5 text-[10px] font-medium text-dim"
+                  title="how this member draws on the group's page — its own ⚙ pick first, the group's Members-draw-as second">{drawsTag(devId, g)}</span>
+              {/if}
               {#if !d}<span class="text-[11px] text-danger">not in the library</span>{/if}
               <span class="ml-auto flex shrink-0 items-center gap-2.5">
                 {#if groups.length}
@@ -627,14 +711,6 @@
                      cast's order IS the Devices band's order
                      (regenDevices rebuilds a.devices from it) -->
                 {#if !g}
-                  <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
-                    disabled={a.cast?.indexOf(devId) <= 0}
-                    title="Move up — the cast's order is the controller's order"
-                    onclick={() => moveCastMember(devId, -1)}>▲</button>
-                  <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
-                    disabled={a.cast?.indexOf(devId) >= (a.cast?.length ?? 0) - 1}
-                    title="Move down"
-                    onclick={() => moveCastMember(devId, 1)}>▼</button>
                 {/if}
                 <button class={"cursor-pointer border-0 bg-transparent p-1 " +
                     (a.present?.[devId] && openPres !== devId ? "text-accent" : "text-dim hover:text-accent")}
@@ -686,39 +762,9 @@
             </div>
           </div>
         {/snippet}
-        <div class="space-y-2">
-          <!-- the cast in ITS OWN ORDER: ungrouped devices where they
-               stand, each group where it stands, members nested -->
-          {#each castRaw as member (typeof member === "string" ? "d:" + member : "g:" + member.group)}
-            {#if typeof member === "string"}
-              {#if !groupOf(member)}{@render castRow(member, null)}{/if}
-            {/if}
-          {/each}
-          {#if !cast.length && !(a.extra_devices || []).length && !legacyEnts.length}
-            <p class="m-0 text-xs text-dim">
-              No devices cast yet — search below. Devices you pick are
-              added to your library automatically.
-            </p>
-          {/if}
-          <!-- LEGACY rows (v0.53): entities wired straight into roles
-               by yaml-era activities — visible again, promotable -->
-          {#each legacyEnts as ent (ent)}
-            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
-              <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
-              {#each rolesOf(ent) as role (role)}
-                <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
-              {/each}
-              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
-                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
-                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
-              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
-                title="Unwire — clears every role pointing at this entity"
-                aria-label="Remove entity" onclick={() => removeLegacyEnt(ent)}>✕</button>
-            </div>
-          {/each}
-          <!-- entities cast DIRECTLY (no pre-wiring, no "loose" — v0.48:
-               a pre-wired device is a convenience, not a requirement) -->
-          {#each (a.extra_devices || []).filter((e) => !groupOf(e)) as ent (ent)}
+        <!-- a LOOSE ENTITY row (v0.48; a first-class CAST member since
+             feedback-3 round 3 — one ordered list, same arrows) -->
+        {#snippet looseRow(ent)}
             <!-- quiet rows (v0.48.1 — "too many things competing for
                  eye"): bg punched down to the page, hairline border -->
             <div class="rounded-[8px] border border-line bg-bg px-2 py-1.5">
@@ -740,14 +786,6 @@
                 {#each rolesOf(ent) as role (role)}
                   <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
                 {/each}
-                <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
-                  disabled={(a.extra_devices || []).indexOf(ent) <= 0}
-                  title="Move up — the cast's order is the controller's order"
-                  onclick={() => moveExtra(ent, -1)}>▲</button>
-                <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
-                  disabled={(a.extra_devices || []).indexOf(ent) >= (a.extra_devices || []).length - 1}
-                  title="Move down"
-                  onclick={() => moveExtra(ent, 1)}>▼</button>
                 <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
                   title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
                   onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
@@ -782,11 +820,11 @@
               </div>
               <PresPanel {card} key={ent} isEnt={true} inGroup={false} open={openPres === ent} onclose={closePres} />
             </div>
-          {/each}
-          <!-- GROUP CARDS render BELOW the cast rows (v0.83.7 tidy-ups:
-               "I dont think it should sit above the primary role
-               devices") — curation after the raw cast -->
-          {#each groups as g (g.group)}
+        {/snippet}
+        <!-- a GROUP card — rendered IN PLACE in the cast walk; the
+             panel's stacking is the Controller tab's ↑↓ order
+             (round 8: one order lever) -->
+        {#snippet groupCard(g)}
             {#if true}
               {@const kind = SHOWS_KINDS.find((k) => k.value === (g.shows || "device"))}
               <div class="rounded-[8px] border border-line-strong bg-inset px-2.5 py-2">
@@ -809,14 +847,36 @@
                       onclick={() => removeGroup(g.group)}>✕</button>
                   </span>
                 </div>
+                {#if groupsBandOff && (g.where ?? "controls") === "controls"}
+                  <p class="mt-1.5 mb-0 rounded-[6px] border border-note-line bg-note-bg px-2 py-1 text-[11px] text-ink-2">
+                    This group's card won't appear — the <b>Cast-group
+                    cards</b> band is switched off on the Controller tab.
+                    <button class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-medium text-accent hover:underline"
+                      onclick={turnGroupsBandOn}>Turn it on</button>
+                  </p>
+                {:else if !targetHasGroupsBand(g)}
+                  <p class="mt-1.5 mb-0 rounded-[6px] border border-note-line bg-note-bg px-2 py-1 text-[11px] text-ink-2">
+                    This group's card has nowhere to draw — the page this
+                    activity lands on has no
+                    {(g.where ?? "controls") === "devices" ? "Devices" : "Cast-group cards"}
+                    band. Stock controllers carry both; on a custom page,
+                    add a <span class="font-mono">{(g.where ?? "controls") === "devices" ? "devices" : "groups"}</span>
+                    tile{(g.where ?? "controls") === "devices" ? "" : ", or set Where to “Devices section”"}.
+                  </p>
+                {/if}
                 {#if openGroup === g.group}
-                  <div class="mt-2 flex flex-wrap items-end gap-3 border-t border-line pt-2">
+                  <!-- items-START (feedback-3 #1: "Its all misaligned")
+                       — items-end let the hinted fields shove the
+                       hint-less Name/Icon labels off the shared top
+                       line; now every label sits level and the hints
+                       hang below their own field -->
+                  <div class="mt-2 flex flex-wrap items-start gap-3 border-t border-line pt-2">
                     <div class="min-w-[160px] flex-[2]">
                       <Field label="Name">
                         <Input value={g.name || ""} onchange={(e) => renameGroup(g, e.target.value)} />
                       </Field>
                     </div>
-                    <div class="w-[180px] min-w-[140px] flex-1">
+                    <div class="w-[220px] min-w-[180px] flex-1">
                       <Field label="Icon">
                         <IconPicker bind:value={g.icon} onchange={recompile} />
                       </Field>
@@ -832,12 +892,36 @@
                             recompile(); }} />
                       </Field>
                     </div>
-                    <!-- "Children show" RETIRED (v0.76 — Suresh: "move
-                         the Children Show out. And put the device options
-                         in the device rows"): what each member draws as is
-                         its own row's ⚙ now. A legacy g.shows survives as
-                         the members' default (the engine reads member
-                         first, group second) but is no longer authored. -->
+                    <!-- "Members draw as" RETIRED AGAIN (feedback-3
+                         round 2 — Suresh, after the per-row tags + ⚙
+                         landed: "We no longer need this drop down do
+                         we? Its confusing!"): each member's own ⚙ is
+                         the one place; a legacy g.shows still reads
+                         as the members' default and shows on the
+                         header chip. Its slot went to the card's
+                         STATUS LINE ("would be cool if we could do:
+                         {count} controls, {active} active or blank!"):
+                         g.sub — tokens substitute live, ∅ writes ""
+                         (no line at all), empty deletes (auto). -->
+                    <div class="w-[220px] min-w-[180px] flex-1">
+                      <Field label="Status line" hint={"{count} and {active} substitute live · blank = auto"}>
+                        <div class="flex items-center gap-1">
+                          <Input value={g.sub ?? ""}
+                            placeholder={g.sub === "" ? "no line" : "auto — 3 entities · 2 active"}
+                            onchange={(e) => { const v = e.target.value;
+                              if (v) g.sub = v;
+                              else if (g.sub !== "") delete g.sub;
+                              recompile(); }} />
+                          <button class={"h-[38px] w-[34px] shrink-0 cursor-pointer rounded-[6px] border font-[inherit] text-[13px] " +
+                              (g.sub === "" ? "border-accent bg-accent/15 text-accent-text"
+                                : "border-line-strong bg-surface text-dim hover:text-ink")}
+                            title={g.sub === "" ? "No line (active) — click for auto" : "No status line at all"}
+                            onclick={() => { if (g.sub === "") delete g.sub;
+                              else g.sub = "";
+                              recompile(); }}>∅</button>
+                        </div>
+                      </Field>
+                    </div>
                   </div>
                   <p class="mt-2 mb-1 text-[11px] text-dim">
                     A group is a <b>nav card</b> on the controller and a page
@@ -849,7 +933,14 @@
                     {#if !(g.members || []).length}<b> Tick the devices it holds.</b>{/if}
                   </p>
                   <div class="flex flex-wrap gap-x-4 gap-y-1">
-                    {#each [...cast, ...(a.extra_devices || [])] as cid (cid)}
+                    <!-- DEDUPED (2026-09-05 groups round — the fence's
+                         each_key_duplicate: a loose entity ticked into a
+                         group joins `cast` through the group's members
+                         while STAYING in extra_devices, so this list held
+                         it twice and the keyed each crashed the whole
+                         card — the silent wreck behind "It shows
+                         independtly - and the group stays hidden") -->
+                    {#each [...new Set([...cast, ...(a.extra_devices || [])])] as cid (cid)}
                       {@const other = groupOf(cid)}
                       {@const mine = other?.group === g.group}
                       <label class={"inline-flex items-center gap-1.5 " +
@@ -868,14 +959,50 @@
                 {#if (g.members || []).length}
                   <div class="mt-2 space-y-1.5 border-l-2 border-line pl-2.5">
                     {#each g.members as mid (mid)}
-                      {#if devLib[mid]}{@render castRow(mid, g)}
+                      {#if devLib[mid]}
+                        <div class="flex items-start gap-1">
+                          <div class="min-w-0 flex-1">{@render castRow(mid, g)}</div>
+                          <!-- feedback-3 #3: order within the group IS
+                               the group page's order -->
+                          <span class="flex shrink-0 items-center gap-0.5 pt-2">
+                            <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                              disabled={(g.members || []).indexOf(mid) <= 0}
+                              title="Move up — the group page draws members in this order"
+                              onclick={() => moveMember(g, mid, -1)}>▲</button>
+                            <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                              disabled={(g.members || []).indexOf(mid) >= (g.members || []).length - 1}
+                              title="Move down"
+                              onclick={() => moveMember(g, mid, 1)}>▼</button>
+                          </span>
+                        </div>
                       {:else}
-                        <!-- a LOOSE entity member -->
-                        <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
-                          <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={mid}>{mid}</span>
-                          <button class="cursor-pointer border-0 bg-transparent p-1 text-[11px] text-dim hover:text-danger"
-                            title="Take it out of the group — it returns to the cast rows"
-                            onclick={() => setDeviceGroup(mid, "")}>✕</button>
+                        <!-- a LOOSE entity member: same voice as the
+                             ungrouped loose rows — the draws-as TAG says
+                             the resolved render (its own ⚙ first, the
+                             group default second), the ⚙ opens the same
+                             panel, and ▲▼ order the group page -->
+                        <div class="rounded-[8px] border border-line bg-bg px-2 py-1.5">
+                          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span class="min-w-[140px] flex-1 truncate font-mono text-[11.5px] text-ink" title={mid}>{mid}</span>
+                            <span class="shrink-0 rounded-full bg-raised px-2 py-0.5 text-[10px] font-medium text-dim"
+                              title="how this member draws on the group's page — its own ⚙ pick first, the group's Members-draw-as second">{drawsTag(mid, g)}</span>
+                            <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                              disabled={(g.members || []).indexOf(mid) <= 0}
+                              title="Move up — the group page draws members in this order"
+                              onclick={() => moveMember(g, mid, -1)}>▲</button>
+                            <button class="cursor-pointer border-0 bg-transparent p-0.5 text-dim hover:text-ink disabled:opacity-30"
+                              disabled={(g.members || []).indexOf(mid) >= (g.members || []).length - 1}
+                              title="Move down"
+                              onclick={() => moveMember(g, mid, 1)}>▼</button>
+                            <button class={"shrink-0 cursor-pointer border-0 bg-transparent p-1 " +
+                                (a.present?.[mid] && openPres !== mid ? "text-accent" : "text-dim hover:text-accent")}
+                              title="Presentation — display name, icon, what it draws as, what a tap does"
+                              onclick={() => editPres(mid)}>⚙</button>
+                            <button class="cursor-pointer border-0 bg-transparent p-1 text-[11px] text-dim hover:text-danger"
+                              title="Take it out of the group — it returns to the cast rows"
+                              onclick={() => setDeviceGroup(mid, "")}>✕</button>
+                          </div>
+                          <PresPanel {card} key={mid} isEnt={true} inGroup={true} open={openPres === mid} onclose={closePres} />
                         </div>
                       {/if}
                     {/each}
@@ -883,6 +1010,45 @@
                 {/if}
               </div>
             {/if}
+        {/snippet}
+        <div class="space-y-2">
+          <!-- the cast in ITS OWN ORDER: ungrouped devices where they
+               stand, each group where it stands, members nested -->
+          <!-- ONE ORDERED CAST (feedback-3 round 3): devices, loose
+               entities and group cards all render HERE, in a.cast
+               order — the tab's order is the controller's order,
+               and every ▲▼ moves within the same list -->
+          {#each castRaw as member (typeof member === "string" ? "m:" + member : "g:" + member.group)}
+            {#if typeof member === "string"}
+              {#if !groupOf(member)}
+                {#if member.includes(".")}{@render looseRow(member)}
+                {:else}{@render castRow(member, null)}{/if}
+              {/if}
+            {:else}
+              {@render groupCard(member)}
+            {/if}
+          {/each}
+          {#if !castRaw.length && !legacyEnts.length}
+            <p class="m-0 text-xs text-dim">
+              No devices cast yet — search below. Devices you pick are
+              added to your library automatically.
+            </p>
+          {/if}
+          <!-- LEGACY rows (v0.53): entities wired straight into roles
+               by yaml-era activities — visible again, promotable -->
+          {#each legacyEnts as ent (ent)}
+            <div class="flex items-center gap-2 rounded-[8px] border border-line bg-bg px-2 py-1.5">
+              <span class="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink" title={ent}>{ent}</span>
+              {#each rolesOf(ent) as role (role)}
+                <span class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">{role}</span>
+              {/each}
+              <button class="shrink-0 cursor-pointer rounded-[6px] border border-dashed border-line-strong bg-transparent px-1.5 py-0.5 text-[10px] text-dim hover:border-accent/60 hover:text-accent"
+                title="Promote to a pre-wired device — mints it from this entity (integration siblings + claims) and swaps it into the cast"
+                onclick={() => promoteExtra(ent)}>⊞ pre-wire</button>
+              <button class="cursor-pointer border-0 bg-transparent p-1 text-dim hover:text-danger"
+                title="Unwire — clears every role pointing at this entity"
+                aria-label="Remove entity" onclick={() => removeLegacyEnt(ent)}>✕</button>
+            </div>
           {/each}
           <CastPicker {card} {addCast} {addExtraEnt} />
           <div class="flex items-center">

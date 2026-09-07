@@ -11,6 +11,13 @@
    concatenates; build-engine.mjs is the file list's authority.
    ================================================================ */
 function expandTile(t) {
+  /* THE EYE WORKS ON GENERATORS TOO (2026-09-05, feedback-1:
+     "Doesn't let me hide some tiles like vol, spk, groups"): the
+     hidden flag lives on the AUTHORED tile, but generators expand
+     into fresh tiles that never carried it — visibleTile then saw
+     nothing to hide. A hidden source expands to nothing, whatever
+     its type. */
+  if (t && t.hidden === true) return [];
   const gen = TILE_GENERATORS[t.type];
   /* canonTile (core/adapters.js): an AUTHORED tile in the canonical
      type+variant spelling translates to the widgets' working shape
@@ -130,6 +137,33 @@ function genAppTiles(t) {
     }).filter(Boolean);
 }
 
+/* WHOSE APPS IS THIS DRAWER SHOWING? The dialect name ("Fire TV",
+   "Samsung Tizen") for the CURRENT screen when it is a drawer with an
+   apps grid — resolved exactly as genAppTiles resolves the catalog
+   (same chain, same context, incl the drawer-serves-opener law), so
+   the title can never disagree with the tiles. barTitle uses it
+   (2026-09-04 — Suresh: "Menu just says Porch Apps — would be better
+   if said FireTV Apps or Samsung Apps"). Only honest for S.screen:
+   the resolution reads ctxFor(S.screen). */
+function appsDrawerDialectName(sc) {
+  if (!sc || !sc.drawer) return null;
+  let tiles = Array.isArray(sc.tiles) ? sc.tiles.slice() : [];
+  (Array.isArray(sc.sections) ? sc.sections : []).forEach(s => {
+    if (s && Array.isArray(s.tiles)) tiles = tiles.concat(s.tiles);
+  });
+  const t = tiles.filter(x => x && x.type === "apps")[0];
+  if (!t) return null;
+  const ctx = ctxFor(S.screen);
+  let clsId = t.dialect || t.class || ctx.dialect || ctx.app_class;
+  if (typeof clsId === "string" && clsId.startsWith("$context."))
+    clsId = ctx[clsId.slice(9)];
+  const classes = CONFIG.dialects || CONFIG.app_classes || {};
+  if (!clsId && Object.keys(classes).length === 1)
+    clsId = Object.keys(classes)[0];
+  const cls = classes[clsId];
+  return (cls && cls.name) || null;
+}
+
 /* type: "keys" */
 function genKeyTiles(t) {
     /* DEVICE KEYS (v0.46): one preset tile per key the active
@@ -174,8 +208,11 @@ function genDeviceTiles(t) {
     if (!castAid) {
       const cur = renderActivityId();
       const act = cur && (CONFIG.activities || {})[cur];
-      if (act && act.screen === S.screen) {
-        if (act.surface && act.surface.devices === false) return [];
+      /* preview-as is the law here too (2026-09-06): an impersonated
+         activity supplies its cast on ANY surface — "show me this
+         surface with that as the input" */
+      if (act && (act.screen === S.screen || cur === S.pvActivity)) {
+        if (actSurface(act).devices === false) return [];
         castAid = cur;
       }
     }
@@ -224,17 +261,33 @@ function genDeviceTiles(t) {
           else devPres[e] = p;
         });
       });
-      (actP.extra_devices || []).forEach(ent => {
-        const p = presM[ent];
-        if (p && p.where === "controls") skipW[ent] = 1;
-      });
+      /* ANY entity-keyed presentation saying where:"controls" leaves
+         this section — the loose entity may live in a.cast now
+         (feedback-3 round 3: one ordered cast) or in the legacy
+         extra_devices; the key's shape is the same either way */
+      for (const k in presM)
+        if (k.indexOf(".") > 0 && presM[k] && presM[k].where === "controls")
+          skipW[k] = 1;
     }
     const doneInline = {};
     /* a grouped LOOSE entity leaves this section for its group's
-       page, same as a grouped device (v0.83.7 tidy-ups) */
+       page, same as a grouped device (v0.83.7 tidy-ups).
+       A grouped PRE-WIRED device's entities leave too (2026-09-05
+       groups round — Suresh: "It shows independtly - and the group
+       stays hidden"): the filter matched member STRINGS only, and a
+       device's members are entities — so ticking a pre-wired device
+       into a group never took its tiles off this band. Grouping is
+       "where its control gets drawn"; the roles it holds are
+       untouched. */
     const groupedIds = actP ? groupedDeviceIds(actP) : [];
+    const groupedEnts = {};
+    groupedIds.forEach(m => {
+      groupedEnts[m] = 1;
+      const gd = (CONFIG.devices || {})[m];
+      if (gd) Object.values(gd.roles || {}).forEach(e => { groupedEnts[e] = 1; });
+    });
     return ents.filter(e => !skipW[e])
-      .filter(e => groupedIds.indexOf(e) < 0)
+      .filter(e => !groupedEnts[e])
       .filter(e => e.split(".")[0] !== "remote" || inlineOf[e])
       .filter(e => !(cmdEnt && e === cmdEnt && e !== ctx2.media_player &&
         !(dopts[e] && dopts[e].tile === true)))
@@ -273,6 +326,9 @@ function genDeviceTiles(t) {
           label: g.name || g.group,
           icon: g.icon || "material:widgets",
           style: g.style || "summary",
+          /* the authored status line (feedback-3 round 2) rides the
+             demoted card too — {count}/{active} substitute, "" = none */
+          ...(typeof g.sub === "string" ? { sub: g.sub } : {}),
           target: g.target || ("group:" + g.group),
           hide_when_empty: true,
           span: 2

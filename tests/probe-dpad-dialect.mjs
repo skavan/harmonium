@@ -111,7 +111,8 @@ ck('Studio DPAD_FALLBACK matches the engine DPAD_DEFAULT',
   ensureStockControllers(broken);
   const m2 = broken.controllers.music.sections[0].tiles[0];
   ck('music: the baked style is gone (picker free again)', !m2.style);
-  ck('music: np_default carries the default instead', m2.np_default === 'hero');
+  ck('music: np_default carries the stock default instead (Art since 0.87.0)',
+     m2.np_default === STOCK_MUSIC.sections[0].tiles[0].np_default && m2.np_default === 'art');
   ck('music: gen moved past the broken release', broken.controllers.music.gen > 6);
   const tvTiles = [];
   (broken.controllers.tv.tiles || []).forEach(t => tvTiles.push(t));

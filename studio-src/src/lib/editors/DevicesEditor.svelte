@@ -6,7 +6,8 @@
      engine reads. A device may span several HA integrations (the
      projector is androidtv_remote + ADB) — the bundle is the only
      place that knowledge lives. */
-  import { app, schedulePreview, recompileContext, ROLE_KEYS, seedDeviceFromEntity, platformOf, selectSlice, returnFromDevice } from "../state.svelte.js";
+  import { app, schedulePreview, recompileContext, ROLE_KEYS, seedDeviceFromEntity, platformOf, selectSlice, returnFromDevice, devicePageEntity } from "../state.svelte.js";
+  import DevicePageDoor from "../components/DevicePageDoor.svelte";
   import Field from "../components/Field.svelte";
   import IconPicker from "../components/IconPicker.svelte";
   import Input from "../components/Input.svelte";
@@ -19,6 +20,12 @@
   import Button from "../components/Button.svelte";
 
   const devices = $derived(app.draft?.devices);
+
+  /* THE DEVICE-PAGE DOOR moved into DevicePageDoor.svelte the same
+     day (round 3 — "the entry door should be in an activities device
+     page and a page's device page"): one shared affordance, three
+     rendering sites. devicePageEntity picks which role entity
+     carries the page. */
   const classOptions = $derived(Object.entries(app.draft?.dialects || {})
     .map(([cid, c]) => ({ value: cid, label: c.name || cid })));
 
@@ -211,6 +218,12 @@
                 <IconPicker bind:value={d.icon} onchange={() => touched(id)} />
               </Field>
             </div>
+            <!-- NO accent knob here, deliberately (2026-09-04 — Suresh:
+                 "I dont think we need that color picker in the roles
+                 section. We should use the activities color."): while a
+                 device borrows the keys, the chrome wears the CURRENT
+                 ACTIVITY's accent — the device page is a child of the
+                 activity, not an identity of its own. -->
             <div class="w-[170px] min-w-[130px] flex-1">
               <Field label="Device id" hint={users.length ? "in the cast of " + users.join(", ") : ""}>
                 <Input value={id} onchange={(e) => renameDevice(id, e.target.value)} />
@@ -263,6 +276,12 @@
                   touched(id); }} />
             </div>
           </div>
+
+          <!-- the DEVICE-PAGE door (2026-09-04, round 3): the shared
+               affordance — select a page, edit it, or fork the stock -->
+          {#if devicePageEntity(d.roles)}
+            <DevicePageDoor entity={devicePageEntity(d.roles)} />
+          {/if}
 
           <!-- wake / cold start: what a generated Start Action uses -->
           <div class="rounded-[10px] border border-line bg-sunk/40 p-3">

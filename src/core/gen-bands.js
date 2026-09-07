@@ -27,6 +27,9 @@ function genVolumeTiles(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     if (!act) return [];
+    /* round 8 ("Honor the order in the Controller"): the round-7
+       merged cast band is retired — bands stack per the Controller
+       tab's order again, and this generator emits volume rows only */
     if (srfOff(act, "volume")) return [];   /* Controller tab: band off */
     /* WHICH ROLE THIS INSTANCE DRAWS (v0.59 — Suresh: "it's not
        intuitive right now"). Was: infer the master from the activity
@@ -53,15 +56,14 @@ function genVolumeTiles(t) {
       surfaceVariant(act, "volume"),                 /* Controller tab default */
       globalVariant("volume")) || "slider";
     const out = [];
-    castDeviceIds(act).forEach(did => {
-      if (grouped.indexOf(did) >= 0) return;
+    const volRowFor = (did) => {
       const d = (CONFIG.devices || {})[did];
-      if (!d) return;
+      if (!d) return null;
       const roles = d.roles || {};
       const ve = roles[role];
-      if (!ve) return;
+      if (!ve) return null;
       const o = dopts[ve] || {};
-      if (o.volume === false) return;
+      if (o.volume === false) return null;
       /* THE BAND JOINS THE PRESENTATION SYSTEM (v0.77.1 — one member,
          one ⚙, every generated tile follows): name (member's, always
          — Suresh's call — with "" as the intentional no-label), icon,
@@ -90,7 +92,7 @@ function genVolumeTiles(t) {
          is a per-device row and keeps its own name (bandGen —
          surfDressTile skips those). */
       if (ve !== (act.context || {}).volume) base.bandGen = 1;
-      out.push(style === "stepper"
+      return style === "stepper"
         /* the ARC split rides the stepper too (Phase 0, entity-controls
            inconsistency #2): converting a volume to Stepper must not
            drop where the LEVEL actually lives */
@@ -100,7 +102,38 @@ function genVolumeTiles(t) {
             type: "volume",
             level_entity: roles.volume_level || ve,
             slider: style === "slider"
-          }));
+          });
+    };
+    const ctxV0 = (act.context || {})[role];
+    const wiredRow = () => {
+      if (!(typeof ctxV0 === "string" && ctxV0.includes("."))) return null;
+      const o2 = dopts[ctxV0] || {};
+      if (o2.volume === false) return null;
+      const pv2 = presOf(act, ctxV0);
+      const style2 = resolveVariant(presVariant(pv2), o2.volume_style, dflt);
+      const base2 = {
+        id: t.id + "_" + ctxV0.replace(/[^a-zA-Z0-9]+/g, "_"),
+        entity: ctxV0,
+        label: pv2 && typeof pv2.name === "string" ? pv2.name
+          : (st(ctxV0).a.friendly_name || ctxV0.split(".").pop()),
+        icon: (pv2 && pv2.icon) || "material:volume_up",
+        /* the wired volume itself — the band's one true tile,
+           so the label override applies (no bandGen) */
+        span: 2
+      };
+      if (pv2 && typeof pv2.card_group === "string" && pv2.card_group)
+        base2.card_group = pv2.card_group;
+      return style2 === "stepper"
+        ? Object.assign(base2, { type: "stepper", kind: "volume",
+            level_entity: (act.context || {}).volume_level || ctxV0 })
+        : Object.assign(base2, { type: "volume",
+            level_entity: (act.context || {}).volume_level || ctxV0,
+            slider: style2 === "slider" });
+    };
+    castDeviceIds(act).forEach(did => {
+      if (grouped.indexOf(did) >= 0) return;
+      const v = volRowFor(did);
+      if (v) out.push(v);
     });
     /* THE LOOSE VOLUME (v0.76.5 — Suresh: "On Listen to Music there
        is no volume control on the controller, even though volume is
@@ -111,32 +144,8 @@ function genVolumeTiles(t) {
        cast device supplied the control, the wired entity itself is
        the control. */
     if (!out.length) {
-      const ctxV = (act.context || {})[role];
-      if (typeof ctxV === "string" && ctxV.includes(".")) {
-        const o2 = dopts[ctxV] || {};
-        if (o2.volume !== false) {
-          const pv2 = presOf(act, ctxV);
-          const style2 = resolveVariant(presVariant(pv2), o2.volume_style, dflt);
-          const base2 = {
-            id: t.id + "_" + ctxV.replace(/[^a-zA-Z0-9]+/g, "_"),
-            entity: ctxV,
-            label: pv2 && typeof pv2.name === "string" ? pv2.name
-              : (st(ctxV).a.friendly_name || ctxV.split(".").pop()),
-            icon: (pv2 && pv2.icon) || "material:volume_up",
-            /* the wired volume itself — the band's one true tile,
-               so the label override applies (no bandGen) */
-            span: 2
-          };
-          if (pv2 && typeof pv2.card_group === "string" && pv2.card_group)
-            base2.card_group = pv2.card_group;
-          out.push(style2 === "stepper"
-            ? Object.assign(base2, { type: "stepper", kind: "volume",
-                level_entity: (act.context || {}).volume_level || ctxV })
-            : Object.assign(base2, { type: "volume",
-                level_entity: (act.context || {}).volume_level || ctxV,
-                slider: style2 === "slider" }));
-        }
-      }
+      const w = wiredRow();
+      if (w) out.push(w);
     }
     return out;
 }
@@ -232,7 +241,7 @@ function genSpeakerTiles(t) {
     }
     const act = aid && (CONFIG.activities || {})[aid];
     const gid = t.group ||
-      (act && act.surface && act.surface.speakers_group) || null;
+      (act && actSurface(act).speakers_group) || null;
     const grp = gid && (CONFIG.speaker_groups || {})[gid];
     const labels = {};
     let members = [];
@@ -257,10 +266,13 @@ function genSpeakerTiles(t) {
          contribute their media_player.* entries. Names come live
          from friendly_name at render time. */
       const cm = act.context && act.context.media_player;
+      /* both loose lists ride the roles-only gate (2026-09-05 drift
+         round): riders in extra_devices / a.devices otherwise kept
+         sneaking into the speakers card under preview-as */
       const loose = [].concat(
         typeof cm === "string" ? [cm] : [],
-        act.extra_devices || [],
-        Array.isArray(act.devices) ? act.devices : []);
+        pvFilterCast(act, act.extra_devices || []),
+        pvFilterCast(act, Array.isArray(act.devices) ? act.devices : []));
       loose.forEach(en => {
         if (typeof en === "string" && en.indexOf("media_player.") === 0 &&
             members.indexOf(en) < 0)
@@ -270,7 +282,7 @@ function genSpeakerTiles(t) {
     if (srfOff(act, "speakers")) return [];   /* Controller tab: band off */
     if (members.length < 2) return [];
     const mode = t.mode ||
-      (act && act.surface && act.surface.speakers_mode) ||
+      (act && actSurface(act).speakers_mode) ||
       (grp ? "launcher" : "inline");
     /* with no activity in play (a group tile on a plain hub) the
        entity stays ABSENT — an unwired $context hides the tile in
@@ -323,41 +335,38 @@ function genGroupTiles(t) {
        either. `where: "devices"` on a group sends its nav card down;
        `where: "controls"` in a member's presentation promotes its
        tile up here, beside the group cards. */
-    const gout = (groupsOff ? [] : castGroups(act)
-      .filter(g => (g.where || "controls") === "controls"))
-      .map(g => ({
-      type: "nav",
-      id: t.id + "_" + String(g.group).replace(/[^a-zA-Z0-9]+/g, "_"),
-      label: g.name || g.group,
-      icon: g.icon || "material:widgets",
-      style: g.style || "summary",
-      /* no target -> the generated page; target -> the author's own */
-      target: g.target || ("group:" + g.group),
-      hide_when_empty: true,
-      span: 2
-    }));
+    /* ONE ORDER, ONE WALK (2026-09-05, feedback-3 round 3 — Suresh:
+       "why can't I move the group like any other tile? I should be
+       able to"). Round 2 pinned group cards last, which made them
+       immovable by construction. The real fix is structural: the
+       CAST is one ordered list — device ids, loose ENTITY ids
+       (first-class members now; the Studio migrates extra_devices in
+       on load), and group objects — and this band emits that list in
+       order: each member's promoted control or nav card at the
+       member's own position. Unmigrated configs keep their
+       extra_devices promotions, trailing (the pre-migration read). */
+    /* the builders live in gen-cast.js now (round 7) — one source
+       for this generator AND the merged cast band */
+    const gout = [];
     const presW = act.present || {};
     const groupedW = groupedDeviceIds(act);
-    castDeviceIds(act).forEach(did => {
-      if (groupedW.indexOf(did) >= 0) return;
-      const p = presW[did];
-      if (!p || p.where !== "controls") return;
-      const shD = presType(p);
-      const tl = groupChildTile(did,
-        (shD && shD !== "device") ? shD : "device", t.id, p);
+    castMembers(act).forEach(m => {
+      if (m && typeof m === "object" && m.group) {
+        if (!groupsOff && (m.where || "controls") === "controls")
+          gout.push(castGroupNavTile(t.id, m));
+        return;
+      }
+      if (typeof m !== "string" || groupedW.indexOf(m) >= 0) return;
+      const tl = m.indexOf(".") > 0
+        ? castLoosePromoTile(t.id, m, presW[m])
+        : castDevicePromoTile(t.id, m, presW[m]);
       if (tl) gout.push(tl);
     });
-    (act.extra_devices || []).forEach(ent => {
-      const p = presW[ent];
-      if (!p || p.where !== "controls") return;
-      const shL = presType(p);
-      const tl = (shL && shL !== "device")
-        ? looseShowTile(ent, p, t.id)
-        : presApply({ type: "device",
-            id: t.id + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
-            entity: ent, span: 2,
-            label: st(ent).a.friendly_name || ent.split(".").pop(),
-            icon: "material:devices" }, p, ent);
+    /* LEGACY extra_devices (configs the Studio hasn't migrated):
+       their promotions trail the cast, as they always rendered */
+    pvFilterCast(act, act.extra_devices || []).forEach(ent => {
+      if (groupedW.indexOf(ent) >= 0) return;
+      const tl = castLoosePromoTile(t.id, ent, presW[ent]);
       if (tl) gout.push(tl);
     });
     return gout;

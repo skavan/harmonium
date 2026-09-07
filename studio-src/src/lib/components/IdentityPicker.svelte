@@ -9,7 +9,7 @@
      ✎ Custom row live in the footer. Behaviour is unchanged from v2:
      picking a slot NEVER deletes a held custom hex — the slot just
      wins while chosen; Custom brings the old colour straight back. */
-  import { ACCENT_HEX, BRAND_HEX, BRAND_LABEL } from "../stocklib.js";
+  import { ACCENT_HEX, BRAND_HEX, BRAND_LABEL, ACCENT_ALIAS_OF } from "../stocklib.js";
   let { accent = $bindable(), color = $bindable(), onchange = null } = $props();
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const HEX = { ...ACCENT_HEX, ...BRAND_HEX };
@@ -20,10 +20,22 @@
   const label = $derived(value === "custom" ? "Custom — " + (color || "")
     : value ? (BRAND_LABEL[value] || cap(value)) : "None");
   let open = $state(false);
-  /* the popover opens on the tier of the CURRENT value */
+  /* the popover opens on the tier of the CURRENT value — and rides
+     the VIEWPORT, not the card (2026-09-03: inside a collapsed tile
+     card the absolute popover was clipped by the card's overflow;
+     fixed positioning, like the icon dropdown, cannot be). */
   let tab = $state("accents");
+  let wrapEl = $state(null);
+  let pos = $state({ left: 0, top: 0 });
   function toggle() {
-    if (!open) tab = BRAND_HEX[accent] ? "brands" : "accents";
+    if (!open) {
+      tab = BRAND_HEX[accent] ? "brands" : "accents";
+      const r = wrapEl?.getBoundingClientRect();
+      if (r) pos = {
+        left: Math.max(8, Math.min(r.left, window.innerWidth - 288)),
+        top: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 420)),
+      };
+    }
     open = !open;
   }
   function pick(v) {
@@ -39,12 +51,15 @@
     open = false;
     onchange?.();
   }
+  /* both names where an alias exists — "Coral (red)" (palette canvas
+     V3): the plain word is discoverable, the palette name canonical */
   const rows = $derived(tab === "accents"
-    ? Object.entries(ACCENT_HEX).map(([k, hx]) => [k, hx, cap(k)])
+    ? Object.entries(ACCENT_HEX).map(([k, hx]) => [k, hx,
+        cap(k) + (ACCENT_ALIAS_OF[k] ? " (" + ACCENT_ALIAS_OF[k] + ")" : "")])
     : Object.entries(BRAND_HEX).map(([k, hx]) => [k, hx, BRAND_LABEL[k] || cap(k)]));
 </script>
 
-<div class="relative flex h-[38px] w-full min-w-0 items-center gap-1.5">
+<div bind:this={wrapEl} class="relative flex h-[38px] w-full min-w-0 items-center gap-1.5">
   <button onclick={toggle}
     class="flex h-[38px] w-full min-w-0 cursor-pointer items-center gap-2 rounded-[4px] border border-line-strong bg-field px-2 text-left text-[12.5px] text-ink outline-none focus:border-accent">
     <span class="h-[14px] w-[14px] shrink-0 rounded-full border border-line-strong"
@@ -61,7 +76,8 @@
     <!-- click-away backdrop under the popover -->
     <div class="fixed inset-0 z-40" onclick={() => (open = false)}
       role="presentation"></div>
-    <div class="absolute top-[40px] left-0 z-50 w-[280px] rounded-[10px] border border-line-strong bg-surface p-2 [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.35))]">
+    <div class="fixed z-50 w-[280px] rounded-[10px] border border-line-strong bg-surface p-2 [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.35))]"
+      style="left:{pos.left}px; top:{pos.top}px">
       <div class="mb-2 flex gap-1 rounded-[7px] bg-sunk p-0.5">
         {#each [["accents", "Accents"], ["brands", "Brands"]] as [k, lbl] (k)}
           <button onclick={() => (tab = k)}

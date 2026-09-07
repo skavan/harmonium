@@ -88,6 +88,21 @@ function boundButtons() {
   for (let i = chain.length - 1; i >= 0; i--)
     if ((ownFirst && i === 0) || chain[i].buttons_inherit)
       Object.assign(out, chain[i].buttons || {});
+  /* TAKEOVER PAGES KEEP THE OPENER'S APP KEYS (2026-09-04 — Suresh:
+     on the Samsung's page "the menu physical key pulls up the
+     samsung settings screen … just like everywhere else it should
+     pull up the remotes App screen"). A device page opened from a
+     controller inherits that controller's BINDINGS: an app-level
+     binding like menu → apps rides along, while $context-relative
+     ones retarget through the page's own context — the takeover
+     doctrine, applied to bindings. Without an opener binding, the
+     device-menu default still stands (a TV page's menu is the TV's,
+     unless the surface you came from says otherwise). */
+  const scOc = screenOf(S.screen) || {};
+  if (scOc.own_context && S.stack.length) {
+    const opener = rawScreen(S.stack[S.stack.length - 1]);
+    if (opener && opener.buttons) Object.assign(out, opener.buttons);
+  }
   return out;
 }
 
@@ -104,6 +119,31 @@ function deviceKeyTarget() {
   const ct = controlTarget();
   return resolveEntity((ct && ct.navigation) ||
     scd.dpad_passthrough || ctxFor(S.screen).dpad || null);
+}
+
+/* WHO HOLDS THE KEYS (2026-09-04, design-device-takeover — Suresh:
+   "the strip's wordmark naming the device instead of HARMONIUM, and
+   the title bar wearing the device's accent wash while its keys are
+   borrowed"): resolve the passthrough target back to its pre-wired
+   CONFIG.devices owner. The dpad role is the strongest claim; any
+   other role matches after — a device IS its roles assembly. Null
+   when no device owns the target (the chrome then stays app-labelled).
+   The wash rides the ACTIVITY's accent, not the device's (his
+   follow-up ruling: "this is a child of that activity") — see the
+   chrome block in render.js. */
+function ptDevice() {
+  const tgt = deviceKeyTarget();
+  if (!tgt) return null;
+  let hit = null, hitId = null;
+  const ds = (CONFIG && CONFIG.devices) || {};
+  for (const id in ds) {
+    const d = ds[id], r = (d && d.roles) || {};
+    if (r.dpad === tgt) { hit = d; hitId = id; break; }
+    if (!hit) for (const k in r) if (r[k] === tgt) { hit = d; hitId = id; break; }
+  }
+  /* the strip wears the same DISPLAY-NAME chain as the page title
+     (2026-09-04 — his "unfriendly entity name" report) */
+  return hit ? { name: deviceDisplayName(hitId, hit, tgt) } : null;
 }
 
 /* Harmony rule: physical D-pad drives the device when the view says so —
@@ -419,8 +459,9 @@ function act(button, phys) {
      each press renews the borrow. Everywhere else the pad IS the
      panel's, natively — no claim, no mode, no strip. Capture
      outranks everything: a widget the user grabbed keeps its keys.
-     v0.11: Back is never claimed — tap-Back is UI back everywhere;
-     hold-Back/Home send the device keys (see keydown). */
+     (The v0.11 note "Back is never claimed" is SUPERSEDED under
+     passthrough by §7's contract — see the tap-Back/Home block
+     below. Everywhere else tap-Back is UI back, as always.) */
   if (phys && !S.captured &&
       ["up", "down", "left", "right", "select"].includes(button)) {
     if (padLatched()) padArm();              // walking renews the borrow
@@ -430,6 +471,28 @@ function act(button, phys) {
          where the key went so the pad doesn't read as dead */
       if (typeof PREVIEW !== "undefined" && PREVIEW)
         flashBar("D-pad → device (passthrough)");
+      return;
+    }
+  }
+  /* TAP-BACK/HOME UNDER PASSTHROUGH DRIVE THE DEVICE (2026-09-04 —
+     Suresh's porch: "Back and Home (physical) are targetting
+     Harmonium"). This was always §7's contract — the strip exists
+     BECAUSE "on TV pages the physical Back/Home drive the device, so
+     Harmonium's pair lives on this pinned strip" — and the keymap
+     card already promised "Device back · hold = Harmonium". The v2
+     input policy delivered it; v1 configs fell through to the stale
+     v0.11 note. Now the doctrine holds under both: while the device
+     owns the pad (not borrowed, nothing captured, no confirm
+     pending), tap Back/Home speak the DEVICE's keys; Harmonium's
+     pair is the strip — and the hold (below) — exactly as printed
+     on it. */
+  if (phys && !S.captured && !S.confirmTile && !padLatched() &&
+      ["back", "home"].includes(button) && padOwner() === "device") {
+    const dtg = deviceKeyTarget();
+    if (dtg) {
+      rc(dtg, cmdFor({}, button));
+      if (typeof PREVIEW !== "undefined" && PREVIEW)
+        flashBar(cap(button) + " → device (passthrough)");
       return;
     }
   }
@@ -535,6 +598,13 @@ function act(button, phys) {
       const bhb = boundButtons()[button];
       if (bhb) { runAction(bhb); break; }
       const base = button === "back_hold" ? "back" : "home";
+      /* UNDER PASSTHROUGH THE ROLES FLIP (2026-09-04, with the tap
+         fix above): tap = device, so the hold is HARMONIUM's pair —
+         "Device back · hold = Harmonium", as the keymap card always
+         said. phys=false keeps the tap path from bouncing it back
+         to the device. Off passthrough the old shape stands: hold
+         reaches the wired device where one exists, else taps. */
+      if (passthroughActive()) { act(base, false); break; }
       const tgt = deviceKeyTarget();
       if (tgt) rc(tgt, cmdFor({}, base));
       else act(base, phys);
@@ -659,6 +729,22 @@ function act(button, phys) {
       if (button === "ch_up" || button === "ch_down") {
         const sct = screenOf(S.screen) || {};
         if (sct.tuner || (sct.control_target && sct.control_target.tuner)) {
+          const tt = deviceKeyTarget();
+          if (tt) { rc(tt, cmdFor({}, button)); break; }
+        }
+        /* CH IN THE PASS-THROUGH LIST (2026-09-05 — forum: "we
+           actually use those for navigating the tv"; Suresh's path:
+           "Add ChUp and ChDn to KEYS PASSED TO THE DEVICE"): the
+           Studio's chips have OFFERED ch_up/ch_down all along, but
+           this handler only ever consulted the tuner flag — a key
+           the UI let you pass was silently ignored. An authored
+           pass-through now routes CH to the device exactly like the
+           tuner flag (the dialect's channel commands, else the
+           CHANNEL_UP/DOWN defaults). Deliberately NOT part of the
+           generated takeover page's list: on passthrough screens CH
+           is the panel's only walk, so passing it is an authored
+           choice, never a default. */
+        if (ctPass(button)) {
           const tt = deviceKeyTarget();
           if (tt) { rc(tt, cmdFor({}, button)); break; }
         }

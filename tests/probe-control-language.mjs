@@ -93,8 +93,15 @@ const CONFIG = {
       /* the Wave C spelling stays a COMPAT READ */
       { id: 'cp', type: 'device', entity: 'fan.deck', variant: 'compact', label: 'Compat compact', span: 2 },
       { id: 'sw', type: 'device', entity: 'switch.amp', variant: 'inline', label: 'Amp', span: 2 },
-      { id: 'sl', type: 'device', entity: 'light.lamp', variant: 'inline', label: 'Lamp', span: 2 },
+      /* the no-mapping specimen keeps moving as domains earn their
+         controls (2026-09-03: light grew the dimmer; 2026-09-04:
+         climate grew the temperature control) — humidifier carries
+         the role now, still true */
+      { id: 'sl', type: 'device', entity: 'humidifier.hum', variant: 'inline', label: 'Humidor', span: 2 },
       { id: 'un', type: 'device', entity: 'light.gone', label: 'Porch Lights', span: 2 },
+      /* STATIC HIDE (2026-09-04 — the variant editor's eye): a tile
+         with hidden:true never renders, and the eye can restore it */
+      { id: 'hd', type: 'device', entity: 'switch.amp', label: 'Hidden', span: 2, hidden: true },
       { id: 'ch', type: 'chips', kind: 'select', entity: 'select.mode', label: '', span: 2 },
       /* ---- V7 §9 + invert ---- */
       { id: 'w2', type: 'switch', entity: 'switch.zone', label: 'Zone 2', span: 2 },
@@ -116,6 +123,8 @@ const STATES = {
   'switch.amp': { s: 'on', a: { friendly_name: 'Amp' } },
   'switch.zone': { s: 'off', a: { friendly_name: 'Zone 2' } },
   'light.lamp': { s: 'on', a: { friendly_name: 'Lamp' } },
+  'humidifier.hum': { s: 'on', a: { friendly_name: 'Humidor',
+    humidity: 45 } },
   'light.gone': { s: 'unavailable', a: { friendly_name: 'Porch Lights' } },
   'select.mode': { s: 'a', a: { options: ['a', 'b'] } },
   'button.bridge': { s: '2026-08-30T10:00:00+00:00', a: {} },
@@ -221,9 +230,10 @@ const wc = await p.evaluate(() => {
     ccNoTrack: !q('cc', '.sldr'),
     ccBtns: document.querySelectorAll('#tile_cc .devrow:not(.tiltrow) [data-cv]').length,
     /* V7 §9: a density ask on a SWITCH lands on the state pair now;
-       a domain with no density mapping (light) still stays plain */
+       a domain with no density mapping (humidifier) still stays plain */
     swPair: !!q('sw', '.devrow.statepair'),
     slPlain: !q('sl', '.devrow') && !q('sl', '.steprow'),
+    hdGone: !document.getElementById('tile_hd'),
     fiDef: (() => { const d = tileDef('fi');
       return { t: d.type, den: d.density, br: d.brRow, sp: d.span }; })(),
     cpCompat: document.getElementById('tile_cp').classList.contains('dvc') &&
@@ -271,11 +281,14 @@ await p.waitForTimeout(80);
 c = await calls();
 ck('C: cover ◀ roves and OK commits the highlighted action',
   c.length === 1 && c[0].d === 'cover' && c[0].s === 'open_cover');
-/* the launcher still declines ◀▶ so the walk proceeds (a light has
-   no density, so its density ask renders plain and declines) */
+/* the launcher still declines ◀▶ so the walk proceeds (humidifier
+   has no density mapping, so its density ask renders plain and
+   declines — light and climate both lost this role to their 0.87
+   controls) */
 const declined = await p.evaluate(() =>
-  WIDGETS.device.keys.left('light.lamp', tileDef('sl')));
+  WIDGETS.device.keys.left('humidifier.hum', tileDef('sl')));
 ck('C: a launcher declines ◀▶ (the walk keeps them)', declined === false);
+ck('a hidden:true tile never renders (the variant eye)', wc.hdGone);
 
 /* the ⚙ path: a member's variant dresses its generated launcher */
 const gen = await p.evaluate(() => {

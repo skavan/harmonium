@@ -6,17 +6,31 @@
      verbatim — that IS the custom / $context.* escape hatch, no mode
      switch needed. Works bound (bind:value) or callback-style
      (value + oninput), like a native input. */
-  import { entitiesFor } from "../state.svelte.js";
+  import { entitiesFor, app } from "../state.svelte.js";
   let {
     value = $bindable(),
     domains = null,
     preferred = [],
+    /* the pinned group's heading — callers pinning something other
+       than a cast say so (2026-09-05: "Pre-wired devices") */
+    prefLabel = "This activity's devices",
     placeholder = "entity_id — type to search",
     oninput = null,
     onchange = null,
     ...rest
   } = $props();
   const list = $derived(entitiesFor(domains));
+  /* PRE-WIRED CUE (2026-09-05 — Suresh: "we should have some cue
+     that they are pre-wired devices"): any entity claimed by a
+     device bundle wears a quiet chip in every picker, so the
+     wired ones read as wired wherever entities are chosen. */
+  const prewired = $derived.by(() => {
+    const s = new Set();
+    for (const d of Object.values(app.draft?.devices || {}))
+      for (const e of Object.values(d?.roles || {}))
+        if (typeof e === "string") s.add(e);
+    return s;
+  });
 
   let open = $state(false);
   let typed = $state(false); /* typing filters; plain focus shows all */
@@ -110,6 +124,9 @@
     const v = (value ?? "").trim();
     const ok = !v ||
       v.startsWith("$context.") ||
+      v === "$device" ||   /* the domain-template token (2026-09-05,
+        feedback-1 #4: "I should be able to use $device in the New
+        device, entity block. I can't") */
       list.some((x) => x.entity_id === v) ||
       /^[a-z](?:[a-z_]*[a-z])?\.[0-9a-z](?:[0-9a-z_]*[0-9a-z])?$/.test(v);
     if (!ok) value = vAtFocus;
@@ -144,6 +161,9 @@
     <span class="font-mono text-[11.5px] text-ink">{e.entity_id}</span>
     {#if e.name && e.name !== e.entity_id}
       <span class="ml-1.5 text-[10.5px] text-dim">{e.name}</span>
+    {/if}
+    {#if prewired.has(e.entity_id)}
+      <span class="ml-1.5 rounded-full border border-accent/40 px-1.5 text-[9px] tracking-[.04em] text-accent-text uppercase">pre-wired</span>
     {/if}
   </button>
 {/snippet}
@@ -184,7 +204,7 @@
         </div>
       {/if}
       {#if prefRows.length}
-        <div class="px-2 pt-1 pb-0.5 text-[9.5px] font-bold tracking-[.08em] text-accent uppercase">This activity's devices</div>
+        <div class="px-2 pt-1 pb-0.5 text-[9.5px] font-bold tracking-[.08em] text-accent uppercase">{prefLabel}</div>
         {#each prefRows as e, i (e.entity_id)}{@render row(e, i)}{/each}
         {#if restRows.length}
           <div class="mt-0.5 border-t border-line px-2 pt-1 pb-0.5 text-[9.5px] font-bold tracking-[.08em] text-dim uppercase">All entities</div>

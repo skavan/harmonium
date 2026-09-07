@@ -21,8 +21,11 @@
      overwritten (a _v2 is minted beside it); power-off is strictly
      opt-in per device and never_off devices are untouchable. ---- */
   function buildStartActions() {
-    const steps = [{ alias: "Set activity state",
-      action: "harmonium.set_activity", data: { activity: id } }];
+    /* NO routing step (2026-09-02 — "shouldn't start and stop just
+       be automagic? Always?"): the runner flips the room's select
+       itself whenever it executes an activity's start, whoever
+       called it — generated sequences are pure device work now. */
+    const steps = [];
     for (const devId of cast) {
       const d = devLib[devId];
       const t = d?.traits || {};
@@ -75,17 +78,11 @@
        it — if Music took the room meanwhile, ending Watch TV leaves
        Music's routing alone. (The original bug here was worse: a
        bare set_activity off is ALL-OFF, every room in the
-       workspace.) The select id is the minted pattern —
-       workspace-prefixed except main; duplication retargets it. */
-    const selEnt = "select.harmonium_" +
-      (app.workspace === "main" ? "" : app.workspace + "_") +
-      (a.room_view || "") + "_activity";
-    const steps = [{
-      alias: "Clear the room's routing — ONLY if this activity still owns it",
-      if: [{ condition: "state", entity_id: selEnt, state: id }],
-      then: [{ action: "harmonium.set_activity",
-        data: { activity: "off",
-          ...(a.room_view ? { room: a.room_view } : {}) } }] }];
+       workspace.) 2026-09-02: that clear is AUTOMAGIC now — the
+       runner applies it, guard included, whenever it executes an
+       activity's stop — so the generated sequence is pure device
+       work. */
+    const steps = [];
     for (const devId of a.stop_off || []) {
       const d = devLib[devId];
       if (!d || d.traits?.never_off) continue;       /* the untouchables */

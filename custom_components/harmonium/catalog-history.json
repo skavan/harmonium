@@ -1,51 +1,66 @@
 {
  "apps": {
   "netflix": [
-   "12a7e08dd1bf"
+   "12a7e08dd1bf",
+   "16c3ee39ce2f"
   ],
   "prime": [
-   "d2116b84af71"
+   "d2116b84af71",
+   "ed69daf635d8"
   ],
   "youtube": [
-   "e84bde11d2f9"
+   "e84bde11d2f9",
+   "4809131029dc"
   ],
   "youtubetv": [
-   "3518a02b7fa0"
+   "3518a02b7fa0",
+   "f2fc6757f2ac"
   ],
   "peacock": [
-   "d16331382678"
+   "d16331382678",
+   "d1fd752a66bb"
   ],
   "paramount": [
-   "1c56eab244fa"
+   "1c56eab244fa",
+   "8a4fb4193e70"
   ],
   "max": [
-   "9ec5e1d52e62"
+   "9ec5e1d52e62",
+   "054a9c50cdce"
   ],
   "appletv": [
-   "52633badb735"
+   "52633badb735",
+   "7a2e28a61472"
   ],
   "hulu": [
-   "144872f8087d"
+   "144872f8087d",
+   "87962925a49a"
   ],
   "disney": [
-   "1c2c0e18cdc9"
+   "1c2c0e18cdc9",
+   "f7f03fe9d62b"
   ],
   "fubo": [
-   "a816560f612c"
+   "a816560f612c",
+   "4c378325e964"
   ],
   "espn": [
-   "8f8353ff78d3"
+   "8f8353ff78d3",
+   "21b93267be41"
   ],
   "britbox": [
-   "12b0d9a3678d"
+   "12b0d9a3678d",
+   "d03087ffc17e"
   ],
   "spotify": [
    "__absent__",
-   "1178bfc71418"
+   "1178bfc71418",
+   "0bfd758816ce"
   ],
   "plex": [
    "__absent__",
-   "88e5c1e96d9a"
+   "88e5c1e96d9a",
+   "207815918fe4"
   ],
   "plutotv": [
    "__absent__",
@@ -57,7 +72,8 @@
   ],
   "pbs": [
    "__absent__",
-   "424b9b87e893"
+   "424b9b87e893",
+   "c2a7dd6fd1fc"
   ],
   "philo": [
    "__absent__",
@@ -277,6 +293,10 @@
   "tizen": {
    "name": [
     "f3c009ea88e6"
+   ],
+   "dpad_commands": [
+    "__absent__",
+    "20439432d5d6"
    ]
   },
   "googletv": {
@@ -311,7 +331,8 @@
    "0b124fc02879"
   ],
   "tizen": [
-   "b962c6033f86"
+   "b962c6033f86",
+   "1d2a96b7622a"
   ],
   "googletv": [
    "e828fb6d39d8",

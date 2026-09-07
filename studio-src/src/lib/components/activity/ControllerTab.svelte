@@ -4,6 +4,7 @@
      and the activity's presets. Split out of ActivityCard.svelte
      (v0.83.11). */
   import { app, selectSlice, instantiateController, revertToStock, snippetsOf, presetSnippetTile, schedulePreview, ladderPins, clearLadderPin, variantOptions } from "../../state.svelte.js";
+  import { KIND_SURFACES, controllerRoot } from "../../stocklib.js";
   import Select from "../Select.svelte";
   import Switch from "../Switch.svelte";
   import Button from "../Button.svelte";
@@ -176,6 +177,42 @@
     }
     schedulePreview();
   }
+  /* LANDS-ON OPTIONS (2026-09-06 — Suresh: "Why do I have 'Devices'
+     and 'Music Media Player'. Shouldn't it just be TV derived
+     *activity* controllers?"). Two rules out of that: (1) ACTIVITY
+     surfaces only — device controllers (domain stocks, their copies)
+     are per-device pages a device adopts from its own card, never an
+     activity's landing; (2) the surfaces suiting this activity's
+     shape (kind → KIND_SURFACES) lead, the other shapes follow in
+     their own optgroup — suggestions, never a cage. */
+  const KIND_LABEL = { watch: "Watch (TV / movie)", listen: "Listen (music)",
+    play: "Play (game)" };
+  const landsOptions = $derived.by(() => {
+    const cs = app.draft?.controllers || {};
+    const rows = Object.entries(cs)
+      .filter(([, c]) => c && !c.drawer && !c.domain)
+      .map(([cid, c]) => ({ value: cid,
+        label: (c.name || cid) + (c.variant_of ? " — custom copy" : " — stock"),
+        root: controllerRoot(cs, cid) }));
+    /* the CURRENT pick always shows, even when the rules above would
+       hide it (a legacy device-page landing, say) — the select tells
+       the truth about what's set */
+    const cur = (a?.screen || "").startsWith("controller:") ? a.screen.slice(11) : "";
+    if (cur && cs[cur] && !rows.some((r) => r.value === cur))
+      rows.push({ value: cur,
+        label: (cs[cur].name || cur) + " — current (a device page)",
+        root: null });
+    const match = KIND_SURFACES[a?.kind] || null;
+    const suits = match ? rows.filter((r) => r.root === match) : [];
+    if (!suits.length || suits.length === rows.length)
+      return rows.map(({ value, label }) => ({ value, label }));
+    const rest = rows.filter((r) => r.root !== match);
+    return [
+      ...suits.map(({ value, label }) => ({ value, label,
+        group: "Suits " + (KIND_LABEL[a.kind] || a.kind) })),
+      ...rest.map(({ value, label }) => ({ value, label, group: "Other shapes" })),
+    ];
+  });
   function addPreset() {
     if (!a.presets) a.presets = [];
     a.presets.push({ type: "preset", id: "p_" + Math.random().toString(36).slice(2, 6),
@@ -191,6 +228,29 @@
              the surface renders, and the activity's presets — the
              surface stays shared; the preferences travel with the
              activity. -->
+        <!-- WHICH CONTROLLER (2026-09-05 — Suresh: "Bug, I can't, it
+             should be a drop down + create custom copy. No way to
+             select a controller for the activity"): the activity's
+             `screen` was only ever written by the copy machinery —
+             pointing it at an EXISTING surface (a variant, another
+             stock, a minimal device page) had no door. Drawers are
+             excluded (they pop back); unbound domain stocks are
+             excluded ($device has nothing to bind to there — clone
+             one for a device first and pick the clone). -->
+        <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-[11px] font-bold tracking-[.07em] text-dim uppercase">Lands on</span>
+            <div class="w-[300px] min-w-[220px]">
+              <Select value={(a.screen || "").startsWith("controller:") ? a.screen.slice(11) : ""}
+                allowEmpty blankLabel="— pick a controller… —"
+                options={landsOptions}
+                onchange={(e) => { if (!e.target.value) return;
+                  a.screen = "controller:" + e.target.value;
+                  schedulePreview(); }} />
+            </div>
+            <span class="text-[11px] text-dim">the page the screen shows while this activity runs</span>
+          </div>
+        </div>
         {#if navCtrl}
           <div class="rounded-[10px] border border-line bg-tile px-3 py-2.5">
             {#if navCtrl.isStock}

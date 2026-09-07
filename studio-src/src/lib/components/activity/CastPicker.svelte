@@ -55,7 +55,10 @@
   const pickEnts = $derived.by(() => {
     const base = app.entities
       .filter((e) => castHit(e.entity_id + " " + (e.name || "")))
-      .filter((e) => !(a.extra_devices || []).includes(e.entity_id));
+      /* loose entities live in a.cast now (one ordered cast —
+         feedback-3 round 3); the legacy list still excludes too */
+      .filter((e) => !(a.cast || []).includes(e.entity_id) &&
+        !(a.extra_devices || []).includes(e.entity_id));
     return (castQ.trim()
       ? base
       : [...base].sort((x, y) => domRank(x.entity_id) - domRank(y.entity_id)))

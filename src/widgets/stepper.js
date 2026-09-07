@@ -111,6 +111,10 @@ WIDGETS.stepper = {
         const now = Date.now();
         if ((final || now - (sl._t || 0) > 150) && v !== sl._lastV) {
           sl._t = now; sl._lastV = v;
+          /* optimistic here too (feedback-3 #2): the release render
+             reads state — without the local write it snapped back to
+             the stale value until HA confirmed */
+          if (k.loc) k.loc(ent, v);
           k.set(ent, v);
         }
       };

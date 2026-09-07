@@ -42,14 +42,14 @@ const lockedState = await p.evaluate(() => {
   return {
     picked: body.includes('TV Media Player'),
     lockBanner: body.includes('Stock controller — locked'),
-    hasDupBtn: [...document.querySelectorAll('button')].some(x => x.textContent.includes('Duplicate to edit')),
+    hasDupBtn: [...document.querySelectorAll('button')].some(x => x.textContent.includes('Create custom copy')),
     inertPresent: !!document.querySelector('[inert]'),
   };
 });
 
 /* fork it — the only door forward */
 await p.evaluate(() => {
-  [...document.querySelectorAll('button')].find(x => x.textContent.includes('Duplicate to edit'))?.click();
+  [...document.querySelectorAll('button')].find(x => x.textContent.includes('Create custom copy'))?.click();
 });
 await p.waitForTimeout(700);
 
@@ -84,7 +84,13 @@ const domainState = await p.evaluate(() => {
   return {
     lockBanner: body.includes('Climate — locked'),
     inertPresent: !!document.querySelector('[inert]'),
-    hasDeviceCopyBtn: [...document.querySelectorAll('button')].some(x => x.textContent.includes('Custom copy for device')),
+    /* round 2 (2026-09-04): the copy BUTTON appears only once a
+       device is picked — the resting door is the live-styled picker
+       plus its "choose a device" cue (his: "it just doesn't look
+       like I can", so the resting state now says what to do) */
+    hasDeviceCopyBtn: [...document.querySelectorAll('input')]
+      .some(x => /pick a .* type to search/.test(x.placeholder || '')) &&
+      [...document.querySelectorAll('button')].some(x => x.textContent.includes('Create custom copy')),
     perDeviceLive: body.includes('Per-device options'),
   };
 });

@@ -5,14 +5,20 @@
      state machine — editPres backfills the two bind fields before
      this renders, closePres sweeps empties after. Peeled out of
      SetupTab (v0.83.11 round 2). */
-  import { app, SHOWS_KINDS, showsForDomain, showsForRoles, variantOptions, VARIANT_HINTS } from "../../state.svelte.js";
+  import { app, SHOWS_KINDS, SHOWS_NONE, showsForDomain, showsForRoles, variantOptions, VARIANT_HINTS, devicePageEntity } from "../../state.svelte.js";
   import Field from "../Field.svelte";
   import Input from "../Input.svelte";
   import IconPicker from "../IconPicker.svelte";
   import PresFields from "../PresFields.svelte";
   import Select from "../Select.svelte";
+  import DevicePageDoor from "../DevicePageDoor.svelte";
 
   let { card, key, isEnt, inGroup, open, onclose } = $props();
+  /* which entity carries this member's device page: a device member
+     asks its role claims; an entity member IS the entity (the door
+     itself checks whether that domain has a stock page) */
+  const doorEntity = (key, isEnt) =>
+    isEnt ? key : devicePageEntity(devLib[key]?.roles);
   const a = $derived(card.a);
   const devLib = $derived(card.devLib);
   const { recompile } = card;
@@ -23,8 +29,13 @@
      the SHARED pair in stocklib (Phase 0 #3 — TileRow uses the same
      showsForDomain, so activity ⚙ and page tiles can never drift). */
   function presShows(key, isEnt) {
-    if (!isEnt) return showsForRoles(devLib[key]?.roles);
-    return showsForDomain(key.split(".")[0]);
+    const base = isEnt
+      ? showsForDomain(key.split(".")[0])
+      : showsForRoles(devLib[key]?.roles);
+    /* "Nothing" is a cast-member option only (Suresh, 2026-09-06):
+       the shared filters exclude it (domains:[]) so page tiles never
+       offer it; the cast ⚙ appends the shared constant, last */
+    return SHOWS_NONE ? [...base, SHOWS_NONE] : base;
   }
   /* the Volume style select shows only where a volume control can
      exist: a device claiming roles.volume, or a media_player entity.
@@ -44,7 +55,8 @@
        first-class adapter's own variant — the Launcher is a
        launcher again and offers no shapes */
     if (t === "number" || t === "select" || t === "sources" ||
-        t === "fan" || t === "cover") return t;
+        t === "fan" || t === "cover" || t === "light" || t === "climate")
+      return t;
     const band = isEnt
       ? a.context?.volume === key
       : !!devLib[key]?.roles?.volume;
@@ -153,7 +165,7 @@
                     hint: VARIANT_HINTS[a.present[key].variant] || "",
                     options: variantOptions(variantFor(key, isEnt),
                       variantFor(key, isEnt) === "volume" ? "Theme default"
-                        : /^(fan|cover)$/.test(variantFor(key, isEnt))
+                        : /^(fan|cover|light|climate)$/.test(variantFor(key, isEnt))
                           ? "Inline — full control" : "Auto"),
                     set: (v) => {
                       if (v) a.present[key].variant = v;
@@ -192,11 +204,46 @@
                   </Field>
                 </div>
               {/if}
+              {#if !isEnt && ["media_player", "dpad", "commands"].some((r) => devLib[key]?.roles?.[r])}
+                <!-- DIALECT IS A DEVICE PROPERTY (2026-09-04 — Suresh:
+                     "add a picker to the settings. Obviously only
+                     applies (today) to things that support dialects"):
+                     writes to the DEVICE — the same field the Devices
+                     editor edits, one source of truth. Offered only to
+                     device members with a role a dialect speaks
+                     through (media_player / dpad / commands). -->
+                <div class="min-w-[150px] flex-1">
+                  <Field label="Dialect" hint="this device's own voice — keys, launches, channels">
+                    <Select value={devLib[key]?.dialect ?? ""} allowEmpty
+                      blankLabel="— no dialect —"
+                      title="the platform vocabulary this device speaks; the activity and its device page both follow it"
+                      options={Object.entries(app.draft?.dialects || {})
+                        .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+                      onchange={(e) => { const v = e.target.value;
+                        if (!devLib[key]) return;
+                        if (v) devLib[key].dialect = v;
+                        else delete devLib[key].dialect;
+                        recompile(); }} />
+                  </Field>
+                </div>
+              {/if}
               <div class="pt-[27px]">
                 <button class="h-[38px] cursor-pointer border-0 bg-transparent p-0 px-1 text-[11px] font-semibold text-accent hover:underline"
                   onclick={() => onclose(key)}>done</button>
               </div>
             </div>
+            <!-- THE DEVICE-PAGE DOOR, in the activity too (2026-09-04,
+                 round 3 — Suresh: "the entry door to this setting
+                 should be in an activities device page"): the same
+                 shared affordance as the Devices editor — select
+                 which page this device opens, edit it, or fork the
+                 stock. Entity members get it too when their domain
+                 has a stock page. -->
+            {#if doorEntity(key, isEnt)}
+              <div class="mt-2">
+                <DevicePageDoor entity={doorEntity(key, isEnt)} />
+              </div>
+            {/if}
 {/if}
 
   {#snippet failed(error, reset)}

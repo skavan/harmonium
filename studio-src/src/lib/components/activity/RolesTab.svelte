@@ -71,9 +71,11 @@
     if (!ent.includes(".")) return;                     /* device ids pass */
     const covered = cast.some((c) =>
       Object.values(devLib[c]?.roles || {}).includes(ent));
-    if (covered || (a.extra_devices || []).includes(ent)) return;
-    if (!a.extra_devices) a.extra_devices = [];
-    a.extra_devices.push(ent);
+    /* one ordered cast (feedback-3 round 3): loose entities join
+       a.cast, never the retired extra_devices list */
+    if (covered || (a.cast || []).includes(ent)) return;
+    if (!a.cast) a.cast = [];
+    a.cast.push(ent);
     if (!a.device_options) a.device_options = {};
     a.device_options[ent] = { ...(a.device_options[ent] || {}), tile: false };
     regenDevices();
@@ -177,27 +179,46 @@
             </div>
           {/each}
           <div class="flex items-center gap-2.5 pt-1.5">
+            <!-- DIALECT IS A DEVICE PROPERTY (2026-09-04 — Suresh:
+                 "its a device property everywhere and then in roles,
+                 you pick the device from the cast (default is
+                 primary)"): this row picks WHOSE VOICE the activity
+                 speaks with — a cast device — never a dialect name.
+                 The name lives on the device (Setup ⚙ / the Devices
+                 editor). A legacy pinned name (overrides.dialect)
+                 still reads and can be released here. -->
             <span class="flex w-[210px] shrink-0 items-baseline gap-1.5"
-              title="the platform's vocabulary — keys, launches, channels; usually inherited from the media_player device's bundle">
+              title="whose voice the activity speaks with — the platform vocabulary comes from this device's own dialect">
               <span class="text-[12.5px] text-ink-2">Dialect</span>
               <span class="font-mono text-[10px] text-faint">dialect</span>
             </span>
-            <Select value={a.overrides?.dialect ?? ""} allowEmpty class="max-w-64"
-              options={Object.entries(app.draft?.dialects || {})
-                .map(([cid, c]) => ({ value: cid, label: c.name || cid }))}
+            <Select value={a.overrides?.dialect ? "__pin" : (a.wiring?.dialect ?? "")}
+              allowEmpty class="max-w-64" blankLabel="Auto — the primary device"
+              options={[
+                ...(a.cast || []).filter((m) => typeof m === "string")
+                  .map((did) => ({ value: did,
+                    label: (devLib[did]?.name || did) +
+                      (devLib[did]?.dialect
+                        ? " — " + (app.draft?.dialects?.[devLib[did].dialect]?.name || devLib[did].dialect)
+                        : " — no dialect set") })),
+                ...(a.overrides?.dialect
+                  ? [{ value: "__pin", label: "pinned: " + a.overrides.dialect + " (legacy)" }]
+                  : []),
+              ]}
               onchange={(e) => {
-                if (e.target.value) a.overrides = { ...(a.overrides || {}), dialect: e.target.value };
-                else if (a.overrides) { delete a.overrides.dialect;
+                const v = e.target.value;
+                if (v === "__pin") return;         /* the legacy pin is a state, not a choice */
+                if (a.overrides?.dialect) { delete a.overrides.dialect;
                   if (!Object.keys(a.overrides).length) delete a.overrides; }
-                if (a.wiring || a.cast) recompile();
-                else { a.context = a.context || {};
-                  if (e.target.value) a.context.dialect = e.target.value;
-                  else delete a.context.dialect; } }} />
+                a.wiring = a.wiring || {};
+                if (v) a.wiring.dialect = v; else delete a.wiring.dialect;
+                recompile(); }} />
             <span class="text-[11px] text-dim">
-              {a.overrides?.dialect ? "pinned"
+              {a.overrides?.dialect ? "a pinned NAME from before this was a device pick — choose a device to release it"
                 : a.context?.dialect
-                  ? "from " + (devLib[wiring.media_player]?.name || "the device") + " — " + a.context.dialect
-                  : "blank = the surface default"}
+                  ? "speaks " + (app.draft?.dialects?.[a.context.dialect]?.name || a.context.dialect) +
+                    (a.wiring?.dialect ? "" : " — from the primary device")
+                  : "no voice — the primary device has no dialect set"}
             </span>
           </div>
         </div>

@@ -11,7 +11,7 @@
    stored on a.surface (the same home surface.devices has used since
    v0.48). Absent = Auto (today's behavior); false = off. The shared
    surface stays shared; the preference travels with the activity. */
-const srfOff = (act, k) => !!(act && act.surface && act.surface[k] === false);
+const srfOff = (act, k) => !!(act && actSurface(act)[k] === false);
 
 /* An activity's CAST: explicit devices list (Studio Setup v2), else
    derived from the role wiring in role order — primary first. */
@@ -42,8 +42,54 @@ function castFromCtx(ctx) {
    A grouped device KEEPS ITS OTHER JOBS: the receiver can sit inside
    the Zones group and still be the activity's source_select. A group
    governs the presentation of the thing it draws, nothing else. */
+/* PREVIEW-AS SHOWS THE ROLES' CAST (2026-09-05, feedback-1 — Suresh,
+   designing a music controller: "the preview has Dining Fan,
+   Receiver etc… extra devices in the cast. Hard coded. And additive
+   to the controller. What we really want to do is restrict the
+   preview cast to the ones with controller roles"). The extras are
+   per-activity riders (the cast's "on controller" opt-ins) — real on
+   the live surface, noise while DESIGNING the controller itself. So
+   under the Studio's preview-as impersonation (S.pvActivity — and
+   only there; live rendering never passes this gate) the cast
+   narrows to members that fill a role in the activity's compiled
+   context. */
+function pvRoleEntities(act) {
+  const out = {};
+  const ctx = (act && act.context) || {};
+  for (const k in ctx) {
+    const v = ctx[k];
+    if (typeof v === "string" && v.indexOf(".") > 0) out[v] = 1;
+  }
+  return out;
+}
+function pvFillsRole(m, wired) {
+  if (typeof m === "string") {
+    if (m.indexOf(".") > 0) return !!wired[m];     /* loose entity */
+    const d = (CONFIG.devices || {})[m];           /* device id */
+    const r = (d && d.roles) || {};
+    for (const k in r) if (wired[r[k]]) return true;
+    return false;
+  }
+  if (m && typeof m === "object" && m.group)
+    return (m.members || []).some(x => pvFillsRole(x, wired));
+  return false;
+}
+/* ONE gate for every cast-shaped list (2026-09-05 drift round —
+   Suresh: "The spurious devices (Fan Receiver etc..) are still
+   there. Lets get this done right. Once and for all"): the first
+   pass filtered a.cast and a.devices but the RIDERS also flow
+   through act.extra_devices (the speakers band's loose list, the
+   where:"controls" promotions), which stayed raw. Every list of
+   cast members / loose entities narrows HERE under roles-only
+   preview-as; live rendering pays nothing. */
+function pvFilterCast(act, list) {
+  if (!S.pvActivity || !S.pvRolesOnly || !list || !list.length) return list || [];
+  const wired = pvRoleEntities(act);
+  return list.filter(m => pvFillsRole(m, wired));
+}
 function castMembers(act) {
-  return Array.isArray(act && act.cast) ? act.cast : [];
+  const all = Array.isArray(act && act.cast) ? act.cast : [];
+  return pvFilterCast(act, all);
 }
 function castGroups(act) {
   return castMembers(act).filter(m => m && typeof m === "object" && m.group);
@@ -124,6 +170,10 @@ function presApply(tile, p, ent) {
 }
 /* one tile for one member of a group, drawn as `shows` */
 function groupChildTile(did, shows, idPrefix, pres) {
+  /* DRAWS AS NOTHING (2026-09-06 — Suresh): the member is cast but
+     draws no tile of its own; roles/keys/claims stay, aggregate
+     bands still read it, this builder emits nothing */
+  if (shows === "none") return null;
   const d = (CONFIG.devices || {})[did];
   /* LOOSE ENTITIES CAN GROUP TOO (v0.83.7 tidy-ups — his cast is raw
      media_players, and the group ticks had nothing to offer): a
@@ -199,6 +249,7 @@ function groupChildTile(did, shows, idPrefix, pres) {
 /* a LOOSE entity drawn as a control (v0.76): no device bundle to
    resolve roles from — the entity IS every role it needs */
 function looseShowTile(ent, p, idPrefix) {
+  if (presType(p) === "none") return null;   /* draws as Nothing — see groupChildTile */
   const dom0 = ent.split(".")[0];
   const base = {
     id: idPrefix + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
@@ -238,10 +289,53 @@ function looseShowTile(ent, p, idPrefix) {
   return presApply(tile, p, ent);
 }
 
+/* ONE ORDERED CAST BAND — shared builders (2026-09-06, round 7 —
+   Suresh: "Whatever the order is, in the tab, should be the order
+   on the panel"). The group nav card and the promoted-member tiles
+   used to belong to the groups band alone; the merged cast band
+   (genVolumeTiles, when the screen carries both generators) emits
+   them too, so the shapes live HERE, once. */
+function castGroupNavTile(idPrefix, g) {
+  const card = {
+    type: "nav",
+    id: idPrefix + "_" + String(g.group).replace(/[^a-zA-Z0-9]+/g, "_"),
+    label: g.name || g.group,
+    icon: g.icon || "material:widgets",
+    style: g.style || "summary",
+    target: g.target || ("group:" + g.group),
+    hide_when_empty: true,
+    span: 2
+  };
+  /* the authored status line (feedback-3 round 2): {count}/{active}
+     substitute in the nav widget, "" = no line at all */
+  if (typeof g.sub === "string") card.sub = g.sub;
+  return card;
+}
+function castLoosePromoTile(idPrefix, ent, p) {
+  if (!p || p.where !== "controls" || presType(p) === "none") return null;
+  const shL = presType(p);
+  return (shL && shL !== "device")
+    ? looseShowTile(ent, p, idPrefix)
+    : presApply({ type: "device",
+        id: idPrefix + "_" + ent.replace(/[^a-zA-Z0-9]+/g, "_"),
+        entity: ent, span: 2,
+        label: st(ent).a.friendly_name || ent.split(".").pop(),
+        icon: "material:devices" }, p, ent);
+}
+function castDevicePromoTile(idPrefix, did, p) {
+  if (!p || p.where !== "controls" || presType(p) === "none") return null;
+  const shD = presType(p);
+  return groupChildTile(did,
+    (shD && shD !== "device") ? shD : "device", idPrefix, p);
+}
+
 function castOf(aid) {
   const a = (CONFIG.activities || {})[aid];
   if (!a) return [];
-  if (Array.isArray(a.devices) && a.devices.length) return a.devices;
+  if (Array.isArray(a.devices) && a.devices.length)
+    /* the compiled list narrows under roles-only preview-as too;
+       castFromCtx is role-derived by construction */
+    return pvFilterCast(a, a.devices);
   return castFromCtx(a.context);
 }
 

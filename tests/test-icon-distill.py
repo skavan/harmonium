@@ -122,6 +122,23 @@ with tempfile.TemporaryDirectory() as td:
     mtab = _mdi_source(www, fe)
     check("mdi: HA's bundled path JSON serves every name",
           mtab and mtab["sofa"] == ("0 0 24 24", "M2 2h2v2z"))
+    # THE CHUNK LAW (round 6 — stock-HA comparison: "Missing a
+    # lot"): mdi ships SPLIT across many hash-named files; the table
+    # is their UNION, and the index/metadata files beside them are
+    # not icons
+    (fe / "static" / "mdi" / "def456.json").write_text(
+        json.dumps({"projector": "M4 4h4v4z"}), encoding="utf-8")
+    (fe / "static" / "mdi" / "iconList.json").write_text(
+        json.dumps([{"name": "sofa", "keywords": ["couch"]}]),
+        encoding="utf-8")
+    (fe / "static" / "mdi" / "iconMetadata.json").write_text(
+        json.dumps({"version": "7.4.47", "parts": []}), encoding="utf-8")
+    mtab2 = _mdi_source(www, fe)
+    check("mdi: every CHUNK merges (not just the biggest file)",
+          mtab2 and mtab2["sofa"][1] == "M2 2h2v2z"
+          and mtab2["projector"][1] == "M4 4h4v4z")
+    check("mdi: the index and metadata files are not icons",
+          "version" not in mtab2 and "parts" not in mtab2)
 
     # ---- 4. distill ----
     rep = distill_icons(www, cfg, frontend=fe)
@@ -199,6 +216,115 @@ with tempfile.TemporaryDirectory() as td:
           list_icons("hue", "", www, frontend=fe)["no_source"] is True)
     check("list: empty fragment lists the pack (capped)",
           len(list_icons("phu", "", www, frontend=fe)["icons"]) == 2)
+
+# ---- 8. CROSS-SET SEARCH + THE CUSTOM-SET BRIDGE (2026-09-02 —
+# his HA tile-card screenshot: "The search starts from the first key
+# across multiple icon sets") ----
+from harmonium.icons import save_resolved, search_icons  # noqa: E402
+
+with tempfile.TemporaryDirectory() as td:
+    www = Path(td) / "www"
+    mod = www / "community" / "custom-brand-icons"
+    mod.mkdir(parents=True)
+    (mod / "pack.js").write_text(
+        'var i={"door_open":[0,0,24,24,"M1 1h1z"],'
+        '"panel_door_open":[0,0,24,24,"M2 2h2z"],'
+        '"sonos":[0,0,24,24,"M3 3h3z"]};', encoding="utf-8")
+    fe = Path(td) / "hass_frontend"
+    (fe / "static" / "mdi").mkdir(parents=True)
+    (fe / "static" / "mdi" / "a.json").write_text(
+        json.dumps({"door-open": "M4 4h4z", "door-closed": "M5 5h5z",
+                    "sofa": "M6 6h6z"}), encoding="utf-8")
+
+    sr = search_icons("door", www, frontend=fe)
+    got = [(i["set"], i["name"]) for i in sr["icons"]]
+    check("search: one query hits every installed set",
+          ("mdi", "door-open") in got and ("phu", "door_open") in got)
+    check("search: sets interleave — the small pack is not drowned",
+          {s for s, _ in got[:2]} == {"mdi", "phu"})
+    check("search: prefix matches lead inside each set",
+          got.index(("phu", "door_open")) < got.index(("phu", "panel_door_open")))
+    check("search: rows carry path data for the preview",
+          all(i["path"] and i["viewBox"] for i in sr["icons"]))
+    check("search: hyphen/underscore agnostic (mdi habit finds phu names)",
+          ("phu", "door_open") in
+          [(i["set"], i["name"]) for i in
+           search_icons("door-o", www, frontend=fe)["icons"]])
+    check("search: empty query = just the installed-set roster",
+          search_icons("", www, frontend=fe)["icons"] == []
+          and search_icons("", www, frontend=fe)["sets"] == ["mdi", "phu"])
+
+    # the bridge: studio-resolved custom-set icons persist as files…
+    sv = save_resolved({
+        "fa6-solid:door-open": {"viewBox": "0 0 512 512", "path": "M7 7h7z"},
+        "fa6-solid:bad": {"viewBox": "0 0 24 24",
+                          "path": 'M1<script>"onload'},
+        "material:tv": {"viewBox": "0 0 24 24", "path": "M8 8h8z"},
+    }, www)
+    f = www / "harmonium" / "icons" / "fa6-solid" / "door-open.svg"
+    check("save: a resolved custom icon lands as a distilled file",
+          sv["written"] == ["fa6-solid:door-open"] and f.is_file()
+          and 'viewBox="0 0 512 512"' in f.read_text("utf-8"))
+    check("save: junk path data and the font are rejected, never written",
+          sorted(sv["rejected"]) == ["fa6-solid:bad", "material:tv"]
+          and not (www / "harmonium" / "icons" / "material").exists())
+
+    # …then resolve, mint, autocomplete, and search server-side
+    cfg2 = {"screens": {"p": {"sections": [{"tiles": [
+        {"id": "t", "icon": "fa6-solid:door-open"}]}]}}}
+    rr2 = resolve_icons(["fa6-solid:door-open"], www, frontend=fe)
+    check("saved set resolves from disk (no python source needed)",
+          rr2["found"]["fa6-solid:door-open"]["path"] == "M7 7h7z"
+          and rr2["no_source"] == [])
+    mm2 = mint_icon_paths(cfg2, www, frontend=fe)
+    check("saved set MINTS into the deployed config",
+          mm2["found"]["fa6-solid:door-open"]["viewBox"] == "0 0 512 512")
+    ls2 = list_icons("fa6-solid", "door", www, frontend=fe)
+    check("saved set autocompletes when its prefix is typed",
+          [i["name"] for i in ls2["icons"]] == ["door-open"]
+          and ls2["no_source"] is False)
+    sr2 = search_icons("door", www, frontend=fe)
+    check("saved set joins the cross-set search",
+          ("fa6-solid", "door-open") in
+          [(i["set"], i["name"]) for i in sr2["icons"]])
+
+    # ownership: a hand-replaced file in the saved set is FROZEN
+    f.write_text("<svg>users own art</svg>", encoding="utf-8")
+    sv2 = save_resolved({"fa6-solid:door-open":
+                         {"viewBox": "0 0 512 512", "path": "M9 9h9z"}}, www)
+    check("save: a hand-replaced SVG is never overwritten",
+          sv2["written"] == [] and "users own art" in f.read_text("utf-8"))
+
+# ---- 9. THE custom_icons NORMALIZER (round 4 — his fa6-solid:
+# icons come from thomasloven's hass-custom_icons, a python service
+# in the same process; api.py asks it directly and this function
+# turns its IconData into our (viewBox, path) or an honest None) ----
+from harmonium.icons import ci_icon_to_path  # noqa: E402
+
+check("ci: fapro shape (viewBox + path)",
+      ci_icon_to_path({"viewBox": "0 0 512 512", "path": "M1 1h1z"})
+      == ("0 0 512 512", "M1 1h1z"))
+check("ci: a duotone path2 concatenates as subpaths",
+      ci_icon_to_path({"viewBox": "0 0 512 512", "path": "M1 1h1z",
+                       "path2": "M2 2h2z"})
+      == ("0 0 512 512", "M1 1h1z M2 2h2z"))
+check("ci: iconify body of pure paths extracts, box from l/t/w/h",
+      ci_icon_to_path({"left": 0, "top": 0, "width": 24, "height": 24,
+                       "body": '<path fill="currentColor" d="M3 3h3z"/>'})
+      == ("0 0 24 24", "M3 3h3z"))
+check("ci: multiple body paths concatenate",
+      ci_icon_to_path({"width": 16, "height": 16,
+                       "body": '<path d="M1 1z"/><path d="M2 2z"/>'})
+      == ("0 0 16 16", "M1 1z M2 2z"))
+check("ci: a body with non-path elements is honestly None",
+      ci_icon_to_path({"width": 16, "height": 16,
+                       "body": '<g><path d="M1 1z"/></g>'}) is None)
+check("ci: a transformed icon is honestly None (would render wrong)",
+      ci_icon_to_path({"viewBox": "0 0 24 24", "path": "M1 1z",
+                       "rotate": 2}) is None)
+check("ci: junk path data is refused",
+      ci_icon_to_path({"body": '<path d="M1<script>z"/>'}) is None)
+check("ci: not-a-dict is None", ci_icon_to_path(None) is None)
 
 print(("\nicon-distill: FAIL " + str(fails)) if fails
       else "\nicon-distill: ALL PASS")

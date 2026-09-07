@@ -18,8 +18,8 @@ const errs = [];
 const ck = (n, c) => { if (!c) errs.push(n); };
 
 /* ---- 1. the palette math (mirrors tools/gen-identity-palette.mjs) ---- */
-const SLOTS = [["coral", 20], ["fern", 127], ["jade", 145], ["indigo", 272],
-  ["violet", 299], ["orchid", 326], ["rose", 353], ["slate", 0]];
+const SLOTS = [["coral", 20], ["fern", 127], ["jade", 145], ["azure", 249],
+  ["indigo", 272], ["violet", 299], ["orchid", 326], ["rose", 353], ["slate", 0]];
 function oklchToSrgb(l, c, hDeg) {
   const h = (hDeg * Math.PI) / 180;
   const a = c * Math.cos(h), b = c * Math.sin(h);
@@ -128,7 +128,9 @@ for (const [name, src] of BRANDS) {
   let badge;
   if (o.c < 0.02) badge = rgb;
   else {
-    const l2 = Math.max(0.46, Math.min(0.86, o.l));
+    /* floor 0.55 (2026-09-04 field ruling: "brighter icon, same
+       shade" — roku/disney/samsung; the class brightens together) */
+    const l2 = Math.max(0.55, Math.min(0.86, o.l));
     badge = oklchToSrgb(l2, Math.min(o.c, ceilingC(l2, o.h)), o.h);
   }
   const wash = o.c < 0.02 ? oklchToSrgb(0.55, 0, 0)
@@ -144,6 +146,11 @@ for (const [name, src] of BRANDS) {
   ck(`ink: ${name} is the measured pick`, (iTok || '').trim() === ink);
   ck(`ink: ${name} clears 4.4:1 on its badge`,
     Math.max(wcag(DARK, badge), wcag(unhex('#ffffff'), badge)) >= 4.4);
+  /* the ON-TILE glyph tint (-g, 2026-09-04): white for a dark
+     achromatic badge (sony, peacock), the badge hex otherwise */
+  const gTok = (block.match(new RegExp(`--id-${name}-g:\\s*(#[0-9a-f]{6})`)) || [])[1];
+  const gWant = o.c < 0.02 && o.l < 0.5 ? '#ffffff' : hex(badge);
+  ck(`glyph tint: ${name} is the measured pick`, gTok === gWant);
 }
 /* identity slots got inks too — all dark at L 0.68 */
 for (const [name] of SLOTS)
@@ -155,7 +162,7 @@ const gridCss = readFileSync(new URL('../src/styles/grid.css', import.meta.url),
 const tilesJs = readFileSync(new URL('../src/ui/tiles.js', import.meta.url), 'utf8');
 for (const name of [...SLOTS.map(s => s[0]), ...BRANDS.map(b => b[0])]) {
   ck(`class map covers ${name}`, gridCss.includes(
-    `.tile.id-${name} { --tacc: var(--id-${name}-b); --idw: var(--id-${name}-w); --tink: var(--id-${name}-i); }`));
+    `.tile.id-${name} { --tacc: var(--id-${name}-b); --idw: var(--id-${name}-w); --tink: var(--id-${name}-i); --tg: var(--id-${name}-g); }`));
   ck(`ID_SLOTS covers ${name}`, new RegExp(`\\b${name}: 1`).test(tilesJs));
 }
 /* JOINT UNIQUENESS (canvas §7): no two stock apps may share BOTH
@@ -212,6 +219,20 @@ const CONFIG = { version: 2, home_screen: 'p', screen_order: ['p'], global: { ro
        badge (the icon circle) carrying a white-ink brand */
     { tiles: [
       { id: 'a7', type: 'activity', activity: 'tv', label: 'Watch Fire TV', icon: 'material:tv', accent: 'firetv', accent_style: 'bloom', span: 2 },
+      /* DEVICE tiles wear accents too (2026-09-03: the section knob
+         "had no way of implementing it" on devices) — and the trail
+         pad is charged ONCE (his "Zone 1 - Lou…" double-pad bug) */
+      { id: 'd9', type: 'device', entity: 'light.z1', label: 'Zone 1 - Lounge', icon: 'material:heat', accent: 'jade', span: 2 },
+      /* Title styles DEGRADE to their wash half off presets
+         (2026-09-03) — title-bloom on a device = ids-bloom, never
+         the preset-only ids-text/ids-pbloom */
+      { id: 'd10', type: 'device', entity: 'light.z2', label: 'Z2', icon: 'material:heat', accent: 'coral', accent_style: 'title-bloom' },
+      /* CARD GROUPS GO FLAT (2026-09-03, his fused-heaters shot):
+         inside a group the wrapper is the card — an unfocused
+         member's wash comes OFF (no seams, no restarting radials);
+         the glyph tint stays */
+      { id: 'g1', type: 'device', entity: 'light.g1', label: 'G1', icon: 'material:heat', span: 2, accent: 'rose', accent_style: 'bloom', card_group: 'zg' },
+      { id: 'g2', type: 'device', entity: 'light.g2', label: 'G2', icon: 'material:heat', span: 2, accent: 'rose', accent_style: 'bloom', card_group: 'zg' },
     ] },
     { tile_style: 'row', tiles: [
       { id: 'r1', type: 'activity', activity: 'tv', label: 'Samsung', icon: 'material:tv', accent: 'samsung' },
@@ -280,6 +301,13 @@ const w = await p.evaluate(() => {
     /* V2 brand tier renders */
     a7: bgi('a7'),
     a7ic: getComputedStyle(T('a7').querySelector('.top .ic')).color,
+    d9ic: getComputedStyle(T('d9').querySelector('.top .ic')).color,
+    d10cls: T('d10').className,
+    g2bgi: getComputedStyle(T('g2')).backgroundImage,
+    g2ic: getComputedStyle(T('g2').querySelector('.top .ic')).color,
+    grpOne: document.querySelectorAll('.cardgrp').length === 1,
+    d9lbl: (() => { const l = T('d9').querySelector('.top .lbl');
+      return { w: l.clientWidth, fits: l.scrollWidth <= l.clientWidth + 1 }; })(),
     r1circ: getComputedStyle(T('r1').querySelector('.icwrap')).backgroundColor,
     r1ink: getComputedStyle(T('r1').querySelector('.icwrap .ic')).color,
     p5lbl: getComputedStyle(T('p5').querySelector('.lbl')).fontSize + '/' +
@@ -334,8 +362,17 @@ ck('V2 recut: the label breaks long words instead of clipping silently',
   /break-word/.test(w.p1lblWrap) && w.p1lblClipX <= 1);
 ck('V2 brand tier: firetv bloom rides the SYSTEM wash (162, 95, 0) with the brand glyph (#ff9900)',
   w.a7.includes('rgba(162, 95, 0') && w.a7ic === 'rgb(255, 153, 0)');
-ck('V2 ink: a white-ink brand badge (samsung) paints its circle #2848c0 with white glyph',
-  w.r1circ === 'rgb(40, 72, 192)' && w.r1ink === 'rgb(255, 255, 255)');
+ck('a DEVICE tile wears its accent (jade glyph)', w.d9ic === 'rgb(84, 176, 90)');
+ck('a grouped, unfocused member wears its wash ALONE — gradient, never a card base (2026-09-04: "only applying the tints to the selected tile" — fixed)',
+  w.grpOne && w.g2bgi.indexOf('gradient') >= 0 && w.g2bgi.indexOf('var(--tile') < 0);
+ck('the grouped member keeps its glyph tint', w.g2ic === 'rgb(221, 109, 160)');
+ck('Title styles degrade to their wash half on a device (no preset-only classes)',
+  w.d10cls.indexOf('ids-bloom') >= 0 && w.d10cls.indexOf('ids-text') < 0 &&
+  w.d10cls.indexOf('ids-pbloom') < 0);
+ck('the launcher label pays the trail ONCE — "Zone 1 - Lounge" fits at span-2',
+  w.d9lbl.fits && w.d9lbl.w > 180);
+ck('V2 ink: a white-ink brand badge (samsung) paints its circle #3f65df with white glyph (floor 0.55, 2026-09-04)',
+  w.r1circ === 'rgb(63, 101, 223)' && w.r1ink === 'rgb(255, 255, 255)');
 ck('title-bloom: the canvas-proportioned pool, lifted alpha',
   w.p1.startsWith('radial-gradient(88% 117% at 20% 100%') && w.p1.includes('0.75'));
 ck('title-tint composes: title layout + the soft flat tint',

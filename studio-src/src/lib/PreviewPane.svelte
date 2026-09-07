@@ -159,6 +159,19 @@
   const plainVp = $derived.by(() => {
     if (profile?.skin?.viewport) return profile.skin.viewport;
     if (profile?.viewport) return profile.viewport;
+    /* A BROWSER PROFILE IS NOT A PHONE REMOTE (2026-09-04 — Suresh:
+       "On screen device buttons break the preview (default) — we
+       should probably make the default (i.e. browser) preview,
+       wider"). A profile with no physical_dpad draws the on-screen
+       Remote pad and every device-button row, and at a borrowed
+       349px those stack into a broken-looking tower. No measurement
+       of its own + no dpad hardware = it lives in a browser tab, so
+       it previews at a browser-ish 480×800 instead of borrowing a
+       handheld's glass. Profiles WITH hardware keep the borrow
+       chain untouched. */
+    const caps = profile?.capabilities;
+    if (Array.isArray(caps) && !caps.includes("physical_dpad"))
+      return { w: 480, h: 800 };
     for (const p2 of Object.values(app.draft?.remotes || {})) {
       const v = p2?.skin?.viewport || p2?.viewport;
       if (v) return v;

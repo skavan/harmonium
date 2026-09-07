@@ -40,7 +40,10 @@ const lib = await import('../studio-src/src/lib/stocklib.js');
   ck('registry: SHOWS_KINDS roles agree with the registry',
     SHOWS_KINDS.every(k => (ADAPTERS[k.value] || {}).role === k.role));
   const vals = (dom) => showsForDomain(dom).map(k => k.value).join(',');
-  ck('offers: a light gets launcher + power', vals('light') === 'device,power');
+  /* 2026-09-03 ("The light should support brightness. So its part
+     of 0.87"): light grew its own control — the dimmer track */
+  ck('offers: a light gets launcher + Light control + power',
+    vals('light') === 'device,light,power');
   ck('offers: a media_player gets all six',
     vals('media_player') === 'device,volume,power,media,transport,sources');
   ck('offers: a sensor gets the launcher only', vals('sensor') === 'device');

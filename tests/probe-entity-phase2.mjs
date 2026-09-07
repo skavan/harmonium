@@ -24,7 +24,8 @@ const ck = (n, c) => { if (!c) errs.push(n); };
   const vals = (dom) => lib.showsForDomain(dom).map(k => k.value).join(',');
   ck('offers: number.* gets launcher + Number', vals('number') === 'device,number');
   ck('offers: input_select.* gets launcher + Select', vals('input_select') === 'device,select');
-  ck('offers: a light still gets launcher + power', vals('light') === 'device,power');
+  ck('offers: a light gets launcher + Light control + power (0.87 dimmer)',
+    vals('light') === 'device,light,power');
   const roles = (r) => lib.showsForRoles(r).map(k => k.value).join(',');
   ck('offers: a volume-claiming device gets launcher + volume, never Number/Select',
     roles({ volume: 'media_player.x' }) === 'device,volume');

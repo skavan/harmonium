@@ -6,27 +6,42 @@
    choices are always what the device actually supports.
    ================================================================ */
 
-/* stepper bindings: one adjustable range per kind */
+/* stepper bindings: one adjustable range per kind.
+   `loc` is the OPTIMISTIC local write (2026-09-05, feedback-3 #2 —
+   Suresh: "The sonos bass and treble steppers take forever to
+   register a step and feel broken"): the displayed value used to
+   wait for HA's confirming diff, so a slow integration read as dead
+   buttons — and every tap before the confirm recomputed from the
+   STALE value, so rapid taps didn't accumulate. Each kind writes its
+   target into the local state first (the mute toggle's doctrine) and
+   the confirming diff simply lands over it. */
 const STEP_KINDS = {
   temperature: {
     get: e => st(e).a.temperature, fmt: v => (v != null ? v : "–") + "°", step: 1,
     stepAttr: "target_temp_step", minAttr: "min_temp", maxAttr: "max_temp",
+    loc: (e, v) => { const c = S.states.get(e); if (c && c.a) c.a.temperature = v; },
     set: (e, v) => callService("climate", "set_temperature", { temperature: v }, e)
   },
   brightness: {
     get: e => st(e).s === "on" ? Math.round((st(e).a.brightness || 0) / 2.55) : 0,
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
+    /* brightness_pct on turn_on lights the light — the local mirror
+       flips the state too, or get() would keep answering 0 */
+    loc: (e, v) => { const c = S.states.get(e);
+      if (c && c.a) { c.s = "on"; c.a.brightness = Math.round(v * 2.55); } },
     set: (e, v) => callService("light", "turn_on", { brightness_pct: v }, e)
   },
   volume: {
     get: e => Math.round((st(e).a.volume_level || 0) * 100),
     fmt: v => (v != null ? v : 0) + "%", step: 3, min: 0, max: 100, slider: "h",
+    loc: (e, v) => { const c = S.states.get(e); if (c && c.a) c.a.volume_level = v / 100; },
     set: (e, v) => callService("media_player", "volume_set", { volume_level: v / 100 }, e)
   },
   percentage: {
     get: e => { const p = st(e).a.percentage; return p != null ? p : 0; },
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "h",
     stepAttr: "percentage_step",
+    loc: (e, v) => { const c = S.states.get(e); if (c && c.a) c.a.percentage = v; },
     set: (e, v) => callService("fan", "set_percentage", { percentage: v }, e)
   },
   position: {
@@ -38,6 +53,8 @@ const STEP_KINDS = {
       return entOpt(e, "invert_position") ? 100 - p : p;
     },
     fmt: v => (v != null ? v : 0) + "%", step: 10, min: 0, max: 100, slider: "v",
+    loc: (e, v) => { const c = S.states.get(e); if (c && c.a)
+      c.a.current_position = entOpt(e, "invert_position") ? 100 - v : v; },
     set: (e, v) => callService("cover", "set_cover_position",
       { position: entOpt(e, "invert_position") ? 100 - v : v }, e)
   },
@@ -57,6 +74,10 @@ const STEP_KINDS = {
         (u ? ((u === "%" || u === "°") ? "" : " ") + u : "");
     },
     step: 1, stepAttr: "step", minAttr: "min", maxAttr: "max",
+    /* the value IS the state for number entities — his Sonos bass and
+       treble, the kind the feedback named */
+    loc: (e, v) => { const c = S.states.get(e); if (c)
+      c.s = String(Math.round(v * 1000) / 1000); },
     set: (e, v) => callService((e || "").split(".")[0], "set_value",
       { value: Math.round(v * 1000) / 1000 }, e)
   }
@@ -86,6 +107,13 @@ function nudgeStep(e, kind, dir) {
   let v = (+k.get(e) || 0) + dir * b.step;
   if (b.min != null) v = Math.max(b.min, v);
   if (b.max != null) v = Math.min(b.max, v);
+  /* OPTIMISTIC FIRST (feedback-3 #2): write the target locally and
+     repaint, THEN ask HA — taps register instantly and accumulate,
+     and the confirming diff lands over the same value */
+  if (k.loc) {
+    k.loc(e, v);
+    if (typeof renderStates === "function") renderStates();
+  }
   k.set(e, v);
 }
 
@@ -147,6 +175,23 @@ function rovePick(t, attr) {
    Layout doctrine (v0.9.3): row 1 = power toggle (back is the GLOBAL
    status-bar chevron); NO headings — a small dim icon marks each
    row's meaning; option buttons are preset-tile sized. */
+/* WHERE DO APPS LIVE IN THIS WORKSPACE? The first controller that is
+   a drawer and generates an apps grid (type:"apps", in tiles or in
+   sections). Found by shape, not by name — "apps" is only a starter
+   convention. Null when the workspace has none. */
+function appsDrawerId() {
+  const cons = (CONFIG && CONFIG.controllers) || {};
+  for (const cid in cons) {
+    const c = cons[cid];
+    if (!c || !c.drawer) continue;
+    let tiles = Array.isArray(c.tiles) ? c.tiles.slice() : [];
+    (Array.isArray(c.sections) ? c.sections : []).forEach(s => {
+      if (s && Array.isArray(s.tiles)) tiles = tiles.concat(s.tiles);
+    });
+    if (tiles.some(t => t && t.type === "apps")) return "controller:" + cid;
+  }
+  return null;
+}
 const DETAIL_TILES = {
   climate: e => [
     { id: "dp", type: "power", entity: e, label: "", span: 2 },
@@ -161,9 +206,34 @@ const DETAIL_TILES = {
     { id: "de", type: "chips", kind: "effect", entity: e, icon: "material:auto_awesome", label: "", span: 2 }
   ],
   media_player: e => [
+    /* POWER leads, Now Playing second (2026-09-04 — Suresh: "The Now
+       Playing should be below the Power button"; the slim NP itself
+       was his earlier ask — "go with the Slim version, since its now
+       a child of the Fire TV activity"). The NP's trailing is the
+       APPS DRAWER when the workspace has one (the drawer serves the
+       opener — ctxFor's drawer law — so from this page it is THIS
+       device's apps); with no drawer it is suppressed, because the
+       default trail would navigate to detail:<e> — the page we are
+       already standing on, a button that visibly does nothing (his
+       "The Apps button on Porch TV doesn't show me the Apps").
+       FALLBACK ONLY since the same day: DOMAIN_STOCKS.media_player
+       (stocklib, "Media Device") is this list's editable twin, and
+       detailDef prefers it — a normalized config never reaches this
+       branch. Change one, change both (probe-media-device-stock
+       fences the pair). */
+    /* gen 2 (2026-09-05, feedback-3 #4 — Suresh: "Lets make the stock
+       Media Device use: Now Playing = Art, Volume = Slider"): the NP
+       wears the art hero, the volume row is the fat slider (working
+       spelling — no `variant`, so the wiring rewrite above still
+       upgrades it per device). Twin: stocklib DOMAIN_STOCKS. */
     { id: "dp", type: "power", entity: e, label: "", span: 2 },
+    { id: "dnp", type: "media", style: "art", entity: e,
+      icon: "material:smart_display", label: "Now Playing", span: 2,
+      trailing: appsDrawerId()
+        ? { icon: "material:apps", action: { navigate: appsDrawerId() } }
+        : false },
     { id: "dt", type: "transport", entity: e, label: "", span: 2 },
-    { id: "ds", type: "stepper", kind: "volume", entity: e, icon: "material:volume_up", label: "", span: 2 },
+    { id: "ds", type: "volume", slider: true, entity: e, icon: "material:volume_up", label: "", span: 2 },
     { id: "dsrc", type: "chips", kind: "source", entity: e, icon: "material:input", label: "", span: 2 },
     { id: "dsnd", type: "chips", kind: "sound_mode", entity: e, icon: "material:graphic_eq", label: "", span: 2 }
   ],
@@ -225,10 +295,50 @@ function bindDeviceTiles(tiles, eid) {
 function detailDef(eid) {
   const dom = eid.split(".")[0];
   const cs = (CONFIG && CONFIG.controllers) || {};
+  /* THE DEVICE'S OWN PICK OUTRANKS (2026-09-04, Media Device round 3
+     — Suresh: "we should assign a Device Controller per device
+     instance, alongside the dialect setting we have now" and "it
+     only shows Customize its page, not select one"): a pre-wired
+     device may name its page — `page: "<controller id>"` on the
+     device bundle, like `dialect`. Any same-domain controller
+     qualifies: a variant made for another device (two Samsungs
+     sharing one custom page), or the domain stock itself (pinning
+     stock even while an entity-bound copy exists). A wrong-domain
+     or missing id is ignored and the ladder below answers. */
+  const own = deviceOwning(eid);
+  if (own && own.d && typeof own.d.page === "string") {
+    const c = cs[own.d.page.replace(/^controller:/, "")];
+    if (c && c.domain === dom) return c;
+  }
   for (const c of Object.values(cs))
     if (c && c.variant_of && c.domain === dom && c.entity === eid) return c;
   const stock = cs[dom];
   return (stock && stock.domain === dom) ? stock : null;
+}
+/* which pre-wired device owns this entity — any role claim counts,
+   because a device IS its roles assembly (design-device-takeover) */
+function deviceOwning(eid) {
+  const ds = (CONFIG && CONFIG.devices) || {};
+  for (const id in ds) {
+    const d = ds[id], r = (d && d.roles) || {};
+    for (const k in r) if (r[k] === eid) return { id: id, d: d };
+  }
+  return null;
+}
+/* THE DISPLAY-NAME CHAIN (2026-09-04 — Suresh: "we show the
+   unfriendly entity name on the screen, we should show whatever was
+   set or ends up as the Display Name"): the running activity's
+   per-member Display name (present[deviceId].name) → the device's
+   library name → the entity's friendly name. One chain for the page
+   title AND the strip's wordmark, so they can never disagree. */
+function deviceDisplayName(devId, dv, eid) {
+  const aid = renderActivityId();
+  const act = aid && (CONFIG.activities || {})[aid];
+  const pr = act && presOf(act, devId);
+  if (pr && typeof pr.name === "string" && pr.name) return pr.name;
+  if (dv && dv.name) return dv.name;
+  const s = eid && st(eid);
+  return (s && s.a && s.a.friendly_name) || null;
 }
 function detailScreen(eid) {
   const def = detailDef(eid);
@@ -238,12 +348,90 @@ function detailScreen(eid) {
     : (DETAIL_TILES[eid.split(".")[0]] || genericDetail)(eid);
   if (!raw || !raw.length) return null;
   const tiles = def ? bindDeviceTiles(raw, eid) : raw;
-  return {
+  const scr = {
     name: st(eid).a.friendly_name || eid.split(".")[1].replace(/_/g, " "),
     virtual: true,
     tiles,
     initial_focus: tiles.some(t => t.id === "ds") ? "ds" : tiles[0].id
   };
+  /* THE TAKEOVER (2026-09-04, design-device-takeover — the forum ask:
+     "if I click on the Sony TV from the cast, all roles switch to the
+     Sony TV"; Suresh: the porch Samsung's tile showed none of it, so
+     the generated page itself now declares the takeover). When the
+     entity belongs to a pre-wired device, its page speaks the DEVICE:
+     the device's roles/dialect/dpad_commands become the page context
+     (own_context beats the activity's overlay in ctxFor), and the
+     dpad role — when wired — takes the physical pad through the
+     existing passthrough gate, which brings the BACK/HOME strip and
+     the borrowed-keys chrome with it. Entities no device owns keep
+     exactly the old page. */
+  const own = deviceOwning(eid);
+  if (own) {
+    const dv = own.d;
+    const ctx = Object.assign({}, dv.roles || {});
+    if (dv.dialect) ctx.dialect = dv.dialect;
+    if (dv.traits && dv.traits.dpad_commands)
+      ctx.dpad_commands = dv.traits.dpad_commands;
+    scr.context = ctx;
+    scr.own_context = true;
+    const dn = deviceDisplayName(own.id, dv, eid);
+    if (dn) scr.name = dn;
+    /* VOLUME HONORS THE WIRING (2026-09-05 — his porch: "a pre-wired
+       device, with volume readout set to the soundbar … doesn't
+       honor that setting"): the generated volume row was bound to
+       the tapped entity, ignoring the device's own volume roles. A
+       wired `volume_level` upgrades the row to the volume widget's
+       ARC split (buttons → the volume role, readout → the level
+       entity — the same spelling the activity's t_vol uses); a
+       wired `volume` alone just retargets the stepper. User edits
+       on the stock tile (hidden, span…) ride along.
+       ONLY the untouched stock shape (2026-09-05 drift round —
+       Suresh: "Volume shows stepper in config, but compact (correct)
+       in ui"): this silent rewrite made the page diverge from what
+       the editor shows. An AUTHORED pick — a canonical `variant`, or
+       a tile that already carries its own ARC split (`level_entity`)
+       — is the user's law and passes untouched; per-device copies
+       bake the wiring at creation now (Studio
+       instantiateDeviceController), so their config says what
+       renders. The bare stock stepper still upgrades at render,
+       because the shared stock and unbound templates serve MANY
+       devices and can only resolve wiring per-render. */
+    if (dv.roles && (dv.roles.volume || dv.roles.volume_level)) {
+      const vr = dv.roles.volume, vl = dv.roles.volume_level;
+      for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        if (t.id !== "ds" || (t.kind !== "volume" && t.type !== "volume"))
+          continue;
+        if (t.variant || t.level_entity) continue;
+        if (vl) {
+          const nt = Object.assign({}, t, { type: "volume", slider: false,
+            entity: vr || eid, level_entity: vl });
+          delete nt.kind;
+          tiles[i] = nt;
+        } else if (vr && vr !== t.entity) {
+          tiles[i] = Object.assign({}, t, { entity: vr });
+        }
+      }
+    }
+    /* the page declares its OWN control_target (2026-09-04, round 2 —
+       Suresh's porch: "dpad is targetting the fire tv even though I'm
+       looking at the samsung device"). controlTarget() falls back to
+       the ACTIVITY's `controls` when a screen declares none, so the
+       running activity's navigation target was intercepting the
+       device page. A full declaration — not just v1 dpad_passthrough
+       — outranks that fallback for every consumer: deviceKeyTarget,
+       passthroughActive, ctPass, ctPower. */
+    if (dv.roles && dv.roles.dpad) {
+      scr.dpad_passthrough = dv.roles.dpad;
+      scr.control_target = {
+        navigation: dv.roles.dpad,
+        pass_through: ["up", "down", "left", "right", "select", "back", "home"],
+      };
+      if (dv.roles.power) scr.control_target.power = dv.roles.power;
+      if (dv.roles.volume) scr.control_target.volume = dv.roles.volume;
+    }
+  }
+  return scr;
 }
 /* SOURCES detail (v0.35): navigate("sources:<entity>") — the input
    picker as a virtual screen. One chips row (kind source): the live
@@ -316,7 +504,11 @@ function groupScreen(gid) {
     .filter(Boolean);
   if (!tiles.length) return null;
   return {
-    name: (act.name ? act.name + " · " : "") + (g.name || gid),
+    /* the page wears the GROUP's name (2026-09-05 groups round —
+       Suresh: "for the title to represent the groups name"): the
+       activity prefix crowded the 349px bar and the card the user
+       tapped already said where they were */
+    name: g.name || gid,
     virtual: true,
     grid: { columns: (g.grid && g.grid.columns) || 1 },
     tiles
@@ -393,8 +585,33 @@ function screenOf(id) {
     return groupScreen(id.slice(6));   /* a cast group (v0.60) */
   if (typeof id === "string" && id.startsWith("spkgrp:"))
     return speakerGroupScreen(id.slice(7));   /* a speaker group (v0.83.7) */
-  if (typeof id === "string" && id.startsWith("controller:"))
-    return (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
+  if (typeof id === "string" && id.startsWith("controller:")) {
+    const c = (CONFIG && CONFIG.controllers && CONFIG.controllers[id.slice(11)]) || null;
+    /* A DEVICE VARIANT AS A SURFACE (2026-09-05 — Suresh's minimal-TV
+       flow: clone the Media Device page for the Samsung, then point
+       the ACTIVITY at the clone). An entity-bound domain variant
+       carries $device tiles; opened through detail: they bind in
+       detailScreen, but opened AS a controller (an activity's
+       screen) they would render the literal string. Bind here too —
+       the copy's own `entity` is the truth either way. Context stays
+       the activity's (no own_context): the tiles are pinned to the
+       device, the $context refs resolve from whoever runs. */
+    /* an UNBOUND template previews through a lent device (feedback-1:
+       stock-editor copies carry no entity of their own — the Studio's
+       preview-device impersonation supplies one, S.pvDevice) */
+    const bindTo = c && c.domain &&
+      (c.entity || (c.variant_of && typeof S !== "undefined" && S.pvDevice));
+    if (c && bindTo) {
+      const b = Object.assign({}, c);
+      if (Array.isArray(c.tiles)) b.tiles = bindDeviceTiles(c.tiles, bindTo);
+      if (Array.isArray(c.sections))
+        b.sections = c.sections.map(s => (s && Array.isArray(s.tiles))
+          ? Object.assign({}, s, { tiles: bindDeviceTiles(s.tiles, bindTo) })
+          : s);
+      return b;
+    }
+    return c;
+  }
   return (CONFIG && CONFIG.screens && CONFIG.screens[id]) || null;
 }
 

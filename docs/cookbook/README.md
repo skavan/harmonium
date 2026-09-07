@@ -6,6 +6,8 @@ Task-shaped guides: each page starts from a working install
 ([GETTING-STARTED](../GETTING-STARTED.md)) and ends with one concrete
 outcome on your remote.
 
+**🖼 Pictorials (screenshots, step by step):** [Control groups](../pictorials/Control%20Groups.md) · [Custom controllers](../pictorials/Custom%20Controller.md) · [Entity support and variants](../pictorials/Entity%20Support%20and%20variants.md) · [Styling tiles](../pictorials/Styling%20Tiles.md)
+
 **📺 Video tutorials:** [Install via HACS](https://youtu.be/2E28x7pt36k) ·
 [Watch TV activity](https://youtu.be/M75ZPYvorUM) ·
 [Listen to Music activity](https://youtu.be/vALzJylJLSw) ·
@@ -15,6 +17,7 @@ outcome on your remote.
 |---|---|
 | [Your first screen](first-screen.md) | Your first page, scaffolded and deployed — the foundation |
 | [Activities](activities.md) | "Watch TV" that turns everything on, in order |
+| [How controllers work](how-controllers-work.md) | The mental model: two kinds of controller, casts and context, what the preview really shows, who gets the keys |
 | [Creating an Activity — the deep dive](creating-an-activity.md) | Every tab, every knob, every concept, with screenshots |
 | [Presets](presets.md) | One-tap Netflix / scene / favorite buttons |
 | [Mapping a physical remote](remote-map.md) | A new remote model fully described, end to end |

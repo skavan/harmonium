@@ -82,7 +82,7 @@ function deviceTarget(t) {
    Exactly two control fillings, ever; domain identity is the icon
    and status string only. Domains without a density mapping ignore
    the field and stay launchers. */
-const DENSITY_DOMS = { fan: 1, cover: 1, switch: 1, input_boolean: 1, lock: 1 };
+const DENSITY_DOMS = { fan: 1, cover: 1, switch: 1, input_boolean: 1, lock: 1, light: 1, climate: 1 };
 /* §9: no continuum, no fat — a switch or lock asked for inline
    renders its compact tile (the density scale doing its job) */
 const FLAT_DOMS = { switch: 1, input_boolean: 1, lock: 1 };
@@ -181,6 +181,17 @@ const devDensity = t => {
 };
 
 WIDGETS.device = {
+  /* TWO-VALUE TILES (control language V9, 2026-09-04 — his aircon
+     screenshot: the state line sat flush with the icon). A tile
+     carries at most ONE editable value and it lives in the control
+     row; a read-only state ("75° · Cool") belongs to the TITLE
+     block: on compact it rides the far right of the title row
+     (inlineSub — the chassis's existing v3 slot), on fat it is a
+     second line indented to the NAME (grid.css .dvi rule). */
+  inlineSub: (t) => {
+    const e = resolveEntity(t.entity) || t.entity || "";
+    return devDensity(t) === "compact" && e.split(".")[0] === "climate";
+  },
   sub: (e, t) => {
     const s = st(e), dom = (e || "").split(".")[0];
     const den = devDensity(t);
@@ -231,6 +242,7 @@ WIDGETS.device = {
       const detail = s.a.media_title || s.a.source;
       return cap(s.s) + (detail && ACTIVE(s.s) ? " · " + detail : "");
     }
+    if (dom === "light" && den) return "";   /* the track owns the % */
     if (dom === "light")
       return s.s === "on"
         ? "On · " + Math.round((s.a.brightness || 255) / 2.55) + "%" : cap(s.s);
@@ -333,9 +345,11 @@ WIDGETS.device = {
       <button class="dpbtn" data-cv="${pre}open_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">arrow_upward</span></button>
       <button class="dpbtn" data-cv="${pre}stop_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">stop</span></button>
       <button class="dpbtn" data-cv="${pre}close_cover${pre ? "_tilt" : ""}"><span class="material-symbols-outlined">arrow_downward</span></button>`;
-    if (dom === "fan") {
+    if (dom === "fan" || dom === "light" || dom === "climate") {
       /* continuous: ± around the value (fat) or the 32px track
-         (compact) — the numeric card, nothing else */
+         (compact) — the numeric card, nothing else; a dimmer is the
+         fan shape with brightness on the track, a thermostat is the
+         same shape with the setpoint over the entity's own range */
       if (den === "compact")
         return `<div class="steprow">
         <button class="dpbtn" data-dvn="-1"><span class="material-symbols-outlined">remove</span></button>
@@ -402,8 +416,13 @@ WIDGETS.device = {
       const tilt = v.indexOf("tilt:") === 0;
       callService("cover", tilt ? v.slice(5) : v, null, ent());
     });
-    /* fan ± — the shared numeric step (entity metadata decides) */
-    wireTaps(el, "dvn", d => { nudgeStep(ent(), "percentage", +d); renderStates(); });
+    /* fan ± — the shared numeric step (entity metadata decides);
+       a light ± nudges brightness (~10% per tap) */
+    wireTaps(el, "dvn", d => {
+      if (dom === "light") nudgeLight(ent(), d * 26);
+      else if (dom === "climate") nudgeStep(ent(), "temperature", +d);
+      else nudgeStep(ent(), "percentage", +d);
+      renderStates(); });
     /* §9 switch pair — stateless targets, always both live */
     wireTaps(el, "sw", v => callService(dom, v, null, ent()));
     /* §9 lock: lock is a single press; unlock and open are 500ms
@@ -446,6 +465,23 @@ WIDGETS.device = {
         if (dom === "cover")
           callService("cover", "set_cover_position",
             { position: t.invert ? 100 - v : v }, ent());
+        else if (dom === "light")
+          /* zero is an honest OFF — brightness_pct: 0 is rejected by
+             some lights and a 1% glow by others */
+          (v > 0 ? callService("light", "turn_on", { brightness_pct: v }, ent())
+                 : callService("light", "turn_off", null, ent()));
+        else if (dom === "climate") {
+          /* the track maps the ENTITY's own range — the far left is
+             the minimum setpoint, never "off" (a thermostat's off is
+             the power side, not a temperature) */
+          const a2 = st(ent()).a || {};
+          const lo = a2.min_temp != null ? +a2.min_temp : 45;
+          const hi = a2.max_temp != null ? +a2.max_temp : 95;
+          const stp = +a2.target_temp_step > 0 ? +a2.target_temp_step : 1;
+          const tv = Math.round((lo + f * (hi - lo)) / stp) * stp;
+          callService("climate", "set_temperature",
+            { temperature: Math.round(tv * 10) / 10 }, ent());
+        }
         else callService("fan", "set_percentage", { percentage: v }, ent());
       }
     };
@@ -460,6 +496,8 @@ WIDGETS.device = {
       if (!den) return false;
       const dom = (e || "").split(".")[0];
       if (dom === "fan") return void nudgeStep(e, "percentage", -1);
+      if (dom === "light") return void nudgeLight(e, -26);
+      if (dom === "climate") return void nudgeStep(e, "temperature", -1);
       return void roveMove(t,
         BINARY_DOMS[dom] ? "sw" : dom === "lock" ? "lk" : "cv", -1);
     },
@@ -468,6 +506,8 @@ WIDGETS.device = {
       if (!den) return false;
       const dom = (e || "").split(".")[0];
       if (dom === "fan") return void nudgeStep(e, "percentage", +1);
+      if (dom === "light") return void nudgeLight(e, +26);
+      if (dom === "climate") return void nudgeStep(e, "temperature", +1);
       return void roveMove(t,
         BINARY_DOMS[dom] ? "sw" : dom === "lock" ? "lk" : "cv", +1);
     },
@@ -483,6 +523,37 @@ WIDGETS.device = {
       setFill(sl, f);
       return f;
     };
+    if (dom === "light") {
+      const s2 = st(e);
+      const p = s2.s === "on" ? Math.round((s2.a.brightness || 255) / 2.55)
+        : s2.s === "off" ? 0 : null;
+      const f = fillTo(p);
+      const iv = el.querySelector(".inval");
+      const sv = el.querySelector(".stepval");
+      if (iv) { iv.textContent = p != null ? p + "%" : "–";
+        if (f != null) iv.classList.toggle("flip", f >= 0.88); }
+      if (sv) sv.textContent = p != null ? p + "%" : "–";
+      return;
+    }
+    if (dom === "climate") {
+      /* the SETPOINT rides the track, positioned over the entity's
+         own range; the status line keeps the current temperature and
+         mode — target vs actual, both visible, never conflated */
+      const a2 = st(e).a || {};
+      const tv = a2.temperature != null ? +a2.temperature : null;
+      const lo = a2.min_temp != null ? +a2.min_temp : 45;
+      const hi = a2.max_temp != null ? +a2.max_temp : 95;
+      const f = tv != null && hi > lo
+        ? fillTo(((tv - lo) / (hi - lo)) * 100) : null;
+      const txt = tv != null
+        ? (Math.round(tv * 10) / 10) + "°" : "–";
+      const iv = el.querySelector(".inval");
+      const sv = el.querySelector(".stepval");
+      if (iv) { iv.textContent = txt;
+        if (f != null) iv.classList.toggle("flip", f >= 0.88); }
+      if (sv) sv.textContent = txt;
+      return;
+    }
     if (dom === "fan") {
       const p = st(e).a.percentage;
       if (p > 0) FAN_RESUME[e] = p;   /* seed the toggle-back speed */

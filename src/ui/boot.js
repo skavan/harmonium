@@ -327,6 +327,7 @@ document.getElementById("connectBtn").addEventListener("click", () => {
        { type: "harmonium_ready" }                     listener installed
        { type: "harmonium_applied", screen }           config rendered */
 let PREVIEW = false;
+let PV_PENDING_NAV = null; // a Studio goto waiting for its screen to exist
 let WS_PEEK = null;   // #ws=<id>&pin=0 — this load only, no pinning
 let PAGE_JUMP = null; // #page=<id> — deep link, this load only
 let BOOT_V = null;    // the ?v= engine hash this load booted with
@@ -408,9 +409,17 @@ function applyConfig(cfg, devName) {
   dbgInit();
   S.stack = [];
   /* preview re-injection keeps the screen being edited (falls back to
-     home when it no longer exists); kiosk boot always lands home */
-  const keep = PREVIEW && S.screen && screenOf(S.screen);
-  navigate(keep ? S.screen : CONFIG.home_screen, true);
+     home when it no longer exists); kiosk boot always lands home.
+     A goto that arrived before its screen existed (PV_PENDING_NAV —
+     the Preview-as race) wins once this config carries the screen. */
+  if (PREVIEW && PV_PENDING_NAV && screenOf(PV_PENDING_NAV)) {
+    const dst = PV_PENDING_NAV;
+    PV_PENDING_NAV = null;
+    navigate(dst, true);
+  } else {
+    const keep = PREVIEW && S.screen && screenOf(S.screen);
+    navigate(keep ? S.screen : CONFIG.home_screen, true);
+  }
   if (S.connected) subscribeFor(S.screen);
 }
 function previewListen() {
@@ -429,12 +438,40 @@ function previewListen() {
       }
     } else if (m.type === "harmonium_navigate" && m.screen) {
       if (CONFIG && screenOf(m.screen)) {
+        PV_PENDING_NAV = null;
         S.stack = [];
         navigate(m.screen, true);
+      } else {
+        /* THE GOTO THAT ARRIVED EARLY (2026-09-04 — Suresh: "If I'm
+           in the edit a controller, and switch Preview as, it takes
+           me back to the home page"): a brand-new fork's goto can
+           beat the debounced config push that CREATES the fork —
+           the screen doesn't exist yet, the goto used to be dropped
+           on the floor, and the following config apply landed
+           wherever it pleased. Remember the ask; the next apply
+           honors it (below) once the screen exists. */
+        PV_PENDING_NAV = m.screen;
       }
     } else if (m.type === "harmonium_preview_activity") {
-      /* impersonate the activity being edited (null clears) */
+      /* impersonate the activity being edited (null clears).
+         roles_only (2026-09-05, feedback-1): the CONTROLLER editor's
+         preview-as narrows the cast to role-fillers; the activity
+         card's impersonation never sets it — there the riders are
+         exactly what's being edited. */
       S.pvActivity = m.activity || null;
+      S.pvRolesOnly = !!(m.activity && m.roles_only);
+      /* bare (the 2026-09-07 ruling): the CONTROLLER editor's preview —
+         the activity's overrides (context.js actSurface) are blanked,
+         pick or no pick; the activity card never sends it */
+      S.pvBare = !!m.bare;
+      if (CONFIG && S.screen) { navigate(S.screen, true); subscribeFor(S.screen); }
+    } else if (m.type === "harmonium_preview_device") {
+      /* impersonate a DEVICE for an unbound domain template
+         (2026-09-05, feedback-1: a stock-editor copy is "a custom
+         copy for any compatible device" — no entity of its own, so
+         the preview lends it one; screenOf binds $device from this
+         while previewing). null clears. */
+      S.pvDevice = m.entity || null;
       if (CONFIG && S.screen) { navigate(S.screen, true); subscribeFor(S.screen); }
     } else if (m.type === "harmonium_key" && m.key) {
       const opts = { key: m.key, bubbles: true, cancelable: true };

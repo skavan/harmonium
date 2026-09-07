@@ -48,6 +48,19 @@
      border-bottom this class drew is gone; the TV strip at the
      bottom already announces the mode. */
   #ptIc { font-size: 18px; color: var(--accent); flex: 0 0 auto; }
+  /* BORROWED-KEYS WASH (2026-09-04, design-device-takeover — Suresh:
+     "the title bar wearing the device's accent wash while its keys
+     are borrowed"). Not the removed app-chrome stripe: this paints
+     only when the pre-wired device holding the keys declares an
+     accent — the bar wears the DEVICE's identity wash (--ptw = its
+     --id-<slot>-w triplet, set by render). Fades to nothing before
+     the grid so tiles keep their own ground. CH-61: plain gradient,
+     no color-mix. */
+  #bar.ptwash {
+    background: linear-gradient(180deg,
+      rgba(var(--ptw), .32), rgba(var(--ptw), .12) 72%,
+      rgba(var(--ptw), 0));
+  }
 
   /* two-press confirm cue: the bar title pulses for the whole confirm
      window — red when the pending action turns things OFF, accent

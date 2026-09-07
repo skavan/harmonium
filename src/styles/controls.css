@@ -171,6 +171,26 @@
   .tile.dvi .trail:active { background: transparent; color: var(--accent); }
   .tile.dvi.has-trail { padding-right: var(--tile-pad-x, 14px); }
   .tile.dvi.has-trail .top { padding-right: 34px; }
+  /* TWO-VALUE TILES (control language V9, 2026-09-04 — his aircon:
+     "The secondary label should never be left aligned with the icon,
+     but rather the title"). The read-only state is part of the TITLE
+     BLOCK. Fat: a second line indented to the NAME — the 28px icon
+     gutter plus the 10px gap, the same two-line block every launcher
+     draws; the icon column stays a pure gutter. (The tune glyph is
+     already pinned to the name row above — top:1 — so it cannot
+     drift down when the state line appears.) */
+  .tile.dvi .sub:not(.subin) { margin: 2px 0 0 38px; }
+  /* V9 heights: fat 155 without a state line, 175 with — the 2px
+     margin (not the generic 6) prices the line at the ruled 20px */
+  /* Compact: the state rides the far right of the title row (the
+     chassis's inline-sub slot) in the status style, capped at the
+     ruled 90px so a long report ("Heat · defrosting") ellipsises
+     ITSELF and never squeezes the name. */
+  .tile.dvc .sub.subin {
+    font-size: 13px; font-weight: 400;
+    max-width: 90px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   /* the value INSIDE a fat track (discrete readout) rides at 21px */
   .sldr:not(.inrow) .inval { font-size: 21px; right: 14px; }
   /* V5 §4C — DISCRETE compact (.dv3, h116 = 12+20+2+15+9+46+12):

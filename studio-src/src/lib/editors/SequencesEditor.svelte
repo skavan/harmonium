@@ -312,7 +312,7 @@
                 <span class="text-[11px] text-dim">used by: {usedBy(id).join(", ")}</span>
               {/if}
               <Button size="sm" variant="primary" onclick={() => testSequence(id)}
-                title="Runs the last SAVED copy via harmonium.run">▶ Test</Button>
+                title="Runs THIS editor copy — unsaved edits included (the remote still needs Save & Deploy)">▶ Test</Button>
             </div>
           </div>
         </div>

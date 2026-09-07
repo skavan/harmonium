@@ -104,7 +104,12 @@ ck('a rebuilt tile renders the fallback with no re-request',
 
 ck('minted: path data from CONFIG.icon_paths renders inline (no mask, no file)',
   got.mintedPath === 'M9 9h1v1z' && got.mintedNoMask === true);
-ck('minted: viewBox survives verbatim', got.mintedVb === '0 0 50 50');
+/* round 8 (ink-fit) supersedes the verbatim-viewBox era: after
+   mount the pack's box is RE-CUT to the path's own ink box padded to
+   the material live-area ratio (tiles.js fitSetIcons). For M9 9h1v1z
+   in any box: ink 9,9,1,1 -> side 1, pad .08 -> "8.92 8.92 1.16 1.16". */
+ck('minted: viewBox is the ink-fit recut of the path (round 8 law)',
+  got.mintedVb === '8.92 8.92 1.16 1.16');
 ck('minted: mdi rides the same rail', got.minted2Path === 'M2 2h2v2z');
 
 console.log(JSON.stringify({ ok: errs.length === 0, errs }, null, 1));

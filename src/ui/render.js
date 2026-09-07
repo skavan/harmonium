@@ -479,7 +479,7 @@ function navigate(screenId, isBack) {
       if (scB && (scB.class === "activity" || scB.type === "controller")) {
         const curB = renderActivityId();
         const actB = curB && (CONFIG.activities || {})[curB];
-        const blB = actB && actB.surface && actB.surface.band_labels;
+        const blB = actB && actSurface(actB).band_labels;
         if (blB) {
           const bandB = secTiles.some(x => x.type === "presets") ? "presets"
             : secTiles.some(x => x.type === "devices") ? "devices" : null;
@@ -615,6 +615,30 @@ function navigate(screenId, isBack) {
     tvstrip.classList.toggle("hidden", !pt);
     document.getElementById("app").classList.toggle("tvstrip-on", pt);
   }
+  /* THE BORROWED-KEYS CHROME (2026-09-04, design-device-takeover —
+     Suresh: "Lets do them both!", then: "We should use the activities
+     color. i.e. this is a child of that activity"). Two cues, two
+     questions: the strip's wordmark names WHO holds the keys (the
+     device, not the app) while passthrough is live; the title bar
+     wears the CURRENT ACTIVITY's accent wash while standing on a
+     device's own page (own_context) — you are inside that activity,
+     visiting one of its cast. The wash follows the activity even on
+     touch clients (nesting is real without a physical pad); it never
+     paints without a current activity wearing an accent, so the
+     v0.85.7 no-stripe ruling stays honored. */
+  const pd = pt ? ptDevice() : null;
+  const tvName = document.getElementById("tvName");
+  if (tvName) tvName.textContent = (pd && pd.name) || "Harmonium";
+  const barEl = document.getElementById("bar");
+  let washAcc = null;
+  if (sc.own_context) {
+    const aid = renderActivityId();
+    const acc = aid && (CONFIG.activities[aid] || {}).accent;
+    if (typeof acc === "string" && ID_SLOTS[acc]) washAcc = acc;
+  }
+  barEl.classList.toggle("ptwash", !!washAcc);
+  if (washAcc) barEl.style.setProperty("--ptw", "var(--id-" + washAcc + "-w)");
+  else barEl.style.removeProperty("--ptw");
   if (S.connected) subscribeFor(screenId);
 }
 
@@ -731,21 +755,50 @@ function perf() {
 setInterval(() => { if (S.painted) perf(); }, 5000);
 function dot(ok) { document.getElementById("dot").classList.toggle("ok", ok); }
 
+/* THE ROOM PREFIX WALKS THE PARENT CHAIN (2026-09-04 — Suresh: "If I
+   navigate to Deck>Heaters page, it says Porch-Heaters in title,
+   while Deck-Screens correctly says [Deck]!"). Screens carried an
+   explicit room_name; Heaters didn't, and the old ladder skipped its
+   parent DECK entirely and fell through to global.room. A child of a
+   room belongs to that room: own room_name, else the nearest
+   ancestor's room_name — a room-page ancestor answers with its own
+   name — before the activity's room and the global fallback. */
+function roomNameFor(sc) {
+  let cur = sc, hops = 0;
+  while (cur && hops++ < 8) {
+    if (cur.room_name) return cur.room_name;
+    if (cur.room) return cur.name || null;
+    cur = cur.parent ? rawScreen(cur.parent) : null;
+  }
+  return null;
+}
 function barTitle(sc) {
   /* v0.67: the ROOM name follows the room you are in — a screen may
-     name its own, and a shared controller inherits it from the
-     activity that sent you there. `global.room` is the fallback, so a
-     one-room workspace reads exactly as before. */
+     name its own (or inherit its ancestors', above), and a shared
+     controller inherits it from the activity that sent you there.
+     `global.room` is the fallback, so a one-room workspace reads
+     exactly as before. */
   const aidR = renderActivityId();
   const aR = aidR && CONFIG.activities[aidR];
   const rvS = aR && aR.room_view && (CONFIG.screens || {})[aR.room_view];
-  const room = sc.room_name || (rvS && rvS.room_name) || (CONFIG.global || {}).room;
+  const room = roomNameFor(sc) || (rvS && rvS.room_name) || (CONFIG.global || {}).room;
   /* a screen the ACTIVE activity navigates to titles by the activity
      ("Watch Fire TV"), not the library label ("TV Media Player") */
   let name = sc.name;
   const aid = currentActivityId();
   const a = aid && CONFIG.activities[aid];
-  if (a && a.screen === S.screen) name = a.name || name;
+  if (a && (a.screen === S.screen || aid === S.pvActivity)) name = a.name || name;   /* preview-as titles too */
+  /* THE APPS DRAWER NAMES ITS DIALECT (2026-09-04 — Suresh: "Menu
+     just says Porch Apps — would be better if said FireTV Apps or
+     Samsung Apps"). "Fire TV Apps" answers the question the room
+     prefix can't — WHOSE apps these are — so the dialect title
+     stands alone. A drawer authored with the dialect already in its
+     name keeps it as-is. */
+  const dlName = appsDrawerDialectName(sc);
+  if (dlName) {
+    const base = name || "Apps";
+    return base.indexOf(dlName) >= 0 ? base : dlName + " " + base;
+  }
   return room && name !== room ? room + " · " + name : name;
 }
 /* flashBar(msg)            — 3s neutral notice

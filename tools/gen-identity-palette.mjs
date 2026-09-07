@@ -34,8 +34,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const SLOTS = [
-  ["coral", 20], ["fern", 127], ["jade", 145], ["indigo", 272],
-  ["violet", 299], ["orchid", 326], ["rose", 353], ["slate", 0],
+  /* azure (palette canvas V3, 2026-09-04): the ninth slot — the sky
+     blue the ring never had. H 249 = 23° from Indigo, clearing the
+     reserved 170–240 arc by 9°; full formula chroma; dark ink. */
+  ["coral", 20], ["fern", 127], ["jade", 145], ["azure", 249],
+  ["indigo", 272], ["violet", 299], ["orchid", 326], ["rose", 353],
+  ["slate", 0],
 ];
 const BADGE = { l: 0.68, c: 0.15 };
 const WASH = { l: 0.55, c: 0.14 };
@@ -58,7 +62,13 @@ const BRANDS = [
   ["max", "#0231ec"], ["hulu", "#1de783"], ["fubo", "#fa4616"],
   ["espn", "#d2001f"], ["britbox", "#3545c0"], ["pbs", "#2b41cd"],
 ];
-const BRAND_L_MIN = 0.46, BRAND_L_MAX = 0.86, ACHROMATIC_C = 0.02;
+/* BRAND_L_MIN 0.46 → 0.55 (2026-09-04, Suresh's live review of the
+   panel: "Roku needs brighter icon (same shade), Disney needs
+   brighter icon (same shade), samsung needs brighter icon" — the
+   0.46 floor left the deep blues and purples illegible as glyph
+   tints on the dark tile; the raised floor brightens the whole
+   class, hue untouched). */
+const BRAND_L_MIN = 0.55, BRAND_L_MAX = 0.86, ACHROMATIC_C = 0.02;
 
 /* oklch → sRGB (Björn Ottosson's reference matrices) */
 function oklchToSrgb(l, c, hDeg) {
@@ -178,6 +188,19 @@ const rows = [];
 for (const [name, h] of SLOTS) rows.push({ name, tier: "identity", ...resolveIdentity(name, h) });
 for (const [name, src] of BRANDS) rows.push({ name, tier: "brand", ...resolveBrand(name, src) });
 
+/* the ON-TILE glyph tint (-g, 2026-09-04 — Suresh: "Peacock needs
+   white icon, sony needs white icon"): the badge colours the glyph
+   directly on the dark tile, and a raw-black achromatic badge is
+   invisible there. -g = the badge for everyone, WHITE for an
+   achromatic badge darker than L 0.5 — the badge itself stays the
+   brand's true black (the chip, the picker dot, the wash all keep
+   the identity); only the bare-glyph surface swaps to ink that can
+   be seen. A measurement, never authored. */
+function pickGlyph(r) {
+  const { l, c } = srgbToOklch(r.badge);
+  return c < ACHROMATIC_C && l < 0.5 ? WHITE : hex(r.badge);
+}
+
 /* ---- emit the three blocks ---- */
 let tokenBlock = "";
 for (const r of rows) {
@@ -185,12 +208,14 @@ for (const r of rows) {
   tokenBlock += `    --id-${r.name}-b: ${hex(r.badge)};   /* ${r.note} */\n`;
   tokenBlock += `    --id-${r.name}-w: ${r.wash.join(", ")};\n`;
   tokenBlock += `    --id-${r.name}-i: ${ink};\n`;
+  tokenBlock += `    --id-${r.name}-g: ${pickGlyph(r)};\n`;
 }
 
 let classBlock = "";
 for (const r of rows) {
   classBlock += `  .tile.id-${r.name} { --tacc: var(--id-${r.name}-b); ` +
-    `--idw: var(--id-${r.name}-w); --tink: var(--id-${r.name}-i); }\n`;
+    `--idw: var(--id-${r.name}-w); --tink: var(--id-${r.name}-i); ` +
+    `--tg: var(--id-${r.name}-g); }\n`;
 }
 
 const slotList = rows.map((r) => `${r.name}: 1`).join(", ");

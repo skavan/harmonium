@@ -97,8 +97,14 @@ const after1 = await p.evaluate(() => {
 if (!after1.porchStays) errs.push('BUG: target page lost its name (no "ZZ Porch" in sidebar)');
 if (!after1.noFamilyPage) errs.push('BUG: typing the tile Display name renamed the target page');
 /* the Opens select still says ZZ Porch (it echoes page names live) */
-const opens = await copyRow.locator('select').first()
-  .evaluate(s => s.selectedOptions[0]?.textContent.trim());
+/* the OPENS select by its own shape (the identity strip gained a
+   Style select above it in the v0.87 styling round — .first() went
+   stale; the "—" blank row is Opens' signature) */
+const opens = await copyRow.evaluate(el => {
+  const s = [...el.querySelectorAll('select')].find(x =>
+    [...x.options].some(o => o.textContent.trim() === '—'));
+  return s?.selectedOptions[0]?.textContent.trim();
+});
 if (opens !== 'ZZ Porch') errs.push('BUG: Opens no longer reads the target page name: "' + opens + '"');
 
 /* ---- 2+3. Label position: inherit default, delete-on-inherit ----- */

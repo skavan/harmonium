@@ -5,8 +5,9 @@ import {
   STOCK_MUSIC_LIBRARY, STOCK_MUSIC, healStockGen, ensureStockControllers,
   starterConfig as starterConfigLib, normalizeNavTiles, stampHost,
   normalizeHosts, normalizeOffActivity, normalizeApps, ROLE_KEYS,
-  isCastGroup, SHOWS_KINDS, showsForDomain, showsForRoles,
+  isCastGroup, SHOWS_KINDS, SHOWS_NONE, showsForDomain, showsForRoles,
   ADAPTERS, variantOptions, VARIANT_HINTS, NORMALIZE_REPORT,
+  buildAuditFindings,
   compileContext, recompileContext,
   normalizeDevices, normalizeSelect as normalizeSelectLib,
   normalizeConfig as normalizeConfigLib, currentStockController } from "./stocklib.js";
@@ -14,7 +15,7 @@ export {
   GENERIC_MEDIA_CONTROLLER, DOMAIN_STOCKS, STOCK_APPS_DRAWER,
   STOCK_MUSIC_LIBRARY, STOCK_MUSIC, normalizeNavTiles, stampHost,
   normalizeHosts, normalizeOffActivity, normalizeApps, ROLE_KEYS,
-  isCastGroup, SHOWS_KINDS, showsForDomain, showsForRoles,
+  isCastGroup, SHOWS_KINDS, SHOWS_NONE, showsForDomain, showsForRoles,
   ADAPTERS, variantOptions, VARIANT_HINTS,
   compileContext, recompileContext,
   normalizeDevices,
@@ -268,17 +269,26 @@ export function setStatus(msg, cls = "") {
    the deploy minting uses — preview and remote can never disagree.
    Cache entries: {viewBox, path} | "missing" | "no_source". */
 const _iconCache = new Map();
+const _iconAuth = () => ({ headers: { Authorization: "Bearer " + token() } });
 export async function lookupSetIcon(ref) {
   if (_iconCache.has(ref)) return _iconCache.get(ref);
   try {
     const r = await fetch("/api/harmonium/icons?names=" +
-      encodeURIComponent(ref), {
-      headers: { Authorization: "Bearer " + token() },
-    });
+      encodeURIComponent(ref), _iconAuth());
     if (!r.ok) return null;              /* transient — don't cache */
     const rep = await r.json();
-    const v = rep.found?.[ref] ? rep.found[ref]
-      : rep.no_source?.length ? "no_source" : "missing";
+    if (rep.found?.[ref]) {
+      _iconCache.set(ref, rep.found[ref]);
+      return rep.found[ref];
+    }
+    /* the server can't answer — a pack the integration has no
+       parser for may still answer through ITS OWN registered
+       resolver (the custom-set bridge below); a hit is saved back
+       so next time the server answers directly */
+    const i = ref.indexOf(":");
+    const cv = await resolveCustom(ref.slice(0, i), ref.slice(i + 1));
+    if (cv) return cv;
+    const v = rep.no_source?.length ? "no_source" : "missing";
     _iconCache.set(ref, v);
     return v;
   } catch {
@@ -286,37 +296,230 @@ export async function lookupSetIcon(ref) {
   }
 }
 
-/* AUTOCOMPLETE for a set prefix ("phu:air…" — the HA picker's
-   feel, made INSTANT 2026-09-01: "so slow its unusable"): the WHOLE
-   pack fetches once per set (the server caches the parsed pack by
-   mtime), then every keystroke filters locally — exactly how the
-   material: list works. Every entry seeds the preview cache. */
-const _setPacks = new Map();       /* set -> [{name,viewBox,path}] | "no_source" | Promise */
-export function setPack(set) {
-  const hit = _setPacks.get(set);
-  if (hit && !(hit instanceof Promise)) return hit;
-  if (!hit) {
-    const pr = (async () => {
-      try {
-        const r = await fetch("/api/harmonium/icons?list=" +
-          encodeURIComponent(set) + "&all=1", {
-          headers: { Authorization: "Bearer " + token() },
-        });
-        if (!r.ok) { _setPacks.delete(set); return null; }
-        const rep = await r.json();
-        const v = rep.no_source ? "no_source" : (rep.icons || []);
-        if (Array.isArray(v))
-          for (const it of v)
-            _iconCache.set(set + ":" + it.name,
-              { viewBox: it.viewBox, path: it.path });
-        _setPacks.set(set, v);
-        return v;
-      } catch { _setPacks.delete(set); return null; }
-    })();
-    _setPacks.set(set, pr);
-    return pr;
+/* AUTOCOMPLETE, HA's model (2026-09-02 — his tile-card screenshot;
+   the old whole-pack pull moved ~2MB for mdi's 7,400 paths and the
+   dropdown sat EMPTY meanwhile). Never move a pack: 60 rows per
+   keystroke, per-(set, fragment) cached, previews seeded. */
+const _listCache = new Map();  /* set|frag -> {icons, no_source} | Promise */
+export function iconList(set, frag) {
+  const key = set + "|" + (frag || "");
+  const hit = _listCache.get(key);
+  if (hit) return hit;
+  const pr = (async () => {
+    try {
+      const r = await fetch("/api/harmonium/icons?list=" +
+        encodeURIComponent(set) + "&q=" + encodeURIComponent(frag || ""),
+        _iconAuth());
+      if (!r.ok) { _listCache.delete(key); return null; }
+      const rep = await r.json();
+      for (const it of rep.icons || [])
+        _iconCache.set(set + ":" + it.name,
+          { viewBox: it.viewBox, path: it.path });
+      _listCache.set(key, rep);
+      return rep;
+    } catch { _listCache.delete(key); return null; }
+  })();
+  _listCache.set(key, pr);
+  return pr;
+}
+
+/* CROSS-SET SEARCH — one query, every installed set (the server
+   interleaves so mdi can't drown the small packs) */
+const _searchCache = new Map();    /* frag -> rows | Promise */
+export function iconSearch(frag) {
+  const key = (frag || "").toLowerCase();
+  const hit = _searchCache.get(key);
+  if (hit) return hit;
+  const pr = (async () => {
+    try {
+      const r = await fetch("/api/harmonium/icons?search=" +
+        encodeURIComponent(frag || ""), _iconAuth());
+      if (!r.ok) { _searchCache.delete(key); return null; }
+      const rep = await r.json();
+      const rows = rep.icons || [];
+      for (const it of rows)
+        _iconCache.set(it.set + ":" + it.name,
+          { viewBox: it.viewBox, path: it.path });
+      _searchCache.set(key, rows);
+      return rows;
+    } catch { _searchCache.delete(key); return null; }
+  })();
+  _searchCache.set(key, pr);
+  return pr;
+}
+
+/* THE CUSTOM-SET BRIDGE (2026-09-02 — "anything HA has installed",
+   made literal): icon packs the integration cannot parse register
+   THEMSELVES with the HA frontend (window.customIcons /
+   window.customIconsets — developers.home-assistant.io 2020-05-09).
+   The Studio loads the same lovelace resource modules HA's own
+   frontend loads, asks each pack's registered resolver, and hands
+   every answer back to the integration (POST /api/harmonium/icons),
+   where it becomes a distilled file — so the set previews, searches,
+   and MINTS server-side from then on, browser no longer required. */
+/* a promise that CANNOT hang the caller: value, or fallback at ms.
+   Round 2 (his report: "Sat there for ages with a spinning wheel and
+   thereafter stopped doing anything") — a real HA's resource list is
+   dozens of heavy frontend modules, and one pack's never-resolving
+   getIconList held the whole picker hostage. Nothing in the bridge
+   is awaited without a deadline any more. */
+const _tmo = (pr, ms, fallback) => Promise.race([
+  Promise.resolve(pr).catch(() => fallback),
+  new Promise((res) => setTimeout(() => res(fallback), ms))]);
+
+/* the imports run in a hidden SAME-ORIGIN IFRAME: a pack module that
+   expects the full HA frontend can throw, patch globals, register
+   clashing custom elements, or start timers — whatever it does stays
+   in the sandbox and the Studio page cannot be broken by it. The
+   iframe stays alive (the packs' resolver closures live in its
+   realm); its window is where customIcons/customIconsets appear. */
+let _sandboxWin = null;
+async function _importInSandbox(urls) {
+  const fr = document.createElement("iframe");
+  fr.style.display = "none";
+  fr.setAttribute("aria-hidden", "true");
+  document.body.appendChild(fr);
+  const win = fr.contentWindow;
+  await _tmo(new Promise((res) => {
+    win.__hkDone = res;
+    const s = win.document.createElement("script");
+    s.type = "module";
+    s.textContent = "await Promise.allSettled(" + JSON.stringify(urls) +
+      ".map((u) => import(u))); window.__hkDone();";
+    win.document.head.appendChild(s);
+  }), 6000, null);          /* slow packs: take whatever registered */
+  return win;
+}
+
+/* THE DECLARATION GATE (2026-09-02 ruling: "ask users to add the
+   icon prefixes they care about" — System → Icon sets, stored as
+   global.icon_sets). A prefix cannot name its module (packs only
+   announce themselves by running), so declaring one still means
+   loading the resource list on first use — but with NOTHING
+   declared, the bridge is inert: no imports, no sandbox, no cost.
+   Banked (distilled) icons are server-owned and unaffected. */
+export function declaredIconSets() {
+  let v = app.draft?.global?.icon_sets;
+  if (typeof v === "string") v = v.split(",");        /* liberal reader */
+  if (!Array.isArray(v)) return [];
+  return v.map((s) => String(s).trim().replace(/:$/, "").toLowerCase())
+    .filter(Boolean);
+}
+
+let _customPr = null;              /* Promise<{set: {get, names}}> */
+export function loadCustomSets() {
+  if (_customPr) return _customPr;
+  _customPr = (async () => {
+    let urls = [];
+    try {
+      const r = await _tmo(
+        fetch("/api/harmonium/icons?resources=1", _iconAuth()), 4000, null);
+      if (r && r.ok) urls = (await r.json()).resources || [];
+    } catch { /* no resources — bare install */ }
+    let win = window;
+    if (urls.length) {
+      try { win = (_sandboxWin = await _importInSandbox(urls)); }
+      catch { win = window; }
+    }
+    const out = {};
+    const ci = win.customIcons || {};
+    for (const k in ci)
+      out[k] = { get: (n) => ci[k].getIcon(n), listFn: ci[k].getIconList };
+    const cs = win.customIconsets || {};
+    for (const k in cs) if (!out[k]) out[k] = { get: cs[k], listFn: null };
+    /* name lists in parallel, each with its own deadline — a set
+       whose listing hangs still resolves single icons by name */
+    await Promise.all(Object.keys(out).map(async (k) => {
+      out[k].names = [];
+      if (!out[k].listFn) return;
+      const l = await _tmo(
+        (async () => out[k].listFn())(), 2500, null);
+      if (l) out[k].names = (l || []).map((i) => i.name).filter(Boolean);
+    }));
+    return out;
+  })();
+  return _customPr;
+}
+
+/* resolved custom icons flow back to the server, batched */
+const _saveQueue = new Map();
+let _saveTimer = null;
+function queueIconSave(ref, v) {
+  _saveQueue.set(ref, v);
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    const body = Object.fromEntries(_saveQueue);
+    _saveQueue.clear();
+    try {
+      await fetch("/api/harmonium/icons", { method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json",
+          Authorization: "Bearer " + token() } });
+    } catch { /* next resolve re-queues */ }
+  }, 1200);
+}
+
+/* DISCOVERY (Theme → "Find installed packs"): the one place the
+   bridge runs WITHOUT a declaration — an explicit settings click.
+   Same sandbox, same deadlines. Answers BOTH halves (round 4):
+   `live` — sets the server already speaks for (activated
+   hass-custom_icons prefixes: first-class, no declaration needed) —
+   and `packs` — set prefixes the frontend modules registered, the
+   Add offers. */
+export async function discoverIconSets() {
+  let live = [];
+  try {
+    const r = await _tmo(
+      fetch("/api/harmonium/icons?sets=1", _iconAuth()), 4000, null);
+    if (r && r.ok) live = (await r.json()).sets || [];
+  } catch { /* older integration — no ?sets yet */ }
+  const sets = await loadCustomSets();
+  return { live, packs: Object.keys(sets).sort() };
+}
+
+export async function resolveCustom(set, name) {
+  const ref = set + ":" + name;
+  const c = _iconCache.get(ref);
+  if (c && typeof c === "object") return c;
+  if (!declaredIconSets().includes(set.toLowerCase())) return null;
+  const sets = await loadCustomSets();
+  const s = sets[set];
+  if (!s) return null;
+  try {
+    const v = await _tmo((async () => s.get(name))(), 1500, null);
+    if (!v || !v.path) return null;
+    const out = { viewBox: v.viewBox || "0 0 24 24", path: v.path };
+    _iconCache.set(ref, out);
+    queueIconSave(ref, out);
+    return out;
+  } catch { return null; }
+}
+
+/* search the browser-side sets (names from getIconList); the ≤N
+   matches resolve to path data before returning, so rows preview */
+export async function customSearch(frag, onlySet = null, cap = 16) {
+  const declared = declaredIconSets();
+  if (!declared.length ||
+      (onlySet && !declared.includes(onlySet.toLowerCase())))
+    return [];                     /* the gate: undeclared = inert */
+  const sets = await loadCustomSets();
+  const canon = (n) => n.toLowerCase().replace(/[ _]/g, "-");
+  const f = canon(frag || "");
+  const rows = [];
+  for (const k of Object.keys(sets).sort()) {
+    if (onlySet && k !== onlySet) continue;
+    if (!declared.includes(k.toLowerCase())) continue;
+    const names = sets[k].names.filter((n) => canon(n).includes(f));
+    names.sort((a, b) => (canon(a).startsWith(f) === canon(b).startsWith(f))
+      ? (a.length - b.length || (a < b ? -1 : 1))
+      : (canon(a).startsWith(f) ? -1 : 1));
+    for (const n of names.slice(0, cap)) rows.push({ set: k, name: n });
   }
-  return hit;                       /* in-flight promise */
+  const done = await Promise.all(rows.slice(0, cap * 2).map(async (row) => {
+    const v = await resolveCustom(row.set, row.name);
+    return v ? { ...row, viewBox: v.viewBox, path: v.path } : null;
+  }));
+  return done.filter(Boolean);
 }
 
 export async function api(method, body, query = "") {
@@ -435,24 +638,29 @@ export function slices() {
     if (id === hub) return "overview";
     return "";
   };
-  const pushPage = (id, deep) => {
+  const pushPage = (id, depth) => {
     if (claimed.has(id)) return;                    // cycle/dupe guard
     claimed.add(id);
+    /* `deep` is the DEPTH now, not a flag (2026-09-02 — his Screens
+       page under Deck under Home rendered at Deck's own indent: "I
+       created what I thought was a child of Deck — but it shows as
+       a peer"). The nav indents per level; truthiness keeps every
+       existing deep-consumer working. */
     s.push({ key: (roomSet.has(id) && id !== hub ? "view." : "screens.") + id,
       label: d.screens[id].name || id, sub: pageSub(id), group: "Views",
-      deep: !!deep });
-    for (const c of childrenOf(id)) pushPage(c, true);
+      deep: depth || false });
+    for (const c of childrenOf(id)) pushPage(c, (depth || 0) + 1);
   };
-  if (hub && d.screens[hub]) pushPage(hub, false);
+  if (hub && d.screens[hub]) pushPage(hub, 0);
   for (const r of roomIds())
     if (!claimed.has(r) && (!d.screens[r].parent || !isNavPage(d.screens[r].parent)))
-      pushPage(r, false);
+      pushPage(r, 0);
   for (const id of Object.keys(d.screens || {}))
     if (isNavPage(id) && !claimed.has(id) &&
         (!d.screens[id].parent || !isNavPage(d.screens[id].parent)))
-      pushPage(id, false);
+      pushPage(id, 0);
   for (const id of Object.keys(d.screens || {}))   // orphans (broken parents)
-    if (isNavPage(id) && !claimed.has(id)) pushPage(id, false);
+    if (isNavPage(id) && !claimed.has(id)) pushPage(id, 0);
   /* CONTROLLERS — DEFAULTS (the stock library) then CUSTOM (activity
      copies + custom controller pages); drawers/libraries nest ⌞ */
   const ctrls = Object.entries(d.controllers || {});
@@ -460,8 +668,11 @@ export function slices() {
   const custom = ctrls.filter(([, c]) => c.variant_of);
   if (stock.length) s.push({ subhead: "Defaults", group: "Controllers", key: "_sh_def" });
   for (const [cid, c] of stock) {
+    /* DEVICE PAGES WEAR IT (2026-09-06 — Suresh: "if the controller
+       is a $device controller, we should clear flag that both in the
+       controllers tree and the controller edit page") */
     s.push({ key: "controller." + cid, label: c.name || cid,
-      sub: "stock", group: "Controllers" });
+      sub: "stock", group: "Controllers", device: !!c.domain });
     for (const dr of Object.keys(d.screens || {}))
       if (d.screens[dr].parent === "controller:" + cid && d.screens[dr].drawer && !claimed.has(dr)) {
         claimed.add(dr);
@@ -475,7 +686,8 @@ export function slices() {
     s.push({ subhead: "Custom", group: "Controllers", key: "_sh_cus" });
   for (const [cid, c] of custom)
     s.push({ key: "controller." + cid, label: c.name || cid,
-      sub: "copy of " + (d.controllers[c.variant_of]?.name || c.variant_of), group: "Controllers" });
+      sub: "copy of " + (d.controllers[c.variant_of]?.name || c.variant_of), group: "Controllers",
+      device: !!(c.domain || d.controllers[c.variant_of]?.domain) });
   for (const id of legacyCtrl) {
     claimed.add(id);
     s.push({ key: "screens." + id, label: d.screens[id].name || id,
@@ -872,10 +1084,13 @@ export function duplicateController(cid) {
   const d = app.draft;
   const src = d?.controllers?.[cid];
   if (!src) return null;
-  let nid = cid + "_variant", n = 2;
-  while (d.controllers[nid]) nid = cid + "_variant" + n++;
+  /* template naming (2026-09-05, feedback-1 #3: a copy is
+     "(primarily) a template … Custom Media Device 01" — never the
+     source's bare name with "variant" glued on) */
+  let n = 1, nid = cid + "_custom_1";
+  while (d.controllers[nid]) nid = cid + "_custom_" + ++n;
   const copy = JSON.parse(JSON.stringify($state.snapshot(src)));
-  copy.name = (copy.name || cid) + " variant";
+  copy.name = "Custom " + (copy.name || cid) + " " + String(n).padStart(2, "0");
   /* OWNERSHIP (v0.84.5 — the stock lock): a copy of a NAMED stock
      surface is the user's own — stamp variant_of so it reads as theirs
      (Edited badge, ↺ Reset to stock, and heal keeps its hands off).
@@ -938,25 +1153,129 @@ function controllerPreviewTarget(cid) {
   return "controller:" + cid;
 }
 
+/* ---- THE DEVICE-PAGE PICTURE (2026-09-04, Media Device round 3 —
+   Suresh: "the entry door to this setting should be in an activities
+   device page and a page's device page" and "it only shows Customize
+   its page, not select one"). One resolver, used by every door
+   (DevicePageDoor.svelte): given an entity, what page would the
+   engine open, what could be assigned instead, and where would the
+   assignment live. Mirrors the engine's detailDef ladder exactly:
+   the device's `page` pick → the entity-bound copy → the stock. ---- */
+export function devicePageInfo(eid) {
+  const d = app.draft;
+  if (!d || !eid || typeof eid !== "string" || eid.startsWith("$")) return null;
+  const dom = eid.split(".")[0];
+  const stock = d.controllers?.[dom];
+  if (!stock || stock.domain !== dom) return null;
+  let devId = null, dev = null;
+  for (const [k, v] of Object.entries(d.devices || {}))
+    if (Object.values(v?.roles || {}).includes(eid)) { devId = k; dev = v; break; }
+  const variants = Object.entries(d.controllers)
+    .filter(([, c]) => c?.variant_of === dom && c.domain === dom)
+    .map(([k, c]) => ({ id: k, name: c.name || k, entity: c.entity || null }));
+  const ownCopy = variants.find((v) => v.entity === eid) || null;
+  const assigned = dev && typeof dev.page === "string"
+    ? dev.page.replace(/^controller:/, "") : null;
+  const effective =
+    assigned && d.controllers[assigned]?.domain === dom ? assigned
+    : ownCopy ? ownCopy.id : dom;
+  return { dom, stockName: stock.name || dom, devId, dev,
+    variants, ownCopy, assigned, effective };
+}
+/* the pre-wired device's own pick — `page`, stored beside `dialect` */
+export function setDevicePage(devId, cid) {
+  const dev = app.draft?.devices?.[devId];
+  if (!dev) return;
+  if (cid) dev.page = cid; else delete dev.page;
+  schedulePreview();
+}
+/* which of a device's role entities carries its page — the entity
+   people actually tap (media_player first, then any role whose
+   entity's domain has a stock page); null = no page to speak of */
+export function devicePageEntity(roles) {
+  const r = roles || {};
+  const order = ["media_player", ...Object.keys(r).filter((k) => k !== "media_player")];
+  for (const k of order) {
+    const e = r[k];
+    if (typeof e !== "string" || !e || e.startsWith("$")) continue;
+    const dom = e.split(".")[0];
+    if (app.draft?.controllers?.[dom]?.domain === dom) return e;
+  }
+  return null;
+}
+
 /* ---- per-device custom copy of a DOMAIN stock (Cover for the
    backwards MaestroScreen) — exactly the Media Player lifecycle */
-export function instantiateDeviceController(dom, eid) {
+export function instantiateDeviceController(dom, eid, asTemplate) {
   const d = app.draft;
   const tpl = d?.controllers?.[dom];
-  if (!tpl?.domain || !eid) return null;
-  for (const [k, c] of Object.entries(d.controllers))
-    if (c.variant_of === dom && c.entity === eid) { selectSlice("controller." + k); return k; }
-  let iid = dom + "__" + eid.split(".")[1], n = 2;
-  while (d.controllers[iid]) iid = dom + "__" + eid.split(".")[1] + "_" + n++;
+  if (!tpl?.domain || (!eid && !asTemplate)) return null;
+  if (!asTemplate)
+    for (const [k, c] of Object.entries(d.controllers))
+      if (c.variant_of === dom && c.entity === eid) { selectSlice("controller." + k); return k; }
   const copy = JSON.parse(JSON.stringify($state.snapshot(tpl)));
   copy.variant_of = dom;
-  copy.entity = eid;
   copy.domain = dom;
-  copy.name = app.entities.find((e) => e.entity_id === eid)?.name || eid;
+  let iid;
+  if (asTemplate) {
+    /* A TEMPLATE, NOT A BINDING (2026-09-05, feedback-1: "its not
+       custom copy for that device, its a custom copy for any
+       compatible device" and "the default should be Custom Media
+       Device 01"): no entity — nothing routes here until a device
+       adopts it (its card's page pick, where it lists as shared) —
+       and the name says template, never a device. The editor lends
+       it a preview device via the device impersonation. */
+    let n = 1;
+    iid = dom + "_custom_1";
+    while (d.controllers[iid]) iid = dom + "_custom_" + ++n;
+    copy.name = "Custom " + (tpl.name || dom) + " " + String(n).padStart(2, "0");
+    delete copy.entity;
+  } else {
+    iid = dom + "__" + eid.split(".")[1];
+    let n = 2;
+    while (d.controllers[iid]) iid = dom + "__" + eid.split(".")[1] + "_" + n++;
+    copy.entity = eid;
+    copy.name = app.entities.find((e) => e.entity_id === eid)?.name || eid;
+    /* BAKE THE VOLUME WIRING (2026-09-05 drift round — Suresh:
+       "Volume shows stepper in config, but compact (correct) in ui…
+       Why do they drift?"): the engine used to rewrite the stock
+       stepper at render when the owning device wires volume /
+       volume_level — right on screen, invisible in the config, so
+       the editor showed a stepper that never rendered. An
+       entity-bound copy knows its device at CREATION, so the ARC
+       split is written into the copy itself (canonical spelling —
+       exactly the shape the old rewrite produced), and the engine
+       now leaves an authored pick (variant / level_entity) alone.
+       Templates and the shared stock keep the render-time upgrade:
+       they serve many devices and can only resolve wiring then. */
+    const ownDev = Object.values(d.devices || {}).find((v) =>
+      Object.values(v?.roles || {}).includes(eid));
+    const vr = ownDev?.roles?.volume, vl = ownDev?.roles?.volume_level;
+    if (vr || vl) {
+      const allTiles = [
+        ...(copy.tiles || []),
+        ...(copy.sections || []).flatMap((s) => s.tiles || []),
+      ];
+      for (const t of allTiles) {
+        if (t.id !== "ds" || (t.kind !== "volume" && t.type !== "volume")) continue;
+        if (vl) {
+          t.type = "volume"; t.variant = "compact";
+          t.level_entity = vl;
+          /* $device stays $device when the buttons target the copy's
+             own entity — the symbolic binding keeps preview-another-
+             device honest; only a DIFFERENT volume role retargets */
+          if (vr && vr !== eid) t.entity = vr;
+          delete t.kind; delete t.slider;
+        } else if (vr && vr !== eid) t.entity = vr;
+      }
+    }
+  }
   d.controllers[iid] = copy;
   selectSlice("controller." + iid);
   schedulePreview();
-  setStatus("custom " + (tpl.name || dom) + " for " + copy.name + " — the stock is untouched", "ok");
+  setStatus(asTemplate
+    ? copy.name + " created — assign it to devices from their cards"
+    : "custom " + (tpl.name || dom) + " for " + copy.name + " — the stock is untouched", "ok");
   return iid;
 }
 
@@ -966,10 +1285,37 @@ export function bindPreview(win) { pvWindow = win; }
 /* PREVIEW IMPERSONATION (v0.46.1): while an activity card is open the
    preview renders AS that activity — its cast, its dialect's keys,
    its apps — instead of whatever the live select holds. */
-export function previewActivity(id) {
+export function previewActivity(id, rolesOnly, force, bare) {
+  /* MIRRORED for the editors (2026-09-05, feedback-2 follow-up:
+     "$device attributes should load the relevant attributes of the
+     preview device. Same for $context") — TileRow's token resolver
+     reads the live pick */
+  app.pvAsActivity = id || null;
   if (!pvWindow) return;
-  if (app.pvLock) return;   /* the lock freezes impersonation too */
-  pvWindow.postMessage({ type: "harmonium_preview_activity", activity: id || null }, location.origin);
+  /* the lock freezes PASSIVE impersonation (expanding a card must
+     not yank a locked preview) — an EXPLICIT pick forces through
+     (2026-09-06 — Suresh: "selecting an entry does nothing!": his
+     padlock was honored so silently the select read as broken) */
+  if (app.pvLock && !force) return;
+  /* rolesOnly (2026-09-05, feedback-1): the CONTROLLER editor's
+     preview-as narrows the cast to role-fillers; the activity card
+     never passes it — its riders are what's being edited there */
+  /* bare (2026-09-07, the ruling: activity overrides "should stay
+     as is... but not permeate into a controller preview"): the
+     CONTROLLER editor sends it for its whole visit; the engine then
+     renders the controller's own settings with the pick's cast. The
+     activity card never sends it — there the overrides are edited. */
+  pvWindow.postMessage({ type: "harmonium_preview_activity",
+    activity: id || null, roles_only: !!rolesOnly, bare: !!bare }, location.origin);
+}
+/* DEVICE impersonation (2026-09-05, feedback-1): an unbound domain
+   template renders through a lent device — the engine binds its
+   $device tiles from this while previewing. null clears. */
+export function previewDevice(entity, force) {
+  app.pvEntity = entity || null;   /* mirrored — see previewActivity */
+  if (!pvWindow) return;
+  if (app.pvLock && !force) return;   /* explicit picks force — see above */
+  pvWindow.postMessage({ type: "harmonium_preview_device", entity: entity || null }, location.origin);
 }
 export function previewGoto(screen, force) {
   if (!pvWindow || !screen) return;
@@ -1090,7 +1436,16 @@ export function rebaseline() {
   baseline.acts.clear();
   const cfg = app.saved;
   if (!cfg) return;
-  for (const scr of Object.values(cfg.screens || {})) {
+  /* CONTROLLERS TOO (2026-09-04, the Media Device stock round):
+     the baseline read screens only, so every controller tile wore
+     the EDITED chip forever — invisible while controller tiles
+     weren't editable rows, loud the day they became the point.
+     Same sets, same doctrine. */
+  const surfaces = [
+    ...Object.values(cfg.screens || {}),
+    ...Object.values(cfg.controllers || {}),
+  ];
+  for (const scr of surfaces) {
     for (const t of scr.tiles || []) baseline.tiles.add(JSON.stringify(t));
     for (const s of scr.sections || [])
       for (const t of s.tiles || []) baseline.tiles.add(JSON.stringify(t));
@@ -1199,20 +1554,25 @@ export async function saveAndReload() {
   }
 }
 
-/* Test a building block: harmonium.run executes the SAVED copy
-   (the store), so unsaved edits need a Save & Deploy first. */
+/* Test a building block: the EDITOR'S copy runs, unsaved edits and
+   all (2026-09-02 ruling: "logically, Test should run the unsaved
+   version which is why someone wants to test it in the first
+   place") \u2014 harmonium.run takes the draft's actions verbatim, with
+   the id as the label. Saving is still needed for the remote. */
 export async function testSequence(id) {
   setStatus("running '" + id + "'\u2026");
   try {
+    const seq = (app.draft.sequences || {})[id];
+    const body = { sequence: id,
+      actions: JSON.parse(JSON.stringify(seq?.actions || [])) };
+    if (app.workspace !== "main") body.workspace = app.workspace;
     const r = await fetch("/api/services/harmonium/run", {
       method: "POST",
       headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
-      body: JSON.stringify(app.workspace === "main"
-        ? { sequence: id }
-        : { sequence: id, workspace: app.workspace }),
+      body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
-    setStatus("sequence '" + id + "' ran (note: Test runs the last SAVED copy)", "ok");
+    setStatus("sequence '" + id + "' ran AS EDITED (Save & Deploy so the remote gets it too)", "ok");
   } catch (e) {
     setStatus("test failed: " + e.message +
       (app.sandbox ? " \u2014 install the integration to run sequences" : ""), "err");
@@ -1227,6 +1587,37 @@ export function connectToken(t) {
 }
 
 /* ---- boot ---- */
+/* THE UPGRADE AUDIT (2026-09-06, design-upgrade-audit.md — "never
+   overwrite, always disclose"): once per load, after normalize/heal
+   have filed their receipts, stamp the version pair and assemble the
+   findings. Written to SAVED and DRAFT alike (the normalize doctrine:
+   shape changes ride the next Save & Deploy without reading as an
+   edit); dismissing later touches the draft only, so it persists on
+   deploy. First sight of a version (fresh install, first audit) just
+   writes the stamp — a report about nothing trains people to dismiss
+   reports. */
+async function assembleUpgradeAudit() {
+  try {
+    if (!app.saved || app.sandbox) return;
+    const r = await fetch("/api/harmonium/engine_version", { cache: "no-store" });
+    if (!r.ok) return;
+    const j = await r.json();
+    const to = j.integration || "";
+    if (!to) return;
+    const from = app.saved.last_audited_version || null;
+    if (from === to) return;
+    const findings = from ? buildAuditFindings(app.draft || app.saved) : [];
+    for (const cfg of [app.saved, app.draft]) {
+      if (!cfg) continue;
+      cfg.last_audited_version = to;
+      if (from && findings.length)
+        cfg.audit = { from, to, at: new Date().toISOString(),
+          findings: JSON.parse(JSON.stringify(findings)), dismissed: false };
+      else delete cfg.audit;
+    }
+  } catch { /* silent — the audit never blocks a load */ }
+}
+
 export async function boot() {
   if (!token()) { app.authOpen = true; return; }
   await loadWorkspaces();
@@ -1287,15 +1678,52 @@ export async function boot() {
   loadEntities();
   loadRegistry();
   loadServices();
+  assembleUpgradeAudit();
   /* THE UPGRADE SUMMARY (entity-controls Phase 4): when the load
      healed legacy spellings, say so before the first post-migration
      Save & Deploy — the config changes shape once, on purpose,
      and silently would be the wrong way to do it. */
-  const healed = NORMALIZE_REPORT.variants > 0
+  const healed = (NORMALIZE_REPORT.variants > 0
     ? " · modernized " + NORMALIZE_REPORT.variants + " legacy spelling" +
       (NORMALIZE_REPORT.variants === 1 ? "" : "s") +
       " (style/shows → variant/type; Save & Deploy makes it permanent)"
-    : "";
+    : "") +
+    /* the pinned-dialect heal says what it moved — and names any pin
+       it could NOT move, so the leftover is a visible loose end */
+    (NORMALIZE_REPORT.pins > 0
+      ? " · moved " + NORMALIZE_REPORT.pins + " pinned dialect" +
+        (NORMALIZE_REPORT.pins === 1 ? "" : "s") + " onto the device"
+      : "") +
+    (NORMALIZE_REPORT.pinsKept > 0
+      ? " · " + NORMALIZE_REPORT.pinsKept + " legacy dialect pin" +
+        (NORMALIZE_REPORT.pinsKept === 1 ? "" : "s") +
+        " kept (ambiguous — see the Roles tab)"
+      : "") +
+    /* the one-ordered-cast migration (feedback-3 round 3) says what
+       it folded, same doctrine: shape changes once, out loud */
+    (NORMALIZE_REPORT.castMerged > 0
+      ? " · folded " + NORMALIZE_REPORT.castMerged + " loose entit" +
+        (NORMALIZE_REPORT.castMerged === 1 ? "y" : "ies") +
+        " into the cast order (Save & Deploy makes it permanent)"
+      : "") +
+    /* the template unbind (2026-09-06): a legacy device-bound copy
+       becomes a template, its device adopting it via page: */
+    (NORMALIZE_REPORT.templatesFreed > 0
+      ? " · released " + NORMALIZE_REPORT.templatesFreed +
+        " device controller cop" +
+        (NORMALIZE_REPORT.templatesFreed === 1 ? "y" : "ies") +
+        " into a template (the device keeps it via its page pick)"
+      : "") +
+    /* the tuner flag → chips heal (2026-09-06): one spelling */
+    (NORMALIZE_REPORT.tunerChips > 0
+      ? " · " + NORMALIZE_REPORT.tunerChips + " TV-tuner flag" +
+        (NORMALIZE_REPORT.tunerChips === 1 ? "" : "s") +
+        " became ch_up / ch_down in the passed keys"
+      : "") +
+    (NORMALIZE_REPORT.npDefaults > 0
+      ? " · " + NORMALIZE_REPORT.npDefaults + " custom-copy Now Playing default" +
+        (NORMALIZE_REPORT.npDefaults === 1 ? "" : "s") + " caught up to the stock's"
+      : "");
   setStatus(
     app.virgin
       ? "fresh install — starter workspace loaded (a draft). Look around, " +

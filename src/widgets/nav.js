@@ -72,6 +72,14 @@ WIDGETS.nav = {
     if (navStyle(t) !== "summary") return (t && t.sub) || "";
     const ents = navTargetEntities(t);
     const on = ents.filter(x => ACTIVE(st(x).s)).length;
+    /* AN AUTHORED LINE WINS (2026-09-05, feedback-3 round 2 —
+       Suresh: "the ability to change (or blank) the status lines…
+       {count} controls, {active} active or blank!"): a string `sub`
+       substitutes the live tokens — "" means NO line at all; absent
+       keeps the stock summary. */
+    if (t && typeof t.sub === "string")
+      return t.sub.replace(/\{count\}/g, String(ents.length))
+        .replace(/\{active\}/g, String(on));
     return `${ents.length} entities · ${on} active`;
   },
   isOn: (e, t) =>

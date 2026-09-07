@@ -1,14 +1,18 @@
 <script>
-  /* ICON COMBOBOX (v0.52 — Suresh: "everywhere we ask for an icon we
-     could have a search pane that showed the icon and its name").
-     One box over the full Material Symbols catalog (3,896 names,
-     bundled — no network): type to search, every hit renders its
-     GLYPH beside its name, pick writes material:<name>. Free text is
-     kept verbatim (emoji and custom strings stay legal). Same
-     fixed-positioned dropdown as the Service/Entity pickers, plus a
-     live preview chip of the current value. */
+  /* ICON COMBOBOX (v0.52; recut 2026-09-02 — his HA tile-card
+     screenshot: "The search starts from the first key across
+     multiple icon sets"). One box, HA's feel: from the FIRST
+     keystroke the dropdown mixes the bundled Material catalog with
+     every installed set — phu:/mdi: from the integration's cross-set
+     search (60 interleaved rows per keystroke, never a whole-pack
+     pull; mdi's old ~2MB fetch was why it felt dead), plus any pack
+     that only exists as a lovelace module (fa6-solid:, hue:, …) via
+     the customIcons bridge in state.svelte.js. Typing "set:frag"
+     narrows to that one set. Every row renders its real glyph; free
+     text is kept verbatim (emoji and custom strings stay legal). */
   import { ICON_NAMES } from "../iconNames.js";
-  import { lookupSetIcon, setPack } from "../state.svelte.js";
+  import { customSearch, iconList, iconSearch, lookupSetIcon }
+    from "../state.svelte.js";
   let { value = $bindable(""), placeholder = "icon — type to search",
     onchange = null } = $props();
   let open = $state(false);
@@ -17,14 +21,8 @@
   const place = () => { rect = inputEl?.getBoundingClientRect() || null; };
   const cur = $derived((value || "").startsWith("material:")
     ? value.slice(9) : null);
-  /* ICON SETS (0.87 re-cut, 2026-09-01 — Suresh: "When I type
-     phu:xxxx we should do the same lookup that every other HA page
-     does… live preview in the studio and then mint into the deployed
-     artifacts"): a "<set>:<name>" value asks the integration LIVE
-     (/api/harmonium/icons — the same resolver the deploy minting
-     runs) and previews the real path data inline. The warning chip
-     now means what it says: the installed pack lacks this name, or
-     no pack is installed for the set — never "not deployed yet". */
+  /* a complete "<set>:<name>" value previews via the live resolver
+     (server first, the pack's own registered resolver as fallback) */
   const setIcon = $derived(!cur &&
     /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(value || "") ? value : null);
   let setLook = $state(null);   /* {viewBox,path} | "missing" | "no_source" | null */
@@ -39,50 +37,92 @@
     return () => clearTimeout(t);
   });
   const setWarnTitle = $derived(setLook === "no_source"
-    ? "no icon pack installed for '" + (value || "").split(":")[0] +
-      ":' — install it (e.g. via HACS) and this lookup goes live"
+    ? "no source for '" + (value || "").split(":")[0] +
+      ":' — install the pack (e.g. via HACS) and add the prefix under " +
+      "System → Icon sets, and this lookup goes live"
     : "'" + value + "' is not in the installed pack — check the name");
   const q = $derived(((value || "").startsWith("material:")
     ? value.slice(9) : value || "").toLowerCase().trim().replace(/\s+/g, "_"));
-  /* SET AUTOCOMPLETE (2026-09-01 — Suresh: "when I start typing
-     phu: I get the same dropdown I get when we type material:"):
-     "<set>:frag" swaps the dropdown to the installed pack's names,
-     each row previewing its real path data (one API call, cached).
-     material: keeps the bundled font flow. */
+  /* "set:frag" narrows the search to that one set */
   const setTyping = $derived.by(() => {
     const m = /^([A-Za-z0-9_-]+):([A-Za-z0-9_-]*)$/.exec(value || "");
     return m && m[1] !== "material" ? { set: m[1], frag: m[2] } : null;
   });
-  let packState = $state({});        /* set -> pack array once loaded */
+  /* the debounced fetch: cross-set search, or one set's list; a
+     set the server doesn't know falls through to the browser-side
+     custom packs. `busy` keeps an honest "searching…" row up —
+     an in-flight fetch must never read as an empty set. */
+  let srvHits = $state([]);      /* [{set,name,viewBox,path}] */
+  let busy = $state(false);
   $effect(() => {
-    const st = setTyping;
-    if (!st || packState[st.set]) return;
-    const v = setPack(st.set);
-    if (v instanceof Promise)
-      v.then((arr) => { if (Array.isArray(arr)) packState = { ...packState, [st.set]: arr }; });
-    else if (Array.isArray(v)) packState = { ...packState, [st.set]: v };
+    const st = setTyping, frag = st ? st.frag : q;
+    const key = (st ? st.set + ":" : "~") + frag;
+    if (!st && !q) { srvHits = []; busy = false; return; }
+    busy = true;
+    const cheap = st ? null : q;   /* q-search caches make repeats instant */
+    const cur = () => (setTyping ? setTyping.set + ":" : "~") +
+      (setTyping ? setTyping.frag : q);
+    const t = setTimeout(async () => {
+      try {
+        /* the SERVER answers first and alone gates the spinner; the
+           custom bridge (heavy module imports, other packs' own
+           resolvers — all deadline-bounded in state.svelte.js) joins
+           the list late, never holds it (round 2: "Sat there for
+           ages with a spinning wheel"). */
+        let rows = [];
+        let wantCust = true;
+        if (st) {
+          const rep = await iconList(st.set, st.frag);
+          if (rep && !rep.no_source) {
+            rows = (rep.icons || []).map((i) => ({ ...i, set: st.set }));
+            wantCust = false;    /* the server owns this set */
+          }
+        } else {
+          rows = (await iconSearch(cheap)) || [];
+        }
+        if (cur() !== key) return;
+        srvHits = rows;
+        busy = false;
+        if (wantCust)
+          customSearch(st ? st.frag : cheap, st ? st.set : null,
+            st ? 60 : 16).then((cust) => {
+            if (cur() !== key || !cust.length) return;
+            /* a declared set the SERVER also speaks (banked files,
+               the custom_icons service) answers twice — same
+               set:name from both halves is one row, or svelte's
+               keyed each throws (his live find: typing an icon
+               crashed the tile row with each_key_duplicate) */
+            const have = new Set(srvHits.map((r) => r.set + ":" + r.name));
+            const add = cust.filter((r) => !have.has(r.set + ":" + r.name));
+            if (add.length) srvHits = [...srvHits, ...add];
+          }).catch(() => {});
+      } finally {
+        if (cur() === key) busy = false;   /* the spinner can never stick */
+      }
+    }, 160);
+    return () => clearTimeout(t);
   });
-  /* INSTANT: pure local filtering over the cached pack */
-  const setHits = $derived.by(() => {
-    const st = setTyping;
-    const pack = st && packState[st.set];
-    if (!pack) return [];
-    const f = st.frag.toLowerCase();
-    const hit = f ? pack.filter((i) => i.name.toLowerCase().includes(f)) : pack.slice();
-    hit.sort((a2, b2) => (a2.name.startsWith(f) === b2.name.startsWith(f))
-      ? (a2.name < b2.name ? -1 : 1) : (a2.name.startsWith(f) ? -1 : 1));
-    return hit.slice(0, 60);
+  /* material names use underscores; the typed query may use
+     hyphens (mdi habit) — match across the separator line */
+  const qm = $derived(q.replace(/-/g, "_"));
+  const hits = $derived.by(() => {
+    if (setTyping) return [];
+    if (!q) return ICON_NAMES.slice(0, 60);
+    /* prefix matches lead, shortest first — "door" must surface
+       door_open above every *_indoor that merely contains it */
+    const m = ICON_NAMES.filter((n) => n.includes(qm));
+    m.sort((a, b) => (a.startsWith(qm) === b.startsWith(qm))
+      ? (a.length - b.length || (a < b ? -1 : 1))
+      : (a.startsWith(qm) ? -1 : 1));
+    return m.slice(0, 12);
   });
-  const hits = $derived(setTyping ? []
-    : !q ? ICON_NAMES.slice(0, 60)
-    : ICON_NAMES.filter((n) => n.includes(q)).slice(0, 60));
   function pick(n) {
     value = "material:" + n;
     open = false;
     onchange?.({ target: { value } });
   }
   function pickSet(it) {
-    value = setTyping.set + ":" + it.name;   /* cache already seeded */
+    value = it.set + ":" + it.name;      /* cache already seeded */
     open = false;
     onchange?.({ target: { value } });
   }
@@ -115,19 +155,7 @@
     oninput={() => { place(); open = true; }}
     onblur={() => setTimeout(() => (open = false), 150)}
     class="h-[38px] w-full min-w-0 rounded-[4px] border border-line-strong bg-field px-[11px] font-mono text-[12.5px] text-ink outline-none placeholder:text-faint focus:border-accent" />
-  {#if open && rect && setTyping && setHits.length}
-    <div class="fixed z-50 grid max-h-[300px] grid-cols-2 content-start gap-[2px] overflow-y-auto rounded-[9px] border border-line-strong bg-surface p-[5px] [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.3))]"
-      style="left:{rect.left}px; top:{rect.bottom + 4}px; width:{Math.max(rect.width, 320)}px">
-      {#each setHits as it (it.name)}
-        <button class="flex cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2 py-[5px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
-          onmousedown={(e) => { e.preventDefault(); pickSet(it); }}>
-          <svg class="h-[20px] w-[20px] shrink-0" viewBox={it.viewBox}
-            aria-hidden="true"><path d={it.path} fill="currentColor"/></svg>
-          <span class="min-w-0 truncate font-mono text-[11px]">{setTyping.set}:{it.name}</span>
-        </button>
-      {/each}
-    </div>
-  {:else if open && rect && hits.length}
+  {#if open && rect && (hits.length || srvHits.length || busy)}
     <div class="fixed z-50 grid max-h-[300px] grid-cols-2 content-start gap-[2px] overflow-y-auto rounded-[9px] border border-line-strong bg-surface p-[5px] [box-shadow:var(--shadow-float,0_12px_28px_rgba(0,0,0,.3))]"
       style="left:{rect.left}px; top:{rect.bottom + 4}px; width:{Math.max(rect.width, 320)}px">
       {#each hits as n (n)}
@@ -137,6 +165,24 @@
           <span class="min-w-0 truncate font-mono text-[11px]">{n}</span>
         </button>
       {/each}
+      {#each srvHits as it (it.set + ":" + it.name)}
+        <button class="flex cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2 py-[5px] text-left font-[inherit] text-xs text-ink hover:bg-sunk"
+          onmousedown={(e) => { e.preventDefault(); pickSet(it); }}>
+          <svg class="h-[20px] w-[20px] shrink-0" viewBox={it.viewBox}
+            aria-hidden="true"><path d={it.path} fill="currentColor"/></svg>
+          <span class="min-w-0 truncate font-mono text-[11px]">{it.set}:{it.name}</span>
+        </button>
+      {/each}
+      {#if busy}
+        <div class="col-span-2 flex items-center gap-2 px-2 py-[5px] text-[11px] text-dim">
+          <span class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+          searching the installed sets…
+        </div>
+      {:else if !hits.length && !srvHits.length}
+        <div class="col-span-2 px-2 py-[5px] text-[11px] text-dim">
+          no icon matches — free text is kept as typed
+        </div>
+      {/if}
     </div>
   {/if}
 </div>

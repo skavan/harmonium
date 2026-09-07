@@ -6,7 +6,18 @@
      shows" (generators & raw widgets). `type`, `tile id` and the raw
      JSON live in Advanced (vocabulary: they never walk the primary
      path). Styling = column span + how a doorway renders. */
-  import { app, selectSlice, beginPageDraft, showUndo, tileDirty, saveSnippet, previewGoto, showsForDomain, variantOptions, VARIANT_HINTS } from "../state.svelte.js";
+  import { app, selectSlice, beginPageDraft, showUndo, tileDirty, saveSnippet, previewGoto, showsForDomain, showsForRoles, variantOptions, VARIANT_HINTS, devicePageEntity } from "../state.svelte.js";
+  import DevicePageDoor from "./DevicePageDoor.svelte";
+  /* the pre-wired devices' page entities — pinned in the Entity
+     picker when the page has no cast of its own (2026-09-05) */
+  const prewiredEnts = $derived.by(() => {
+    const out = [];
+    for (const d of Object.values(app.draft?.devices || {})) {
+      const e = devicePageEntity(d?.roles);
+      if (e && !out.includes(e)) out.push(e);
+    }
+    return out;
+  });
   import PresFields from "./PresFields.svelte";
   import Field from "./Field.svelte";
   import IconPicker from "./IconPicker.svelte";
@@ -20,7 +31,8 @@
   import Chips from "./Chips.svelte";
   import JsonArea from "./JsonArea.svelte";
   import PresetFields from "./PresetFields.svelte";
-  import { NAV_STYLES, CONTENT_TYPES, SEARCH_CLASSES, RAW_TYPES, ENTITY_TYPES, DOM_ICON } from "./tile-lib.js";
+  import { NAV_STYLES, CONTENT_TYPES, SEARCH_CLASSES, RAW_TYPES, ENTITY_TYPES, DOM_ICON, CONTEXT_WIDGET_INFO, friendlyTileName } from "./tile-lib.js";
+  import InfoPop from "./InfoPop.svelte";
 
   /* castEnts (v0.83.7 — Suresh: "Target Entity starts with the
      cast, as elsewhere"): the owning activity/page hands down its
@@ -128,17 +140,55 @@
       ? (tile.kind === "volume" ? "volume" : "other")  /* v0.83.7 —
            ONE volume entry: a volume stepper reads as Volume control
            with style Stepper (a brightness stepper hides the select) */
+      /* the WORKING spellings read as their adapter (2026-09-05
+         drift round — Suresh: "We've lost the source picker DRAWS AS
+         and VARIANT… Why do they drift?": the media stock authors
+         {type:"chips", kind:"source"} — the engine's internal shape —
+         and this reader only knew the canonical dialect, so the same
+         control had knobs on an activity page and none on a device
+         copy. Same healed-reading doctrine as the volume stepper
+         above; a chips row with any OTHER kind (sound_mode…) keeps
+         the honest draws-itself text — it has no adapter to offer.) */
+      : (tile.type === "chips" || tile.type === "picker") &&
+        tile.kind === "source" ? "sources"
+      : (tile.type === "chips" || tile.type === "picker") &&
+        tile.kind === "select" ? "select"
       /* Wave C's first spelling (a density variant on the Launcher)
          READS as the first-class control; picking any variant or
          draws-as writes the canonical fan/cover type */
       : tile.type === "device" &&
         (tile.variant === "inline" || tile.variant === "compact") &&
-        /^(fan|cover)\./.test(tile.entity || "")
+        /^(fan|cover|light|climate)\./.test(tile.entity || "")
         ? (tile.entity || "").split(".")[0]
       : tile.type;
+  /* CONTROLLER-VARIANT RESOLUTION (2026-09-04 — Suresh, first
+     variant: "The DRAWS AS only shows Launcher Tile. For example,
+     shouldn't now playing offer me all the options"): a library
+     controller's tiles bind $device / $context.<role>, and the old
+     domain-split of that string matched nothing. Resolve honestly:
+     $device → the controller's own domain (or its stock parent's,
+     or its per-device entity's); $context.<role> → the kinds that
+     role can draw (the registry's role filter). */
+  const inLib = $derived(!!app.draft?.controllers?.[ownerScreen]);
+  const effRole = () => {
+    const e = tile.entity || "";
+    return e.startsWith("$context.") ? e.slice(9) : null;
+  };
+  const effDomain = () => {
+    const e = tile.entity || "";
+    if (e.indexOf("$") !== 0) return e.split(".")[0];
+    const c = app.draft?.controllers?.[ownerScreen];
+    if (e === "$device")
+      return c?.domain ||
+        (c?.variant_of && app.draft?.controllers?.[c.variant_of]?.domain) ||
+        (c?.entity || "").split(".")[0] || "";
+    return "";
+  };
   const drawsAsOptions = () =>
     /* the SHARED filter (Phase 0 #3): same list as the activity ⚙ */
-    showsForDomain((tile.entity || "").split(".")[0])
+    (effRole()
+      ? showsForRoles({ [effRole()]: 1 })
+      : showsForDomain(effDomain()))
       .map((k) => ({ value: k.value, label: k.label }));
   /* CANONICAL WRITES (Phase 1): the Studio speaks type + variant from
      here on — the legacy working spellings (slider: true, stepper +
@@ -147,6 +197,10 @@
      translates canonical tiles at render. */
   function setDrawsAs(v) {
     delete tile.slider; delete tile.kind; delete tile.variant;
+    delete tile.cycle;   /* the picker working shape's flag sheds too */
+    /* `style` is the media adapter's variant spelling — switching
+       away must shed it like any variant, or it rides the new type */
+    if (v !== "media") delete tile.style;
     tile.type = v;
   }
   /* volume shape, canonical `variant` first, then the legacy reads
@@ -167,20 +221,92 @@
      volume keeps its "Volume style" wording */
   const variantAdapter = () => {
     const t = drawsAsValue();   /* the healed reading — see above */
+    /* light and climate joined the density family with variants of
+       their own (2026-09-04 — Suresh: "other device types are
+       missing variants i.e. light"): the gate must name every
+       adapter that HAS shapes, or the Variant select never shows */
+    /* media joined (2026-09-04 — Suresh, first controller variant:
+       "shouldn't now playing offer me all the options … no variants
+       are offered"): the NP styles ARE its variants. They live in
+       `tile.style` — the engine's first-class field (npMode), which
+       surfDressTile's activity picker also negotiates — so the
+       media branch below reads/writes style, not variant, the way
+       volume keeps its own spelling. */
     return t === "number" || t === "select" || t === "sources" ||
-      t === "fan" || t === "cover"
+      t === "fan" || t === "cover" || t === "light" || t === "climate" ||
+      t === "media"
         ? t
         : showsVolStyle() ? "volume" : null;
+  };
+  /* the variant, read through the healing (2026-09-05 drift round):
+     a working-shaped sources/select tile carries its shape in
+     type+kind(+cycle), not in `variant` — read it back honestly so
+     the select never lies "Auto" about a row that renders chips */
+  const admVariantValue = () => {
+    if (tile.variant != null) return tile.variant;
+    if (tile.type === "chips" && (tile.kind === "source" || tile.kind === "select"))
+      return "chips";
+    if (tile.type === "picker" && (tile.kind === "source" || tile.kind === "select"))
+      return tile.cycle ? "cycle" : "picker";
+    return "";
   };
   function setVariant(v) {
     const a = variantAdapter();
     /* touching the variant HEALS the Wave C spelling in place */
-    if (a === "fan" || a === "cover") tile.type = a;
+    if (a === "fan" || a === "cover" || a === "light" || a === "climate")
+      tile.type = a;
+    /* sources/select working shapes heal to the canonical spelling
+       too — the engine's compat reader (canonTile) translates back
+       at render, so the page renders identically and the config now
+       says what the editor shows */
+    if (a === "sources" || a === "select") {
+      tile.type = a;
+      delete tile.kind; delete tile.cycle;
+    }
     if (v) tile.variant = v; else delete tile.variant;
   }
   /* status line: text (with {tokens}) beats the widget's smart line;
-     "" — the ∅ button — means NO line; absent means auto */
-  const tileAttrs = () => ["state", ...(rec(tile.entity)?.attrs || [])];
+     "" — the ∅ button — means NO line; absent means auto.
+     $context.<role> and $device resolve to a real entity first
+     (2026-09-05, feedback-1: "the status line doesn't show the list
+     of attributes - only state" on $context.media_player): the
+     activity using this controller lends its wiring, any activity
+     wiring the role fills in, and $device reads the copy's entity. */
+  const ctxResolve = (ref) => {
+    if (typeof ref !== "string") return ref;
+    if (ref === "$device") {
+      const c = app.draft?.controllers?.[ownerScreen];
+      /* THE LIVE PREVIEW PICK WINS (2026-09-05 — Suresh: "$device
+         attributes should load the relevant attributes of the
+         preview device"): whatever device the editor is previewing
+         with is what the token row describes */
+      if (app.pvEntity && (!c?.domain ||
+          app.pvEntity.split(".")[0] === c.domain)) return app.pvEntity;
+      if (c?.entity) return c.entity;
+      /* no pick yet — a representative of the domain answers,
+         pre-wired first */
+      const dom = c?.domain;
+      if (!dom) return null;
+      for (const d of Object.values(app.draft?.devices || {}))
+        for (const e of Object.values(d?.roles || {}))
+          if (typeof e === "string" && e.split(".")[0] === dom) return e;
+      const any = (app.entities || []).find((x) => x.entity_id.startsWith(dom + "."));
+      return any ? any.entity_id : null;
+    }
+    if (!ref.startsWith("$context.")) return ref;
+    const key = ref.slice(9);
+    /* "Same for $context": the PREVIEW-AS activity answers first */
+    const pv = app.pvAsActivity &&
+      app.draft?.activities?.[app.pvAsActivity]?.context?.[key];
+    if (typeof pv === "string") return pv;
+    const acts = Object.values(app.draft?.activities || {});
+    const user = acts.find((a) =>
+      a.screen === "controller:" + ownerScreen && a.context?.[key]);
+    const any = user || acts.find((a) => a.context?.[key]);
+    const v = any?.context?.[key];
+    return typeof v === "string" ? v : null;
+  };
+  const tileAttrs = () => ["state", ...(rec(ctxResolve(tile.entity))?.attrs || [])];
   const tapHint = () => {
     const dom = (tile.entity || "").split(".")[0];
     if (dom === "media_player") return "Auto: play/pause while playing · opens its page when off";
@@ -343,15 +469,25 @@
   {ondrop}
   ondragend={() => (armed = false)}>
 <CardRow
-  title={tile.label || tile.id || "(untitled)"}
-  subtitle={tile.type + (tile.entity ? " · " + tile.entity : tile.activity ? " · " + tile.activity : "")}
+  title={tile.label || friendlyTileName(tile) || tile.id || "(untitled)"}
+  subtitle={tile.type + (tile.entity ? " · " + tile.entity : tile.activity ? " · " + tile.activity : "") + (tile.hidden === true ? " · hidden" : "")
+    /* PROFILE GATES READ OUT LOUD (2026-09-04 — Suresh: "Remote
+       can't be hidden, but t_btns2 doesn't seem to do anything":
+       both tiles were doing exactly what their gate says — on a
+       remote WITH a physical dpad, only:"physical_dpad" shows and
+       unless:"physical_dpad" hides — but nothing SAID so, so a
+       working gate read as a dead row) */
+    + (tile.only ? " · shows only on remotes with " + tile.only : "")
+    + (tile.unless ? " · hidden on remotes with " + tile.unless : "")}
   edited={tileDirty(tile)}
   onarm={() => (armed = true)}
   menu={rowMenu()}
   onup={() => move(-1)}
   ondown={() => move(1)}
   onduplicate={duplicate}
-  ondelete={removeTile}
+  ondelete={inLib ? null : removeTile}
+  onhide={inLib ? () => { if (tile.hidden) delete tile.hidden; else tile.hidden = true; } : null}
+  hidden={tile.hidden === true}
 >
   <div class="space-y-3">
     <!-- IDENTITY STRIP (grammar): present on every tab. Round 7
@@ -400,7 +536,17 @@
           onchange={(e) => setIcon(e.target.value)} />
       </Field></div>
     {/snippet}
-    {#if tile.type === "preset"}
+    {#if ["preset", "device", "nav", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "light", "climate", "switch", "lock", "press"].includes(tile.type)}
+      <!-- devices share the preset header verbatim (2026-09-03:
+           "it should be exactly like all other implementations.
+           Including order and two row decisions") — and nav tiles
+           joined them (2026-09-04: "Device tiles have styling
+           options, their nav tile sisters do not"): a doorway wears
+           accents like anything else, so it gets the same look row;
+           the engine already paints accents on every tile type.
+           2026-09-04, same round: the whole ENTITY-CONTROL family
+           joined too — a Draws-as that writes type "light" or
+           "climate" must not cost the tile its Accent/Style row -->
       <div class="space-y-2 rounded-[8px] bg-surface/60 p-1">
         <div class="flex flex-wrap items-end gap-3">
           {@render nameField()}
@@ -419,16 +565,22 @@
           </Field></div>
           <div class="w-[150px] min-w-[135px]"><Field label="Style" hint="">
             <select value={tile.accent_style ?? ""}
-              title="this preset's own look — blank inherits the section's Accent style"
+              title="this tile's own look — blank inherits the section's Accent style"
               onchange={(e) => { if (e.target.value) tile.accent_style = e.target.value; else delete tile.accent_style; }}
               class="h-[38px] w-full cursor-pointer rounded-[4px] border border-line-strong bg-field px-2 text-[12.5px] text-ink outline-none focus:border-accent">
               <option value="">Inherit (section)</option>
               <option value="basic">Icon basic</option>
               <option value="tint">Icon tint</option>
               <option value="bloom">Icon bloom</option>
-              <option value="title">Title</option>
-              <option value="title-tint">Title + tint</option>
-              <option value="title-bloom">Title + bloom</option>
+              <!-- Title cells are a PRESET design (name leads, icon
+                   = corner mark) — devices offer the icon trio, like
+                   activities; a section Title style degrades to its
+                   wash half on non-presets (engine law) -->
+              {#if tile.type === "preset"}
+                <option value="title">Title</option>
+                <option value="title-tint">Title + tint</option>
+                <option value="title-bloom">Title + bloom</option>
+              {/if}
             </select>
           </Field></div>
         </div>
@@ -467,25 +619,41 @@
            choice (a light row's "light" is not) — Status line is for
            everyone -->
       <PresFields
-        drawsAs={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "switch", "lock", "press"].includes(drawsAsValue())
+        drawsAs={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "light", "climate", "switch", "lock", "press"].includes(drawsAsValue())
           ? { value: drawsAsValue(), options: drawsAsOptions(),
               set: (v) => setDrawsAs(v) }
           : null}
-        variantLabel={variantAdapter() === "volume" ? "Volume style" : "Variant"}
+        variantLabel={variantAdapter() === "volume" ? "Volume style"
+          : variantAdapter() === "media" ? "Now Playing style" : "Variant"}
         variant={variantAdapter() === "volume"
           ? { value: volStyleValue(),
               hint: VARIANT_HINTS[volStyleValue()] || "",
               options: variantOptions("volume", "Theme default"),
               set: (v) => setVolStyle(v) }
+          : variantAdapter() === "media"
+            /* NP styles ride `style`, the engine's own field (see
+               variantAdapter above); blank keeps the activity's
+               Now Playing pick in charge */
+            ? { value: tile.style ?? "",
+                hint: VARIANT_HINTS[tile.style] || "",
+                /* Auto names what it RESOLVES to (2026-09-07 — "We just
+                   agreed that auto/default is Art"): this tile's own
+                   default. An activity may still override it on the
+                   remote; the controller editor shows the default. */
+                options: variantOptions("media", "Auto — " +
+                  ({ plain: "Basic", slim: "Slim row", art: "Art Hero — Compact",
+                     hero: "Art Hero", poster: "Art Hero — Large", wash: "Art wash" }
+                    [tile.np_default] || "Basic") + " (this controller's default)"),
+                set: (v) => { if (v) tile.style = v; else delete tile.style; } }
           : variantAdapter()
-            ? { value: tile.variant ?? "",
-                hint: VARIANT_HINTS[tile.variant] || "",
+            ? { value: admVariantValue(),
+                hint: VARIANT_HINTS[admVariantValue()] || "",
                 options: variantOptions(variantAdapter(),
-                  /^(fan|cover)$/.test(variantAdapter())
+                  /^(fan|cover|light|climate)$/.test(variantAdapter())
                     ? "Inline — full control" : "Auto"),
                 set: (v) => setVariant(v) }
             : null}
-        cardGroup={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "switch", "lock", "press"].includes(drawsAsValue())
+        cardGroup={["device", "volume", "stepper", "power", "media", "transport", "sources", "number", "select", "fan", "cover", "light", "climate", "switch", "lock", "press"].includes(drawsAsValue())
           ? { value: tile.card_group ?? "",
               warn: tile.type === "media" && tile.card_group
                 ? "Now Playing has no row form — this tile renders standalone." : null,
@@ -512,7 +680,14 @@
         <!-- THE DEVICE (§6.9): entity leads; verbs follow it -->
         <div class="grid grid-cols-2 gap-3">
           <Field label="Entity" hint="icon, verbs and the page it opens all follow the entity">
-            <EntityPicker value={tile.entity} onchange={(e) => setDeviceEntity(e.target.value)} />
+            <!-- pre-wired devices pin on top when there's no cast to
+                 pin (2026-09-05 — Suresh: "When I select a device at
+                 page level > devices, I cant select pre-wired
+                 devices") -->
+            <EntityPicker value={tile.entity}
+              preferred={castEnts.length ? castEnts : prewiredEnts}
+              prefLabel={castEnts.length ? "This activity's devices" : "Pre-wired devices"}
+              onchange={(e) => setDeviceEntity(e.target.value)} />
           </Field>
           <Field label="Tap action" hint={tapHint()}>
             <Select value={tile.tap ?? ""}
@@ -541,6 +716,12 @@
             {/if}
           </p>
         {/if}
+        <!-- THE DEVICE-PAGE DOOR, on the page's own tile too
+             (2026-09-04, round 3 — Suresh: "the entry door to this
+             setting should be in … a page's device page"): the shared
+             affordance — renders only when the entity's domain has a
+             stock device page -->
+        <DevicePageDoor entity={tile.entity} />
       {:else if tile.type === "nav"}
         <!-- WHERE IT GOES (§6.10): the doorway's destination -->
         <div class="grid grid-cols-2 gap-3">
@@ -654,13 +835,48 @@
                   }} />
               </Field>
             {/if}
-          {:else if ENTITY_TYPES.has(tile.type)}
+          {:else if ENTITY_TYPES.has(tile.type) || ENTITY_TYPES.has(drawsAsValue())}
+            <!-- the healed reading opens this branch too (2026-09-05
+                 drift round): a working-shaped sources/select row
+                 ({type:"chips"/"picker", kind:"source"/"select"} — the
+                 media stock's dialect) gets its Entity, Draws-as and
+                 Variant like any adapter row; chips of any other kind
+                 (sound_mode…) still fall through to the honest
+                 draws-itself text below -->
             <Field label="Entity"><EntityPicker bind:value={tile.entity} /></Field>
             {@render presFields()}
           {:else}
+            {#if tile.type === "volumes"}
+              <!-- the band's ONE knob, surfaced (2026-09-05, feedback-2:
+                   "We used to have the proper DRAWS AS and VARIANT for
+                   Volume. Its gone"): the engine's genVolumeTiles reads
+                   the band tile's variant as the ladder's first rung —
+                   the Studio just never offered it here. Same options,
+                   same wording as the Controller tab's band row. -->
+              <div class="w-[240px]">
+                <Field label="Volume style" hint="every volume this band draws — each device can still override via its ⚙">
+                  <Select value={tile.variant ?? tile.style ?? ""}
+                    options={variantOptions("volume", "Theme default")}
+                    onchange={(e) => { delete tile.style;
+                      if (e.target.value) tile.variant = e.target.value;
+                      else delete tile.variant; }} />
+                </Field>
+              </div>
+            {/if}
+            <!-- the BLUE ⓘ (2026-09-04 — Suresh: "Everywhere we do
+                 that we should have a blue info icon that pops up a
+                 description with an example (or two), that could be
+                 copy and pasted") — the primer lives in tile-lib's
+                 CONTEXT_WIDGET_INFO, one entry per draws-itself type -->
             <p class="col-span-2 m-0 text-xs text-dim">
               A {tile.type} widget — it draws itself from the page's context.
               Its knobs live under Advanced.
+              <InfoPop
+                title={CONTEXT_WIDGET_INFO[tile.type]?.title || ("The " + tile.type + " widget")}
+                text={CONTEXT_WIDGET_INFO[tile.type]?.text ||
+                  "Drawn entirely from the page's context — copy the shape below into the Advanced tab to hand-tune it."}
+                examples={CONTEXT_WIDGET_INFO[tile.type]?.examples ||
+                  [{ label: "the bare tile", json: { id: tile.id || "x", type: tile.type, span: 2 } }]} />
             </p>
           {/if}
         </div>

@@ -28,7 +28,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 SERVICE_RUN_SCHEMA = vol.Schema({
-    vol.Required("sequence"): cv.string,
+    # a stored sequence id — or, with `actions`, only a label: the
+    # Studio's ▶ Test sends the EDITOR'S copy (2026-09-02 ruling:
+    # "logically, Test should run the unsaved version which is why
+    # someone wants to test it in the first place"). Remotes and
+    # automations keep sending just the id.
+    vol.Optional("sequence"): cv.string,
+    vol.Optional("actions"): list,
     vol.Optional("workspace", default=MAIN): cv.string,
 })
 SERVICE_RUN_PRESET_SCHEMA = vol.Schema({
@@ -83,6 +89,70 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
     entry's live dict (its selects registry); `mint` mints any missing
     activity selects for a workspace."""
 
+    async def _run_actions(ws: str, actions, label: str, context) -> None:
+        """The ONE script-engine runner: bind, validate, run."""
+        # deep-copy before stamping — the stored config must never
+        # grow baked-in workspace keys (that would break duplication)
+        actions = json.loads(json.dumps(actions or []))
+        _bind_ws(actions, ws)
+        try:
+            validated = cv.SCRIPT_SCHEMA(actions)
+        except vol.Invalid as err:
+            raise HomeAssistantError(
+                f"sequence '{label}' has invalid actions: {err}"
+            ) from err
+        script = Script(
+            hass,
+            validated,
+            f"Harmonium: {label}",
+            DOMAIN,
+            script_mode="restart",
+        )
+        _LOGGER.info("Running Harmonium sequence '%s' (ws=%s, %d actions)",
+                     label, ws, len(actions))
+        await script.async_run(context=context)
+
+    async def _route_and_run(ws: str, config: dict, seq_id,
+                             actions, label: str, context) -> None:
+        """AUTOMAGIC ROUTING (2026-09-02 — Suresh: "If its an
+        activity, shouldn't start and stop just be automagic?
+        Always?" → GO). A sequence that IS some activity's start
+        flips that room's select FIRST; one that is an activity's
+        stop clears the routing AFTERWARDS — guarded, only while
+        that activity still owns the room (the handoff law: ending
+        Watch TV after Music took the room leaves Music alone).
+        Every entry path comes through here — panel taps, Test,
+        automations, wall switches — so generated sequences no
+        longer carry routing steps at all; legacy ones that still do
+        are harmless (their embedded set_activity is routing-only
+        and idempotent). A sequence wired by TWO activities in the
+        same role is ambiguous: that role gets no routing, one log
+        line says so."""
+        acts = config.get("activities") or {}
+        ref = ("sequence:" + str(seq_id)) if seq_id else None
+        starts = [a for a, v in acts.items()
+                  if isinstance(v, dict) and v.get("start") == ref]
+        stops = [a for a, v in acts.items()
+                 if isinstance(v, dict) and v.get("stop") == ref]
+        if len(starts) > 1 or len(stops) > 1:
+            _LOGGER.warning(
+                "sequence '%s' is wired by several activities (start: %s / "
+                "stop: %s) — ambiguous, automagic routing skipped",
+                seq_id, starts or "-", stops or "-")
+            starts = starts if len(starts) == 1 else []
+            stops = stops if len(stops) == 1 else []
+        if starts:
+            aid = starts[0]
+            sel = entry_data["selects"].get((ws, acts[aid].get("room_view")))
+            if sel is not None and getattr(sel, "current_option", None) != aid:
+                await sel.async_select_option(aid)
+        await _run_actions(ws, actions, label, context)
+        if stops:
+            aid = stops[0]
+            sel = entry_data["selects"].get((ws, acts[aid].get("room_view")))
+            if sel is not None and getattr(sel, "current_option", None) == aid:
+                await sel.async_select_option("off")
+
     async def _run_sequence(ws: str, seq_id: str, context) -> None:
         """Execute one stored sequence with HA's script engine — the
         single runner behind harmonium.run AND set_activity's
@@ -92,30 +162,11 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         if seq is None:
             raise HomeAssistantError(
                 f"Harmonium workspace '{ws}' has no sequence '{seq_id}' — "
-                "if you just created it in the Studio, Save & Deploy first: "
-                "the remote, the preview's taps, and ▶ Test all run the "
-                "SAVED copy (check Building blocks otherwise)"
+                "if you just created it in the Studio, save it first "
+                "(check Building blocks otherwise)"
             )
-        # deep-copy before stamping — the stored config must never
-        # grow baked-in workspace keys (that would break duplication)
-        actions = json.loads(json.dumps(seq.get("actions") or []))
-        _bind_ws(actions, ws)
-        try:
-            validated = cv.SCRIPT_SCHEMA(actions)
-        except vol.Invalid as err:
-            raise HomeAssistantError(
-                f"sequence '{seq_id}' has invalid actions: {err}"
-            ) from err
-        script = Script(
-            hass,
-            validated,
-            f"Harmonium: {seq.get('name', seq_id)}",
-            DOMAIN,
-            script_mode="restart",
-        )
-        _LOGGER.info("Running Harmonium sequence '%s' (ws=%s, %d actions)",
-                     seq_id, ws, len(actions))
-        await script.async_run(context=context)
+        await _route_and_run(ws, config, seq_id, seq.get("actions"),
+                             seq.get("name", seq_id), context)
 
     async def _run_action_ref(ws: str, ref: str, context) -> None:
         """An activity's start/stop ACTION REF, exactly as the engine
@@ -135,7 +186,23 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
         """harmonium.run — execute a building-block SEQUENCE from the
         stored config, HA-side, with HA's own script engine (full
         delay/wait/choose semantics; remotes never run orchestration).
-        `workspace` routes to the calling remote's world (default main)."""
+        `workspace` routes to the calling remote's world (default main).
+        With `actions`, THOSE run instead of a stored lookup — the
+        Studio's ▶ Test sends the editor's copy, unsaved edits and
+        all; `sequence` is then just the label."""
+        acts = call.data.get("actions")
+        if acts is not None:
+            # the draft test gets automagic routing too — ownership
+            # resolves by the id the Studio sends as the label
+            ws = call.data["workspace"]
+            config = await hstore.get_ws(ws) or {}
+            await _route_and_run(ws, config, call.data.get("sequence"),
+                                 acts, call.data.get("sequence") or "draft",
+                                 call.context)
+            return
+        if not call.data.get("sequence"):
+            raise HomeAssistantError(
+                "harmonium.run needs a sequence id or an actions list")
         await _run_sequence(call.data["workspace"], call.data["sequence"],
                             call.context)
 
@@ -269,7 +336,10 @@ def register_services(hass: HomeAssistant, hstore: HarmoniumStore,
                     if a and a.get("stop"):
                         await _run_action_ref(ws, a["stop"], call.context)
             for _k, ent in pairs:
-                await ent.async_select_option("off")
+                # idempotent: the stop's automagic routing usually
+                # cleared the room already (_route_and_run)
+                if getattr(ent, "current_option", None) != "off":
+                    await ent.async_select_option("off")
             return
         if ws is None:
             # FIND THE OWNER (v0.47.9): no workspace named — search

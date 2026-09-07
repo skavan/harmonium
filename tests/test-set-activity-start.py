@@ -219,6 +219,114 @@ go(run(Call(sequence="music_on", workspace="main")))
 check("harmonium.run unchanged", len(RUN_LOG) == 1 and
       RUN_LOG[0][1] == "Harmonium: Music on")
 
+# ---- 6. run with ACTIONS = the Studio's ▶ Test (2026-09-02 ruling:
+# "logically, Test should run the unsaved version which is why
+# someone wants to test it in the first place") — the editor's copy
+# runs verbatim, the stored one is NOT consulted, _bind_ws still
+# stamps, and the id is only a label ----
+RUN_LOG.clear()
+DRAFT = [{"action": "harmonium.set_activity", "data": {"activity": "music"}},
+         {"action": "cover.open_cover",
+          "data": {"entity_id": "cover.screen"}}]
+go(run(Call(sequence="music_on", workspace="main", actions=DRAFT)))
+check("draft actions run verbatim (not the stored copy)",
+      len(RUN_LOG) == 1 and RUN_LOG[0][2][1]["action"] == "cover.open_cover")
+check("draft run stamps workspace onto nested harmonium steps",
+      RUN_LOG[0][2][0]["data"].get("workspace") == "main")
+check("the id labels the run", RUN_LOG[0][1] == "Harmonium: music_on")
+check("the caller's draft list is NOT mutated by the stamping",
+      "workspace" not in DRAFT[0]["data"])
+
+# a brand-new draft (id not stored yet) tests fine too
+RUN_LOG.clear()
+go(run(Call(sequence="brand_new", workspace="main",
+            actions=[{"action": "light.turn_on",
+                      "data": {"entity_id": "light.x"}}])))
+check("an unsaved-new sequence tests before it exists in the store",
+      len(RUN_LOG) == 1 and RUN_LOG[0][1] == "Harmonium: brand_new")
+
+# neither id nor actions = a clear error
+err = None
+try:
+    go(run(Call(workspace="main")))
+except Exception as e:
+    err = str(e)
+check("run with neither id nor actions raises the honest error",
+      err is not None and "sequence id or an actions list" in err)
+
+# ---- 7. AUTOMAGIC ROUTING (2026-09-02 GO: "If its an activity,
+# shouldn't start and stop just be automagic? Always?") — the runner
+# flips the room's select around any activity start/stop it
+# executes, whoever called it ----
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "off"
+go(run(Call(sequence="music_on", workspace="main")))
+check("running a START sequence directly flips the room's select first",
+      select.flips == ["music"] and len(RUN_LOG) == 1)
+
+# already routed = no double flip
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "music"
+go(run(Call(sequence="music_on", workspace="main")))
+check("a start on an already-routed room does not re-flip",
+      select.flips == [])
+
+# stop clears the routing afterwards — guarded on still-owner
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "music"
+go(run(Call(sequence="music_stop", workspace="main")))
+check("running a STOP sequence directly clears the routing after",
+      select.flips == ["off"] and len(RUN_LOG) == 1)
+
+# the handoff law: another activity took the room — stop leaves it
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "tv"
+go(run(Call(sequence="music_stop", workspace="main")))
+check("a stop never clears a room another activity now owns",
+      select.flips == [])
+
+# the draft test gets the same automagic (ownership via the label id)
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "off"
+go(run(Call(sequence="music_on", workspace="main",
+            actions=[{"action": "light.turn_on",
+                      "data": {"entity_id": "light.x"}}])))
+check("testing a start DRAFT routes too", select.flips == ["music"])
+
+# a plain sequence (no owner) routes nothing
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "off"
+go(run(Call(sequence="brand_new", workspace="main",
+            actions=[{"action": "light.turn_on",
+                      "data": {"entity_id": "light.x"}}])))
+check("a sequence no activity owns gets no routing", select.flips == [])
+
+# ambiguity: two activities share one start ref → no routing, honest
+CONFIG["activities"]["music2"] = {"name": "M2", "room_view": "room",
+                                  "start": "sequence:music_on"}
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "off"
+go(run(Call(sequence="music_on", workspace="main")))
+check("a start shared by two activities routes neither (ambiguous)",
+      select.flips == [] and len(RUN_LOG) == 1)
+del CONFIG["activities"]["music2"]
+
+# set_activity off+start still ends with ONE off flip (the runner
+# cleared; the handler's flip is idempotent now)
+RUN_LOG.clear()
+select.flips.clear()
+select.current_option = "music"
+go(set_activity(Call(activity="off", start=True)))
+check("off+start: the room ends with a single off flip",
+      select.flips == ["off"])
+
 print(("\nset-activity-start: FAIL " + str(fails)) if fails
       else "\nset-activity-start: ALL PASS")
 raise SystemExit(1 if fails else 0)

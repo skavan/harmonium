@@ -50,8 +50,12 @@
       if (s.subhead) continue;   /* Defaults/Custom — the badges say it */
       if (q && !(s.label || "").toLowerCase().includes(q.toLowerCase())) continue;
       if (!cur || cur.name !== s.group) out.push((cur = { name: s.group, items: [] }));
-      /* condense quiet stock: sub "stock", unused, no nested library */
+      /* condense quiet stock: sub "stock", unused, no nested library.
+         MEDIA DEVICE never condenses (2026-09-05, feedback-1: "Add
+         Media Device to top tree") — it is the device-control front
+         door, a peer of the named media controllers. */
       if (!q && !stockOpen && s.sub === "stock" &&
+          (s.key || "") !== "controller.media_player" &&
           !usedCtrls.has((s.key || "").slice(11)) &&
           !(raw[i + 1]?.deep)) {
         let quiet = cur.items.find((x) => x.condensed);
@@ -115,21 +119,29 @@
           <span class="truncate">+ {s.labels.length} stock device page{s.labels.length > 1 ? "s" : ""}</span>
         </button>
       {:else}
+      <!-- `deep` is a DEPTH (2026-09-02 — a grandchild page rendered
+           at its parent's indent and read as a peer): each level
+           steps 20px further in, with a guide line per ancestor -->
       <button
         class={"item relative flex w-full cursor-pointer items-center gap-2.5 truncate rounded-[9px] border-0 bg-transparent text-left font-[inherit] " +
-          (s.deep ? "h-[35px] pr-2.5 pl-[46px] text-[13.5px] " : "h-[38px] px-2.5 text-[14px] ") +
+          (s.deep ? "h-[35px] pr-2.5 text-[13.5px] " : "h-[38px] px-2.5 text-[14px] ") +
           (s.key === app.selKey
             ? "bg-accent-wash font-semibold text-accent-text [box-shadow:inset_2.5px_0_0_var(--color-accent)]"
             : "text-ink hover:bg-sunk")}
+        style={s.deep ? "padding-left:" + (46 + ((+s.deep || 1) - 1) * 20) + "px" : ""}
         onclick={() => selectSlice(s.key)}
-      >{#if s.deep}<span class="absolute top-0 bottom-0 left-[27px] w-px bg-line"></span>{/if}{#if !s.deep}<span
+      >{#if s.deep}{#each { length: +s.deep || 1 } as _, li (li)}<span
+          class="absolute top-0 bottom-0 w-px bg-line"
+          style={"left:" + (27 + li * 20) + "px"}></span>{/each}{/if}{#if !s.deep}<span
           class={"flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-[5px] text-[10.5px] font-semibold " +
             (s.key === app.selKey ? "bg-accent text-accent-ink" : "bg-sunk text-dim")}
-        >{TOKEN[s.group] || "·"}</span>{/if}<span class="min-w-0 truncate">{s.label}</span>{#if s.sub === "stock"}<span
-          class="ml-auto shrink-0 rounded-[4px] border border-line px-[5px] py-[2px] text-[9px] font-medium tracking-[.06em] text-dim uppercase">stock</span>{:else if isEdited(s)}<span
+        >{TOKEN[s.group] || "·"}</span>{/if}<span class="min-w-0 truncate">{s.label}</span>{#if s.device}<span
+          title="A device page — draws one device through $device; a device adopts it from its card"
+          class="ml-auto shrink-0 rounded-[4px] bg-sunk px-[5px] py-[2px] font-mono text-[9px] font-medium tracking-[.04em] text-dim">$device</span>{/if}{#if s.sub === "stock"}<span
+          class={(s.device ? "ml-1" : "ml-auto") + " shrink-0 rounded-[4px] border border-line px-[5px] py-[2px] text-[9px] font-medium tracking-[.06em] text-dim uppercase"}>stock</span>{:else if isEdited(s)}<span
           title={s.sub}
-          class="ml-auto shrink-0 rounded-[4px] bg-accent-wash px-[5px] py-[2px] text-[9px] font-semibold tracking-[.06em] text-accent-text uppercase">edited</span>{:else if subShow(s)}<small
-          class={"ml-auto max-w-[45%] shrink-0 truncate pl-1 text-[11.5px] font-normal " +
+          class={(s.device ? "ml-1" : "ml-auto") + " shrink-0 rounded-[4px] bg-accent-wash px-[5px] py-[2px] text-[9px] font-semibold tracking-[.06em] text-accent-text uppercase"}>edited</span>{:else if subShow(s)}<small
+          class={(s.device ? "ml-1" : "ml-auto") + " max-w-[45%] shrink-0 truncate pl-1 text-[11.5px] font-normal " +
             (s.key === app.selKey ? "text-accent-text/70" : "text-faint")}>{subShow(s)}</small>{/if}</button>
       {/if}
     {/each}

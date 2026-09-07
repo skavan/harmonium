@@ -93,6 +93,7 @@ Task-shaped guides, one outcome each — start here after install:
 | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
 | [Your first screen](docs/cookbook/first-screen.md)                            | A room page with live tiles                          |
 | [Activities](docs/cookbook/activities.md)                                     | "Watch TV" that turns everything on, in order        |
+| [How controllers work](docs/cookbook/how-controllers-work.md)                  | The mental model: controllers, casts, the preview    |
 | [Creating an Activity — the deep dive](docs/cookbook/creating-an-activity.md) | Every tab, every knob, with screenshots              |
 | [Presets](docs/cookbook/presets.md)                                           | One-tap Netflix / scene / favorite buttons           |
 | [Mapping a physical remote](docs/cookbook/remote-map.md)                      | A new remote model fully described, end to end       |
@@ -116,7 +117,7 @@ contract lives in [docs/screen-schema.md](docs/screen-schema.md).
 | **Studio**      | The visual editor, hosted as an HA panel — the live preview is the real engine                                           | `studio-src/` (Svelte 5) → single `studio.html` |
 | **Config**      | Pure data: screens, tiles, activities, keymaps, theme — owned per house by its HA                                        | `www/harmonium/config.json` on each house       |
 
-The engine targets **ES2019 / Chromium 75**, because some remotes ship vendor-frozen webviews and that floor is the normal case. A 20-suite Playwright battery drives the real engine against stubbed websockets on every change.
+The engine's enforced compatibility floor is **Chromium 61** (the Astrion's built-in fallback), because some remotes ship vendor-frozen webviews and that floor is the normal case. A Playwright battery of 120-plus probes drives the real engine and the real Studio against stubbed websockets on every change.
 
 Architecture, doctrines and the full decision log:  
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·  
@@ -137,7 +138,7 @@ Fork setup, deploy scripts (`build-push.bat` and friends, driven by `houses\defa
 
 ## Status
 
-Beta (v0.86.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. Recent: **layered catalogs** (built-in apps and platforms update beneath your config — your edits win, your removals hold), **derived platform classes** (clone Fire TV into your own, keep it tracking stock), **first-class fast d-pad** (sendevent actions with single-digit-ms presses, now editable in the Studio), the `harmonium.run_preset` service, TV app logo cards, photo presets, and a rebuilt hardware-remote toolkit under `remotes/`. Release notes: [docs/releases](docs/releases). Roadmap and open items:  
+Beta (v0.87.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. This release: **one design language** everywhere, with accents and real brand colors; **controls for every device type** (switches, buttons and scenes, locks, numbers, dropdowns, a real light dimmer, thermostats); **control groups** and one ordered cast; the **device takeover** page (a device's page speaks that device); the **Your remotes** fleet page with save-to-all-remotes; icon search across everything your HA has installed; the **upgrade report**. Release notes: [docs/release-notes-v0.87.0.md](docs/release-notes-v0.87.0.md) and [docs/releases](docs/releases). Roadmap and open items:  
 [docs/PROJECT.md](docs/PROJECT.md).
 
 ## Asks

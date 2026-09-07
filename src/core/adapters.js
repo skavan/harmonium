@@ -32,9 +32,10 @@ var ADAPTERS =
                variants: ["compact", "slider", "stepper"], dflt: "slider" },
   power:     { role: "power",
                domains: ["media_player", "switch", "light", "fan",
-                         "input_boolean"], variants: [] },
+                         "input_boolean", "climate"], variants: [] },
   media:     { role: "media_player",  domains: ["media_player"],
-               variants: [], row: false },
+               variants: ["plain", "slim", "wash", "art", "poster",
+                          "hero"], row: false },
   transport: { role: "media_player",  domains: ["media_player"],
                variants: [] },
   sources:   { role: "source_select", domains: ["media_player"],
@@ -50,12 +51,21 @@ var ADAPTERS =
                variants: ["inline", "compact"], dflt: "inline" },
   cover:     { role: null, domains: ["cover"],
                variants: ["inline", "compact"], dflt: "inline" },
+  light:     { role: null, domains: ["light"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  climate:   { role: null, domains: ["climate"],
+               variants: ["inline", "compact"], dflt: "inline" },
   switch:    { role: null, domains: ["switch", "input_boolean"],
                variants: [], dflt: "compact" },
   lock:      { role: null, domains: ["lock"],
                variants: [], dflt: "compact" },
   press:     { role: null, domains: ["button", "input_button", "scene"],
                variants: [] },
+  /* NOTHING (2026-09-06): a Draws-as that suppresses a cast member's
+     own tile. domains:[] offers it to no domain, so showsForDomain
+     never lists it (page tiles stay clean) — the cast box appends
+     it. role null: no claim; roles/keys and aggregate bands untouched. */
+  none:      { role: null, domains: [], variants: [] },
 }
 /* @adapter-table-end */
 ;
@@ -78,7 +88,7 @@ function presVariant(p) { return (p && (p.variant || p.style)) || null; }
 function presType(p) { return (p && (p.type || p.shows)) || null; }
 /* rung 2: canonical surface.<adapter>_variant, legacy volume_style */
 function surfaceVariant(act, adapter) {
-  const s = (act && act.surface) || {};
+  const s = actSurface(act);
   return s[adapter + "_variant"] ||
     (adapter === "volume" ? s.volume_style : null) || null;
 }
@@ -124,7 +134,18 @@ function canonTile(t) {
      it lands in — the row chassis and the 223px column were how the
      shapes broke in his screenshots. Compact takes the .dvc chassis
      and owns its right edge, so the trailing zone goes. */
-  if (t.type === "fan" || t.type === "cover") {
+  /* LIGHT (2026-09-03 — his heater zones ARE light entities: "The
+     light should support brightness. So its part of 0.87"): the
+     dimmer rides the same density chassis — inline = the brightness
+     track, compact = value + − / + on the row. Color and
+     color-temperature stay on the domain-parity backlog. */
+  /* CLIMATE (2026-09-04 — his aircon: "some device types are missing
+     options (e.g. Aircon)"): the target temperature is a continuum
+     like brightness, so the thermostat rides the same density
+     chassis — inline = the temperature track over the entity's own
+     min/max, compact = the setpoint + − / + on the row. */
+  if (t.type === "fan" || t.type === "cover" || t.type === "light" ||
+      t.type === "climate") {
     const c = Object.assign({}, t);
     const v = c.variant === "compact" ? "compact" : "inline";
     delete c.variant;
@@ -244,15 +265,23 @@ function densityDress(c, v) {
   return c;
 }
 /* which adapter a WORKING-shape tile belongs to (the reverse of
-   canonTile — used by card grouping's row-form check, Phase 3) */
+   canonTile — used by card grouping's row-form check, Phase 3).
+   kind "source" maps back to SOURCES, not select (2026-09-05 drift
+   round — Suresh: "We've lost the source picker DRAWS AS and
+   VARIANT… Why do they drift?": the media stock authors the working
+   spelling {type:"chips", kind:"source"}, and this reverse map is
+   what the Studio leans on to read it as the sources adapter). */
 function adapterOfTile(t) {
   if (!t) return null;
   if (t.type === "volume") return "volume";
   if (t.type === "stepper")
     return t.kind === "volume" ? "volume"
       : t.kind === "number" ? "number" : null;
-  if (t.type === "picker") return "select";
-  if (t.type === "chips") return t.kind === "select" ? "select" : null;
+  if (t.type === "picker")
+    return t.kind === "source" ? "sources" : "select";
+  if (t.type === "chips")
+    return t.kind === "source" ? "sources"
+      : t.kind === "select" ? "select" : null;
   return ADAPTERS[t.type] ? t.type : null;
 }
 /* card-groupable? An adapter that advertises NO row form (media —

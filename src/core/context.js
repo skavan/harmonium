@@ -250,7 +250,33 @@ function presumedActivity() {
    nobody owns (a room page) keep the running activity, and truth
    (isActivityActive, the End button, hold-Power) does not move: this
    is presentation, as v0.61 was. */
+/* THE CONTROLLER-TAB DRESSING, ONE READER — and the final ruling
+   (2026-09-07, Suresh: "The controller bits should stay as is... by
+   activity overrides... but not permeate into a controller
+   preview."). An activity's a.surface — Now Playing style, band
+   switches, band order, band labels, volume style, speaker
+   group/mode — is that activity's OVERRIDE of the shared surface.
+   It applies on the remote and in the activity card's preview
+   (where it is edited). It never applies in the CONTROLLER editor:
+   there you are looking at the controller, and the pick supplies
+   the cast only — S.pvBare, sent with the impersonation from that
+   editor for the whole visit, blanks the overrides here. Every
+   consumer reads through this one door. */
+function actSurface(act) {
+  if (typeof S !== "undefined" && S.pvBare) return {};
+  return (act && act.surface) || {};
+}
 function renderActivityId() {
+  /* PREVIEW-AS IS THE LAW (2026-09-06 — Suresh: "Changing Preview
+     does nothing"): the Studio's impersonation is an explicit "show
+     me this surface with THAT activity as the input" — the ownership
+     gate below exists for the LIVE select (music running must not
+     draw a Sonos onto the TV page), and it was silently swapping a
+     non-owner pick for the surface's presumed owner, so Now Playing,
+     the dialect keys and every $context stayed the owner's while only
+     the Devices band moved. An impersonated activity renders as
+     itself, on any surface. Preview-only by construction. */
+  if (S.pvActivity && (CONFIG.activities || {})[S.pvActivity]) return S.pvActivity;
   const cur = currentActivityId();
   if (cur) {
     const owners = surfaceOwners();
@@ -261,9 +287,46 @@ function renderActivityId() {
   return cur || presumedActivity();
 }
 function ctxFor(screenId) {
-  const scCtx = (screenOf(screenId) || {}).context || {};
+  const sc = screenOf(screenId) || {};
+  const scCtx = sc.context || {};
   const aid = renderActivityId();
   const aCtx = aid ? (CONFIG.activities[aid].context || {}) : {};
+  /* DEVICE TAKEOVER (2026-09-04, design-device-takeover — the forum
+     ask, Suresh's ruling). The activity overlaying the screen is the
+     law for SHARED surfaces (a controller is parameterized by whoever
+     runs). A pre-wired device's own page is the opposite of shared —
+     standing on it, the DEVICE speaks, full stop. Round 3 (his
+     porch): "the activity fills gaps" let the activity's DIALECT
+     leak onto the Samsung's page, and that dialect's object-form
+     dpad_commands carry their own hardcoded entity — the keys fired
+     at the Fire TV with our target ignored. So own_context REPLACES
+     the activity context entirely: a role the device doesn't wire is
+     a deliberate no-op (the presence gate), never someone else's
+     wiring, and the input vocabulary (dialect / dpad_commands /
+     commands) can never be another device's. */
+  if (sc.own_context) return Object.assign({}, scCtx);
+  /* A DRAWER SERVES ITS OPENER (2026-09-04, the same round — his:
+     "the menu button does show Apps - but it looks suspiciously like
+     Fire TV Apps"). The Apps drawer opened FROM a device's own page
+     must speak that device's context — its dialect picks the app
+     catalog — not the activity's. Walk back through the stack,
+     nearest first, skipping intervening drawers/virtual surfaces:
+     the first solid opener decides. An own_context opener REPLACES
+     the activity context here too (the round-3 dialect-leak lesson —
+     gap-filling would hand the drawer the activity's vocabulary
+     right back). Opened from an ordinary page, nothing changes. */
+  if (sc.drawer) {
+    for (let i = S.stack.length - 1; i >= 0; i--) {
+      const id = S.stack[i];
+      const o = screenOf(id);
+      if (!o) break;
+      if (o.own_context)
+        return Object.assign({}, scCtx, o.context || {});
+      const virt = typeof id === "string" &&
+        VIRTUAL_PREFIX.some(p => id.startsWith(p));
+      if (!(virt || o.drawer)) break;
+    }
+  }
   return Object.assign({}, scCtx, aCtx);
 }
 function resolveEntity(ref, screenId) {
@@ -339,8 +402,8 @@ function surfDressTile(t) {
   if (!sc || !(sc.class === "activity" || sc.type === "controller")) return t;
   const cur = renderActivityId();
   const act = cur && (CONFIG.activities || {})[cur];
-  const srf = act && act.surface;
-  if (!srf) return t;
+  const srf = act && actSurface(act);
+  if (!srf || !Object.keys(srf).length) return t;
   let patch = null;
   const band = !t.bandGen && (LABELABLE_BANDS[t.type] ||
     (t.type === "stepper" && t.kind === "volume" ? "volume" : null));
@@ -351,12 +414,23 @@ function surfDressTile(t) {
     (patch = patch || {}).style = srf.np_style;
   return patch ? Object.assign({}, t, patch) : t;
 }
+/* ONE ORDER LEVER (2026-09-06, round 8 — Suresh: "I see we are
+   duplicating the order stuff... 1. Remove the order stuff from the
+   Setup Tab (But keep it inside the group items) 2. Honor the order
+   in the Controller."): rounds 4-7 tried to make the Setup tab's
+   cast order drive the panel's stacking (the lead hoist, then the
+   merged band), and it fought the Controller tab's own band arrows
+   the whole way. His ruling ends the fight: the CONTROLLER tab's
+   band order is the panel's stacking, full stop — band_order
+   permutes, nothing second-guesses it afterward. The cast keeps
+   ordering rows WITHIN a band, and group members keep ordering the
+   group's page. */
 function surfOrderTiles(tiles) {
   const sc = screenOf(S.screen);
   if (!sc || !(sc.class === "activity" || sc.type === "controller")) return tiles;
   const cur = renderActivityId();
   const act = cur && (CONFIG.activities || {})[cur];
-  const order = act && act.surface && act.surface.band_order;
+  const order = act && actSurface(act).band_order;
   if (!Array.isArray(order) || !order.length) return tiles;
   const bandOf = t => RAW_BANDS[t.type] ||
     (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
@@ -375,6 +449,11 @@ function surfOrderTiles(tiles) {
 
 function visibleTile(t) {
   const arr = v => Array.isArray(v) ? v : [v];
+  /* STATIC HIDE (2026-09-04 — Suresh, editing his first controller
+     variant: "There is an ✕ — but once deleted I can't get it back.
+     Maybe it should be an eye icon"): a variant HIDES a stock tile
+     instead of deleting it, so the eye can always bring it back. */
+  if (t.hidden === true) return false;
   /* a context-bound tile whose role is UNWIRED here hides itself —
      the Volume 2 tile only appears when the activity wires volume_2 */
   if (typeof t.entity === "string" && t.entity.startsWith("$context.") &&
@@ -403,8 +482,8 @@ function visibleTile(t) {
     if (sc0 && (sc0.class === "activity" || sc0.type === "controller")) {
       const cur0 = renderActivityId();
       const act0 = cur0 && (CONFIG.activities || {})[cur0];
-      const srf = act0 && act0.surface;
-      if (srf) {
+      const srf = act0 && actSurface(act0);
+      if (srf && Object.keys(srf).length) {
         const band = FIXED_BANDS[t.type] ||
           (t.type === "stepper" && t.kind === "volume" ? "volume" : null);
         if (band && srf[band] === false) return false;

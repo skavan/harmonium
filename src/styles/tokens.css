@@ -46,96 +46,131 @@
     --id-coral-b: #e66d71;   /* oklch(.68 0.15 20) */
     --id-coral-w: 181, 73, 78;
     --id-coral-i: var(--accent-ink);
+    --id-coral-g: #e66d71;
     --id-fern-b: #7fa834;   /* oklch(.68 0.15 127) */
     --id-fern-w: 91, 127, 5;
     --id-fern-i: var(--accent-ink);
+    --id-fern-g: #7fa834;
     --id-jade-b: #54b05a;   /* oklch(.68 0.15 145) */
     --id-jade-w: 48, 134, 57;
     --id-jade-i: var(--accent-ink);
+    --id-jade-g: #54b05a;
+    --id-azure-b: #419df0;   /* oklch(.68 0.15 249) */
+    --id-azure-w: 26, 117, 191;
+    --id-azure-i: var(--accent-ink);
+    --id-azure-g: #419df0;
     --id-indigo-b: #7990f4;   /* oklch(.68 0.15 272) */
     --id-indigo-w: 86, 105, 194;
     --id-indigo-i: var(--accent-ink);
+    --id-indigo-g: #7990f4;
     --id-violet-b: #a681e7;   /* oklch(.68 0.15 299) */
     --id-violet-w: 126, 92, 183;
     --id-violet-i: var(--accent-ink);
+    --id-violet-g: #a681e7;
     --id-orchid-b: #c775c9;   /* oklch(.68 0.15 326) */
     --id-orchid-w: 154, 80, 157;
     --id-orchid-i: var(--accent-ink);
+    --id-orchid-g: #c775c9;
     --id-rose-b: #dd6da0;   /* oklch(.68 0.15 353) */
     --id-rose-w: 173, 73, 121;
     --id-rose-i: var(--accent-ink);
+    --id-rose-g: #dd6da0;
     --id-slate-b: #989898;   /* oklch(.68 0 0) */
     --id-slate-w: 113, 113, 113;
     --id-slate-i: var(--accent-ink);
+    --id-slate-g: #989898;
     --id-firetv-b: #ff9900;   /* brand #ff9900 exact */
     --id-firetv-w: 162, 95, 0;
     --id-firetv-i: var(--accent-ink);
+    --id-firetv-g: #ff9900;
     --id-appletv-b: #ffffff;   /* brand #ffffff exact */
     --id-appletv-w: 113, 113, 113;
     --id-appletv-i: var(--accent-ink);
+    --id-appletv-g: #ffffff;
     --id-googletv-b: #4285f4;   /* brand #4285f4 exact */
     --id-googletv-w: 61, 111, 194;
     --id-googletv-i: var(--accent-ink);
-    --id-samsung-b: #2848c0;   /* brand #2848c0 exact */
+    --id-googletv-g: #4285f4;
+    --id-samsung-b: #3f65df;   /* brand #2848c0 clamped */
     --id-samsung-w: 76, 108, 195;
     --id-samsung-i: #ffffff;
-    --id-lg-b: #a50234;   /* brand #a50134 clamped */
+    --id-samsung-g: #3f65df;
+    --id-lg-b: #c5314d;   /* brand #a50134 clamped */
     --id-lg-w: 180, 73, 86;
     --id-lg-i: #ffffff;
+    --id-lg-g: #c5314d;
     --id-sony-b: #000000;   /* brand #000000 exact */
     --id-sony-w: 113, 113, 113;
     --id-sony-i: #ffffff;
+    --id-sony-g: #ffffff;
     --id-sonos-b: #d8a158;   /* brand #d8a158 exact */
     --id-sonos-w: 155, 100, 0;
     --id-sonos-i: var(--accent-ink);
+    --id-sonos-g: #d8a158;
     --id-netflix-b: #e50914;   /* brand #e50914 exact */
     --id-netflix-w: 181, 75, 65;
     --id-netflix-i: #ffffff;
+    --id-netflix-g: #e50914;
     --id-spotify-b: #1db954;   /* brand #1db954 exact */
     --id-spotify-w: 34, 135, 64;
     --id-spotify-i: var(--accent-ink);
+    --id-spotify-g: #1db954;
     --id-plex-b: #e5a00d;   /* brand #e5a00d exact */
     --id-plex-w: 150, 103, 0;
     --id-plex-i: var(--accent-ink);
-    --id-roku-b: #7321b6;   /* brand #7321b6 exact */
+    --id-plex-g: #e5a00d;
+    --id-roku-b: #8d43d4;   /* brand #7321b6 clamped */
     --id-roku-w: 131, 90, 179;
     --id-roku-i: #ffffff;
+    --id-roku-g: #8d43d4;
     --id-shield-b: #76b900;   /* brand #76b900 exact */
     --id-shield-w: 84, 129, 22;
     --id-shield-i: var(--accent-ink);
-    --id-disney-b: #1541d4;   /* brand #1541d4 exact */
+    --id-shield-g: #76b900;
+    --id-disney-b: #2c60f4;   /* brand #1541d4 clamped */
     --id-disney-w: 72, 109, 195;
     --id-disney-i: #ffffff;
+    --id-disney-g: #2c60f4;
     --id-youtube-b: #ff0001;   /* brand #ff0001 exact */
     --id-youtube-w: 181, 75, 63;
     --id-youtube-i: var(--accent-ink);
+    --id-youtube-g: #ff0001;
     --id-prime-b: #00a8e1;   /* brand #00a8e1 exact */
     --id-prime-w: 0, 124, 167;
     --id-prime-i: var(--accent-ink);
+    --id-prime-g: #00a8e1;
     --id-peacock-b: #000000;   /* brand #000000 exact */
     --id-peacock-w: 113, 113, 113;
     --id-peacock-i: #ffffff;
+    --id-peacock-g: #ffffff;
     --id-paramount-b: #0064ff;   /* brand #0064ff exact */
     --id-paramount-w: 64, 111, 194;
     --id-paramount-i: #ffffff;
-    --id-max-b: #0231ec;   /* brand #0231ec exact */
+    --id-paramount-g: #0064ff;
+    --id-max-b: #215cff;   /* brand #0231ec clamped */
     --id-max-w: 71, 109, 195;
     --id-max-i: #ffffff;
+    --id-max-g: #215cff;
     --id-hulu-b: #1de783;   /* brand #1de783 exact */
     --id-hulu-w: 0, 136, 73;
     --id-hulu-i: var(--accent-ink);
+    --id-hulu-g: #1de783;
     --id-fubo-b: #fa4616;   /* brand #fa4616 exact */
     --id-fubo-w: 180, 77, 53;
     --id-fubo-i: var(--accent-ink);
-    --id-espn-b: #d2001f;   /* brand #d2001f exact */
+    --id-fubo-g: #fa4616;
+    --id-espn-b: #d40721;   /* brand #d2001f clamped */
     --id-espn-w: 181, 74, 69;
     --id-espn-i: #ffffff;
-    --id-britbox-b: #3545c0;   /* brand #3545c0 exact */
+    --id-espn-g: #d40721;
+    --id-britbox-b: #4b62df;   /* brand #3545c0 clamped */
     --id-britbox-w: 84, 106, 195;
     --id-britbox-i: #ffffff;
-    --id-pbs-b: #2b41cd;   /* brand #2b41cd exact */
+    --id-britbox-g: #4b62df;
+    --id-pbs-b: #405fec;   /* brand #2b41cd clamped */
     --id-pbs-w: 80, 107, 195;
     --id-pbs-i: #ffffff;
+    --id-pbs-g: #405fec;
     /* @identity-palette-end */
     --wash-a: 0.5;              /* preset pools (always the -on value) */
     --wash-a-on: 0.75;

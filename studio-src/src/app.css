@@ -169,3 +169,24 @@ body { font-size: var(--ui-fs-base); }
    3s fallback so a blocked font never leaves icons invisible). */
 .material-symbols-outlined { opacity: 0; }
 html.fonts-ok .material-symbols-outlined { opacity: 1; }
+/* ICONS SIT CENTERED (2026-09-05, feedback-3 round 2 — Suresh:
+   "icons everywhere in studio are still top left aligned instead of
+   center"). ROOT CAUSE: Google's css2 stylesheet ships an UNLAYERED
+   .material-symbols-outlined { display:inline-block; font-size:24px;
+   line-height:1; ... } — and unlayered rules beat Tailwind's layered
+   utilities REGARDLESS of order (the cascade-layer rule), so `grid`,
+   `place-items-center` and every text-[N px] on a glyph span
+   silently lost: the glyph sat top-left at 24px in its sized box.
+   Re-state the losing utilities here, unlayered, where they can win.
+   NOTE for future glyphs: a NEW text-[N px] on a glyph span needs a
+   row here, or Google's 24px wins again. */
+.material-symbols-outlined.grid { display: grid; }
+.material-symbols-outlined.inline-flex { display: inline-flex; }
+.material-symbols-outlined.flex { display: flex; }
+.material-symbols-outlined.text-\[16px\] { font-size: 16px; }
+.material-symbols-outlined.text-\[17px\] { font-size: 17px; }
+.material-symbols-outlined.text-\[18px\] { font-size: 18px; }
+.material-symbols-outlined.text-\[20px\] { font-size: 20px; }
+.material-symbols-outlined.text-\[22px\] { font-size: 22px; }
+.material-symbols-outlined.text-\[24px\] { font-size: 24px; }
+.material-symbols-outlined.leading-none { line-height: 1; }

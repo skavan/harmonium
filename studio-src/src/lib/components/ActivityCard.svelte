@@ -74,14 +74,26 @@
     return seen;
   };
   const recompile = () => { recompileContext(a, devLib); schedulePreview(); };
-  /* the entity cast (engine's a.devices) regenerates from bundles +
-     manual extras whenever the device cast changes */
+  /* the entity cast (engine's a.devices) regenerates from the ONE
+     ordered cast (feedback-3 round 3): device members contribute
+     their bundle entities, loose ENTITY members contribute
+     themselves, groups contribute their members — all in cast order,
+     so the Devices band's order IS the tab's order. Legacy
+     extra_devices (pre-migration snapshots) still append. */
   function regenDevices() {
     const ents = [];
-    for (const devId of cast)
-      for (const ent of Object.values(devLib[devId]?.roles || {}))
-        if (!ents.includes(ent)) ents.push(ent);
-    for (const ent of a.extra_devices || []) if (!ents.includes(ent)) ents.push(ent);
+    const put = (id) => {
+      if (typeof id !== "string") return;
+      if (devLib[id]) {
+        for (const ent of Object.values(devLib[id].roles || {}))
+          if (ent && !ents.includes(ent)) ents.push(ent);
+      } else if (id.includes(".") && !ents.includes(id)) ents.push(id);
+    };
+    for (const m of castRaw) {
+      if (typeof m === "string") put(m);
+      else if (m && typeof m === "object") for (const mm of m.members || []) put(mm);
+    }
+    for (const ent of a.extra_devices || []) put(ent);
     a.devices = ents;
   }
   function setRole(role, target) {

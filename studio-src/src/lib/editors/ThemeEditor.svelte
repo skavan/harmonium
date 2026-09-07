@@ -4,11 +4,48 @@
      Every key is a CSS var on the engine (--<key>); blank = the
      built-in default (applyTheme clears removed vars live). Per-page
      overrides are a later cleverness — this block is the global. */
-  import { app, schedulePreview } from "../state.svelte.js";
+  import { app, schedulePreview, discoverIconSets } from "../state.svelte.js";
   import Field from "../components/Field.svelte";
+  import Chips from "../components/Chips.svelte";
 
   const d = $derived(app.draft);
   const th = $derived(d?.theme || {});
+
+  /* ICON SETS (2026-09-02, moved here from Startup & Home: "I think
+     it should be in theme?"). Declared prefixes are the gate that
+     lets the picker's custom-pack bridge run at all. Discovery is
+     the ONE place the bridge runs without a declaration — an
+     explicit settings click, sandboxed + deadline-bounded — and it
+     answers with whatever set prefixes the installed lovelace
+     modules registered ("read available iconsets and offer them"). */
+  const BUILTIN_SETS = ["material", "phu", "mdi"];
+  /* registered but useless for tiles — HACS's frontend registers its
+     own internal iconset (its logo glyphs); never worth offering
+     (his round-5 question: "what is HACS?"). Typing it still works. */
+  const NOISE_SETS = ["hacs"];
+  let finding = $state(false);
+  let found = $state(null);   /* {live, packs} | null = not asked yet */
+  async function findPacks() {
+    finding = true;
+    try { found = (await discoverIconSets()) || { live: [], packs: [] }; }
+    catch { found = { live: [], packs: [] }; }
+    finding = false;
+  }
+  const declaredLc = $derived((d?.global?.icon_sets || [])
+    .map((s) => String(s).toLowerCase()));
+  /* live sets (the server speaks them already — activated
+     custom_icons prefixes) need no declaration; offer only the
+     module-registered packs beyond built-ins + declared + live */
+  const liveSets = $derived(found?.live || []);
+  const offers = $derived((found?.packs || []).filter((k) =>
+    !BUILTIN_SETS.includes(k.toLowerCase()) &&
+    !NOISE_SETS.includes(k.toLowerCase()) &&
+    !declaredLc.includes(k.toLowerCase()) &&
+    !liveSets.some((l) => l.toLowerCase() === k.toLowerCase())));
+  function addSet(k) {
+    if (!d.global) d.global = {};
+    d.global.icon_sets = [...(d.global.icon_sets || []), k];
+  }
   function set(k, v) {
     if (!d.theme) d.theme = {};
     const val = (v ?? "").trim();
@@ -151,6 +188,44 @@
         browser ships); anything exotic lives in the Code tab as raw
         theme keys.
       </p>
+    </div>
+
+    <div class="rounded-[12px] border border-line bg-tile p-3">
+      <div class="mb-2 text-[11px] font-bold tracking-[.07em] text-dim uppercase">Icons</div>
+      <Field label="Icon sets"
+        hint="custom icon packs the picker may ask BEYOND the built-ins (material, phu:, mdi:) — the set prefix, e.g. fa6-solid or hue. Empty = the custom-pack bridge stays off entirely (nothing imported, nothing to hang); icons already banked as files keep working either way.">
+        <div class="space-y-2">
+          <!-- function binding: the key stays ABSENT until a chip is
+               added (a bare bind to undefined throws
+               props_invalid_value, and minting [] on view would
+               dirty every config) -->
+          <Chips bind:items={() => d.global?.icon_sets || [],
+            (v) => { if (!d.global) d.global = {}; d.global.icon_sets = v; }}
+            placeholder="add a set prefix…" />
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick={findPacks} disabled={finding}
+              class="cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2.5 py-1 text-xs text-ink hover:border-accent/60 disabled:cursor-default disabled:opacity-60">
+              {finding ? "asking the installed packs…" : "⌕ Find installed packs"}</button>
+            {#each offers as k (k)}
+              <button onclick={() => addSet(k)} title="add {k} to the icon sets"
+                class="cursor-pointer rounded-full border border-line bg-sunk px-2.5 py-1 text-xs text-ink hover:border-accent/60">＋ {k}</button>
+            {/each}
+            {#if found !== null && !finding && !offers.length}
+              <span class="text-[11px] text-dim">
+                {(found.packs || []).length || liveSets.length
+                  ? "nothing new to add"
+                  : "no packs registered — install one (e.g. via HACS) first"}</span>
+            {/if}
+          </div>
+          <div class="text-[11px] text-dim">
+            always on (built in): <span class="font-mono">material · phu · mdi</span>
+            {#if liveSets.length}
+              <br />already live via HA's icon services (no listing needed):
+              <span class="font-mono">{liveSets.join(" · ")}</span>
+            {/if}
+          </div>
+        </div>
+      </Field>
     </div>
   </div>
 {/if}

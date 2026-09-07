@@ -13,6 +13,7 @@
     accent = "",
     edited = false,
     onup = null, ondown = null, onduplicate = null, ondelete = null,
+    onhide = null, hidden = false,
     onarm = null,               /* mousedown on ⠿ — parent sets draggable */
     menu = null,                /* [{label, danger, divider, action}] */
     children,
@@ -64,6 +65,9 @@
       {#if onup}<button class="cursor-pointer border-0 bg-transparent p-1 hover:text-ink" title="Move up" onclick={onup}>↑</button>{/if}
       {#if ondown}<button class="cursor-pointer border-0 bg-transparent p-1 hover:text-ink" title="Move down" onclick={ondown}>↓</button>{/if}
       {#if onduplicate}<button class="cursor-pointer border-0 bg-transparent p-1 hover:text-ink" title="Duplicate" onclick={onduplicate}>⧉</button>{/if}
+      {#if onhide}<button class="cursor-pointer border-0 bg-transparent p-1 hover:text-accent"
+        title={hidden ? "Hidden on the remote — show it again" : "Hide on the remote (keeps the tile — the eye brings it back)"}
+        onclick={onhide}><span class="material-symbols-outlined text-[16px] align-middle">{hidden ? "visibility_off" : "visibility"}</span></button>{/if}
       {#if ondelete}<button class="cursor-pointer border-0 bg-transparent p-1 hover:text-danger" title="Delete" onclick={ondelete}>✕</button>{/if}
       {#if menu?.length}
         <span class="rowmenu relative">

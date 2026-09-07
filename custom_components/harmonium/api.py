@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -19,7 +20,8 @@ from homeassistant.core import HomeAssistant
 from .const import DEPLOY_DIR
 from .packaging import STOCK_SUBDIR, USER_SUBDIR
 from .store import HarmoniumStore, engine_fingerprint
-from .icons import frontend_root, list_icons, resolve_icons
+from .icons import (ci_icon_to_path, frontend_root, list_icons,
+                    resolve_icons, save_resolved, search_icons)
 from .catalogs import merge_config, subtract_config
 from .workspaces import MAIN, deploy_file, retarget_selects, slugify
 
@@ -301,7 +303,14 @@ class HarmoniumIconsView(HomeAssistantView):
     """GET /api/harmonium/icons?names=phu:a,mdi:b — the Studio's LIVE
     icon lookup (2026-09-01 ruling: "live preview in the studio and
     then mint into the deployed artifacts"). Same resolver the deploy
-    minting uses, so preview and remote can never disagree."""
+    minting uses, so preview and remote can never disagree.
+
+    2026-09-02 (his HA-picker screenshot): ?search=<frag> answers
+    across EVERY installed set at once; ?resources=1 lists the
+    lovelace module URLs so the Studio can load the icon packs' own
+    registered resolvers (the customIcons contract); POST persists
+    what those resolvers answered as distilled files, so custom sets
+    mint and render server-side afterwards."""
 
     url = "/api/harmonium/icons"
     name = "api:harmonium:icons"
@@ -309,16 +318,144 @@ class HarmoniumIconsView(HomeAssistantView):
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
 
+    def _resources(self) -> list[str]:
+        """Every frontend module URL an icon pack could register
+        window.customIcons from: the lovelace resources AND the
+        extra-module channel (frontend.add_extra_js_url — round 4
+        find: integrations inject their module THERE, which never
+        shows in the resource list, so discovery missed his packs).
+        Defensive: absence or a shape change answers what's left."""
+        out: list[str] = []
+        try:
+            lovelace = self.hass.data.get("lovelace")
+            res = getattr(lovelace, "resources", None)
+            items = res.async_items() if res else []
+            out += [str(i.get("url")) for i in items
+                    if i.get("type") == "module" and i.get("url")]
+        except Exception:  # noqa: BLE001 — a listing, never a crash
+            pass
+        try:
+            mgr = self.hass.data.get("frontend_extra_module_url")
+            urls = getattr(mgr, "urls", None)
+            if urls is None and isinstance(mgr, (list, set, tuple)):
+                urls = mgr
+            out += [str(u) for u in (urls or []) if u]
+        except Exception:  # noqa: BLE001
+            pass
+        seen: set = set()
+        return [u for u in out if not (u in seen or seen.add(u))]
+
+    # ---- the hass-custom_icons service (thomasloven), same-process:
+    # its collections answer sets/list/icon as plain awaitables, so
+    # the sets a user ACTIVATED there are first-class here — no
+    # browser, no bridge, no declaration needed (round 4) ----
+    @staticmethod
+    def _ci_collections():
+        try:
+            from custom_components.custom_icons.frontend import collections
+            return collections
+        except Exception:  # noqa: BLE001 — not installed = not a source
+            return None
+
+    async def _ci_active(self) -> dict:
+        """{prefix: collection} for every ACTIVATED custom_icons set."""
+        cols = self._ci_collections()
+        out: dict = {}
+        for c in cols or []:
+            try:
+                for p in await c.prefixes(self.hass):
+                    out[p] = c
+            except Exception:  # noqa: BLE001 — one bad pack, not all
+                continue
+        return out
+
+    async def _ci_lookup(self, col, prefix: str, name: str):
+        try:
+            pair = ci_icon_to_path(await col.icon(self.hass, prefix, name))
+        except Exception:  # noqa: BLE001
+            return None
+        return {"viewBox": pair[0], "path": pair[1]} if pair else None
+
+    async def _ci_search(self, www: Path, q: str, limit: int = 24) -> list:
+        """Rows from the activated custom_icons sets for the cross-set
+        search — same canon matching as the python sources."""
+        q = re.sub(r"[ _]", "-", (q or "").lower().strip())
+        rows: list = []
+        if not q:
+            return rows
+        active = await self._ci_active()
+        per = max(2, limit // max(1, len(active))) if active else 0
+        for prefix in sorted(active):
+            col = active[prefix]
+            try:
+                names = [i.get("name") for i in await col.list(self.hass, prefix)]
+            except Exception:  # noqa: BLE001
+                continue
+            names = [n for n in names if n and q in n.lower().replace("_", "-")]
+            names.sort(key=lambda n: (
+                0 if n.lower().replace("_", "-").startswith(q) else 1,
+                len(n), n))
+            for n in names[:per]:
+                v = await self._ci_lookup(col, prefix, n)
+                if v:
+                    rows.append({"set": prefix, "name": n, **v})
+        return rows[:limit]
+
     async def get(self, request: web.Request) -> web.Response:
         www = Path(self.hass.config.path("www"))
+        if request.query.get("resources"):
+            return self.json({"resources": self._resources()})
+        # ?sets=1 — discovery's server half: the sets live RIGHT NOW
+        # without any declaration (activated custom_icons prefixes)
+        if request.query.get("sets"):
+            return self.json({"sets": sorted(await self._ci_active())})
+        # ?search=<frag> — one query, every installed set (HA's
+        # picker feel: "the search starts from the first key across
+        # multiple icon sets"); activated custom_icons sets answer
+        # alongside the python sources
+        if "search" in request.query:
+            q = request.query.get("search") or ""
+            rep = await self.hass.async_add_executor_job(
+                search_icons, q, www, frontend_root())
+            ci = await self._ci_search(www, q)
+            have = {(r["set"], r["name"]) for r in rep.get("icons", [])}
+            rep["icons"] += [r for r in ci
+                             if (r["set"], r["name"]) not in have]
+            rep["sets"] = sorted(set(rep.get("sets", []))
+                                 | {r["set"] for r in ci}
+                                 | set(await self._ci_active()))
+            return self.json(rep)
         # ?list=<set>&q=<fragment> — the autocomplete (names + path
-        # data, so every dropdown row previews without a second call)
+        # data, so every dropdown row previews without a second call);
+        # a set python can't source may be an activated custom_icons
+        # prefix
         set_ = (request.query.get("list") or "").strip()
         if set_:
             lim = 0 if request.query.get("all") else 60
             rep = await self.hass.async_add_executor_job(
                 list_icons, set_, request.query.get("q") or "",
                 www, frontend_root(), None, lim)
+            if rep.get("no_source"):
+                active = await self._ci_active()
+                if set_ in active:
+                    col = active[set_]
+                    q = (request.query.get("q") or "").lower().replace("_", "-")
+                    try:
+                        names = [i.get("name") for i in
+                                 await col.list(self.hass, set_)]
+                    except Exception:  # noqa: BLE001
+                        names = []
+                    names = [n for n in names if n and
+                             q in n.lower().replace("_", "-")]
+                    names.sort(key=lambda n: (
+                        0 if n.lower().replace("_", "-").startswith(q) else 1,
+                        len(n), n))
+                    icons = []
+                    for n in names[:(lim or 60)]:
+                        v = await self._ci_lookup(col, set_, n)
+                        if v:
+                            icons.append({"name": n, **v})
+                    rep = {"icons": icons, "no_source": False}
             return self.json(rep)
         names = [n.strip() for n in
                  (request.query.get("names") or "").split(",") if n.strip()]
@@ -326,6 +463,48 @@ class HarmoniumIconsView(HomeAssistantView):
             return self.json({"found": {}, "missing": [], "no_source": []})
         rep = await self.hass.async_add_executor_job(
             resolve_icons, names[:200], www, frontend_root())
+        # unresolved refs get one more chance from custom_icons — and
+        # every hit is BANKED as a distilled file, so from then on the
+        # sync world (deploy minting, the engine's mask fallback, the
+        # cross-set search) owns it with no service in the loop
+        left = list(rep.get("missing", [])) + [
+            n for n in names
+            if n.split(":")[0] in rep.get("no_source", [])]
+        if left:
+            active = await self._ci_active()
+            bank: dict = {}
+            for ref in left:
+                st, _, nm = ref.partition(":")
+                if st in active and nm:
+                    v = await self._ci_lookup(active[st], st, nm)
+                    if v:
+                        rep["found"][ref] = v
+                        bank[ref] = v
+            if bank:
+                await self.hass.async_add_executor_job(
+                    save_resolved, bank, www)
+                rep["missing"] = [m for m in rep.get("missing", [])
+                                  if m not in bank]
+                rep["no_source"] = [s for s in rep.get("no_source", [])
+                                    if not any(b.startswith(s + ":")
+                                               for b in bank)]
+        return self.json(rep)
+
+    async def post(self, request: web.Request) -> web.Response:
+        """The Studio hands back what a pack's own resolver answered
+        ({'set:name': {viewBox, path}}); each becomes a distilled
+        file under the ownership stamps (a hand-replaced SVG is
+        never overwritten)."""
+        try:
+            refs = await request.json()
+        except ValueError:
+            return self.json_message("body is not valid JSON", status_code=400)
+        if not isinstance(refs, dict) or len(refs) > 200:
+            return self.json_message("expected {ref: {viewBox, path}} ≤ 200",
+                                     status_code=400)
+        www = Path(self.hass.config.path("www"))
+        rep = await self.hass.async_add_executor_job(
+            save_resolved, refs, www)
         return self.json(rep)
 
 
@@ -665,8 +844,13 @@ def validate_config(config) -> list[str]:
     activities = config.get("activities") or {}
     sequences = config.get("sequences") or {}
     for sid, seq in sequences.items():
-        if not isinstance((seq or {}).get("actions"), list) or not seq["actions"]:
-            problems.append(f"sequence '{sid}' must have a non-empty actions list")
+        # EMPTY IS LEGAL (2026-09-02, automagic routing): a start/stop
+        # whose only job was routing heals to zero actions — the
+        # runner does the routing by ownership, and the empty
+        # sequence stays as the activity's anchor (and a place to add
+        # device steps later). Only a missing or non-list actions is wrong.
+        if not isinstance((seq or {}).get("actions"), list):
+            problems.append(f"sequence '{sid}' must have an actions list")
     for aid, activity in activities.items():
         target = (activity or {}).get("screen")
         if target and target not in navigable:

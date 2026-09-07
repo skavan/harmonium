@@ -71,6 +71,39 @@ export const GENERIC_MEDIA_CONTROLLER = {
    compiler's DOMAIN_STOCKS exactly */
 
 export const DOMAIN_STOCKS = {
+  /* MEDIA DEVICE (2026-09-04 — Suresh, right after device takeover
+     shipped: "we gave the user the control over devices that he
+     wanted but he has no way of editing it"): the media player's
+     device page joins the domain-stock family the other five domains
+     already live in. NOT the tv/music controllers — those are
+     parameterized by an ACTIVITY ($context from a cast); this page
+     is parameterized by ONE DEVICE ($device), and keeping the two
+     parameterizations separate is what makes the round-3 dialect
+     leak structurally impossible in the authoring layer too.
+     Shape = the engine's DETAIL_TILES.media_player, $device-bound —
+     the twins must stay behavior-identical (probe-media-device-stock
+     holds them together). The slim NP + power-first order and the
+     Apps trailing are the takeover round-5 rulings, now config a
+     user can reorder, restyle, or hide instead of law baked in
+     engine code. The trailing names controller:apps literally: the
+     apps drawer is planted into every workspace (v0.47.4), and the
+     drawer-serves-opener law makes it THIS device's apps. */
+  /* gen 2 (2026-09-05, feedback-3 #4 — Suresh: "Lets make the stock
+     Media Device use: Now Playing = Art, Volume = Slider"): the NP
+     wears the art hero, the volume row is the fat slider — in the
+     WORKING spelling (no `variant`), so the engine's wiring rewrite
+     still upgrades it per device (an authored variant is the user's
+     law and would pin the shape). Twin: DETAIL_TILES.media_player. */
+  media_player: { name: "Media Device", gen: 2, tiles: [
+    { id: "dp", type: "power", entity: "$device", label: "", span: 2 },
+    { id: "dnp", type: "media", style: "art", entity: "$device",
+      icon: "material:smart_display", label: "Now Playing", span: 2,
+      trailing: { icon: "material:apps",
+        action: { navigate: "controller:apps" } } },
+    { id: "dt", type: "transport", entity: "$device", label: "", span: 2 },
+    { id: "ds", type: "volume", slider: true, entity: "$device", icon: "material:volume_up", label: "", span: 2 },
+    { id: "dsrc", type: "chips", kind: "source", entity: "$device", icon: "material:input", label: "", span: 2 },
+    { id: "dsnd", type: "chips", kind: "sound_mode", entity: "$device", icon: "material:graphic_eq", label: "", span: 2 } ] },
   climate: { name: "Climate", gen: 1, tiles: [
     { id: "dp", type: "power", entity: "$device", label: "", span: 2 },
     { id: "ds", type: "stepper", kind: "temperature", entity: "$device", icon: "material:thermostat", label: "", span: 2 },
@@ -168,7 +201,7 @@ export const STOCK_MUSIC = {
      same gen 6, heal skipped every config that had already saved the
      broken shape. A fix that cannot reach the configs it broke is not
      a fix; the gen is the only thing that carries it. */
-  gen: 8,
+  gen: 9,
   class: "activity", view_kind: "controller", type: "controller",
   buttons: {
     menu: { navigate: "music_library" },
@@ -182,7 +215,7 @@ export const STOCK_MUSIC = {
          hero should be the default for music"). style beats the legacy
          art:true flag; the fixed height means the Modes and Volume
          tiles below never move. */
-      { id: "m_np", type: "media", art: true, np_default: "hero",
+      { id: "m_np", type: "media", art: true, np_default: "art",
         entity: "$context.media_player",
         icon: "material:music_note", label: "Now Playing", span: 2,
         trailing: { icon: "material:library_music",
@@ -234,9 +267,12 @@ export const STOCK_MUSIC = {
    an RS90. gen 1 (the wild has NO gen at all on tv), heals through
    healStockGen like every other stock controller; custom copies
    (variant_of) are yours, never touched. probe-stock-sync now holds
-   the starter's tv equal to this. */
+   the starter's tv equal to this.
+   gen 2 (2026-09-07 — Suresh: "I want the DEFAULT and the Auto to be
+   ART"): np_default hero → art. Auto on the Controller tab = this
+   default, so both moved with one word. */
 export const STOCK_TV = {
-  "gen": 1,
+  "gen": 2,
   "name": "TV Media Player",
   "class": "activity",
   "view_kind": "controller",
@@ -296,7 +332,7 @@ export const STOCK_TV = {
               "navigate": "apps"
             }
           },
-          "np_default": "hero"
+          "np_default": "art"
         },
         {
           "id": "t_tr",
@@ -397,6 +433,13 @@ export function currentStockController(cid) {
   return null;
 }
 
+/* THE HEAL'S OWN RECEIPTS (2026-09-06, the upgrade audit —
+   design-upgrade-audit.md: "The raw material already exists — and is
+   thrown away"). Every verdict the referee returns used to vanish
+   after one status-bar sentence; the audit needs them, so healStockGen
+   now files what it did here, reset per run. */
+export const HEAL_REPORT = { healed: [], legitimized: [] };
+
 export function healStockGen(cfg) {
   /* v0.85.7 — THE REFEREE replaces the blind gen check. The old rule
      ("gen behind → replace wholesale") was correct for pristine
@@ -409,9 +452,20 @@ export function healStockGen(cfg) {
      unlocked, forked_by_update note for the Studio's notice + Reset
      to built-in). Nothing is ever silently overwritten, nothing is
      ever silently stranded. */
-  const heal = (cid, stock, extra) =>
-    refereeController(cfg, cid, stock, STOCK_HISTORY.controllers[cid] || [],
-      extra);
+  HEAL_REPORT.healed = [];
+  HEAL_REPORT.legitimized = [];
+  const heal = (cid, stock, extra) => {
+    const prev = (cfg.controllers || {})[cid];
+    const prevGen = prev ? (prev.gen || 0) : null;
+    const v = refereeController(cfg, cid, stock,
+      STOCK_HISTORY.controllers[cid] || [], extra);
+    if (v === "healed")
+      HEAL_REPORT.healed.push({ id: cid, name: stock.name || cid,
+        from: prevGen, to: stock.gen || 0 });
+    else if (v === "legitimized")
+      HEAL_REPORT.legitimized.push({ id: cid, name: (prev && prev.name) || cid });
+    return v;
+  };
   heal("apps", STOCK_APPS_DRAWER);
   heal("music_library", STOCK_MUSIC_LIBRARY);
   heal("music", STOCK_MUSIC);
@@ -1117,6 +1171,19 @@ export const STOCK_DIALECTS = {
   },
   "tizen": {
     "name": "Samsung Tizen",
+    "dpad_commands": {
+      "up": "KEY_UP",
+      "down": "KEY_DOWN",
+      "left": "KEY_LEFT",
+      "right": "KEY_RIGHT",
+      "select": "KEY_ENTER",
+      "back": "KEY_RETURN",
+      "home": "KEY_HOME",
+      "menu": "KEY_MENU",
+      "info": "KEY_INFO",
+      "ch_up": "KEY_CHUP",
+      "ch_down": "KEY_CHDOWN"
+    },
     "apps": {
       "netflix": {
         "source": "Netflix"
@@ -1835,6 +1902,35 @@ export function ensureStockControllers(cfg) {
   healStockAppAccents(cfg);   /* V2 brand accents reach untouched stock rows */
   healStockRemotes(cfg);
   healInputPolicy(cfg);
+  healGeneratedRouting(cfg);  /* automagic routing: strip the old steps */
+  return cfg;
+}
+
+/* AUTOMAGIC ROUTING HEAL (2026-09-02 — Suresh: "If its an activity,
+   shouldn't start and stop just be automagic? Always?" → GO). The
+   runner now flips the room's select around any activity start/stop
+   it executes, so generated sequences stop carrying routing steps.
+   This heal strips those steps from UNTOUCHED generated sequences
+   (actions still byte-equal to their generated_sig — the standing
+   law: an edited sequence is never silently rewritten) and re-signs.
+   The two exact generated shapes: the start's "Set activity state"
+   set_activity step, and the stop's guarded "Clear the room's
+   routing" chunk. Copies left behind on EDITED sequences stay
+   harmless — routing-only and idempotent under the runner. */
+export function healGeneratedRouting(cfg) {
+  for (const seq of Object.values(cfg.sequences || {})) {
+    if (!seq || !seq.generated_sig) continue;
+    if (JSON.stringify(seq.actions) !== seq.generated_sig) continue;
+    const kept = (seq.actions || []).filter((s) => !(s && (
+      (s.alias === "Set activity state" &&
+        (s.action || s.service) === "harmonium.set_activity") ||
+      (typeof s.alias === "string" &&
+        s.alias.startsWith("Clear the room's routing")))));
+    if (kept.length !== (seq.actions || []).length) {
+      seq.actions = kept;
+      seq.generated_sig = JSON.stringify(kept);
+    }
+  }
   return cfg;
 }
 
@@ -2058,20 +2154,30 @@ export const isCastGroup = (m) => !!m && typeof m === "object" && !!m.group;
    activity/preset" the same way the engine does: slot wins, then
    the held custom hex. */
 export const ACCENT_HEX = {
-  coral: "#e66d71", fern: "#7fa834", jade: "#54b05a", indigo: "#7990f4",
-  violet: "#a681e7", orchid: "#c775c9", rose: "#dd6da0", slate: "#989898",
+  coral: "#e66d71", fern: "#7fa834", jade: "#54b05a", azure: "#419df0",
+  indigo: "#7990f4", violet: "#a681e7", orchid: "#c775c9", rose: "#dd6da0",
+  slate: "#989898",
 };
+/* PRIMARY-NAME ALIASES (palette canvas V3, 2026-09-04: "you keep
+   reaching for primary names because that is how people describe
+   colour"). accent: "red" in a config resolves to the palette slot;
+   the picker shows both names — Coral (red) — so the plain word is
+   discoverable and the palette name stays canonical. Yellow is
+   REFUSED, not aliased: at our lightness it is olive, and its hue
+   sits inside the reserved focus arc. */
+export const ACCENT_ALIAS = { red: "coral", green: "jade", blue: "azure" };
+export const ACCENT_ALIAS_OF = { coral: "red", jade: "green", azure: "blue" };
 /* V2 BRAND TIER (palette canvas V2 §3/§7): resolved badge hexes,
    mirroring tools/gen-identity-palette.mjs output for dots and
    pickers only — the panel theme owns the real colours. Labels are
    the picker's Brands optgroup. */
 export const BRAND_HEX = {
-  firetv: "#ff9900", appletv: "#ffffff", googletv: "#4285f4", samsung: "#2848c0",
-  lg: "#a50234", sony: "#000000", sonos: "#d8a158", netflix: "#e50914",
-  spotify: "#1db954", plex: "#e5a00d", roku: "#7321b6", shield: "#76b900",
-  disney: "#1541d4", youtube: "#ff0001", prime: "#00a8e1", peacock: "#000000",
-  paramount: "#0064ff", max: "#0231ec", hulu: "#1de783", fubo: "#fa4616",
-  espn: "#d2001f", britbox: "#3545c0", pbs: "#2b41cd",
+  firetv: "#ff9900", appletv: "#ffffff", googletv: "#4285f4", samsung: "#3f65df",
+  lg: "#c5314d", sony: "#000000", sonos: "#d8a158", netflix: "#e50914",
+  spotify: "#1db954", plex: "#e5a00d", roku: "#8d43d4", shield: "#76b900",
+  disney: "#2c60f4", youtube: "#ff0001", prime: "#00a8e1", peacock: "#000000",
+  paramount: "#0064ff", max: "#215cff", hulu: "#1de783", fubo: "#fa4616",
+  espn: "#d40721", britbox: "#4b62df", pbs: "#405fec",
 };
 export const BRAND_LABEL = {
   firetv: "Fire TV", appletv: "Apple TV", googletv: "Google TV", samsung: "Samsung",
@@ -2103,6 +2209,13 @@ export const SHOWS_KINDS = [
     hint: "speed track, oscillate when supported" },
   { value: "cover", label: "Cover control", role: null,
     hint: "open / stop / close, tilt when supported" },
+  { value: "light", label: "Light control", role: null,
+    hint: "brightness track — drag to dim, zero turns it off" },
+  /* the aircon round (2026-09-04 — Suresh: "some device types are
+     missing options (e.g. Aircon)"): the setpoint is a continuum,
+     so climate rides the density chassis like light and fan */
+  { value: "climate", label: "Temperature control", role: null,
+    hint: "setpoint track over the entity's own range — status keeps mode and current temp" },
   { value: "power", label: "Power button", role: "power",
     hint: "toggles the device itself" },
   { value: "media", label: "Now Playing", role: "media_player",
@@ -2126,6 +2239,17 @@ export const SHOWS_KINDS = [
     hint: "lock is a press, unlock is a hold; shows all five states" },
   { value: "press", label: "Button", role: null,
     hint: "the tile is the button — press fires it, no state" },
+  /* NOTHING (2026-09-06 — Suresh: "we need to offer a DRAW AS =
+     Nothing for members of the cast, that I don't want to see a
+     device tile in the panel for"). A cast-member-only option: the
+     member stays cast — its roles, keys and claims stay wired, and
+     aggregate bands (Now Playing, the Volume band) still read it —
+     but it draws NO tile of its own on the panel. Offered only in
+     the cast ⚙ (presShows), never for a hand-placed page tile — you
+     don't place a tile to hide it — so the filters below exclude it
+     and presShows appends it. */
+  { value: "none", label: "Nothing", role: null,
+    hint: "kept in the cast — roles, keys and claims stay wired — but draws no tile of its own on the panel" },
 ];
 /* THE ADAPTER REGISTRY (entity-controls Phase 1) — the Studio twin of
    src/core/adapters.js. The region between the markers is BYTE-
@@ -2139,9 +2263,10 @@ export const ADAPTERS =
                variants: ["compact", "slider", "stepper"], dflt: "slider" },
   power:     { role: "power",
                domains: ["media_player", "switch", "light", "fan",
-                         "input_boolean"], variants: [] },
+                         "input_boolean", "climate"], variants: [] },
   media:     { role: "media_player",  domains: ["media_player"],
-               variants: [], row: false },
+               variants: ["plain", "slim", "wash", "art", "poster",
+                          "hero"], row: false },
   transport: { role: "media_player",  domains: ["media_player"],
                variants: [] },
   sources:   { role: "source_select", domains: ["media_player"],
@@ -2157,12 +2282,21 @@ export const ADAPTERS =
                variants: ["inline", "compact"], dflt: "inline" },
   cover:     { role: null, domains: ["cover"],
                variants: ["inline", "compact"], dflt: "inline" },
+  light:     { role: null, domains: ["light"],
+               variants: ["inline", "compact"], dflt: "inline" },
+  climate:   { role: null, domains: ["climate"],
+               variants: ["inline", "compact"], dflt: "inline" },
   switch:    { role: null, domains: ["switch", "input_boolean"],
                variants: [], dflt: "compact" },
   lock:      { role: null, domains: ["lock"],
                variants: [], dflt: "compact" },
   press:     { role: null, domains: ["button", "input_button", "scene"],
                variants: [] },
+  /* NOTHING (2026-09-06): a Draws-as that suppresses a cast member's
+     own tile. domains:[] offers it to no domain, so showsForDomain
+     never lists it (page tiles stay clean) — the cast box appends
+     it. role null: no claim; roles/keys and aggregate bands untouched. */
+  none:      { role: null, domains: [], variants: [] },
 }
 /* @adapter-table-end */
 ;
@@ -2181,10 +2315,20 @@ export const VARIANT_LABELS = {
   picker: "Picker",
   cycle: "Cycle",
   chips: "Chips",
+  /* Now Playing styles (2026-09-04 — Suresh, first controller
+     variant: "shouldn't now playing offer me all the options"):
+     the engine's t.style vocabulary, labeled for the Variant
+     select. Blank = the activity's own Now Playing pick. */
+  plain: "Plain card",
+  slim: "Slim",
+  wash: "Wash",
+  art: "Art",
+  poster: "Poster",
+  hero: "Hero",
 };
 export const VARIANT_HINTS = {
   auto: "Follows the entity's own hint and range",
-  inline: "The launcher band plus a full control row (fans and covers)",
+  inline: "The launcher band plus a full control row",
   compact: "Value on the title line with − / + controls",
   slider: "A full-width drag track",
   stepper: "− / + buttons with the value between them",
@@ -2192,6 +2336,12 @@ export const VARIANT_HINTS = {
   picker: "Shows the current option; opens the full list",
   cycle: "Each press advances to the next option",
   chips: "Every option shown inline",
+  plain: "Title and artist on a plain card — forces plain even when the activity picks art",
+  slim: "One line — a play indicator plus Title — Artist",
+  wash: "Artwork washes the whole card, words on top",
+  art: "An artwork panel beside the words",
+  poster: "Tall artwork card with the Library bar",
+  hero: "Full-width artwork hero",
 };
 /* the blank option IS Auto for auto-default adapters ("variant
    defaults to Auto and Studio does not write the word" — the design's
@@ -2211,6 +2361,11 @@ export const variantOptions = (adapter, blankLabel) => [
    DRIVEN BY THE REGISTRY: an adapter with no `domains` offers itself
    to any entity (the Launcher rule); otherwise the entity's domain
    must be listed. Devices filter by claimed roles instead. */
+/* the NOTHING kind, exported so the cast ⚙ can append it without a
+   private SHOWS_KINDS.filter (the parity contract, probe-entity-phase0
+   #3): it's registry-driven (domains:[] keeps it out of the domain
+   filters), the cast box just adds it back */
+export const SHOWS_NONE = SHOWS_KINDS.find((k) => k.value === "none");
 export const showsForDomain = (dom) =>
   SHOWS_KINDS.filter((k) => {
     const a = ADAPTERS[k.value] || {};
@@ -2227,6 +2382,7 @@ export const showsForRoles = (roles) =>
 export function compileContext(a, devices) {
   const ctx = {};
   for (const [role, target] of Object.entries(a?.wiring || {})) {
+    if (role === "dialect") continue;   /* the voice pick — resolved below */
     const dev = devices?.[target];
     if (dev) {
       const ent = dev.roles?.[role];
@@ -2240,6 +2396,17 @@ export function compileContext(a, devices) {
       ctx[role] = target;               /* raw-entity escape hatch */
     }
   }
+  /* DIALECT IS A DEVICE PROPERTY (2026-09-04 — Suresh: "You could
+     argue its a device property everywhere and then in roles, you
+     pick the device from the cast (default is primary)"). The
+     activity speaks with a cast DEVICE's voice: wiring.dialect names
+     whose (a device id, never a dialect name); absent, the primary
+     (media_player) device answers — the derivation above, unchanged.
+     A pinned NAME survives only as the legacy overrides.dialect,
+     spread over this in recompileContext. */
+  const vd = a?.wiring?.dialect ? devices?.[a.wiring.dialect] : null;
+  if (vd && (vd.dialect || vd.app_class))
+    ctx.dialect = vd.dialect || vd.app_class;
   return ctx;
 }
 
@@ -2423,7 +2590,57 @@ export function normalizeSectionOrder(cfg) {
    spellings the LAST normalizeVariants call healed — the load path
    reads it and tells the user before their first post-migration
    Save & Deploy, per the design's rollout section */
-export const NORMALIZE_REPORT = { variants: 0 };
+export const NORMALIZE_REPORT = { variants: 0, pins: 0, pinsKept: 0,
+  castMerged: 0, templatesFreed: 0, tunerChips: 0, npDefaults: 0 };
+
+/* PINNED-DIALECT HEAL (2026-09-04 — the dialect-is-a-device-property
+   ruling, migration half: "force the upgrade" — through the house
+   heal, reported, never silent). A legacy overrides.dialect (a pinned
+   NAME) heals in three rungs:
+     1. a cast device already speaks the pinned dialect → it becomes
+        the whose-voice pick (wiring.dialect, unless it's the primary,
+        whose voice is the default) and the pin drops;
+     2. the primary (else the dpad) device is VOICELESS → the pin
+        becomes that device's own dialect — where it always belonged —
+        and drops; the device's takeover page gains its voice too;
+     3. genuinely ambiguous (the device already speaks something else,
+        or there's no cast) → the pin stays, honored and labeled
+        legacy in the Roles tab, and COUNTED so it is a visible loose
+        end, not a permanent one.
+   Compiled context is byte-identical for rungs 1 and 2 — the heal
+   moves where the fact lives, never what it says. */
+export function healPinnedDialects(cfg) {
+  let healed = 0, kept = 0;
+  const devs = cfg?.devices || {};
+  for (const a of Object.values(cfg?.activities || {})) {
+    const pin = a?.overrides?.dialect;
+    if (!pin) continue;
+    const cast = (a.cast || []).filter((m) => typeof m === "string");
+    const drop = () => {
+      delete a.overrides.dialect;
+      if (!Object.keys(a.overrides).length) delete a.overrides;
+      recompileContext(a, devs);
+      healed++;
+    };
+    const primary = a.wiring?.media_player;
+    const speaker = cast.find((d) => devs[d]?.dialect === pin);
+    if (speaker) {
+      if (speaker !== primary) { a.wiring = a.wiring || {}; a.wiring.dialect = speaker; }
+      drop(); continue;
+    }
+    const target = [primary, a.wiring?.dpad]
+      .find((d) => d && devs[d] && !devs[d].dialect && !devs[d].app_class);
+    if (target && (cfg.dialects || {})[pin]) {
+      devs[target].dialect = pin;
+      if (target !== primary) { a.wiring = a.wiring || {}; a.wiring.dialect = target; }
+      drop(); continue;
+    }
+    kept++;
+  }
+  NORMALIZE_REPORT.pins = healed;
+  NORMALIZE_REPORT.pinsKept = kept;
+  return cfg;
+}
 
 export function normalizeVariants(cfg) {
   let n = 0;
@@ -2497,9 +2714,228 @@ export function normalizeVariants(cfg) {
   return cfg;
 }
 
+/* ONE ORDERED CAST (2026-09-05, feedback-3 round 3 — Suresh: "why
+   can't I move the group like any other tile? I should be able to").
+   The cast lived in TWO lists — a.cast (devices + groups) and
+   a.extra_devices (loose entities) — so no arrow could ever cross
+   the boundary and the band's order could not be fully authored.
+   Loose entities are first-class cast members now (a dot in the
+   string is the shape): this migration appends the legacy list onto
+   a.cast, order kept, and deletes it. The ENGINE keeps reading
+   extra_devices forever (deployed configs); the Studio never writes
+   it again. */
+export function normalizeCastOrder(cfg) {
+  let n = 0;
+  for (const a of Object.values(cfg?.activities || {})) {
+    if (!Array.isArray(a?.extra_devices) || !a.extra_devices.length) {
+      if (a && Array.isArray(a.extra_devices)) delete a.extra_devices;
+      continue;
+    }
+    if (!Array.isArray(a.cast)) a.cast = [];
+    for (const ent of a.extra_devices)
+      if (!a.cast.includes(ent)) { a.cast.push(ent); n++; }
+    delete a.extra_devices;
+  }
+  NORMALIZE_REPORT.castMerged = n;
+  return cfg;
+}
+
+/* SHAPE ↔ SURFACE (2026-09-06 — Suresh, the Lands-on triage:
+   "Shouldn't it just be TV derived *activity* controllers?"). The
+   activity's `kind` (What are we building) maps to the stock
+   surface built for that shape — the map feeds the Lands-on
+   grouping and the controller editor's preview-as ordering.
+   Suggestions, never a cage: the other shapes stay selectable,
+   below. */
+export const KIND_SURFACES = { watch: "tv", play: "tv", listen: "music" };
+/* a controller's ROOT: follow variant_of to the stock it derives
+   from (cycle-safe). A custom copy of a copy still answers with the
+   stock at the bottom. */
+export function controllerRoot(controllers, cid) {
+  const seen = {};
+  let c = controllers?.[cid];
+  while (c && c.variant_of && !seen[cid]) {
+    seen[cid] = 1;
+    cid = c.variant_of;
+    c = controllers[cid];
+  }
+  return c ? cid : null;
+}
+
+/* TEMPLATE UNBIND (2026-09-06 — Suresh: "I thought these were
+   templates. i.e. $device. The only time that should happen is if a
+   device is hardcoded"). The 2026-09-04 copy flow bound each
+   device-controller copy to the entity it was made for (c.entity);
+   the next day's ruling made copies TEMPLATES that devices adopt
+   via their own `page:`. This heal releases the legacy bindings:
+   when a pre-wired device owns the bound entity, the device adopts
+   the copy (page:, set only if it has no pick of its own — an
+   existing different pick is respected and the binding just drops
+   as unreachable) and c.entity goes. A binding to a LOOSE entity —
+   no device owns it — is genuinely hardcoded and stays, labeled. */
+export function normalizeTemplateBindings(cfg) {
+  let n = 0;
+  const cs = cfg?.controllers || {};
+  const devs = cfg?.devices || {};
+  for (const [cid, c] of Object.entries(cs)) {
+    if (!c || !c.domain || !c.variant_of || !c.entity) continue;
+    let own = null;
+    for (const d of Object.values(devs)) {
+      const r = (d && d.roles) || {};
+      if (Object.values(r).includes(c.entity)) { own = d; break; }
+    }
+    if (!own) continue;
+    const pick = typeof own.page === "string"
+      ? own.page.replace(/^controller:/, "") : null;
+    if (pick && pick !== cid) continue;
+    if (!pick) own.page = cid;
+    delete c.entity;
+    n++;
+  }
+  NORMALIZE_REPORT.templatesFreed = n;
+  return cfg;
+}
+
+/* CONTROL-TARGET HELPERS (2026-09-06, Suresh's three asks on the
+   panel). One source for the ViewEditor and HubEditor twins.
+   · Fill in defaults: the TV-surface shape — blank fields take the
+     $ tokens, the standard keys join the pass-through list (a union,
+     never a clobber of what's already authored).
+   · The TUNER is the chips ("If someone clicks TV Tuner, shouldn't
+     we add PgUp and PgDn to the physical keys... list?" — exactly
+     right): the `tuner` flag and ch_up/ch_down in the pass-through
+     list were two spellings of one routing (input.js §5.6 honors
+     both). The switch now READS the chips and WRITES the chips; the
+     Studio never writes the flag again, and the load heal converts
+     a legacy flag into the chips, reported. */
+export const CT_DEFAULT_KEYS = ["up", "down", "left", "right", "select", "back", "home", "power"];
+export const CT_TUNER_KEYS = ["ch_up", "ch_down"];
+export function fillControlTargetDefaults(ct) {
+  if (!ct) return ct;
+  if (!ct.label) ct.label = "$activity.name";
+  if (!ct.navigation) ct.navigation = "$context.dpad";
+  if (!ct.power) ct.power = "$context.power";
+  if (!ct.volume) ct.volume = "$context.volume";
+  const have = Array.isArray(ct.pass_through) ? ct.pass_through : [];
+  ct.pass_through = [...have, ...CT_DEFAULT_KEYS.filter((k) => !have.includes(k))];
+  return ct;
+}
+export const tunerOn = (ct) =>
+  !!ct && Array.isArray(ct.pass_through) && CT_TUNER_KEYS.every((k) => ct.pass_through.includes(k));
+export function setTuner(ct, on) {
+  if (!ct) return;
+  const have = Array.isArray(ct.pass_through) ? ct.pass_through : [];
+  ct.pass_through = on
+    ? [...have, ...CT_TUNER_KEYS.filter((k) => !have.includes(k))]
+    : have.filter((k) => !CT_TUNER_KEYS.includes(k));
+  delete ct.tuner;   /* one spelling from here on */
+}
+/* A COPY'S DEFAULT FOLLOWS ITS STOCK (2026-09-07 — Suresh: "We just
+   agreed that auto/default is Art. You need to get this code to be
+   consistent."). np_default is, by definition, the shipped default
+   where the user made NO choice — so a custom copy that carries a
+   stale np_default from the stock it was copied from tracks the
+   stock's CURRENT np_default. A tile with its own `style` is a
+   choice and is never touched. Reported. */
+export function normalizeNpDefaults(cfg) {
+  let n = 0;
+  const cs = cfg?.controllers || {};
+  const stockNp = (rootId) => {
+    const root = cs[rootId];
+    const out = {};
+    if (!root) return out;
+    [...(root.tiles || []), ...((root.sections || []).flatMap((s) => s?.tiles || []))]
+      .forEach((t) => { if (t && t.type === "media" && t.np_default) out[t.id] = t.np_default; });
+    return out;
+  };
+  for (const [cid, c] of Object.entries(cs)) {
+    if (!c || !c.variant_of) continue;
+    const rootId = controllerRoot(cs, cid);
+    if (!rootId || rootId === cid) continue;
+    const want = stockNp(rootId);
+    [...(c.tiles || []), ...((c.sections || []).flatMap((s) => s?.tiles || []))].forEach((t) => {
+      if (!t || t.type !== "media" || t.style || !t.np_default) return;
+      const w = want[t.id];
+      if (w && w !== t.np_default) { t.np_default = w; n++; }
+    });
+  }
+  NORMALIZE_REPORT.npDefaults = n;
+  return cfg;
+}
+export function normalizeTuner(cfg) {
+  let n = 0;
+  const walk = (scr) => {
+    const ct = scr && scr.control_target;
+    if (ct && ct.tuner === true) { setTuner(ct, true); n++; }
+  };
+  Object.values(cfg?.screens || {}).forEach(walk);
+  Object.values(cfg?.controllers || {}).forEach(walk);
+  NORMALIZE_REPORT.tunerChips = n;
+  return cfg;
+}
+
+/* THE UPGRADE AUDIT's findings (design-upgrade-audit.md — "never
+   overwrite, always disclose"): facts the heal already computed,
+   assembled once per load. Findings are gen arithmetic (a fork whose
+   built-in moved past its base; a kept pin; a healed stock);
+   normalize counts render as observations — informative, no verb.
+   Empty means NO report renders at all. */
+export function buildAuditFindings(cfg) {
+  const f = [];
+  if (HEAL_REPORT.healed.length)
+    f.push({ kind: "stock_healed",
+      items: HEAL_REPORT.healed.map((h) => ({ ...h })) });
+  for (const [cid, c] of Object.entries(cfg?.controllers || {})) {
+    if (!c || !c.variant_of || !c.forked_by_update) continue;
+    const stock = currentStockController(c.variant_of);
+    const cur = stock ? (stock.gen || 0) : 0;
+    if (cur > (c.forked_by_update.from_gen || 0))
+      f.push({ kind: "fork_behind", id: cid, name: c.name || cid,
+        variant_of: c.variant_of,
+        base_gen: c.forked_by_update.from_gen || 0, stock_gen: cur });
+  }
+  if (HEAL_REPORT.legitimized.length)
+    f.push({ kind: "legitimized",
+      items: HEAL_REPORT.legitimized.map((h) => ({ ...h })) });
+  if (NORMALIZE_REPORT.pinsKept > 0)
+    f.push({ kind: "pins_kept", count: NORMALIZE_REPORT.pinsKept });
+  if (NORMALIZE_REPORT.variants > 0)
+    f.push({ kind: "observation", text: NORMALIZE_REPORT.variants +
+      " legacy spelling" + (NORMALIZE_REPORT.variants === 1 ? "" : "s") +
+      " modernized automatically — no action needed." });
+  if (NORMALIZE_REPORT.castMerged > 0)
+    f.push({ kind: "observation", text: NORMALIZE_REPORT.castMerged +
+      " loose entit" + (NORMALIZE_REPORT.castMerged === 1 ? "y" : "ies") +
+      " folded into the cast order — everything renders as before, " +
+      "and the rows can now be reordered freely." });
+  if (NORMALIZE_REPORT.templatesFreed > 0)
+    f.push({ kind: "observation", text: NORMALIZE_REPORT.templatesFreed +
+      " device controller cop" +
+      (NORMALIZE_REPORT.templatesFreed === 1 ? "y" : "ies") +
+      " released into a template — the device keeps it via its own " +
+      "page pick, and other compatible devices can adopt it too." });
+  if (NORMALIZE_REPORT.tunerChips > 0)
+    f.push({ kind: "observation", text: NORMALIZE_REPORT.tunerChips +
+      " TV-tuner flag" + (NORMALIZE_REPORT.tunerChips === 1 ? "" : "s") +
+      " became ch_up / ch_down in the keys passed to the device — " +
+      "same routing, now visible in the list." });
+  if (NORMALIZE_REPORT.npDefaults > 0)
+    f.push({ kind: "observation", text: NORMALIZE_REPORT.npDefaults +
+      " custom-copy Now Playing default" + (NORMALIZE_REPORT.npDefaults === 1 ? "" : "s") +
+      " caught up to the stock's (Art) — a tile with its own style was left alone." });
+  return f;
+}
+
 export function normalizeConfig(cfg, ws) {
   ensureStockControllers(cfg);
+  normalizeCastOrder(cfg);
+  normalizeTemplateBindings(cfg);
+  normalizeTuner(cfg);
   normalizeVariants(cfg);
+  /* after healStockGen has moved the stocks (ensureStockControllers
+     above), copies catch up to their stock's default */
+  normalizeNpDefaults(cfg);
+  healPinnedDialects(cfg);
   normalizeNavTiles(cfg);
   normalizeHosts(cfg);
   normalizeOffActivity(cfg);
