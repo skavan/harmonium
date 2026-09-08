@@ -1,6 +1,6 @@
 # Design — Fast D-pad (action-valued dpad commands)
 
-Status: **BUILT (engine core, 2026-08-27) — unversioned, staged.** Field-tested transport findings below; the house Fire TV dialect is the first deployment and the reference example.
+Status: **BUILT — shipped in v0.86.0.** (At the time of writing: engine core 2026-08-27, unversioned, staged.) Field-tested transport findings below; the house Fire TV dialect is the first deployment and the reference example.
 
 ## The problem
 

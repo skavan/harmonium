@@ -27,7 +27,7 @@
 
 - [x] **Fire TV sendevent first-class** — delivered via derived classes + action-valued dpad fields, per the "clone FireTV → FireTV-SE" design discussion.
 - [x] **IP dialects (Denon/Panasonic)** — ruled OUT as a transport: receivers ride their HA integrations; extra commands ride HA services. Tester reply drafted (`docs/posts/reply-beta-feedback-v0.86.md`).
-- [x] **Entity controls (`design-entity-controls.md`) rewritten as v2** per review — resolution ladder specified, one canonical spelling, fingerprint-safe normalization ruled, Weather evicted, grouping phase-gated on a focus spec, deterministic Auto. Positioned as the **0.87 keynote**; 0.86.0 does NOT gate on it.
+- [x] **Entity controls (`entity-controls.md`) rewritten as v2** per review — resolution ladder specified, one canonical spelling, fingerprint-safe normalization ruled, Weather evicted, grouping phase-gated on a focus spec, deterministic Auto. Positioned as the **0.87 keynote**; 0.86.0 does NOT gate on it.
 
 ## Housekeeping
 

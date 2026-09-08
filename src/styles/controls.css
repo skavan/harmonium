@@ -12,8 +12,8 @@
   .trail .ic.material-symbols-outlined { font-size: 26px; }
   .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .trail.focused {
-    border-color: var(--accent); color: var(--text);
-    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    border-color: var(--focus-ring, var(--accent)); color: var(--text);
+    background: linear-gradient(0deg, var(--focus-wash, var(--wash)), var(--focus-wash, var(--wash))), var(--focus-bg, var(--tile-hi));
   }
   /* ACCENT TRAIL (v0.68.1 — Suresh, of the library button on Now
      Playing: "inverting the library launch button, to make it more
@@ -59,7 +59,7 @@
   .tile.wgt-media.art .trail.focused,
   .tile.wgt-media.art .trail.tracc.focused {
     /* borderless — the focus ring is an inset shadow instead */
-    box-shadow: inset 0 0 0 2px var(--accent);
+    box-shadow: inset 0 0 0 2px var(--focus-ring, var(--accent));
     background: linear-gradient(to right,
       rgba(13, 15, 18, .15), rgba(13, 15, 18, .7) 45%, rgba(13, 15, 18, .92));
   }

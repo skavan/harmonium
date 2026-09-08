@@ -272,7 +272,7 @@
   .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
   .tile.wgt-media.poster .trail.focused,
   .tile.wgt-media.hero .trail.focused {
-    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring, var(--accent));
   }
 
   /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
@@ -313,7 +313,7 @@
      overflow but the circle stays a circle */
   .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
-  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring, var(--accent)); }
   .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: var(--accent-ink, #14181d); }
   .trow .trbig:active { background: var(--on); }
   .trow .trbig .material-symbols-outlined { font-size: 38px; }
@@ -324,7 +324,7 @@
   .btnrow { display: flex; align-items: center; gap: 12px; padding: 4px 0 2px; }
   .btnrow .dpbtn { flex: 1; height: 50px; border-radius: 14px; border: 2px solid transparent; }
   /* roving highlight inside a button row (◀▶ while the tile is focused) */
-  .tile.focused .btnrow .cvsel { border-color: var(--accent); }
+  .tile.focused .btnrow .cvsel { border-color: var(--focus-ring, var(--accent)); }
   .tile.wgt-buttons .top, .tile.wgt-buttons .sub, .tile.wgt-buttons .hint { display: none; }
   .tile.wgt-buttons { min-height: 0; }
   /* media mode bar (shuffle/repeat): accent icon = mode active */

@@ -67,6 +67,8 @@
     ["wash", "Focus wash", "rgba(255,179,0,.10)"],
   ];
   const WEIGHTS = ["", "100", "300", "400", "500", "700", "900"];
+  /* the engine's spelling of "no ring" (config.js applyTheme) */
+  const RING_OFF = /^(off|none|false|0|no)$/i;
 </script>
 
 {#if d}
@@ -88,6 +90,20 @@
             </div>
           </Field>
         {/each}
+        <!-- FOCUS RING (v0.87.0 — a tester on an old iPhone asked for
+             "a setting to turn off the orange highlight ring,
+             everywhere"): the d-pad cursor. Off paints it transparent
+             (the cursor still exists — a d-pad remote keeps working);
+             a colour re-tints it. Per remote too: the same key in a
+             remote profile's style map (Remotes & keymaps). -->
+        <Field label="Focus ring" hint="the accent ring on the focused tile — the d-pad cursor. Off for touch-only remotes (a phone), where the cursor is just a ring stuck on the last tap. A color works too (Code tab: focus-ring). Per-remote: the same key in the remote's style.">
+          <select value={RING_OFF.test(th["focus-ring"] ?? "") ? "off" : ""}
+            onchange={(e) => set("focus-ring", e.target.value)}
+            class="w-full cursor-pointer rounded-[8px] border border-line bg-tile-hi px-2 py-1.5 font-[inherit] text-xs text-ink outline-none focus:border-accent/60">
+            <option value="">{th["focus-ring"] && !RING_OFF.test(th["focus-ring"]) ? "custom color · " + th["focus-ring"] : "On · accent (default)"}</option>
+            <option value="off">Off · no ring</option>
+          </select>
+        </Field>
         <Field label="Corner radius" hint="blank = 12px">
           <input value={th["radius"] ?? ""} placeholder="12px" spellcheck="false"
             onchange={(e) => set("radius", e.target.value)}

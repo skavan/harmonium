@@ -911,7 +911,7 @@ sections. Don't strand users on legacy, don't lose their changes."
 
 Built and green:
 
-- **docs/design-ownership-buckets.md** — the complete inventory, every
+- **docs/design/notes/ownership-buckets.md** — the complete inventory, every
   organ and key bucketed, the rules, the known gaps (dialect-app
   tombstones; fork-outdated shout; slipstream diff — all designed, not
   built).

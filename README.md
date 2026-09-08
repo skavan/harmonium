@@ -121,7 +121,8 @@ The engine's enforced compatibility floor is **Chromium 61** (the Astrion's buil
 
 Architecture, doctrines and the full decision log:  
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·  
-[docs/PROJECT.md](docs/PROJECT.md)
+[docs/PROJECT.md](docs/PROJECT.md) ·  
+[docs/design/notes](docs/design/notes/README.md) — the reasoning behind the bigger pieces
 
 > **`dist/config.json` is a test fixture, not a deployable.** Code is shared; config belongs to each house's Home Assistant and is never pushed from the repo. See `houses/README.md` for the multi-house model.
 
@@ -138,7 +139,7 @@ Fork setup, deploy scripts (`build-push.bat` and friends, driven by `houses\defa
 
 ## Status
 
-Beta (v0.87.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. This release: **one design language** everywhere, with accents and real brand colors; **controls for every device type** (switches, buttons and scenes, locks, numbers, dropdowns, a real light dimmer, thermostats); **control groups** and one ordered cast; the **device takeover** page (a device's page speaks that device); the **Your remotes** fleet page with save-to-all-remotes; icon search across everything your HA has installed; the **upgrade report**. Release notes: [docs/release-notes-v0.87.0.md](docs/release-notes-v0.87.0.md) and [docs/releases](docs/releases). Roadmap and open items:  
+Beta (v0.87.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. This release: **one design language** everywhere, with accents and real brand colors; **controls for every device type** (switches, buttons and scenes, locks, numbers, dropdowns, a real light dimmer, thermostats); **control groups** and one ordered cast; the **device takeover** page (a device's page speaks that device); the **Your remotes** fleet page with save-to-all-remotes; icon search across everything your HA has installed; the **upgrade report**. Release notes: [docs/releases/release-notes-v0.87.0.md](docs/releases/release-notes-v0.87.0.md) and [docs/releases](docs/releases). Roadmap and open items:  
 [docs/PROJECT.md](docs/PROJECT.md).
 
 ## Asks

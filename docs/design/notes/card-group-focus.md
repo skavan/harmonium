@@ -1,6 +1,6 @@
 # Card groups × the focus walk — the geometry spec
 
-Status: **RULED (2026-08-31).** This is the document `design-entity-controls.md` gates Phase 3 on. It answers the five open questions with the engine's actual machinery, and each answer carries its probe.
+Status: **RULED (2026-08-31).** This is the document `entity-controls.md` gates Phase 3 on. It answers the five open questions with the engine's actual machinery, and each answer carries its probe.
 
 The finding that shapes everything: **the focus engine is already member-ready.** `focusables()` (ui/focus.js) enumerates per-tile DOM elements (`#tile_<id>`), skipping any with `offsetParent === null`; `spatialMove` is purely rect-geometric over those elements; the ring is the `.focused` class on the tile element; capture (`S.captured` + `.captured`) is per-tile. None of it knows or cares what container a tile element sits in. So the design's rule — *grouping is a visual wrapper, never a focus stop* — is not merely compatible with the walk, it is the only implementation that costs nothing: keep each member's `#tile_<id>` element and true geometry, and every focus behavior below follows from code that already shipped.
 

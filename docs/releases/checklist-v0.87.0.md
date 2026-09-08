@@ -1,6 +1,6 @@
 # v0.87.0 — Program Checklist
 
-*Opened 2026-08-30, on top of the v0.86.0 tag. Keynote: **entity controls** (`docs/design-entity-controls.md`, v2). Companion features ride alongside where they don't destabilize the keynote phases.*
+*Opened 2026-08-30, on top of the v0.86.0 tag. Keynote: **entity controls** (`docs/design/notes/entity-controls.md`, v2). Companion features ride alongside where they don't destabilize the keynote phases.*
 
 ## Keynote — entity controls (phased; each phase gates the next)
 
@@ -25,7 +25,7 @@
   - [x] Both surfaces: registry rows in both twins (byte-compared); Draws-as offers Number/Select per entity domain, and NOT to devices without a mapping trait (`showsForRoles` tightened per the Sonos bass/treble rule); Variant selects labeled "Variant" with blank = Auto (the Studio never writes the word — `variantOptions` skips the explicit auto row); real detail pages for the four domains; `DETAIL_VOL_KIND` covers number; tileSig sees type/kind/slider/cycle so an Auto flip on state arrival re-renders (the v0.85.4 lesson).
   - Fences: `tests/probe-entity-phase2.mjs` (24 fences — working shapes, deterministic Auto on fixed fixtures, entity-owned range/step/unit, domain-correct services, picker/cycle/chips interaction paths, Studio offers). Full battery 122 JS + 5 python green in container.
 - [x] **Phase 3 — card grouping** (2026-08-31):
-  - [x] The gate spec exists and is RULED: `docs/design-card-group-focus.md` — key finding: the focus engine is already member-ready (rect-geometric spatialMove over per-tile elements), so the visual-wrapper-only design costs nothing. One spanning `.cardgrp` grid item at the anchor's footprint, members as flat rows keeping their `#tile_<id>` elements; entry = nearest member by geometry; ring on the member row; capture per-member; structural reflow via visibleTile + a renderStates guard for runtime hides.
+  - [x] The gate spec exists and is RULED: `docs/design/notes/card-group-focus.md` — key finding: the focus engine is already member-ready (rect-geometric spatialMove over per-tile elements), so the visual-wrapper-only design costs nothing. One spanning `.cardgrp` grid item at the anchor's footprint, members as flat rows keeping their `#tile_<id>` elements; entry = nearest member by geometry; ring on the member row; capture per-member; structural reflow via visibleTile + a renderStates guard for runtime hides.
   - [x] Implementation: section render walk merges same-group tiles (first member anchors, order holds, interlopers skipped over); `row: false` on media in both registry twins (no-row-form members render standalone, Studio warns); `presApply` + the volume band carry `present.card_group` into generated tiles; `card_group` in tileSig; the card skin in grid.css (members flat, hairlines, zero-layout-shift ring).
   - [x] Studio: Card group field in the shared PresFields component, both surfaces, with the no-row-form warning.
   - Fences: `tests/probe-entity-phase3.mjs` — the spec's five probe sketches made real, 15 fences. Full battery + python green.

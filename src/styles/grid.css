@@ -84,8 +84,8 @@
      offset, zero layout shift, and the confirm/captured cues own
      the same slot so they can never double. */
   .tile.focused {
-    border-color: var(--accent);
-    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    border-color: var(--focus-ring, var(--accent));
+    background: linear-gradient(0deg, var(--focus-wash, var(--wash)), var(--focus-wash, var(--wash))), var(--focus-bg, var(--tile-hi));
   }
   /* UNAVAILABLE keeps its chassis (Wave B): grey the identity, keep
      the box and the actions — a list never reflows because the

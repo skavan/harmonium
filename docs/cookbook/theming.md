@@ -23,6 +23,19 @@ The ☾/☀ toggle in the Studio header themes the **Studio's own
 chrome** only — the preview keeps the engine's theme, because the
 remote has no light mode unless you build one.
 
+## The focus ring
+
+The orange ring on the focused tile is the d-pad cursor. On a
+touch-only remote — a phone, an old iPad — there is no d-pad, so the
+ring is just stuck on whatever was tapped last. *Theme → Focus ring →
+Off* paints it transparent everywhere it would show (border, outline,
+the lift and wash behind it). The cursor itself stays: a d-pad remote
+sharing the config keeps working, it just doesn't draw the ring.
+The raw key is `focus-ring` — `off`, or a color to re-tint the ring
+without touching the accent — and it works per remote too, in the
+profile's `style` map below: one phone with the ring off, the d-pad
+remotes with it on.
+
 ## Per-device legibility
 
 A wall tablet across the room and a remote in your hand want
