@@ -2,6 +2,8 @@
 
 *Purpose: The session-to-session baton: current state, how to work, traps that have already cost real time. Audience: whoever picks the project up next — human or AI.*
 
+> **2026-09-08 — read [`HANDOFF-v0.87-to-v0.88.md`](HANDOFF-v0.87-to-v0.88.md) first.** It carries the current state (v0.87.0 release in progress), the working rules Suresh has set, the delivery loop, and this cycle's traps. Everything below is the longer history and is still accurate for what it describes.
+
 Written at the end of the CT session, 2026-08-09; updated 2026-08-10
 (v0.70, the routing model). Read this first, then `docs/PROJECT.md`
 (the living document — newest entries near the top; pre-v0.83

@@ -47,6 +47,16 @@ Nothing stops you from putting a real entity in a tile instead of `$device` or `
 
 Tap a device in an activity's Devices section and its page is the device's *own* controller — drawn as that device, keys routed to that device, BACK returning you to the activity. It used to be that the activity's key profile bled through, so standing on the Samsung's page the arrows still went to the Fire TV. Since v0.87 the device you're looking at is the one you're driving.
 
+## A device page knows its device
+
+Normally a Device page maps its functionality to a specified device. For example if Samsung TV is assigned to controller.media_player, then all buttons/actions are mapped to the TV, unless you direct some of them to drive the app/remote.
+
+There is a special extended case. What if, like me, you have a device that needs the 'help' of another device. My Samsung TV, needs the Volume actions and readout to be handled by a Soundbar.
+
+We support using `Pre-wired Devices`. A pre-wired device is basically a compound device, where, for example, you can set the volume roles to the soundbar. And then, when you tap a tile, Harmonium checks whether the entity belongs to a pre-wired device — and honors the roles.
+
+So the page you get is that device's page: its roles fill in the page, its dialect drives the keys, and its volume row goes wherever the bundle's Volume keys and Volume readout point. So a TV whose sound comes out of a soundbar just wires those two roles to the soundbar in Pre-wired Devices, and every page for that `pre-wired` TV follows — nothing to set on the tile. A raw, non pre-wired device, gets the page bound to itself. If you've customized a device page by hand, your settings win; the automatic wiring only fills in what you left on Auto. Easier to try than to explain!
+
 ## Where things live
 
 | Question | Where the answer is |
