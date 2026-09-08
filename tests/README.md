@@ -9,6 +9,20 @@ tile, it rendered it with the production code path.
 
 ## Run
 
+Install the Python test dependency once:
+
+```sh
+python -m pip install -r tests/requirements.txt
+```
+
+Windows PowerShell (installs `playwright-core` and Chromium when missing):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tests/run.ps1
+```
+
+Linux/macOS:
+
 ```sh
 cd dist && python3 -m http.server 8482 &
 cd tests && for t in smoke-*.mjs; do node "$t"; done

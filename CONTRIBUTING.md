@@ -10,11 +10,22 @@ history behind each lives in `docs/PROJECT.md`.
 
 ## Getting set up as a fork
 
+Prerequisites: Git, Node.js 18 or newer, npm, and Python 3. Then:
+
 ```sh
 git clone https://github.com/<you>/harmonium
 node build-engine.mjs                # engine → dist/index.html
-cd studio-src && npm i && npm run build   # Studio → integration/.../studio/studio.html
+npm ci --prefix studio-src
+npm run build --prefix studio-src    # Studio → integration/.../studio/studio.html
+python -m pip install -r tests/requirements.txt
 ```
+
+The browser battery uses `playwright-core` plus Chromium. On Windows,
+`powershell -ExecutionPolicy Bypass -File tests/run.ps1` installs those
+test-only dependencies when missing, builds the engine, serves it, and
+runs every smoke suite. On Linux/macOS, use `tests/run.sh` as described
+under Tests. ADB platform-tools and scrcpy are optional; install them
+only when provisioning or mirroring a physical Android remote.
 
 To deploy to your own Home Assistant, create a house profile once:
 
