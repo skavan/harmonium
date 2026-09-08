@@ -76,7 +76,7 @@ Reporter on the 0.86.0-dev line; NOTHING here has shipped.):**
 - **Fire TV sendevent / fast d-pad — no obvious place to set it
   (ALREADY BUILT; needs Studio UI + docs).** Action-valued
   `dpad_commands` (androidtv.adb_command -> sendevent, single-digit ms)
-  ship in the engine — see `docs/design-fast-dpad.md` — but it's a
+  ship in the engine — see `docs/design/notes/fast-dpad.md` — but it's a
   Code-tab tuning with no Studio field yet. ACTION: point testers to
   the design doc; promote "Studio field for action-valued dpad
   commands" (already deferred) — there's real demand now.
@@ -285,7 +285,7 @@ four videos · key map regenerated with all hold gestures.
 
 ### 6.3 New cards (the widget gap list — 2026-08-21, Suresh)
 
-**Promoted design (2026-08-30):** Number, Select, Launcher fallback, deterministic per-control variants, and visual `card_group` composition are specified in `docs/design-entity-controls.md`. That design requires one adapter/variant catalog and one canonical descriptor vocabulary across both Activities → Cast → Devices and regular Devices sections. Weather remains in this broader domain backlog and requires a separate fetch/cache/staleness design.
+**Promoted design (2026-08-30):** Number, Select, Launcher fallback, deterministic per-control variants, and visual `card_group` composition are specified in `docs/design/notes/entity-controls.md`. That design requires one adapter/variant catalog and one canonical descriptor vocabulary across both Activities → Cast → Devices and regular Devices sections. Weather remains in this broader domain backlog and requires a separate fetch/cache/staleness design.
 
 Inventory of missing/thin tile types, roughly by expected demand:
 

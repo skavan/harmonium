@@ -48,11 +48,23 @@ async function loadConfig(ws) {
 let THEMED = [];   /* vars set by the last applyTheme — cleared first so
                       a REMOVED key falls back to the stylesheet default
                       (live Studio editing relies on this) */
+/* focus-ring (v0.87.0): a colour rides through as the --focus-ring
+   token like any other key; the words off / none / false / 0 mean
+   "no ring" and become html.noring instead (an invalid colour in the
+   token would fall to currentColor and paint a WHITE ring — the
+   opposite of what was asked). The class is recomputed on every
+   apply, so a remote profile can switch it either way (remotes.<id>
+   .style rides the same map: a touch-only phone turns it off while
+   the d-pad remotes keep theirs). */
+const RING_OFF = /^(off|none|false|0|no)$/i;
 function applyTheme(theme) {
   for (const k of THEMED) document.documentElement.style.removeProperty(k);
   THEMED = [];
+  let noring = false;
   for (const [k, v] of Object.entries(theme || {})) {
+    if (k === "focus-ring" && RING_OFF.test(String(v).trim())) { noring = true; continue; }
     document.documentElement.style.setProperty("--" + k, v);
     THEMED.push("--" + k);
   }
+  document.documentElement.classList.toggle("noring", noring);
 }

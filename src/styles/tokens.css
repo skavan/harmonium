@@ -16,6 +16,17 @@
     --btn-h: 46px;              /* ± buttons, pills, actions */
     --focus-w: 2px;             /* d-pad focus ring */
     --focus-offset: 2px;        /* outset; negated on a card */
+    /* THE RING'S COLOUR (v0.87.0 — a tester on an old iPhone: "a
+       setting to turn off the orange highlight ring, everywhere"):
+       every .focused rule paints through these three, never through
+       --accent directly, so one theme key (focus-ring: a colour, or
+       "off") re-tints or retires the d-pad cursor. "off" is html.noring
+       below — transparent, not absent: the focus engine keeps its
+       stop, only the paint goes. A touch-only remote has no d-pad, so
+       its cursor is just a ring stuck on whatever was tapped last. */
+    --focus-ring: var(--accent);
+    --focus-bg: var(--tile-hi);
+    --focus-wash: var(--wash);
     --hold-ms: 500ms;           /* V7 §9: the unlock/open hold */
     --track-channel: #1a212b;   /* recessed channel */
     --track-hairline: #2a3340;  /* channel edge */
@@ -269,3 +280,17 @@
   }
   #app.scr-music .npa { font-family: var(--font-m2); font-size: calc(var(--fs-m2) + 1px); font-weight: var(--fw-m2); }
   #app.scr-music .npb { font-family: var(--font-m2); font-size: calc(var(--fs-m2) - 1px); font-weight: var(--fw-m2); }
+/* focus-ring: off — the ring is painted transparent everywhere it
+   would show (border, outline, inset shadow, the wash + lift behind
+   it); the .focused class and the cursor logic are untouched. */
+html.noring {
+  --focus-ring: transparent;
+  --focus-bg: var(--tile);
+  --focus-wash: transparent;
+}
+html.noring .trail.tracc.focused { border-color: transparent; }
+html.noring .tile.wgt-media.art .trail.focused,
+html.noring .tile.wgt-media.art .trail.tracc.focused {
+  background: linear-gradient(to right,
+    rgba(13, 15, 18, 0), rgba(13, 15, 18, .55) 45%, rgba(13, 15, 18, .82));
+}

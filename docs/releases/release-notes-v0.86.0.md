@@ -34,7 +34,7 @@ Any built-in platform now has **⑂ Derive a class**: it seeds a new class of yo
 
 ## Fast d-pad is first-class
 
-A dialect's D-pad command may now be a **full HA action** instead of a name — the fast-dpad path (`androidtv.adb_command` → `sendevent`, single-digit-ms presses; see `docs/design-fast-dpad.md`). The Studio's D-pad fields now render an action as a **⚡ chip with a JSON editor** (previously they showed `[object Object]` and a stray keystroke would destroy the action), and every string field has a ⚡ button that converts it to an action template. Combined with derived classes, the intended recipe is: derive your platform, ⚡ the arrow keys, adopt your activities.
+A dialect's D-pad command may now be a **full HA action** instead of a name — the fast-dpad path (`androidtv.adb_command` → `sendevent`, single-digit-ms presses; see `docs/design/notes/fast-dpad.md`). The Studio's D-pad fields now render an action as a **⚡ chip with a JSON editor** (previously they showed `[object Object]` and a stray keystroke would destroy the action), and every string field has a ⚡ button that converts it to an action template. Combined with derived classes, the intended recipe is: derive your platform, ⚡ the arrow keys, adopt your activities.
 
 ## The Platforms editor
 

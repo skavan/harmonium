@@ -1,6 +1,6 @@
 # Entity controls — adapters, variants, and card groups
 
-Status: **PROPOSED v2 (2026-08-30) — design only; no implementation has started.** This revision supersedes the v1 draft after review. Target: **the 0.87 keynote.** v0.86.0 ships without any of this — its keynote (layered catalogs, derived classes, first-class fast-dpad) is complete and must not wait on a refactor that has not begun.
+Status: **BUILT — shipped in v0.87.0** (all four phases, 2026-08-30 → 08-31; fenced by `probe-entity-phase0` … `phase3`). The text below is the v2 proposal as it was ruled; the status line it carried at the time read "PROPOSED v2 (2026-08-30) — design only; no implementation has started." This revision supersedes the v1 draft after review. Target: **the 0.87 keynote.** v0.86.0 ships without any of this — its keynote (layered catalogs, derived classes, first-class fast-dpad) is complete and must not wait on a refactor that has not begun.
 
 This document defines how an HA entity becomes a control in Harmonium, how that control may be drawn, and how several controls may share one visual card. It applies to every place a control is authored or generated: Activities → Cast (the `present` map), regular Devices sections (explicit tiles), and the generated bands of stock controllers.
 
@@ -123,7 +123,7 @@ Unchanged from v1, kept in full force: no inline value editor; the Tap selector 
 
 Semantics (unchanged from v1): `card_group` is an optional string; controls merge only within the same resolved screen, same rendered section, same non-empty value; first member anchors, authored order holds; grouping is a visual wrapper, never a focus stop or an enter/exit mode; an adapter advertises whether it has a row form, and an incompatible member renders standalone with a Studio warning; no group title in v1.
 
-**Phase gate:** implementation of grouping does not begin until `design-card-group-focus.md` exists and answers, with probe sketches: how a multi-stop card occupies the grid (one spanning cell? per-member cells in a shared skin?); how the geometric `spatialMove` enters the card (nearest member by geometry, or first member?); what the focus ring draws around a focused member inside a shared card; how capture/latch interacts with members that capture (a slider mid-drag); and how hide/unavailable transitions of one member reflow the card without losing focus. These are exactly the questions the pad doctrine spent three releases answering for single tiles; they will not be answered as a side effect.
+**Phase gate:** implementation of grouping does not begin until `card-group-focus.md` exists and answers, with probe sketches: how a multi-stop card occupies the grid (one spanning cell? per-member cells in a shared skin?); how the geometric `spatialMove` enters the card (nearest member by geometry, or first member?); what the focus ring draws around a focused member inside a shared card; how capture/latch interacts with members that capture (a slider mid-drag); and how hide/unavailable transitions of one member reflow the card without losing focus. These are exactly the questions the pad doctrine spent three releases answering for single tiles; they will not be answered as a side effect.
 
 ## Migration and compatibility
 
@@ -147,7 +147,7 @@ Equivalence tests for every currently supported control are green **before** Num
 
 1. **Parity foundation:** shared adapter registry + shared Studio fields + the fingerprint-safe normalizer; route Launcher, Power, Volume, Now Playing, Transport, Sources through it with zero behavior change; close the five inconsistencies; generalize the pin readout to the full ladder.
 2. **Number and Select:** native adapters, D-pad interactions, identical authoring in all surfaces.
-3. **Card grouping:** gated on `design-card-group-focus.md`.
+3. **Card grouping:** gated on `card-group-focus.md`.
 4. **Retire old authoring spellings** after migration evidence, keeping the runtime reader.
 
 ## Acceptance tests
@@ -169,4 +169,4 @@ v1's list stands: no Mushroom cloning, no arbitrary attribute/service controls, 
 - [Mushroom Number card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/number.md) · [Mushroom Select card](https://github.com/piitaya/lovelace-mushroom/blob/main/docs/cards/select.md) — one semantic card, presentation separate.
 - [HA Number entity](https://developers.home-assistant.io/docs/core/entity/number/) · [HA Select entity](https://developers.home-assistant.io/docs/core/entity/select/).
 - `src/core/gen-bands.js` — the live four-rung volume ladder this design canonicalizes; `studio-src/.../ControllerTab.svelte` — the 0.86.0 pin readout, the ladder-visibility template.
-- `docs/design-layered-catalogs.md` — the spread model; `docs/design-ownership-buckets.md` — ownership rules; `docs/beta-gaps.md` §6.3–6.4 — the original sketches; `docs/screen-schema.md` — current contracts.
+- `docs/design/notes/layered-catalogs.md` — the spread model; `docs/design/notes/ownership-buckets.md` — ownership rules; `docs/beta-gaps.md` §6.3–6.4 — the original sketches; `docs/screen-schema.md` — current contracts.

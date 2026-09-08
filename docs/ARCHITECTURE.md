@@ -313,7 +313,7 @@ from the tagged starters by `tools/gen-stock-history.mjs`). Pristine →
 heals silently to current. Edited-in-place (pre-lock era) → PRESERVED:
 legitimized as the user's fork (`variant_of` + `forked_by_update`),
 unlocked, with "↺ Reset to built-in" in the Studio. The complete
-inventory and rules: `docs/design-ownership-buckets.md`. The rule of
+inventory and rules: `docs/design/notes/ownership-buckets.md`. The rule of
 thumb when adding anything stock: put the shape in stocklib, regenerate
 the starter AND the history, and let probe-stock-sync catch you if you
 forget half.

@@ -1,45 +1,50 @@
-# Harmonium v0.87.0 — One design language for the whole house
+# Harmonium v0.87.0 — The Style release!
 
-A remote you configure yourself can easily end up looking like it — a patchwork that grew one screen at a time. This release pulls everything under one set of rules. Color and style options let an opinionated design feel like *your* design; every device type now draws with the same control language; icon search finally covers everything installed in your Home Assistant. Around that core: proper controls for the device types that never had them, a page that shows and manages your actual remotes, activities you can drive from anywhere, and a long tail of fixes that came straight from daily use in a real house.
+I'm biased, but I think the basic design language of Harmonium is pretty good. But the challenge with an "opinionated" platform is that it forces all our implementations to feel a bit samesy. The good news is, that they all look consistent. Bad news, is that they all look consistent. And on the subject of consistency, over the days and weeks, lots of high speed additions broke that consistency. A volume tile was one shape in one place and 10px taller in another. And slightly different than a brightness slider.
+
+This release provides:
+
+A standardized, documented, design language for every component, everywhere - but married to a level of configurability to let an opinionated design feel like *your* design; every device type now draws with the same control language; icon support finally covers everything installed in your Home Assistant. Around that core: proper controls for device types that never had them, a page that shows and manages your actual remotes, activities you can drive from outside of harmonium, and a long tail of fixes that came straight from daily use in a real house.
 
 ### In pictures
 
-Four short pictorials walk the new ground with screenshots: [Control groups](pictorials/Control%20Groups.md) · [Custom controllers](pictorials/Custom%20Controller.md) · [Entity support and variants](pictorials/Entity%20Support%20and%20variants.md) · [Styling tiles](pictorials/Styling%20Tiles.md). The mental model behind controllers, casts and the preview is written up in [How controllers work](cookbook/how-controllers-work.md).
+Four short pictorials walk the new ground with screenshots: [Control groups](../pictorials/Control%20Groups.md) · [Custom controllers](../pictorials/Custom%20Controller.md) · [Entity support and variants](../pictorials/Entity%20Support%20and%20variants.md) · [Styling tiles](../pictorials/Styling%20Tiles.md). The mental model behind controllers, casts and the preview is written up in [How controllers work](../cookbook/how-controllers-work.md).
 
 ## Design coherence
 
 The theme of the release: one visual language, applied everywhere, that you can still make your own.
 
-<img src="media/v087-accents.png" width="330" alt="A page mixing brand-accented activities (Fire TV running, Spotify, Netflix), title-led presets, and an accented device tile">
+![A page mixing brand-accented activities (Fire TV running, Spotify, Netflix), title-led presets, and an accented device tile](../media/v087-accents.png)
 
-*One page wearing the new palette: a running Fire TV activity in its brand orange, Spotify green and Netflix red on their neighbors, title-led presets below, and a plain device tile carrying an accent of its own.*
+*One page wearing the new palette: a running Fire TV activity in its brand orange, Spotify green and Deezer purple on title-led presets below, and a plain device tile carrying an accent (tint) of its own.*
 
 ### Configuration that makes an opinionated design feel bespoke
 
-Activities, presets, apps and now plain device tiles can carry an accent — either one of nine tuned colors (coral, fern, jade, azure, indigo, violet, orchid, rose, slate) or a **real brand color**: Fire TV's orange, Netflix's red, Spotify's green, and twenty more, adjusted only as much as needed to stay visible on a dark tile. Text on top of any of them automatically picks black or white for readability, including on Apple TV's white and Sony's black. Plain color words work too: writing red, green or blue in a config reaches coral, jade or azure, and the picker shows both names.
+Activities, presets, apps and even plain device tiles can carry an accent — either one of nine tuned colors (coral, fern, jade, indigo, violet, orchid, rose, azure, slate) or a **real brand color**: Fire TV's orange, Netflix's red, Spotify's green, and twenty more, adjusted only as much as needed to stay visible on a dark tile. Text on top of any of them automatically picks black or white for readability, including on Apple TV's white and Sony's black.
 
 How the color shows is a style choice per tile or per section: just the icon tinted, a subtle tint across the tile, a soft glow behind the icon, or title-led versions of the same. When an activity is running, its tile warms up a notch — the color is the identity, the brightness is the state.
 
-App tiles in the drawer tint their logos with the right brand color out of the box, and stock apps you haven't customized pick this up automatically. Your own hex colors still work exactly as before and are never deleted by trying a named color. And all of it is opt-in: nothing changes on your remotes until you pick an accent.
+Streaming App tiles in the drawer are either full color logo tiles (we provide 21 of them, and you can add your own — see [TV app logos](../cookbook/app-logos.md)) or brand colored glyphs, out of the box; stock apps you haven't customized pick this up automatically. Your own hex colors still work exactly as before and are never deleted by trying a named color. And all of it is opt-in: nothing changes on your remotes until you pick an accent.
 
-Every color in the palette is derived, not eyeballed — the same lightness and chroma math tunes all thirty-one, which is why they sit together so well. The full reasoning lives in [the identity palette design notes](design-identity-palette.md).
+Every color in the palette is derived, not eyeballed — the same lightness and chroma math tunes all thirty-one, which is why they sit together so well. The full reasoning lives in [the identity palette design notes](../design/notes/identity-palette.md).
 
 ### A consistent display language across all tiles
 
-Every control shape — sliders, steppers, chips, hold-to-confirm, the two-button pair — is drawn from one shared table that the Studio and the remote both read, so what you configure is what you get, always. The smaller rules got unified too:
+Every control shape — sliders, steppers, chips, hold-to-confirm, the two-button pair — is drawn from one shared table that the Studio and the remote both read, so what you configure is what you get, at least thats the goal! The smaller rules got unified too:
 
 - Two-line tiles (name plus status) align identically everywhere, at every size.
 - Chevrons and gear icons mean one thing each now: a chevron takes you somewhere, a gear opens controls in place.
-- Several tiles can be grouped into **one card** (a thermostat with its mode switch, say) — and the card now reads as one card: members drop their own backgrounds inside the group, while each keeps its own touch and d-pad behavior.
+- Several tiles can be **grouped** into **one card** (a thermostat with its mode switch, say) — and the card now reads as one card: members drop their own backgrounds inside the group, while each keeps its own touch and d-pad behavior.
 - Style options only do sensible things wherever they're offered. A title-led style on a tile that has no title band falls back to its plain version instead of half-applying.
 - The right-hand icon marks on Title-style tiles sit flush and size together through one theme setting.
 - On pages where the physical keys drive a device, the bottom Back/Home strip now names **which** device holds them, and the title bar washes in the running activity's accent — you always know whose remote you're holding, and whose activity you're inside.
+- **The focus ring can be turned off.** A tester running Harmonium on an old iPhone asked for this: on a touch-only remote there is no d-pad, so the orange ring is just stuck on whatever you tapped last. **Theme → Focus ring → Off** paints it transparent everywhere (the cursor still exists underneath, so a d-pad remote sharing the config keeps working). A color works too, and a remote profile can carry the same setting — one phone with the ring off, the d-pad remotes with it on.
 
-Why every control looks and behaves the way it does is written down in [the control language design notes](design-control-language.md).
+Why every control looks and behaves the way it does is written down in [the control language design notes](../design/notes/control-language.md).
 
 ### An icon library that spans your whole install
 
-<img src="media/v087-icon-search.png" width="400" alt="The icon box with door-open typed, answered by the Material set, mdi:door-open, and fa6-solid:door-open at once">
+![The icon box with door-open typed, answered by the Material set, mdi:door-open, and fa6-solid:door-open at once](../media/v087-icon-search.png)
 
 *One query, every set: Material, Home Assistant's MDI, and a Font Awesome pack answering together, each glyph drawn live.*
 
@@ -47,25 +52,26 @@ Type into any icon box and matches now come from **everywhere at once**: the bui
 
 Two real bugs died here. MDI search used to be nearly useless because Harmonium was only reading a fraction of the icon list Home Assistant ships — it now reads all ~7,400. And searches no longer download whole icon packs into the Studio; they ask for just the matches, so the dropdown answers in a keystroke instead of hanging.
 
-Icons still work the same way on the remote: everything a config references is baked into the deployed files at save time, so the remote never fetches an icon pack, ever. And if you use icon packs that only exist as dashboard resources, list their prefixes under **Theme → Icons** and the picker will ask those packs too. How the whole pipeline works — sources, banking, the browser bridge — is in [the icon sets design notes](design-icon-sets.md).
+Icons still work the same way on the remote: everything a config references is baked into the deployed files at save time, so the remote never fetches a full icon pack. And if you use icon packs that only exist as dashboard resources, list their prefixes under **Theme → Icons** and the picker will ask those packs too. How the whole pipeline works — sources, banking, the browser bridge — is in [the icon sets design notes](../design/notes/icon-sets.md).
 
 ## Extended entity support
 
 Until now, some device types got beautiful controls (media players, fans, covers) and the rest got a generic launcher. This release closes the gap:
 
-<img src="media/v087-controls.png" width="310" alt="A page of the new controls: a switch pair, a hold-to-unlock lock, a number slider, dropdown chips, and a scene button"> <img src="media/v087-dimmer.png" width="310" alt="Two brightness dimmers grouped into one card, with a compact dimmer row below">
+![A page of the new controls: a switch pair, a hold-to-unlock lock, a number slider, dropdown chips, and a scene button](../media/v087-controls.png) ![Two brightness dimmers grouped into one card, with a compact dimmer row below](../media/v087-dimmer.png)
 
 *Left: the new controls — a switch pair, a lock with hold-to-unlock, a number slider reading its range from the device, dropdown chips, a scene button. Right: the new light dimmer, twice over, grouped into one card.*
 
+- **All entities** support rendering as (a) A Launcher Tile, (b) a Control Tile. When a Control Tile is selected, there is typically a **large and compact** variant.
 - **Switches** show a two-button Off/On pair. The side that's currently active is lit; the other is raised and ready. No status line needed — the buttons are the status.
 - **Buttons, scenes and script triggers** are now a single tile that IS the button. Tap it and it flashes "Sent" so you know the press landed.
-- **Locks** get the careful treatment they deserve: locking is one tap, but unlocking takes a press-and-hold — half a second, with a fill that grows under your finger, and letting go early cancels. A jammed lock shows in red with a Retry. If your lock can also open a door (a latch), that hold applies there too.
+- **Locks** get the careful treatment they deserve: locking is one tap, but unlocking takes a press-and-hold — half a second, with a fill that grows under your finger, and letting go early cancels. A jammed lock shows in red with a Retry. If your lock can also open a door (a latch), that hold applies there too. Need some field testing on this one - I only have a basic one.
 - **Numbers** (a target temperature, a fan percentage) become sliders and steppers that read their range and step size from the device itself — a thermostat that moves in half degrees steps in half degrees.
 - **Dropdowns** (input selects, source pickers) get a proper picker page, or inline chips if you prefer.
 - **Lights get a real dimmer.** "Light control" draws a brightness track right in the tile — drag to dim, tap − / + to nudge, and sliding to zero honestly turns the light off. A compact form puts the value and − / + on the row instead. (Color and color temperature are on the list for a later release.)
 - **Thermostats and aircons get a temperature control.** The same track, mapped to the device's own range — drag to set the target, − / + step by the device's own increment (half degrees on a half-degree thermostat), and the status line keeps the mode and the current temperature so target and actual never blur. The far left is the minimum setpoint, not "off" — a thermostat's off is the power button.
 - **Fans** on speed-only hardware (no real on/off command) now toggle through their speed setting instead of erroring, and **covers** can flip their displayed direction with one setting when "open" on the device means "closed" on your wall.
-- **Open a device's page and the remote becomes that device's remote.** Tap the TV in your activity's cast — even one the activity gave no buttons to — and for as long as you're on its page, the d-pad, volume and source keys all drive *that* device, speaking its own key language. Step back and the activity has its keys again. No more fishing out the old remote to reach one buried menu. This is an upgrade from earlier betas, where the activity's key profile bled through onto a device page — standing on the Samsung's page, the arrows still went to the Fire TV. Now it's the device's own **device controller** that's active: the stock Media Device page, or a custom copy the device adopts from its card in Pre-wired Devices. The mental model behind all of it — the two kinds of controller, casts and context, what the preview really shows, who gets the keys — is written up in [How controllers work](cookbook/how-controllers-work.md).
+- **Open a device's page and the remote becomes that device's remote.** Tap the TV in your activity's cast — even one the activity gave no buttons to — and for as long as you're on its page, the d-pad, volume and source keys all drive *that* device, speaking its own key language. Step back and the activity has its keys again. No more fishing out the old remote to reach one buried menu. This is an upgrade from earlier betas, where the activity's key profile bled through onto a device page — standing on the Samsung's page, the arrows still went to the Fire TV. Now it's the device's own **device controller** that's active: the stock Media Device page, or a custom copy the device adopts from its card in Pre-wired Devices. The mental model behind all of it — the two kinds of controller, casts and context, what the preview really shows, who gets the keys — is written up in [How controllers work](../cookbook/how-controllers-work.md).
 
 You choose how any entity draws using the same "Draws as" menu everywhere, and if your config used older spellings for any of this, it's modernized automatically when the Studio loads it — with the count reported, and nothing you wrote by hand ever silently rewritten.
 
@@ -83,13 +89,13 @@ The cast is one ordered list now — pre-wired devices, loose entities and group
 
 ## The upgrade report
 
-When the Studio opens on a newer version than it last saw, it says what changed and what it did: built-ins it refreshed, your edited copies it preserved as forks, older spellings it modernized, and — separately — the behavior changes in this release, one line each. Nothing is rewritten silently; every heal is reported in the status line and listed in the report, and dismissing it is remembered at Save & Deploy. The design: [design-upgrade-audit.md](design-upgrade-audit.md).
+When the Studio opens on a newer version than it last saw, it says what changed and what it did: built-ins it refreshed, your edited copies it preserved as forks, older spellings it modernized, and — separately — the behavior changes in this release, one line each. Nothing is rewritten silently; every heal is reported in the status line and listed in the report, and dismissing it is remembered at Save & Deploy. The design: [upgrade-audit.md](../design/notes/upgrade-audit.md).
 
 ## Remote management
 
 Remotes & keymaps grew the section it always needed: **Your remotes**. Every remote that runs Harmonium announces itself, and the page lists them — online/asleep dot, which profile it wears, engine version, battery, last seen.
 
-<img src="media/v087-remotes.png" width="760" alt="The Your remotes list: three remotes with liveness dots, profiles, versions, battery levels, and Identify and Reload buttons">
+![The Your remotes list: three remotes with liveness dots, profiles, versions, battery levels, and Identify and Reload buttons](../media/v087-remotes.png)
 
 *The fleet at a glance: who's online, who's asleep, what each remote wears and how its battery is doing.*
 
@@ -98,7 +104,7 @@ Remotes & keymaps grew the section it always needed: **Your remotes**. Every rem
 - Link a remote to its **Fully Kiosk** device and the row shows live battery and the page it's currently on, and leads with a friendly name ("Porch remote" instead of a serial).
 - **Create battery alert** is one click: it creates a pre-wired automation from the battery-alerts blueprint, pointed at that remote's sensors, with sensible warning levels. Tune it later in Home Assistant if you like.
 
-All of this was built to cost the battery nothing: remotes report in on a heartbeat they were already sending, and commands ride the connection they already keep open. The fleet's design — why remotes announce themselves, why profiles are outfits — is in [the remote fleet design notes](design-remote-fleet.md).
+All of this was built to cost the battery nothing: remotes report in on a heartbeat they were already sending, and commands ride the connection they already keep open. The fleet's design — why remotes announce themselves, why profiles are outfits — is in [the remote fleet design notes](../design/notes/remote-fleet.md).
 
 ## External control
 
@@ -112,12 +118,10 @@ Activities aren't just for remotes. Wall switches, dashboards and automations ca
 
 The Studio now treats every kind of tile the same way it treats the remote: one grammar, everywhere.
 
-- Activity, preset, device, doorway and control cards all use the same two tidy rows — name and id up top, icon/accent/style below. A tile drawn as a light or temperature control keeps its accent row; a doorway to another page can wear a color like anything else.
-- Menus offer only what their tiles can actually wear — and everything they can: a device tile's style menu doesn't list title-led looks it has no title band for, a section's accent-style menu matches what's in the section, and every control with shapes (light and temperature included) offers its Inline / Compact variant.
-- The accent picker is a compact button that opens a two-tab panel — **Accents | Brands** — with every swatch on a small chip so light and dark colors both read, and it now floats above everything instead of getting clipped inside collapsed cards.
-
-  <img src="media/v087-picker.png" width="290" alt="The Accents and Brands picker open on the Brands tab, each brand color on its own chip">
-
+- Activity, preset and device cards all use the same two tidy rows — name and id up top, icon/accent/style below.
+- Menus offer only what their tiles can actually wear: a device tile's style menu doesn't list title-led looks it has no title band for, and a section's accent-style menu matches what's in the section.
+- The accent picker is a compact button that opens a two-tab panel — **Accents | Brands** — with every swatch on a small chip so light and dark colors both read, and it now floats above everything instead of getting clipped inside collapsed cards.  
+![The Accents and Brands picker open on the Brands tab, each brand color on its own chip](../media/v087-picker.png)
 - **▶ Test runs what's on your screen** — unsaved edits included. That's the whole point of testing. Saving is still what sends it to the remote.
 - Anything the Studio modernizes or slims down on load is reported in the status line, never done silently.
 
@@ -131,4 +135,4 @@ The Studio now treats every kind of tile the same way it treats the remote: one 
 
 ## Upgrading
 
-Restart Home Assistant after updating — this release changes the integration, not just the remote files. On first load the Studio will modernize older control spellings, fold loose entities into the cast's order, release device-bound copies into templates, turn the old TV-tuner flag into ch_up / ch_down, and bring the stock TV and Music controllers to their new generation; all of it is reported in the status line and the upgrade report, and none of it touches anything you edited by hand. Save & Deploy once to make it permanent. Colors are entirely opt-in: nothing changes on your remotes until you pick an accent.
+Restart Home Assistant after updating — this release changes the integration, not just the remote files. On first load the Studio will modernize older control spellings and slim down untouched generated sequences; it will also fold loose entities into the cast's order, release device-bound copies into templates, turn the old TV-tuner flag into ch_up / ch_down, and bring the stock TV and Music controllers to their new generation. All of it is reported in the status line and the upgrade report, and none of it touches anything you edited by hand. Save & Deploy once to make it permanent. Colors are entirely opt-in: nothing changes on your remotes until you pick an accent.
