@@ -121,7 +121,7 @@ exit /b 0
 
 :init
 if not exist "%DST%www\harmonium\" mkdir "%DST%www\harmonium"
->"%DST%www\harmonium\.house" echo|set /p="%HOUSE_ID%"
+>"%DST%www\harmonium\.house" <nul set /p "=%HOUSE_ID%"
 echo  Marked %DST%www\harmonium\.house = %HOUSE_ID%
 if not defined HARMONIUM_NOPAUSE pause
 exit /b 0

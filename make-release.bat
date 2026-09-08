@@ -25,20 +25,25 @@ rem ============================================================
 setlocal
 set "HARMONIUM_NOPAUSE=1"
 
-echo [1/3] Building the Studio...
+echo [1/4] Checking version stamps...
+call node "%~dp0tests\probe-version-stamps.mjs"
+if errorlevel 1 goto :failed
+
+echo.
+echo [2/4] Building the Studio...
 pushd "%~dp0studio-src"
 call npm run build
 if errorlevel 1 goto :failed
 popd
 
 echo.
-echo [2/3] Building the engine...
+echo [3/4] Building the engine...
 pushd "%~dp0"
 call node build-engine.mjs
 if errorlevel 1 goto :failed
 
 echo.
-echo [3/3] Bundling the engine into the integration...
+echo [4/4] Bundling the engine into the integration...
 if not exist "custom_components\harmonium\engine" mkdir "custom_components\harmonium\engine"
 copy /y "dist\index.html" "custom_components\harmonium\engine\index.html" >nul
 if errorlevel 1 goto :failed

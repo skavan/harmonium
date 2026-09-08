@@ -132,6 +132,7 @@ The Studio now treats every kind of tile the same way it treats the remote: one 
 - Launcher labels stopped truncating early — a spacing rule was charging the icon trail twice, and long names like "Zone 1 - Lounge" now use the room they always had.
 - A half-typed entity id in the Studio can no longer break the live connection for the whole preview.
 - Derived dialects (a dialect defined as "like that one, plus/minus these keys") are now resolved by the integration itself, so they work everywhere, not just in the Studio preview.
+- **Tapping an already-running activity in a house with more than one room no longer throws a "Validation error".** The tap repairs the activity select of the room that owns the activity, not the first room's. Reported and diagnosed by **fahrer16** (PR #8) — thank you.
 
 ## Upgrading
 

@@ -52,12 +52,27 @@ const before = JSON.stringify(cfgC);
 healStockSkins(cfgC);
 const idempotent = JSON.stringify(cfgC) === before;
 
+// d) legacy stock profile with no skin → receives the current stock photo
+const cfgD = { remotes: { astrion: { capabilities: ["touch"] } } };
+healStockSkins(cfgD);
+const missingPlanted = cfgD.remotes.astrion.skin?.image ===
+  STOCK_SKINS.astrion.image;
+
+// e) removeSkin hoists viewport before deleting skin → preserve that choice
+const cfgE = { remotes: { astrion: { viewport: { w: 349, h: 581 } } } };
+const removedBefore = JSON.stringify(cfgE);
+healStockSkins(cfgE);
+const removedKept = JSON.stringify(cfgE) === removedBefore;
+
 if (!healOk) errs.push("healStockSkins did not refresh a behind stock skin");
 if (!userKept) errs.push("healStockSkins clobbered a user's own photo");
 if (!idempotent) errs.push("healStockSkins not idempotent on a current skin");
+if (!missingPlanted) errs.push("healStockSkins did not plant a missing stock skin");
+if (!removedKept) errs.push("healStockSkins restored an explicitly removed skin");
 
 console.log(JSON.stringify({
   driftChecked: Object.keys(STOCK_SKINS), healOk, userKept, idempotent,
+  missingPlanted, removedKept,
   ok: errs.length === 0, errs,
 }, null, 1));
 if (errs.length) process.exit(1);

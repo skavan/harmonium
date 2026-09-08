@@ -35,7 +35,9 @@ goto :end
 echo  ************************************************************
 echo   PUSH FAILED -- nothing was copied. Read the message above.
 echo  ************************************************************
-goto :end
+echo.
+echo %cmdcmdline% | find /i "%~nx0" >nul && pause
+exit /b 1
 
 :nodefault
 echo.
@@ -49,4 +51,5 @@ exit /b 1
 
 :end
 echo.
-pause
+echo %cmdcmdline% | find /i "%~nx0" >nul && pause
+exit /b 0

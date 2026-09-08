@@ -47,3 +47,6 @@ remotes/.last-target
 remotes/battery-runs/
 # your manual safety copy of the remotes tree
 remotes-snapshot/
+
+# Claude session outputs (screenshots, drafts) -- local scratch
+Claude outputs/

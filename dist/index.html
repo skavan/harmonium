@@ -24,6 +24,17 @@
     --btn-h: 46px;              /* ± buttons, pills, actions */
     --focus-w: 2px;             /* d-pad focus ring */
     --focus-offset: 2px;        /* outset; negated on a card */
+    /* THE RING'S COLOUR (v0.87.0 — a tester on an old iPhone: "a
+       setting to turn off the orange highlight ring, everywhere"):
+       every .focused rule paints through these three, never through
+       --accent directly, so one theme key (focus-ring: a colour, or
+       "off") re-tints or retires the d-pad cursor. "off" is html.noring
+       below — transparent, not absent: the focus engine keeps its
+       stop, only the paint goes. A touch-only remote has no d-pad, so
+       its cursor is just a ring stuck on whatever was tapped last. */
+    --focus-ring: var(--accent);
+    --focus-bg: var(--tile-hi);
+    --focus-wash: var(--wash);
     --hold-ms: 500ms;           /* V7 §9: the unlock/open hold */
     --track-channel: #1a212b;   /* recessed channel */
     --track-hairline: #2a3340;  /* channel edge */
@@ -277,6 +288,20 @@
   }
   #app.scr-music .npa { font-family: var(--font-m2); font-size: calc(var(--fs-m2) + 1px); font-weight: var(--fw-m2); }
   #app.scr-music .npb { font-family: var(--font-m2); font-size: calc(var(--fs-m2) - 1px); font-weight: var(--fw-m2); }
+/* focus-ring: off — the ring is painted transparent everywhere it
+   would show (border, outline, inset shadow, the wash + lift behind
+   it); the .focused class and the cursor logic are untouched. */
+html.noring {
+  --focus-ring: transparent;
+  --focus-bg: var(--tile);
+  --focus-wash: transparent;
+}
+html.noring .trail.tracc.focused { border-color: transparent; }
+html.noring .tile.wgt-media.art .trail.focused,
+html.noring .tile.wgt-media.art .trail.tracc.focused {
+  background: linear-gradient(to right,
+    rgba(13, 15, 18, 0), rgba(13, 15, 18, .55) 45%, rgba(13, 15, 18, .82));
+}
 
 /* status bar — ONE line, always: back chevron (when history) +
      ellipsized title + compact perf readout */
@@ -404,7 +429,7 @@
   .hstrip .hjump:nth-child(2):not(:last-child) { justify-content: center; }
   .hjump.active { color: var(--accent); }
   .hjump.focused, #banner .btitle.focused {
-    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
+    outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; border-radius: 8px;
   }
 
   /* THE STRIP (v0.83.11 — Suresh's pad doctrine: "a thin strip
@@ -808,7 +833,7 @@
   .tile.wgt-media.hero .trail:active .ic.material-symbols-outlined { color: inherit; }
   .tile.wgt-media.poster .trail.focused,
   .tile.wgt-media.hero .trail.focused {
-    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring, var(--accent));
   }
 
   /* APP TILES, 2-UP (v0.83.8 — Suresh: "lets make this grid 2 x 2
@@ -849,7 +874,7 @@
      overflow but the circle stays a circle */
   .trow .dpbtn { width: 64px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
   /* roving highlight: double ring reads on dark AND accent buttons */
-  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .tile.focused .trow .cvsel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus-ring, var(--accent)); }
   .trow .trbig { width: 84px; height: 84px; border-radius: 50%; background: var(--accent); color: var(--accent-ink, #14181d); }
   .trow .trbig:active { background: var(--on); }
   .trow .trbig .material-symbols-outlined { font-size: 38px; }
@@ -860,7 +885,7 @@
   .btnrow { display: flex; align-items: center; gap: 12px; padding: 4px 0 2px; }
   .btnrow .dpbtn { flex: 1; height: 50px; border-radius: 14px; border: 2px solid transparent; }
   /* roving highlight inside a button row (◀▶ while the tile is focused) */
-  .tile.focused .btnrow .cvsel { border-color: var(--accent); }
+  .tile.focused .btnrow .cvsel { border-color: var(--focus-ring, var(--accent)); }
   .tile.wgt-buttons .top, .tile.wgt-buttons .sub, .tile.wgt-buttons .hint { display: none; }
   .tile.wgt-buttons { min-height: 0; }
   /* media mode bar (shuffle/repeat): accent icon = mode active */
@@ -1244,8 +1269,8 @@
      offset, zero layout shift, and the confirm/captured cues own
      the same slot so they can never double. */
   .tile.focused {
-    border-color: var(--accent);
-    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    border-color: var(--focus-ring, var(--accent));
+    background: linear-gradient(0deg, var(--focus-wash, var(--wash)), var(--focus-wash, var(--wash))), var(--focus-bg, var(--tile-hi));
   }
   /* UNAVAILABLE keeps its chassis (Wave B): grey the identity, keep
      the box and the actions — a list never reflows because the
@@ -1971,8 +1996,8 @@
   .trail .ic.material-symbols-outlined { font-size: 26px; }
   .trail:active { background: var(--accent); color: var(--accent-ink, #14181d); }
   .trail.focused {
-    border-color: var(--accent); color: var(--text);
-    background: linear-gradient(0deg, var(--wash), var(--wash)), var(--tile-hi);
+    border-color: var(--focus-ring, var(--accent)); color: var(--text);
+    background: linear-gradient(0deg, var(--focus-wash, var(--wash)), var(--focus-wash, var(--wash))), var(--focus-bg, var(--tile-hi));
   }
   /* ACCENT TRAIL (v0.68.1 — Suresh, of the library button on Now
      Playing: "inverting the library launch button, to make it more
@@ -2018,7 +2043,7 @@
   .tile.wgt-media.art .trail.focused,
   .tile.wgt-media.art .trail.tracc.focused {
     /* borderless — the focus ring is an inset shadow instead */
-    box-shadow: inset 0 0 0 2px var(--accent);
+    box-shadow: inset 0 0 0 2px var(--focus-ring, var(--accent));
     background: linear-gradient(to right,
       rgba(13, 15, 18, .15), rgba(13, 15, 18, .7) 45%, rgba(13, 15, 18, .92));
   }
@@ -2596,13 +2621,25 @@ async function loadConfig(ws) {
 let THEMED = [];   /* vars set by the last applyTheme — cleared first so
                       a REMOVED key falls back to the stylesheet default
                       (live Studio editing relies on this) */
+/* focus-ring (v0.87.0): a colour rides through as the --focus-ring
+   token like any other key; the words off / none / false / 0 mean
+   "no ring" and become html.noring instead (an invalid colour in the
+   token would fall to currentColor and paint a WHITE ring — the
+   opposite of what was asked). The class is recomputed on every
+   apply, so a remote profile can switch it either way (remotes.<id>
+   .style rides the same map: a touch-only phone turns it off while
+   the d-pad remotes keep theirs). */
+const RING_OFF = /^(off|none|false|0|no)$/i;
 function applyTheme(theme) {
   for (const k of THEMED) document.documentElement.style.removeProperty(k);
   THEMED = [];
+  let noring = false;
   for (const [k, v] of Object.entries(theme || {})) {
+    if (k === "focus-ring" && RING_OFF.test(String(v).trim())) { noring = true; continue; }
     document.documentElement.style.setProperty("--" + k, v);
     THEMED.push("--" + k);
   }
+  document.documentElement.classList.toggle("noring", noring);
 }
 
 /* ================================================================
@@ -7706,7 +7743,7 @@ function keysScreen() {
 /* the engine's own version — bump alongside PROJECT.md's changelog
    (the config carries its own version; the ENGINE never had one on
    screen until the diag page needed a place to say it) */
-const ENGINE_V = "0.85.8";
+const ENGINE_V = "0.87.0";
 
 function diagRow(id, icon, label, sub) {
   return { id, type: "preset", span: 2, icon: "material:" + icon,
@@ -9101,8 +9138,14 @@ WIDGETS.activity = {
       if (S.confirmTile === t.id) { requestEnd(t, a); return; }
       if (isActActive(t)) {
         /* v2 self-heal: device truth says ON but the select is stale —
-           silently repair the routing cache while opening the screen */
-        const sel = CONFIG.global.activity_select;
+           silently repair the routing cache while opening the screen.
+           Ask the select of the room that OWNS the activity (PR #8,
+           fahrer16 — `global.activity_select` is one room's select, so
+           in a two-room workspace the other room's option "isn't in
+           the list" and HA rejects the call), then the screen's, then
+           global. */
+        const own = a.room_view && rawScreen(a.room_view);
+        const sel = (own && own.activity_select) || roomActivitySelect();
         if (sel && activityStateOn(a) === true &&
             st(sel).s !== (a.state_value || t.activity))
           callService(sel.split(".")[0], "select_option",

@@ -9,6 +9,28 @@ by concern: src/core, src/widgets one-file-per-widget, src/ui,
 src/styles; zero-dep `build.mjs` → single-file `dist/index.html`).
 Working docs: `S:\Documents\HA26` · Session partner: Claude (Cowork).
 
+## Current state (v0.87.0 — legacy stock photos restored)
+
+An imported pre-skin config could carry an existing `astrion` profile
+without `skin`; `healStockRemotes` correctly preserved the existing profile,
+while `healStockSkins` skipped it, leaving Studio's preferred Astrion preview
+in the plain browser frame until the photo preset was clicked. Missing stock
+skins are now planted when the profile has no preserved viewport. A viewport
+without a skin remains the explicit “remove photo” marker and is untouched.
+Studio stamp: `0.87.0 b56`; the focused stock-skin, ownership, remote-profile,
+and catalog-sync probes cover the migration.
+
+## Current state (v0.87.0 — version stamps realigned)
+
+The `0.85.8` stamp commit reset Studio's monotonic build counter from
+`b54` to `b1`; the later `0.86.0` and `0.87.0` release work updated the
+manifest without updating `ENGINE_V` or `STUDIO_V`. The deployed `.94`
+artifacts matched the checkout byte-for-byte, so the stale labels were
+source metadata rather than stale installation. Stamps are now aligned at
+manifest/engine `0.87.0` and Studio `0.87.0 b55`. The release script runs
+`tests/probe-version-stamps.mjs` before building so release drift or another
+counter reset fails early.
+
 ## Intent
 
 Build a lightweight, fast-loading control frontend for Home Assistant aimed

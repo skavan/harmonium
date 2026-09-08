@@ -1060,7 +1060,14 @@ export function healStockSkins(cfg) {
   for (const id in STOCK_SKINS) {
     const stock = STOCK_SKINS[id];
     const r = cfg.remotes[id];
-    if (!r || !r.skin) continue;                     // profile absent / no skin
+    if (!r) continue;
+    /* A legacy stock profile can predate bundled skins entirely. Plant
+       the current photo unless a profile-level viewport proves the user
+       explicitly removed it (removeSkin preserves that measurement). */
+    if (!r.skin) {
+      if (!r.viewport) r.skin = JSON.parse(JSON.stringify(stock));
+      continue;
+    }
     const sk = r.skin;
     if ((sk.gen || 0) >= (stock.gen || 0)) continue; // already current
     if (!isStockSkinImage(sk.image, stock.image)) continue;  // user photo — theirs

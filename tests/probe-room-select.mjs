@@ -10,7 +10,11 @@
         deck walk falls to the GLOBAL select and answers porch_watch —
         the bug. If fence 3 ever fails, the ENGINE started resolving
         rooms without the wiring; retire the deploy shim consciously,
-        not by accident. */
+        not by accident;
+     4. (PR #8, fahrer16) tapping a RUNNING activity tile whose select
+        is stale self-heals the select of the room that OWNS the
+        activity — standing on porch, a deck tile repairs DECK's
+        select, never porch's (global's) — the "Validation error". */
 import { chromium } from 'playwright-core';
 
 const HUB = (room, sel) => ({ name: room, type: 'hub', room: true,
@@ -55,6 +59,7 @@ await p.addInitScript((STATES) => {
   window.WebSocket = class {
     constructor() { setTimeout(() => this.onmessage?.({ data: JSON.stringify({ type: 'auth_required' }) }), 20); }
     send(m) { const msg = JSON.parse(m);
+      if (msg.type === 'call_service') (window._CALLS = window._CALLS || []).push(msg);
       const reply = (o) => setTimeout(() => this.onmessage?.({ data: JSON.stringify(o) }), 15);
       if (msg.type === 'auth') reply({ type: 'auth_ok' });
       else if (msg.type === 'subscribe_entities') {
@@ -111,6 +116,29 @@ a = await answer();
 ck('unwired shape falls to the GLOBAL select (the bug this pins)',
   a.sel === 'select.harmonium_porch_activity' && a.cur === 'porch_watch');
 
-console.log(JSON.stringify({ last: a, ok: errs.length === 0, errs }, null, 1));
+/* --- 4. self-heal on a running tile repairs the OWNING room's select ---
+   (PR #8): restore the wired shape, declare deck_watch's state so device
+   truth says ON, make deck's select stale, stand on PORCH and tap a
+   deck_watch tile. The select_option must go to deck's select. */
+const heal = await p.evaluate(() => {
+  CONFIG.screens.porch.activity_select = 'select.harmonium_porch_activity';
+  CONFIG.screens.deck.activity_select = 'select.harmonium_deck_activity';
+  CONFIG.activities.deck_watch.state =
+    { entities: ['media_player.d1'], on: { any_state: ['playing'] } };
+  S.states.set('select.harmonium_deck_activity',
+    { s: 'off', a: { options: ['deck_watch', 'off'] } });
+  S.stack = []; navigate('porch');
+  window._CALLS = [];
+  WIDGETS.activity.select(null, { id: 't_deck', activity: 'deck_watch' });
+  const c = (window._CALLS || []).filter(m =>
+    m.domain === 'select' && m.service === 'select_option');
+  return { n: c.length, target: c[0] && c[0].target && c[0].target.entity_id,
+    option: c[0] && c[0].service_data && c[0].service_data.option };
+});
+ck('self-heal fired exactly once', heal.n === 1);
+ck('self-heal repairs DECK\'s select from the porch page (not global\'s)',
+  heal.target === 'select.harmonium_deck_activity' && heal.option === 'deck_watch');
+
+console.log(JSON.stringify({ last: a, heal, ok: errs.length === 0, errs }, null, 1));
 await b.close();
 if (errs.length) process.exit(1);

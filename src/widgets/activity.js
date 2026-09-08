@@ -18,8 +18,14 @@ WIDGETS.activity = {
       if (S.confirmTile === t.id) { requestEnd(t, a); return; }
       if (isActActive(t)) {
         /* v2 self-heal: device truth says ON but the select is stale —
-           silently repair the routing cache while opening the screen */
-        const sel = CONFIG.global.activity_select;
+           silently repair the routing cache while opening the screen.
+           Ask the select of the room that OWNS the activity (PR #8,
+           fahrer16 — `global.activity_select` is one room's select, so
+           in a two-room workspace the other room's option "isn't in
+           the list" and HA rejects the call), then the screen's, then
+           global. */
+        const own = a.room_view && rawScreen(a.room_view);
+        const sel = (own && own.activity_select) || roomActivitySelect();
         if (sel && activityStateOn(a) === true &&
             st(sel).s !== (a.state_value || t.activity))
           callService(sel.split(".")[0], "select_option",

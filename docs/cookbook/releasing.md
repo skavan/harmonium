@@ -18,7 +18,11 @@ tag, so publishing is just commit + tag.
 - The battery is green (serve `dist/` on :8482, run `tests/smoke-*`)
   and `docs/PROJECT.md` has the round's entry.
 - Release notes exist if you want real ones on the GitHub page
-  (`docs/release-notes-v<version>.md` — v0.83.7 set the pattern).
+  (`docs/releases/release-notes-v<version>.md` — v0.83.7 set the pattern).
+- `README.md` → the **Status** section names the version you're about
+  to tag, and its "What's new" link points at this release's notes in
+  `docs/releases/`. (The README doesn't list features any more — the
+  release notes do.)
 
 ## 1. Build everything — `make-release.bat`
 
