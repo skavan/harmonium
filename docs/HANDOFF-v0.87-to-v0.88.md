@@ -6,6 +6,18 @@ Everything below was verified against the repo and the running code on the day i
 
 ---
 
+## 2026-09-09 — v0.87.0 IS RELEASED. Read this block, then §1 (the rules); the rest is now history.
+
+**Done on 2026-09-08, from the Jamaica machine (`dragonfly-evo`, repo at `G:\Local Documents\Code 2025\repos\harmonium`):** release commit + annotated tag `v0.87.0` (the old wrong tag had already gone from GitHub — the push said `[new tag]`), GitHub release published with pictures (absolute `raw.githubusercontent.com/…/v0.87.0/…` links — `Claude outputs/release-notes-v0.87.0-github.md` is the pasted copy; `Claude outputs/` is gitignored now), .95 (production Jamaica) updated through HACS, PR #8 landed and closed, forum threads told, the channel-keys tester answered (the tuner switch in Control target is the answer). Also in the release commit: PR #8's fix with the owning-room resolution + fence 4 in `probe-room-select`; the README rewrite (his voice kept verbatim, "What it does" one-liners, Gallery of the pictorials, plain Status); the two tracked clutter files and `Claude outputs/` removed; `docs/cookbook/releasing.md` gained the README preflight bullet and the corrected `docs/releases/` path. After the tag: the release notes gained an "Upgrading? export first, Save & Deploy after" callout under the title (repo copy + the GitHub page). The 0.88 round is open: manifest / `ENGINE_V` / `STUDIO_V` = `0.88.0-dev` (build counter kept at b56).
+
+**Houses now.** `.95` = production Jamaica HA, HACS-installed, on 0.87.0 — entity ids as in `houses/jamaica*/config.json`. `.94` = `jamaica-dev`, a HAOS VirtualBox VM on this PC (default house here; `houses/jamaica-dev.cmd`); it got a fresh config built from its own entities after the imported production config turned out to reference 17 entities that don't exist there. The VM stalls (`rcu_preempt self-detected stall`) when the host is busy or sleeps — not a Harmonium problem; it recovers on its own. CT is unchanged.
+
+**Working from this machine.** This session type had no device shell, so every edit was stage → edit in the container → `device_commit_files` with `expectedMtimeMs` → re-stage → md5 both sides. One trap found and reproduced twice: **writing to the same staged path a second time lands the previous content** — the guard passes, the tool says "written", and the file is stale. Use a fresh staged path for every write and always md5 after. Engine builds and probes run fine in the container (`node build-engine.mjs`, serve `dist/` on 8482, link `playwright-core` from `/opt/node-tools/node_modules`, `npm i acorn` for `probe-syntax-floor`); the Studio still builds only on his machine.
+
+**Next.** His picks, in rough order: the fifth pictorial (his), the code-comment path sweep, then a 0.88 item — light color/color-temp is the biggest hole; custom icon sets and Save + Reload fan-out were user asks; whatever the forum sends back outranks all of it. `probe-version-stamps.mjs` now gates `make-release.bat` — all three stamps must agree.
+
+---
+
 ## 0. Where we are, in one paragraph
 
 v0.87.0 is code-complete, fenced (126 probes green) and fully synced to the repo. It has been **committed once** (5e79127, "v0.87.0 — entity controls, groups and casts, controller model, upgrade report") but that commit does not contain the last day's work (the focus-ring setting, the docs reorganization, the release-notes repair, the how-controllers-work section). The tag `v0.87.0` was created **on the wrong commit** (29dedd9, the September 2 commit) and pushed to GitHub before the release commit existed; it has to be deleted and recreated. No GitHub release has been drafted. The manifest says `0.87.0`.

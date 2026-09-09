@@ -206,7 +206,7 @@ export function clearCurrent() {
    build counter that never resets (b30 continues the old 0.83.NN
    line, so history stays ordered). The footer reads s0.83.8 b30:
    release first, fingerprint after. */
-export const STUDIO_V = "0.87.0 b56";
+export const STUDIO_V = "0.88.0-dev b56";
 
 export const token = () => localStorage.getItem("hakr_token") || "";
 

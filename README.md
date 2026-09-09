@@ -29,12 +29,21 @@ I wanted an AV first replacement, and thus was born **Harmonium**.
 
 The bottleneck on remote hardware is not the webview — it is the stock HA frontend: a multi-megabyte bundle plus a websocket firehose of every entity in your instance. Harmonium subscribes to **only the** **entities on the current screen** (~20 messages instead of thousands) and renders them with a dependency-free engine that ships as **one** **auditable HTML file**. The result on a Sanytron Astrion or Haptique RS90: a fast load and a responsive page — not the multi-second Lovelace crawl.
 
-- **Fast.** Quick cold boot even on ancient vendor webviews — the engine's enforced compatibility floor is 2017-era Chromium 61, the Astrion's built-in fallback. No framework, no multi-megabyte bundle, no loading spinner.
-- **Buttons are first-class.** Full D-pad / spatial-focus operation. During an activity, the physical D-pad *is* the device's D-pad (Harmony-style passthrough); touch always drives the UI.
-- **Activities live in HA, not the remote.** Start "Watch Fire TV" and the TV, soundbar and input switching run HA-side; the remote is a dumb, fast 2-way window onto them. Every remote in the house agrees about what's running.
-- **Pairing, not tokens.** A new remote shows a short code; you approve it in the Studio. No copying long-lived tokens onto a kiosk device.
-- **A real editor.** The Studio runs as an HA panel. Its live preview IS the engine — rendered inside a photo of your remote, with every physical button mapped and washed live as bindings change.
-- **Opinionated, but highly configurable**. The Studio generated pages are "opinionated". The height of a tile, the fonts, the border-radius and so on. But almost all of these are configurable and as I learn more, I (and the community) can do more.
+## What it does
+
+- Loads fast on old hardware. The engine is one HTML file with no framework, and it runs on webviews as old as Chromium 61 (the Astrion's built-in one).
+- Activities, Harmony-style. "Watch Fire TV" turns on the TV, the soundbar and the right input, HA-side. Every remote in the house sees the same thing running.
+- Physical buttons do the right thing. During an activity the D-pad drives the device; on a device's page it drives that device; everywhere else it moves the cursor on screen.
+- A page for every device type: switches, buttons and scenes, locks (hold to unlock), numbers, dropdowns, a real light dimmer, thermostats, fans, covers, media players.
+- Control groups: several devices as one card, each drawn the way you say.
+- Now Playing with album art, a music library browser with search, and one-tap presets (Netflix, a radio station, a scene).
+- One design language across every tile, with your own accent colors and real brand colors for apps and devices.
+- Icons from everything installed in your HA: Material, brand icon packs, MDI, and any custom icon sets you have added.
+- A Studio, built into HA as a panel, where you build all of it visually. The preview is the real engine, drawn inside a photo of your remote.
+- Pairing with a short code instead of copying tokens onto a kiosk device.
+- Your remotes on one page: every paired remote, its battery, a one-click battery alert, and Save & Deploy that reloads all of them.
+- Activities you can start and stop from outside Harmonium — a wall switch, an automation, anything that can call a service.
+- Workspaces, so a second remote can have a different world.
 
 ## 📺 Video tutorials — watch it built
 
@@ -52,6 +61,22 @@ working activities page with connected controllers in half an hour.
 (The tutorials above show all of it in motion.)
 
 ![The Studio touring the preview through the hub, music controller, comfort page and diagnostics](docs/media/studio-tour.gif)
+
+## Gallery
+
+Short walkthroughs, mostly pictures. Each one is a thing you can do in the Studio in a few minutes.
+
+| | |
+| --- | --- |
+| [**Entity support and variants**](docs/pictorials/Entity%20Support%20and%20variants.md) — pick a tile, choose how it draws, see it in the preview | [**Styling tiles**](docs/pictorials/Styling%20Tiles.md) — group defaults and individual overrides |
+| [**Control groups**](docs/pictorials/Control%20Groups.md) — create a group, populate it, choose how each member draws | [**A custom controller**](docs/pictorials/Custom%20Controller.md) — clone a stock controller, change it, pick it for an activity |
+
+<p align="center">
+  <a href="docs/pictorials/Styling%20Tiles.md"><img src="docs/pictorials/media/pasted_20260906-192504.png" width="80%" alt="Styling tiles in the Studio" /></a>
+</p>
+<p align="center">
+  <a href="docs/pictorials/Entity%20Support%20and%20variants.md"><img src="docs/pictorials/media/pasted_20260907-000122.png" width="30%" alt="Every device type drawn with the same controls" /></a>
+</p>
 
 ## Quick start
 
@@ -72,7 +97,7 @@ working activities page with connected controllers in half an hour.
 >
 > Open it on your laptop right now and drive the house with your keyboard — the hardware remote is the same page in a kiosk.
 
-The full walk-through (including hardware remotes) is in **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)**.
+The full walk-through (including hardware remotes) is in **[GETTING-STARTED.md](docs/GETTING-STARTED.md)**.
 
 ### Putting it on a hardware remote
 
@@ -106,7 +131,7 @@ Task-shaped guides, one outcome each — start here after install:
 | [Removing Harmonium](docs/cookbook/remove-harmonium.md)                      | Complete removal — HA, data, tokens, and the remotes |
 
 Hand-edited config beyond what the Studio surfaces: the config  
-contract lives in [docs/screen-schema.md](docs/screen-schema.md).
+contract lives in [screen-schema.md](docs/screen-schema.md).
 
 ## How it's built
 
@@ -120,9 +145,9 @@ contract lives in [docs/screen-schema.md](docs/screen-schema.md).
 The engine's enforced compatibility floor is **Chromium 61** (the Astrion's built-in fallback), because some remotes ship vendor-frozen webviews and that floor is the normal case. A Playwright battery of 120-plus probes drives the real engine and the real Studio against stubbed websockets on every change.
 
 Architecture, doctrines and the full decision log:  
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·  
-[docs/PROJECT.md](docs/PROJECT.md) ·  
-[docs/design/notes](docs/design/notes/README.md) — the reasoning behind the bigger pieces
+[ARCHITECTURE.md](docs/ARCHITECTURE.md) ·  
+[PROJECT.md](docs/PROJECT.md) ·  
+[design/notes](docs/design/notes/README.md) — the reasoning behind the bigger pieces
 
 > **`dist/config.json` is a test fixture, not a deployable.** Code is shared; config belongs to each house's Home Assistant and is never pushed from the repo. See `houses/README.md` for the multi-house model.
 
@@ -139,8 +164,11 @@ Fork setup, deploy scripts (`build-push.bat` and friends, driven by `houses\defa
 
 ## Status
 
-Beta (v0.87.0). Daily-driving on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses. This release: **one design language** everywhere, with accents and real brand colors; **controls for every device type** (switches, buttons and scenes, locks, numbers, dropdowns, a real light dimmer, thermostats); **control groups** and one ordered cast; the **device takeover** page (a device's page speaks that device); the **Your remotes** fleet page with save-to-all-remotes; icon search across everything your HA has installed; the **upgrade report**. Release notes: [docs/releases/release-notes-v0.87.0.md](docs/releases/release-notes-v0.87.0.md) and [docs/releases](docs/releases). Roadmap and open items:  
-[docs/PROJECT.md](docs/PROJECT.md).
+Beta, v0.87.0. It runs every day on two Sanytron Astrions and a Haptique RS90 (Fully Kiosk) across two houses, and a handful of testers are running it on theirs.
+
+What's new in this release, and in every release before it: [releases/release-notes-v0.87.0.md](docs/releases/release-notes-v0.87.0.md) · [all release notes](docs/releases/).
+
+What's next: [beta-gaps.md](docs/beta-gaps.md) is the living roadmap; [PROJECT.md](docs/PROJECT.md) is the decisions log.
 
 ## Asks
 
