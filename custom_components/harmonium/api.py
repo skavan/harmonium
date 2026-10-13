@@ -98,7 +98,12 @@ class HarmoniumFleetView(HomeAssistantView):
     def _fully_devices(self) -> list[dict]:
         from homeassistant.helpers import device_registry as dr
         out = []
-        for dev in dr.async_get(self.hass).devices.values():
+        reg = dr.async_get(self.hass)
+        # devices of the Fully Kiosk config entries; `registry.devices` as a mapping
+        # (.values() / .get()) is deprecated in Home Assistant and stops in 2027.9
+        devices = [dev for entry in self.hass.config_entries.async_entries("fully_kiosk")
+                   for dev in dr.async_entries_for_config_entry(reg, entry.entry_id)]
+        for dev in devices:
             if not any(i[0] == "fully_kiosk" for i in (dev.identifiers or ())):
                 continue
             host = ""
@@ -115,7 +120,7 @@ class HarmoniumFleetView(HomeAssistantView):
         """The linked device's name + borrowed entity ids + live reads."""
         from homeassistant.helpers import device_registry as dr
         from homeassistant.helpers import entity_registry as er
-        dev = dr.async_get(self.hass).devices.get(device_id)
+        dev = dr.async_get(self.hass).async_get(device_id)
         if dev is None:
             return {"fully_missing": True}
         ents = er.async_entries_for_device(er.async_get(self.hass), device_id)
